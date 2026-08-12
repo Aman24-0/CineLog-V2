@@ -1,17 +1,19 @@
-// Full end-to-end POC: resolver + all sources (no Supabase cache).
+// Full end-to-end POC: resolver + JustWatch source (no Supabase cache).
 // Run with: TMDB_API_KEY=xxx node /tmp/full-poc.mjs
 //
-// Without TMDB_API_KEY, the resolver will skip the TMDB translations
-// source (returns success:false with "TMDB_API_KEY not configured")
-// and the original-languages list will be empty. JustWatch will still
-// return its data, so dubbedLanguages will equal detectedAudioLanguages
-// (no original-language subtraction possible).
+// Without TMDB_API_KEY, the resolver cannot fetch original/spoken
+// languages, so originalLanguages will be empty and dubbedLanguages
+// will equal detectedAudioLanguages (no original-language subtraction
+// possible). JustWatch still returns its data.
+//
+// NOTE: TMDB translations were removed from the audio pipeline (they
+// are metadata translations, not audio tracks). Only genuine
+// audio-specific sources (JustWatch `audioLanguages`) remain.
 
 import { resolveAudioLanguages } from "../src/server/audio-language/resolver.ts";
 import { JustWatchSource } from "../src/server/audio-language/sources/justwatch.ts";
-import { TmdbTranslationsSource } from "../src/server/audio-language/sources/tmdb-translations.ts";
 
-const sources = [new JustWatchSource(), new TmdbTranslationsSource()];
+const sources = [new JustWatchSource()];
 
 const TEST_CASES = [
   { title: "Midsommar", tmdbId: 530385, type: "movie" },

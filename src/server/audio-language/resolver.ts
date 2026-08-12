@@ -259,7 +259,12 @@ function mergedToEntries(
 // ─── The resolver ─────────────────────────────────────────────────────
 
 export interface ResolveOptions {
-  /** Region to query (default "IN"). */
+  /**
+   * ISO 3166-1 alpha-2 region code (e.g. "IN", "US", "DE"). The caller
+   * (worker) is expected to pass the user's profile country dynamically.
+   * Falls back to "US" when omitted — NEVER "IN" (spec §7: do not
+   * hard-code "IN").
+   */
   region?: string;
   /** Optional: pre-resolved IMDb ID (skip TMDB external_ids fetch). */
   imdbId?: string;
@@ -283,7 +288,7 @@ export async function resolveAudioLanguages(
   type: TitleType,
   opts: ResolveOptions = {}
 ): Promise<AudioLanguageResult> {
-  const region = opts.region ?? "IN";
+  const region = opts.region ?? "US";
   const checkedAt = new Date().toISOString();
 
   // ── 1. Fetch TMDB metadata (title + original_language + spoken_languages) ──

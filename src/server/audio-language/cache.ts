@@ -4,16 +4,23 @@
 // ---------------------------------------------------------------------
 // Reads + writes the `audio_languages_cache` table.
 //
-// The table schema (see supabase/migrations/20260816_audio_languages_cache.sql):
+// The table schema (after 20260817 migration):
 //   id uuid PK
 //   media_type text   ("movie" | "tv")
 //   tmdb_id    bigint
+//   region     text   (ISO 3166-1 alpha-2, e.g. "IN", "US", "DE")
 //   data       jsonb  (the full AudioLanguageResult)
 //   expires_at timestamptz
 //   fetched_at timestamptz
 //   created_at timestamptz
 //   updated_at timestamptz
-//   UNIQUE (media_type, tmdb_id)
+//   UNIQUE (media_type, tmdb_id, region)
+//
+// REGION-AWARE KEY (spec §12):
+//   JustWatch offer.audioLanguages is region-specific. A cache entry
+//   written for region="IN" must NEVER be returned for a "DE" request.
+//   The composite key (media_type, tmdb_id, region) enforces this at
+//   the database level — each region gets its own row.
 //
 // Reads are world-readable (RLS policy). Writes go through the service
 // role (server-only) which bypasses RLS — same pattern as tmdb_cache.
@@ -74,7 +81,11 @@ export interface CacheLookupResult {
 }
 
 /**
- * Read a cached audio-language result for the given title.
+ * Read a cached audio-language result for the given title + region.
+ *
+ * The cache key is (media_type, tmdb_id, region) — region is part of
+ * the key so a row written for region="IN" is never returned for a
+ * "DE" request (spec §12: prevent cross-region contamination).
  *
  * Returns:
  *   - { result: null, fresh: false }  when no entry exists.
@@ -86,7 +97,8 @@ export interface CacheLookupResult {
  */
 export async function readCache(
   tmdbId: number,
-  type: "movie" | "tv"
+  type: "movie" | "tv",
+  region: string
 ): Promise<CacheLookupResult> {
   let supabase;
   try {
@@ -101,6 +113,7 @@ export async function readCache(
     .select("data, expires_at, fetched_at")
     .eq("media_type", type)
     .eq("tmdb_id", tmdbId)
+    .eq("region", region)
     .maybeSingle();
 
   if (error) {
@@ -126,11 +139,15 @@ export async function readCache(
 }
 
 /**
- * Write a result to the cache, upserting on (media_type, tmdb_id).
+ * Write a result to the cache, upserting on (media_type, tmdb_id, region).
+ *
+ * Region is part of the upsert key (spec §12) — a write for region="IN"
+ * will not overwrite an existing "DE" row for the same title.
  */
 export async function writeCache(
   tmdbId: number,
   type: "movie" | "tv",
+  region: string,
   result: AudioLanguageResult
 ): Promise<void> {
   let supabase;
@@ -158,18 +175,19 @@ export async function writeCache(
       {
         media_type: type,
         tmdb_id: tmdbId,
+        region,
         data: resultWithExpiry as unknown as Json,
         expires_at: expiresAt,
         fetched_at: now.toISOString(),
         updated_at: now.toISOString()
       },
-      { onConflict: "media_type,tmdb_id", ignoreDuplicates: false }
+      { onConflict: "media_type,tmdb_id,region", ignoreDuplicates: false }
     );
 
   if (error) {
     console.warn("[audio-language/cache] writeCache upsert error:", error.message);
   } else {
-    console.log("[AUDIO] Saved to cache (expires " + expiresAt + ")");
+    console.log(`[AUDIO] Saved to cache (region=${region}, expires ${expiresAt})`);
   }
 }
 
@@ -177,12 +195,14 @@ export async function writeCache(
  * List stale cache entries — used by the background refresh job to
  * find titles whose cached data should be re-fetched.
  *
- * Returns up to `limit` (media_type, tmdb_id) pairs whose `expires_at`
- * is in the past.
+ * Returns up to `limit` (media_type, tmdb_id, region) triples whose
+ * `expires_at` is in the past. Region is included so the refresh job
+ * re-fetches each entry using its original region (preserving region
+ * isolation — an "IN" entry is never refreshed as a "DE" entry).
  */
 export async function listStaleEntries(
   limit = 50
-): Promise<Array<{ media_type: "movie" | "tv"; tmdb_id: number }>> {
+): Promise<Array<{ media_type: "movie" | "tv"; tmdb_id: number; region: string }>> {
   let supabase;
   try {
     supabase = getServiceClient();
@@ -193,7 +213,7 @@ export async function listStaleEntries(
   const nowIso = new Date().toISOString();
   const { data, error } = await supabase
     .from("audio_languages_cache")
-    .select("media_type, tmdb_id")
+    .select("media_type, tmdb_id, region")
     .lt("expires_at", nowIso)
     .order("expires_at", { ascending: true })
     .limit(limit);
@@ -202,6 +222,7 @@ export async function listStaleEntries(
 
   return data.map((row) => ({
     media_type: row.media_type as "movie" | "tv",
-    tmdb_id: row.tmdb_id
+    tmdb_id: row.tmdb_id,
+    region: (row as { region?: string }).region ?? "US"
   }));
 }

@@ -5,14 +5,15 @@
 // Returns dubbed-audio language information for a TMDB title.
 //
 // Endpoint:
-//   GET /api/audio-languages/{tmdbId}?type={movie|tv}&region={IN}&refresh={0|1}
+//   GET /api/audio-languages/{tmdbId}?type={movie|tv}
 //
 // Query params:
 //   type    — "movie" | "tv" (required). Default: "movie".
-//   region  — ISO 3166-1 alpha-2 (default: "IN").
-//   refresh — "1" to force a fresh worker run (ignores cache). Admin-only
-//             in practice but we don't gate it here — the cost is bounded
-//             by the worker TTL + the source adapters' rate.
+//   region  — Optional admin override (ISO 3166-1 alpha-2). When
+//             omitted, the endpoint reads the signed-in user's
+//             profile.country dynamically. Per spec §7: do NOT
+//             hard-code "IN".
+//   refresh — "1" to force a fresh worker run (ignores cache).
 //
 // Response (200):
 //   {
@@ -25,31 +26,41 @@
 //     ],
 //     "status": "success",
 //     "checkedAt": "...",
-//     "region": "IN",
+//     "region": "IN",            // INTERNAL — for cache/debug only.
+//                                // The UI does NOT render this.
 //     "noData": false,
 //     "error": false,
-//     "sourceCount": 2,
+//     "sourceCount": 1,
 //     "fromCache": false
 //   }
 //
 // Behavior:
-//   1. Check audio_languages_cache for (media_type, tmdb_id).
-//   2. Fresh → return immediately.
-//   3. Stale → return stale + trigger background refresh (non-blocking).
-//   4. No cache → run worker synchronously, write to cache, return.
+//   1. Resolve the user's profile country (session cookie → profiles).
+//      Fall back to "US" if signed-out or no country set.
+//   2. Check audio_languages_cache for (media_type, tmdb_id, region).
+//   3. Fresh → return immediately.
+//   4. Stale → return stale + trigger background refresh (non-blocking).
+//   5. No cache → run worker synchronously, write to cache, return.
+//
+// Per spec §11: the response retains the region internally (for
+// debugging + cache), but the frontend MUST NOT render it in the
+// Language modal. See AudioLanguageModal.tsx.
+//
+// Per spec §1: TMDB translations are NOT used as an audio source.
+// Only JustWatch `offer.audioLanguages` populates `dubbedLanguages`.
 //
 // Per spec STEP 22: the audio-language worker runs INDEPENDENTLY of the
 // movie detail page. A failure here does NOT break the detail page —
 // the modal shows an error state but the rest of the page works.
-//
-// Per spec STEP 21: all external API keys (TMDB, JustWatch) are
-// server-side only. None are exposed to the browser.
 
+import { createClient } from "@supabase/supabase-js";
 import {
   getAudioLanguages,
+  DEFAULT_REGION,
   refreshStaleEntries
 } from "~/server/audio-language/worker";
 import type { AudioLanguageApiResponse, TitleType } from "~/server/audio-language/types";
+import { getSupabaseAccessToken } from "~/lib/supabase/admin/sessionCookie";
 
 // ─── Types ────────────────────────────────────────────────────────────
 interface APIEvent {
@@ -116,6 +127,65 @@ const CACHE_HEADERS_ERROR = {
   "Cache-Control": "public, max-age=60, s-maxage=120"
 };
 
+/**
+ * Resolve the signed-in user's profile country (ISO 3166-1 alpha-2).
+ *
+ * Per spec §7: the user's profile country MUST be the source region
+ * used for region-dependent services. We do NOT hard-code "IN".
+ *
+ * Flow:
+ *   1. Read the Supabase access_token from the cookie.
+ *   2. Verify it via getUser() (never trust the cookie payload directly).
+ *   3. Look up the user's profile row and read `country`.
+ *
+ * Returns DEFAULT_REGION ("US") when:
+ *   - the user is not signed in (anonymous access is allowed — the
+ *     detail page works without auth)
+ *   - env vars are missing
+ *   - the profile has no country set (legacy account)
+ *   - any error occurs (fail-open: better to serve US data than to
+ *     break the modal)
+ */
+async function resolveProfileCountry(request: Request): Promise<string> {
+  const supabaseUrl = process.env.VITE_SUPABASE_URL;
+  const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
+  if (!supabaseUrl || !supabaseAnonKey) return DEFAULT_REGION;
+
+  const cookieHeader = request.headers.get("cookie") ?? "";
+  const accessToken = getSupabaseAccessToken(cookieHeader);
+  if (!accessToken) return DEFAULT_REGION;
+
+  try {
+    // Verify the token — never trust the cookie payload directly.
+    const verifyClient = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: { autoRefreshToken: false, persistSession: false }
+    });
+    const { data: userData, error: userErr } =
+      await verifyClient.auth.getUser(accessToken);
+    if (userErr || !userData?.user?.id) return DEFAULT_REGION;
+
+    // Read the profile row using the user-scoped client (RLS enforces
+    // owner-only read on profiles).
+    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+      global: { headers: { Authorization: `Bearer ${accessToken}` } }
+    });
+    const { data: profile, error: profileErr } = await userClient
+      .from("profiles")
+      .select("country")
+      .eq("id", userData.user.id)
+      .maybeSingle();
+
+    if (profileErr || !profile) return DEFAULT_REGION;
+    const country = (profile as { country?: string }).country;
+    if (!country || country.length !== 2) return DEFAULT_REGION;
+    return country.toUpperCase();
+  } catch (err) {
+    console.warn("[audio-languages API] resolveProfileCountry failed:", err);
+    return DEFAULT_REGION;
+  }
+}
+
 // ─── GET handler ──────────────────────────────────────────────────────
 
 export async function GET(event: APIEvent): Promise<Response> {
@@ -151,11 +221,15 @@ export async function GET(event: APIEvent): Promise<Response> {
     const rawType = url.searchParams.get("type") ?? "movie";
     const type: TitleType = rawType === "tv" ? "tv" : "movie";
 
-    const rawRegion = url.searchParams.get("region");
+    // Region: prefer the user's profile country (spec §7). The
+    // ?region= query param is an admin override only — the UI does
+    // NOT send it (the previous hard-coded India region was removed
+    // from the modal's fetcher).
+    const overrideRegion = url.searchParams.get("region");
     const region =
-      rawRegion && rawRegion.length >= 2 && rawRegion.length <= 3
-        ? rawRegion.toUpperCase()
-        : "IN";
+      overrideRegion && /^[A-Za-z]{2}$/.test(overrideRegion)
+        ? overrideRegion.toUpperCase()
+        : await resolveProfileCountry(event.request);
 
     const forceRefresh = url.searchParams.get("refresh") === "1";
 
@@ -172,6 +246,8 @@ export async function GET(event: APIEvent): Promise<Response> {
     });
 
     // ── Build the API response (compact, no raw source payloads) ──
+    // Per spec §11: the region is retained in the response for
+    // debugging + cache, but the UI MUST NOT render it.
     const payload: AudioLanguageApiResponse = {
       tmdbId,
       type,
@@ -192,6 +268,10 @@ export async function GET(event: APIEvent): Promise<Response> {
       error: result.status === "error",
       message: result.status === "error" ? "Unable to retrieve audio-language information." : undefined,
       seasonAvailability: result.seasonAvailability,
+      // Per spec §9: source count = number of genuine audio sources
+      // that succeeded with data. TMDB translations are no longer in
+      // the pipeline, so this is now the count of audio-specific
+      // sources (JustWatch) that contributed.
       sourceCount: result.sources.filter((s) => s.success && !s.noData).length,
       fromCache,
       stale
