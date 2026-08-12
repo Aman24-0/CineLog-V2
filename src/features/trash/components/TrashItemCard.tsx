@@ -130,7 +130,7 @@ export const TrashVaultItemCard: Component<TrashVaultItemCardProps> = (
         {/* Info column */}
         <div class="trash-item-card-info">
           <div class="trash-item-card-title-row">
-            <h3 class="trash-item-card-title">{title()}</h3>
+            <h2 class="trash-item-card-title">{title()}</h2>
             <Show when={year()}>
               <span class="trash-item-card-year">{year()}</span>
             </Show>
@@ -232,7 +232,7 @@ export const TrashCollectionCard: Component<TrashCollectionCardProps> = (
         {/* Info column */}
         <div class="trash-item-card-info">
           <div class="trash-item-card-title-row">
-            <h3 class="trash-item-card-title">{props.collection.name}</h3>
+            <h2 class="trash-item-card-title">{props.collection.name}</h2>
           </div>
 
           <div class="trash-item-card-meta-row">
