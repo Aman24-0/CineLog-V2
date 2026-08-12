@@ -20,11 +20,18 @@ import { isServer } from "solid-js/web";
 import { getBaseUrl } from "~/shared/utils/share";
 import { fetchWithRetry, TMDBError } from "./fetchHelpers";
 
-// TMDB_KEY is kept for backward compatibility with files that import it,
-// but it is no longer used in fetch calls — the server proxy injects
-// the API key from TMDB_API_KEY (server-only env var). The VITE_ prefix
-// key remains in the client bundle for the About page diagnostic only.
-export const TMDB_KEY = import.meta.env.VITE_TMDB_API_KEY ?? "";
+// TMDB_KEY has been removed from the client bundle for security.
+// The server proxy (/api/media/) injects the API key from TMDB_API_KEY
+// (server-only env var). No client-side code should ever need direct
+// access to the API key. If server-side code needs the key, use
+// getTmdbApiKey() below; calling it on the client will throw.
+export function getTmdbApiKey(): string {
+  if (!isServer) {
+    throw new Error("getTmdbApiKey() must not be called on the client");
+  }
+  const key = process.env.TMDB_API_KEY ?? process.env.VITE_TMDB_API_KEY ?? "";
+  return key;
+}
 
 /**
  * Detect whether an error is an expected TMDB 404 (Not Found).
