@@ -4,6 +4,7 @@ import { useDiscoverRegion } from "~/core/config/discoverRegion";
 import { formatDateLong } from "~/shared/utils/format";
 import type { WatchlistItem, TMDBDetails, OMDbRatings } from "~/shared/types";
 import type { AniListMedia } from "~/lib/anilist";
+import AudioLanguageModal from "./AudioLanguageModal";
 
 interface MetadataGridProps {
   /** TMDB identity — always present */
@@ -25,6 +26,12 @@ interface MetadataGridProps {
 interface MetaCell {
   label: string;
   value: string;
+  /**
+   * Optional kind override — used to mark cells that need special
+   * rendering (currently: "language" for the clickable audio-modal
+   * trigger). When omitted, the cell renders as a plain div.
+   */
+  kind?: "language";
 }
 
 /**
@@ -224,6 +231,13 @@ export default function MetadataGrid(props: MetadataGridProps) {
   // consistent currency view across the money cells.
   const [showLocalCurrency, setShowLocalCurrency] = createSignal(false);
 
+  // ── Audio-language modal state ──────────────────────────────────
+  // Opened when the user taps the "Language" cell. The modal fetches
+  // dubbed-audio data independently from /api/audio-languages/{tmdbId}.
+  // Per spec STEP 22: this is a SEPARATE data section that does NOT
+  // block the rest of the detail page.
+  const [showLanguageModal, setShowLanguageModal] = createSignal(false);
+
   const cells = createMemo<MetaCell[]>(() => {
     const d = props.details;
     const b = props.baseItem;
@@ -378,12 +392,47 @@ export default function MetadataGrid(props: MetadataGridProps) {
     }
 
     // Language
+    //
+    // Shows up to 2 spoken languages for the title. TMDB returns
+    // `spoken_languages` as an array of { english_name, iso_639_1, name }
+    // in arbitrary order — the original language is NOT guaranteed to be
+    // first. For example, Captain America: The First Avenger returns
+    // [French, Norwegian, English] because characters speak French and
+    // Norwegian in some scenes, even though English is the original
+    // language.
+    //
+    // BUG (previously): `langs.slice(0, 2)` showed the FIRST 2 entries,
+    // which for many US movies was [French, Norwegian] — cutting off
+    // English entirely. The LANGUAGE card then displayed "French,
+    // Norwegian" for an English-language movie, which confused users.
+    //
+    // FIX: sort the languages so the `original_language` appears FIRST,
+    // then take the first 2. This guarantees the original language is
+    // always shown (e.g. "English, French" instead of "French,
+    // Norwegian"). The full list (including all spoken languages) is
+    // still available by tapping the cell to open the AudioLanguageModal.
     if (d?.spoken_languages && d.spoken_languages.length > 0) {
-      const langs = d.spoken_languages
+      const origLang = d.original_language;
+      const sorted = [...d.spoken_languages].sort((a, b) => {
+        // Original language sorts first.
+        const aIsOrig = a.iso_639_1 === origLang ? 0 : 1;
+        const bIsOrig = b.iso_639_1 === origLang ? 0 : 1;
+        if (aIsOrig !== bIsOrig) return aIsOrig - bIsOrig;
+        // Otherwise preserve TMDB's order (stable sort).
+        return 0;
+      });
+      const langs = sorted
         .map((l) => l.english_name)
         .filter(Boolean);
       if (langs.length > 0) {
-        list.push({ label: "Language", value: langs.slice(0, 2).join(", ") });
+        // `kind: "language"` marks this cell as the clickable trigger
+        // for the AudioLanguageModal. The render block in the JSX below
+        // renders it as a <button> instead of a plain <div>.
+        list.push({
+          label: "Language",
+          value: langs.slice(0, 2).join(", "),
+          kind: "language"
+        });
       }
     }
 
@@ -464,46 +513,101 @@ export default function MetadataGrid(props: MetadataGridProps) {
     setShowLocalCurrency((v) => !v);
   };
 
+  /**
+   * The TMDB id + media_type for the open title, used by the
+   * AudioLanguageModal to fetch dubbed-audio data. Derived from
+   * baseItem so it's always the TMDB identity (not the vault id).
+   */
+  const audioTmdbId = createMemo(() => props.baseItem?.id ?? "");
+  const audioType = createMemo<"movie" | "tv">(() =>
+    props.baseItem?.media_type === "tv" ? "tv" : "movie"
+  );
+
   return (
-    <Show when={cells().length > 0}>
-      <div class="metadata-grid">
-        <For each={cells()}>
-          {(cell) => {
-            const isToggleable = () => toggleableLabels().has(cell.label);
-            return (
-              <Show
-                when={isToggleable()}
-                fallback={
-                  <div class="metadata-cell">
-                    <span class="metadata-cell-label">{cell.label}</span>
-                    <span class="metadata-cell-value">{cell.value}</span>
-                  </div>
-                }
-              >
-                <button
-                  type="button"
-                  class="metadata-cell metadata-cell-button"
-                  onClick={handleMoneyCellClick}
-                  aria-label={`${cell.label}: ${cell.value}. Tap to switch currency.`}
-                  title="Tap to switch currency"
-                >
-                  <span class="metadata-cell-label">
-                    {cell.label}
-                    <span
-                      class="material-symbols-outlined metadata-cell-currency-icon"
-                      style={{ "font-size": "11px" }}
-                      aria-hidden="true"
+    <>
+      <Show when={cells().length > 0}>
+        <div class="metadata-grid">
+          <For each={cells()}>
+            {(cell) => {
+              const isToggleable = () => toggleableLabels().has(cell.label);
+              const isLanguage = () => cell.kind === "language";
+              return (
+                <Show
+                  when={isToggleable()}
+                  fallback={
+                    <Show
+                      when={isLanguage()}
+                      fallback={
+                        <div class="metadata-cell">
+                          <span class="metadata-cell-label">{cell.label}</span>
+                          <span class="metadata-cell-value">{cell.value}</span>
+                        </div>
+                      }
                     >
-                      swap_horiz
+                      {/* Language cell — opens the AudioLanguageModal.
+                          Per spec STEP 15: subtle visual indication
+                          (cursor/pointer + hover/focus + arrow icon),
+                          remains visually consistent with the existing
+                          design. */}
+                      <button
+                        type="button"
+                        class="metadata-cell metadata-cell-language"
+                        onClick={() => setShowLanguageModal(true)}
+                        aria-label={`${cell.label}: ${cell.value}. Tap to see dubbed audio languages.`}
+                        title="Tap to see dubbed audio languages"
+                      >
+                        <span class="metadata-cell-label">
+                          {cell.label}
+                          <span
+                            class="material-symbols-outlined metadata-cell-language-icon"
+                            aria-hidden="true"
+                          >
+                            arrow_forward
+                          </span>
+                        </span>
+                        <span class="metadata-cell-value">{cell.value}</span>
+                      </button>
+                    </Show>
+                  }
+                >
+                  <button
+                    type="button"
+                    class="metadata-cell metadata-cell-button"
+                    onClick={handleMoneyCellClick}
+                    aria-label={`${cell.label}: ${cell.value}. Tap to switch currency.`}
+                    title="Tap to switch currency"
+                  >
+                    <span class="metadata-cell-label">
+                      {cell.label}
+                      <span
+                        class="material-symbols-outlined metadata-cell-currency-icon"
+                        style={{ "font-size": "11px" }}
+                        aria-hidden="true"
+                      >
+                        swap_horiz
+                      </span>
                     </span>
-                  </span>
-                  <span class="metadata-cell-value">{cell.value}</span>
-                </button>
-              </Show>
-            );
-          }}
-        </For>
-      </div>
-    </Show>
+                    <span class="metadata-cell-value">{cell.value}</span>
+                  </button>
+                </Show>
+              );
+            }}
+          </For>
+        </div>
+      </Show>
+
+      {/* Audio Language Modal — opens when the user taps the Language
+          cell. Fetches dubbed-audio data from /api/audio-languages/{tmdbId}.
+          Per spec STEP 22: a failure here does NOT break the detail
+          page — the modal handles its own error/loading states. */}
+      <AudioLanguageModal
+        open={showLanguageModal()}
+        onClose={() => setShowLanguageModal(false)}
+        tmdbId={audioTmdbId()}
+        type={audioType()}
+        details={props.details}
+        baseItem={props.baseItem}
+      />
+    </>
   );
 }

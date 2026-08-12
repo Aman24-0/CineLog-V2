@@ -592,6 +592,44 @@ export type Database = {
         };
         Relationships: [];
       };
+      // ── Audio-language cache (added by 20260816_audio_languages_cache.sql) ──
+      // Stores per-title dubbed-audio language information. Composite key
+      // (media_type, tmdb_id). `data` is the full AudioLanguageResult JSON.
+      // Reads are world-readable (RLS policy); writes go through the
+      // service role.
+      audio_languages_cache: {
+        Row: {
+          id: string;
+          media_type: string; // "movie" | "tv" (text check constraint)
+          tmdb_id: number;
+          data: Json;
+          expires_at: string;
+          fetched_at: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          media_type: string;
+          tmdb_id: number;
+          data: Json;
+          expires_at: string;
+          fetched_at?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          media_type?: string;
+          tmdb_id?: number;
+          data?: Json;
+          expires_at?: string;
+          fetched_at?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       login_history: {
         Row: {
           id: string;
