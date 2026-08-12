@@ -152,7 +152,7 @@ export function formatReleaseDate(iso: string): string {
  * Returns "N/A" if the rating is missing or zero (a 0 vote average
  * usually means TMDB has no ratings for the title yet).
  */
-export function formatRating(voteAverage: number | undefined | null): string {
+export function formatShareRating(voteAverage: number | undefined | null): string {
   if (voteAverage === undefined || voteAverage === null || voteAverage <= 0) {
     return "N/A";
   }
@@ -303,7 +303,7 @@ export function buildShareTextBody(
   const title = resolveTitle(details);
   const dateIso = resolveReleaseDate(details);
   const dateLabel = formatReleaseDate(dateIso);
-  const tmdbRating = formatRating((details as TMDBDetails)?.vote_average);
+  const tmdbRating = formatShareRating((details as TMDBDetails)?.vote_average);
   const overview = truncateOverview(
     (details as TMDBDetails)?.overview ?? "",
     280
@@ -564,7 +564,7 @@ export function buildRichShareText(
     const mc = formatMdbRating(mdbRatings!.metacritic);
     if (mc) lines.push(`🟩 Metacritic • ${mc}`);
   } else {
-    const tmdbRating = formatRating((details as TMDBDetails)?.vote_average);
+    const tmdbRating = formatShareRating((details as TMDBDetails)?.vote_average);
     if (tmdbRating !== "N/A") {
       lines.push(`⭐ Rating: ${tmdbRating}`);
     }
