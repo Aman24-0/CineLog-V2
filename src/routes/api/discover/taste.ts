@@ -24,7 +24,8 @@
 //
 // ARCHITECTURE
 // ------------
-//   1. Authenticate via the Supabase server client's getSession().
+//   1. Authenticate via Bearer token (getSupabaseAccessTokenFromRequest
+//      + getUser()) — stateless, cookie-free.
 //   2. Call `fetchUserLibrary(userId)` — the SAME adapter the client
 //      uses, so the vault is TMDB-enriched (genres, directors, etc.).
 //   3. Call `computeTasteProfile(list, isGuest=false)` — the SHARED
@@ -33,13 +34,14 @@
 //
 // SECURITY
 // --------
-//   • Uses the user-scoped server client (NOT admin) so RLS is
-//     enforced — the user can only see their own vault.
+//   • Verifies the Bearer token via getUser() before proceeding —
+//     unverified tokens are rejected with 401.
 //   • Response is `Cache-Control: private` so CDNs don't leak one
 //     user's taste profile to another.
 
 import { isServer } from "solid-js/web";
-import { createServerClientFromRequest } from "~/lib/supabase/server";
+import { createClient } from "@supabase/supabase-js";
+import { getSupabaseAccessTokenFromRequest } from "~/lib/supabase/admin/sessionCookie";
 import { fetchUserLibrary } from "~/shared/hooks/userLibraryAdapter";
 import { computeTasteProfile } from "~/lib/discover/tasteProfile";
 import type { TasteProfile } from "~/shared/types";
@@ -59,14 +61,6 @@ function jsonResponse(
   status = 200,
   opts?: {
     cacheControl?: string;
-    /** Cookie jar from `createServerClientFromRequest` — its
-     *  Set-Cookie headers + response headers are appended to the
-     *  Response so refreshed auth tokens persist on the client and
-     *  CDN-cache-prevention headers are set correctly. */
-    cookieJar?: {
-      toSetCookieHeaders: () => string[];
-      getResponseHeaders: () => Record<string, string>;
-    } | null;
   }
 ): Response {
   const headers: Record<string, string> = {
@@ -75,18 +69,7 @@ function jsonResponse(
   // Private cache — taste profiles are per-user. Short max-age so the
   // profile stays fresh as the user rates new titles.
   headers["Cache-Control"] = opts?.cacheControl ?? "private, max-age=60, s-maxage=0";
-  if (opts?.cookieJar) {
-    for (const [key, value] of Object.entries(opts.cookieJar.getResponseHeaders())) {
-      headers[key] = value;
-    }
-  }
-  const response = new Response(JSON.stringify(body), { status, headers });
-  if (opts?.cookieJar) {
-    for (const header of opts.cookieJar.toSetCookieHeaders()) {
-      response.headers.append("Set-Cookie", header);
-    }
-  }
-  return response;
+  return new Response(JSON.stringify(body), { status, headers });
 }
 
 export async function GET(event: APIEvent): Promise<Response> {
@@ -95,30 +78,39 @@ export async function GET(event: APIEvent): Promise<Response> {
     return jsonResponse({ error: "This route is server-only." }, 500);
   }
 
-  // ── Authenticate via session (Bearer header preferred, cookie fallback) ─
-  // Phase 13 Chunk 1: `createServerClientFromRequest` is now async and
-  // Bearer-aware. When the browser sends `Authorization: Bearer
-  // <token>`, the helper injects the session via `auth.setSession()`
-  // so the `getSession()` call below returns the signed-in user. If
-  // no Bearer header is present, it falls back to the legacy cookie
-  // path (for SSR or server-to-server calls).
-  let userId: string | null = null;
-  let cookieJar: Awaited<ReturnType<typeof createServerClientFromRequest>>["cookies"] | null = null;
-  try {
-    const { client, cookies } = await createServerClientFromRequest(event.request);
-    cookieJar = cookies;
-    const { data, error } = await client.auth.getSession();
-    if (error) {
-      console.warn("[api/discover/taste] getSession error:", error.message);
-    }
-    userId = data.session?.user?.id ?? null;
-  } catch (err) {
-    console.error("[api/discover/taste] Failed to read session:", err);
-    return jsonResponse({ error: "Failed to read session." }, 500);
+  // ── Authenticate via Bearer header ───────────────────────────────────
+  // Extract the access token from the Authorization header. This is
+  // the stateless, cookie-free pattern: the client sends the JWT it
+  // already has, and we verify it server-side via getUser(). No
+  // session cookies, no refresh-token handling, no cookie jar.
+  const accessToken = getSupabaseAccessTokenFromRequest(event.request);
+  if (!accessToken) {
+    return jsonResponse({ error: "Unauthorized" }, 401);
   }
 
-  if (!userId) {
-    return jsonResponse({ error: "Unauthorized" }, 401);
+  let userId: string;
+  try {
+    const supabaseUrl = process.env.VITE_SUPABASE_URL;
+    const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
+    if (!supabaseUrl || !supabaseAnonKey) {
+      console.error("[api/discover/taste] Missing Supabase env vars");
+      return jsonResponse({ error: "Server misconfiguration." }, 500);
+    }
+
+    // Verify the token via getUser() — never trust the header payload
+    // directly since headers can be tampered with.
+    const verifyClient = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: { autoRefreshToken: false, persistSession: false }
+    });
+    const { data, error } = await verifyClient.auth.getUser(accessToken);
+    if (error || !data?.user) {
+      console.warn("[api/discover/taste] getUser verification failed:", error?.message);
+      return jsonResponse({ error: "Unauthorized" }, 401);
+    }
+    userId = data.user.id;
+  } catch (err) {
+    console.error("[api/discover/taste] Failed to verify token:", err);
+    return jsonResponse({ error: "Failed to verify token." }, 500);
   }
 
   // ── Fetch the user's library (vault + TMDB enrichment) ────────────
@@ -127,7 +119,7 @@ export async function GET(event: APIEvent): Promise<Response> {
     library = await fetchUserLibrary(userId);
   } catch (err) {
     console.error("[api/discover/taste] fetchUserLibrary failed:", err);
-    return jsonResponse({ error: "Failed to load library." }, 500, { cookieJar });
+    return jsonResponse({ error: "Failed to load library." }, 500);
   }
 
   // ── Compute the taste profile ─────────────────────────────────────
@@ -139,5 +131,5 @@ export async function GET(event: APIEvent): Promise<Response> {
     fetchedAt: new Date().toISOString()
   };
 
-  return jsonResponse(body, 200, { cookieJar });
+  return jsonResponse(body, 200);
 }

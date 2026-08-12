@@ -34,7 +34,10 @@ export const OMDb_TTL = 24 * 60 * 60 * 1000; // 24 hours
 // Cache storage
 // ---------------------------------------------------------------------------
 
-const MAX_CACHE_SIZE = 300;
+// v5: increased from 300 to 1500 to accommodate larger vaults (1000+ items)
+// without constant eviction. With 10-min TTL, a fully-loaded vault stays
+// cached in memory for the entire session.
+const MAX_CACHE_SIZE = 1500;
 
 const cache = new Map<string, CacheEntry<unknown>>();
 const inFlight = new Map<string, Promise<unknown>>();
