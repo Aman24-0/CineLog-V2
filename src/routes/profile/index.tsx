@@ -3,7 +3,7 @@
 // Sprint 2B — Error boundary uses GlassEmptyState for
 // consistent visual treatment across all empty/error states.
 
-import { Title } from "@solidjs/meta";
+import { Title, Link } from "@solidjs/meta";
 import { lazy, ErrorBoundary, Suspense } from "solid-js";
 import { GlassEmptyState, GlassButton, GlassSkeleton } from "~/shared/ui/glass";
 const ProfilePage = lazy(() => import("~/features/profile/ProfilePage"));
@@ -29,6 +29,7 @@ export default function ProfileRoute() {
   return (
     <>
       <Title>CineLog — Profile</Title>
+      <Link rel="canonical" href="https://cinelog.app/profile" />
       <ErrorBoundary
         fallback={(error, reset) => (
           <div
