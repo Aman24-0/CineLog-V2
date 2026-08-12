@@ -432,31 +432,6 @@ const ShareSheet: Component<ShareSheetProps> = (props) => {
     }
   };
 
-  // ── Watch status display helper ────────────────────────────
-  const _watchStatusLabel = createMemo(() => {
-    const vi = props.vaultItem?.();
-    if (!vi) return null;
-    return vi.status;
-  });
-
-  const _userRatingDisplay = createMemo(() => {
-    const vi = props.vaultItem?.();
-    if (!vi || vi.rating === undefined || vi.rating === null) return null;
-    return `★ ${vi.rating}/10`;
-  });
-
-  // ── Genres for share card ──────────────────────────────────
-  const _genresText = createMemo(() => {
-    const d = props.details();
-    return d?.genres?.map((g) => g.name).join(", ") ?? "";
-  });
-
-  const _runtimeText = createMemo(() => {
-    const d = props.details();
-    if (!d?.runtime) return "";
-    return `${d.runtime} min`;
-  });
-
   // ── Cleanup ────────────────────────────────────────────────
   onCleanup(() => {
     const cardUrl = shareCardUrl();

@@ -327,11 +327,6 @@ export default function DiscoverPage() {
   const row2Filtered = createMemo(() =>
     filterFeed(row2Titles(), row1Filtered().renderedIds)
   );
-  const _row2Label = createMemo(() => {
-    const genre = trendingGenre();
-    return `Trending in ${genre}`;
-  });
-
   // ── ROW 5: "NEW ON OTT" + dropdown ───────────────────────────────
   const [ottSelected, setOttSelected] = createSignal<string | null>(null);
   createEffect(() => {
@@ -461,7 +456,6 @@ export default function DiscoverPage() {
   // Popular Anime: filter out vault titles but do NOT pass newSeasonBadgeIds
   const row5Filtered = createMemo(() => {
     const vault = excludedKeys();
-    const _tracked = trackedTvSeasons();
     const renderedIds = new Set(row4Filtered().renderedIds);
     const filtered: TMDBTitle[] = [];
     for (const t of popularAnimeCombined()) {
