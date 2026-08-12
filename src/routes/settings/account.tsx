@@ -37,6 +37,7 @@ import {
   createSignal,
   createEffect,
   onMount,
+  ErrorBoundary,
   type Component
 } from "solid-js";
 import { useNavigate } from "@solidjs/router";
@@ -389,7 +390,24 @@ const AccountRoute: Component = () => {
 
 
   return (
-    <>
+    <ErrorBoundary
+      fallback={(error, reset) => (
+        <div class="sec-page" style={{ padding: "var(--sp-12) var(--sp-5)" }}>
+          <div class="glass-empty-state" role="alert">
+            <h3 class="glass-empty-state-title">Something went wrong</h3>
+            <p class="glass-empty-state-body">{error.message}</p>
+            <button
+              class="btn-primary focus-ring"
+              onClick={() => reset()}
+              style={{ "margin-top": "var(--sp-2)" }}
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      )}
+    >
+      <>
       <Title>CineLog — Account</Title>
       <PageContainer width="narrow" paddingTop="0" paddingBottom="var(--sp-12)">
         <ScrollToTop />
@@ -1154,6 +1172,7 @@ const AccountRoute: Component = () => {
         onClose={() => setShowSignOutSheet(false)}
       />
     </>
+    </ErrorBoundary>
   );
 };
 

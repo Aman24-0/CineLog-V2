@@ -14,7 +14,7 @@
 // user permission + service worker registration (requested on first toggle-on).
 
 import { Title } from "@solidjs/meta";
-import { Show, For, createSignal, onMount, type Component } from "solid-js";
+import { Show, For, createSignal, onMount, ErrorBoundary, type Component } from "solid-js";
 import PageContainer from "~/shared/ui/PageContainer";
 import ScrollToTop from "~/shared/ui/ScrollToTop";
 import {
@@ -111,7 +111,24 @@ const NotificationsRoute: Component = () => {
   const currentlyInQuietHours = () => isInQuietHours();
 
   return (
-    <>
+    <ErrorBoundary
+      fallback={(error, reset) => (
+        <div class="sec-page" style={{ padding: "var(--sp-12) var(--sp-5)" }}>
+          <div class="glass-empty-state" role="alert">
+            <h3 class="glass-empty-state-title">Something went wrong</h3>
+            <p class="glass-empty-state-body">{error.message}</p>
+            <button
+              class="btn-primary focus-ring"
+              onClick={() => reset()}
+              style={{ "margin-top": "var(--sp-2)" }}
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      )}
+    >
+      <>
       <Title>CineLog — Notifications</Title>
       <PageContainer width="narrow" paddingTop="0" paddingBottom="var(--sp-12)">
         <ScrollToTop />
@@ -322,6 +339,7 @@ const NotificationsRoute: Component = () => {
         </div>
       </PageContainer>
     </>
+    </ErrorBoundary>
   );
 };
 

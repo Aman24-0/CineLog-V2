@@ -5,7 +5,7 @@
 // All preferences are persisted via src/core/preferences (calPrefs signal).
 
 import { Title } from "@solidjs/meta";
-import { type Component } from "solid-js";
+import { ErrorBoundary, type Component } from "solid-js";
 import PageContainer from "~/shared/ui/PageContainer";
 import ScrollToTop from "~/shared/ui/ScrollToTop";
 import {
@@ -27,7 +27,24 @@ import {
 
 const CalendarRoute: Component = () => {
   return (
-    <>
+    <ErrorBoundary
+      fallback={(error, reset) => (
+        <div class="sec-page" style={{ padding: "var(--sp-12) var(--sp-5)" }}>
+          <div class="glass-empty-state" role="alert">
+            <h3 class="glass-empty-state-title">Something went wrong</h3>
+            <p class="glass-empty-state-body">{error.message}</p>
+            <button
+              class="btn-primary focus-ring"
+              onClick={() => reset()}
+              style={{ "margin-top": "var(--sp-2)" }}
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      )}
+    >
+      <>
       <Title>CineLog — Calendar</Title>
       <PageContainer width="narrow" paddingTop="0" paddingBottom="var(--sp-12)">
         <ScrollToTop />
@@ -136,6 +153,7 @@ const CalendarRoute: Component = () => {
         </div>
       </PageContainer>
     </>
+    </ErrorBoundary>
   );
 };
 
