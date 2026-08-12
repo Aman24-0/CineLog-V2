@@ -54,6 +54,18 @@ const reminderPosterUrl = (r: UserReminderRow): string | null => {
   return null;
 };
 
+/**
+ * Derive a human-readable title for a reminder row.
+ * Falls back gracefully when `title_name` is missing (legacy rows
+ * created before the column was added).
+ */
+const reminderTitle = (r: UserReminderRow): string => {
+  if (r.title_name) return r.title_name;
+  // Legacy fallback: construct a readable label from type + id
+  const typeLabel = r.title_type === "series" ? "Series" : "Movie";
+  return `${typeLabel} #${r.tmdb_id}`;
+};
+
 // ─── Style constants ──────────────────────────────────────────────
 const SECTION_HEADING_STYLE: JSX.CSSProperties = {
   display: "flex",
@@ -482,7 +494,7 @@ function RemindersSection(props: RemindersProps) {
                 onMouseLeave={(e) => {
                   e.currentTarget.style.background = "transparent";
                 }}
-                aria-label={`Open reminder for ${r.title_name || r.title_type}`}
+                aria-label={`Open reminder for ${reminderTitle(r)}`}
               >
                 <Show
                   when={reminderPosterUrl(r)}
@@ -526,7 +538,7 @@ function RemindersSection(props: RemindersProps) {
                   }}
                 >
                   <span style={ITEM_TITLE_STYLE}>
-                    {r.title_name || `${r.title_type === "series" ? "Series" : "Movie"} · #${r.tmdb_id}`}
+                    {reminderTitle(r)}
                   </span>
                   <span style={ITEM_META_STYLE}>{r.release_date}</span>
                 </span>

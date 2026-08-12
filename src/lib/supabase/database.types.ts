@@ -1423,6 +1423,8 @@ export type Database = {
           user_id: string;
           tmdb_id: string;
           title_type: string;
+          title_name: string;
+          poster_path: string | null;
           release_date: string;
           is_scheduled: boolean;
           notification_sent: boolean;
@@ -1433,6 +1435,8 @@ export type Database = {
           user_id: string;
           tmdb_id: string;
           title_type: string;
+          title_name?: string;
+          poster_path?: string | null;
           release_date: string;
           is_scheduled?: boolean;
           notification_sent?: boolean;
@@ -1443,6 +1447,8 @@ export type Database = {
           user_id?: string;
           tmdb_id?: string;
           title_type?: string;
+          title_name?: string;
+          poster_path?: string | null;
           release_date?: string;
           is_scheduled?: boolean;
           notification_sent?: boolean;
