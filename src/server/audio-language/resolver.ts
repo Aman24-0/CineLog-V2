@@ -256,6 +256,31 @@ function mergedToEntries(
   return entries;
 }
 
+/**
+ * Filter a list of DubbedLanguageEntry to exclude "low"-confidence entries
+ * (the "Detected" tier in the UI).
+ *
+ * Per the targeted fix "Remove DETECTED Audio Languages":
+ *   The user-facing `dubbedLanguages` list MUST contain only VERIFIED
+ *   (high) or CONFIRMED (medium) genuine audio languages. DETECTED
+ *   (low-confidence) entries are dropped from `dubbedLanguages` so the
+ *   Language modal never advertises them as dubbed audio.
+ *
+ * The original low-confidence entries are still kept in
+ * `detectedAudioLanguages` for internal debugging — this helper only
+ * affects the user-facing list.
+ *
+ * This helper is also re-used by the API endpoint so it can defensively
+ * re-filter stale cache entries that were written before this filter
+ * existed (e.g. cache rows from before commit b4d36c7 that still
+ * contain TMDB-translation "low" entries).
+ */
+export function excludeDetected(
+  entries: readonly DubbedLanguageEntry[]
+): DubbedLanguageEntry[] {
+  return entries.filter((e) => e.confidence !== "low");
+}
+
 // ─── The resolver ─────────────────────────────────────────────────────
 
 export interface ResolveOptions {
@@ -395,9 +420,15 @@ export async function resolveAudioLanguages(
   );
 
   // ── 6. dubbedLanguages = detectedAudioLanguages − originalLanguages ──
+  //    Then exclude DETECTED (low-confidence) entries from the user-facing
+  //    list. Per the targeted fix "Remove DETECTED Audio Languages": the
+  //    modal must only show VERIFIED (high) or CONFIRMED (medium) genuine
+  //    audio languages — never DETECTED. The internal
+  //    `detectedAudioLanguages` array (below) still keeps the full set
+  //    for debugging.
   const originalCodes = new Set(originalLanguages.map((l) => l.code));
-  const dubbedLanguages = detectedAudioLanguages.filter(
-    (l) => !originalCodes.has(l.code)
+  const dubbedLanguages = excludeDetected(
+    detectedAudioLanguages.filter((l) => !originalCodes.has(l.code))
   );
 
   console.log(
@@ -443,5 +474,6 @@ export async function resolveAudioLanguages(
 }
 
 // Re-export for callers that need to inspect source results.
+// (excludeDetected is exported directly via its `export function` declaration above.)
 export { mergeSourceResults, mergedToEntries };
 export type { MergedLanguage };
