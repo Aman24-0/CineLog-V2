@@ -499,7 +499,8 @@ export function useNotifications() {
     tmdbId: string | number,
     titleType: "movie" | "series",
     releaseDate: string,
-    titleName: string
+    titleName: string,
+    posterPath: string | null = null
   ): Promise<boolean> => {
     const id = uid();
     if (!id) return false;
@@ -521,7 +522,8 @@ export function useNotifications() {
       tmdbId,
       titleType,
       shiftedReleaseDate,
-      titleName
+      titleName,
+      posterPath
     );
     if (!ok) {
       toast.showToast("Couldn't set reminder — try again.", "error");

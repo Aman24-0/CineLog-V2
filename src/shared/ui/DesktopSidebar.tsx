@@ -56,7 +56,9 @@ const DesktopSidebar: Component = () => {
   const isActive = (href: string) => {
     if (href === "/discover" && (path() === "/discover" || path() === "/search")) return true;
     if (href === "/collections" && path().startsWith("/collections")) return true;
-    if (href === "/profile" && path().startsWith("/profile")) return true;
+    // Profile should only be active for exact /profile or /profile/ sub-paths
+    // that are NOT claimed by more specific routes (upcoming, stats).
+    if (href === "/profile" && path() === "/profile") return true;
     if (href === "/settings" && path().startsWith("/settings")) return true;
     return path() === href;
   };
@@ -67,17 +69,14 @@ const DesktopSidebar: Component = () => {
       role="navigation"
       aria-label="Desktop navigation"
     >
-      {/* Logo */}
-      <div class="desktop-sidebar__logo">
-        <span class="desktop-sidebar__logo-icon material-symbols-outlined" aria-hidden="true">
-          movie
-        </span>
-        <Show when={!collapsed()}>
-          <span class="desktop-sidebar__logo-text">
-            CINE<span style={{ color: "var(--p)" }}>LOG</span>
+      {/* Logo — hidden on desktop (now in AppHeader); shown when collapsed on desktop as icon only */}
+      <Show when={collapsed()}>
+        <div class="desktop-sidebar__logo">
+          <span class="desktop-sidebar__logo-icon material-symbols-outlined" aria-hidden="true">
+            movie
           </span>
-        </Show>
-      </div>
+        </div>
+      </Show>
 
       {/* Navigation items */}
       <nav class="desktop-sidebar__nav">

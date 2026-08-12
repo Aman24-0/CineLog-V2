@@ -64,6 +64,8 @@ CREATE TABLE IF NOT EXISTS user_reminders (
   user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   tmdb_id TEXT NOT NULL,
   title_type TEXT NOT NULL,        -- 'movie' | 'series'
+  title_name TEXT NOT NULL DEFAULT '',  -- display name for the reminder
+  poster_path TEXT,                -- TMDB poster path for the reminder
   release_date DATE NOT NULL,
   is_scheduled BOOLEAN NOT NULL DEFAULT TRUE,
   notification_sent BOOLEAN NOT NULL DEFAULT FALSE,

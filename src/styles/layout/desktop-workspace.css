@@ -96,9 +96,9 @@
     gap: 1rem;
   }
 
-  /* Hide wordmark on desktop — sidebar has the logo */
+  /* Show wordmark on desktop — app name CINELOG is in header */
   .app-header__wordmark {
-    display: none;
+    display: block;
   }
 
   /* The inline desktop search bar is shown via glass-system.css
@@ -147,8 +147,10 @@
   width: 240px; /* Phase 10 Chunk 1: 240px (was 220px) for comfortable nav labels */
   height: calc(100vh - var(--desktop-header-height, 56px));
   height: calc(100dvh - var(--desktop-header-height, 56px));
-  background: var(--surface);
-  border-right: 1px solid var(--hairline);
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  border-right: 1px solid var(--glass-border-warm-strong);
   padding: var(--sp-3, 0.75rem) 0;
   overflow-y: auto;
   overflow-x: hidden;
@@ -334,8 +336,10 @@
   width: 300px;
   height: calc(100vh - var(--desktop-header-height, 56px));
   height: calc(100dvh - var(--desktop-header-height, 56px));
-  background: var(--surface);
-  border-left: 1px solid var(--hairline);
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  border-left: 1px solid var(--glass-border-warm-strong);
   padding: var(--sp-4, 1rem);
   overflow-y: auto;
   overflow-x: hidden;
@@ -354,6 +358,35 @@
   .desktop-utility-panel {
     width: 340px;
   }
+}
+
+/* Collapsed utility panel — narrow strip with just toggle */
+.desktop-utility-panel--collapsed {
+  width: 48px !important;
+  padding: 0.5rem !important;
+  align-items: center;
+}
+
+.desktop-utility-panel__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md, 8px);
+  border: 1px solid var(--hairline);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+  flex-shrink: 0;
+}
+
+.desktop-utility-panel__toggle:hover {
+  background: var(--raised);
+  color: var(--text-body);
 }
 
 /* Phase 10 Chunk 1: GlassCard-based shelves.
