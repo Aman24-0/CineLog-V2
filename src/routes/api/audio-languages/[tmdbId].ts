@@ -59,6 +59,7 @@ import {
   DEFAULT_REGION,
   refreshStaleEntries
 } from "~/server/audio-language/worker";
+import { excludeDetected } from "~/server/audio-language/resolver";
 import type { AudioLanguageApiResponse, TitleType } from "~/server/audio-language/types";
 import { getSupabaseAccessToken } from "~/lib/supabase/admin/sessionCookie";
 
@@ -248,11 +249,32 @@ export async function GET(event: APIEvent): Promise<Response> {
     // ── Build the API response (compact, no raw source payloads) ──
     // Per spec §11: the region is retained in the response for
     // debugging + cache, but the UI MUST NOT render it.
+    //
+    // Per the targeted fix "Remove DETECTED Audio Languages":
+    //   The user-facing `dubbedLanguages` list MUST contain only
+    //   VERIFIED (high) or CONFIRMED (medium) genuine audio languages.
+    //   DETECTED (low-confidence) entries are filtered out here as a
+    //   defensive measure — the resolver already filters them on fresh
+    //   runs, but this also catches stale cache rows written before
+    //   commit b4d36c7 (which still contain TMDB-translation "low"
+    //   entries). The internal `detectedAudioLanguages` array (kept on
+    //   the worker result) is unaffected.
+    //
+    //   `sourceCount` is recomputed from the FILTERED list so the
+    //   modal's "N verified source(s)" subtitle only counts sources
+    //   that contributed to the remaining verified/confirmed entries —
+    //   never sources whose contributions were all DETECTED.
+    const filteredDubbed = excludeDetected(result.dubbedLanguages);
+    const verifiedSourceNames = new Set<string>();
+    for (const lang of filteredDubbed) {
+      for (const src of lang.sources) verifiedSourceNames.add(src);
+    }
+
     const payload: AudioLanguageApiResponse = {
       tmdbId,
       type,
       originalLanguages: result.originalLanguages,
-      dubbedLanguages: result.dubbedLanguages.map((l) => ({
+      dubbedLanguages: filteredDubbed.map((l) => ({
         code: l.code,
         name: l.name,
         confidence: l.confidence,
@@ -262,17 +284,17 @@ export async function GET(event: APIEvent): Promise<Response> {
       checkedAt: result.checkedAt,
       region: result.region,
       noData:
-        result.dubbedLanguages.length === 0 &&
+        filteredDubbed.length === 0 &&
         result.detectedAudioLanguages.length === 0 &&
         result.status === "unknown",
       error: result.status === "error",
       message: result.status === "error" ? "Unable to retrieve audio-language information." : undefined,
       seasonAvailability: result.seasonAvailability,
-      // Per spec §9: source count = number of genuine audio sources
-      // that succeeded with data. TMDB translations are no longer in
-      // the pipeline, so this is now the count of audio-specific
-      // sources (JustWatch) that contributed.
-      sourceCount: result.sources.filter((s) => s.success && !s.noData).length,
+      // Per spec §9 + targeted fix: source count = number of genuine
+      // audio sources that contributed to the FILTERED (verified/
+      // confirmed) dubbed list. Sources whose only contributions were
+      // DETECTED (low) are NOT counted.
+      sourceCount: verifiedSourceNames.size,
       fromCache,
       stale
     };

@@ -878,4 +878,277 @@ describe("audio-language pipeline: spec regression tests", () => {
       expect(deCodes).toEqual(["de", "en"]);
     });
   });
+
+  // ─── Targeted fix: "Remove DETECTED Audio Languages" ──────────────
+  //
+  // Per the targeted bug fix spec:
+  //   The Language modal was still showing low-confidence DETECTED
+  //   dubbed-audio languages (Arabic, Armenian, Belarusian, Bulgarian,
+  //   Chinese, …) alongside the VERIFIED ones (Hindi, Tamil, Telugu).
+  //   The fix: the user-facing `dubbedLanguages` list MUST contain
+  //   only VERIFIED (high) or CONFIRMED (medium) genuine audio
+  //   languages. DETECTED (low) entries are filtered out at the
+  //   resolver layer (and re-filtered at the API layer as a defensive
+  //   measure against stale cache rows from before commit b4d36c7).
+  //
+  // These tests enforce the contract:
+  //   input:  verified = [Hindi, Tamil, Telugu]   (defaultConfidence: "high")
+  //           detected = [Arabic, Bulgarian, Chinese, French, …] (defaultConfidence: "low")
+  //   output: dubbedLanguages = [Hindi, Tamil, Telugu]
+  //           detectedAudioLanguages still contains both (for debugging)
+  //           sourceCount counts only sources that contributed verified entries
+  describe("Remove DETECTED Audio Languages (targeted fix)", () => {
+    // A "verified" source — mimics JustWatch when 2+ providers report
+    // the same audio language. The resolver keeps its entries at
+    // confidence "high" (Verified).
+    function makeVerifiedSource(): AudioLanguageSource {
+      return makeMockSource({
+        name: "JustWatch",
+        defaultConfidence: "high",
+        responsesByTmdb: {
+          1429: [
+            { raw: "hi", code: "hi", name: "Hindi" },
+            { raw: "ta", code: "ta", name: "Tamil" },
+            { raw: "te", code: "te", name: "Telugu" }
+            // Note: Japanese is intentionally NOT reported here —
+            // it's the original language and comes from TMDB.
+          ]
+        }
+      });
+    }
+
+    // A "detected" source — mimics the OLD TMDB-translations source
+    // (which set defaultConfidence: "low"). The resolver must NOT
+    // surface its entries in the user-facing dubbedLanguages list.
+    function makeDetectedSource(): AudioLanguageSource {
+      return makeMockSource({
+        name: "TMDBTranslationsDetected",
+        defaultConfidence: "low",
+        responsesByTmdb: {
+          1429: [
+            { raw: "ar", code: "ar", name: "Arabic" },
+            { raw: "bg", code: "bg", name: "Bulgarian" },
+            { raw: "zh", code: "zh", name: "Chinese" },
+            { raw: "fr", code: "fr", name: "French" },
+            { raw: "de", code: "de", name: "German" },
+            { raw: "hy", code: "hy", name: "Armenian" },
+            { raw: "be", code: "be", name: "Belarusian" }
+          ]
+        }
+      });
+    }
+
+    it("dubbedLanguages = [Hindi, Tamil, Telugu] (DETECTED entries dropped)", async () => {
+      // Both sources registered. The verified source contributes
+      // Hindi/Tamil/Telugu (high). The detected source contributes
+      // Arabic/Bulgarian/Chinese/French/etc. (low). The resolver
+      // must keep ONLY the verified ones in dubbedLanguages.
+      const sources = [makeVerifiedSource(), makeDetectedSource()];
+      const result = await resolveAudioLanguages(sources, 1429, "tv", {
+        region: "IN"
+      });
+
+      const dubbedCodes = result.dubbedLanguages.map((l) => l.code).sort();
+      expect(dubbedCodes).toEqual(["hi", "ta", "te"]);
+
+      // Sanity: the DETECTED languages MUST NOT leak into dubbed.
+      expect(dubbedCodes).not.toContain("ar");
+      expect(dubbedCodes).not.toContain("bg");
+      expect(dubbedCodes).not.toContain("zh");
+      expect(dubbedCodes).not.toContain("fr");
+      expect(dubbedCodes).not.toContain("de");
+      expect(dubbedCodes).not.toContain("hy");
+      expect(dubbedCodes).not.toContain("be");
+    });
+
+    it("every entry in dubbedLanguages has confidence high or medium (never low)", async () => {
+      const sources = [makeVerifiedSource(), makeDetectedSource()];
+      const result = await resolveAudioLanguages(sources, 1429, "tv", {
+        region: "IN"
+      });
+      for (const lang of result.dubbedLanguages) {
+        expect(lang.confidence).toMatch(/^(high|medium)$/);
+        expect(lang.confidence).not.toBe("low");
+      }
+    });
+
+    it("detectedAudioLanguages (internal) still contains the DETECTED entries for debugging", async () => {
+      // The internal debugging list is NOT filtered — the API may
+      // retain low-confidence info internally, just not advertise it
+      // to the UI.
+      const sources = [makeVerifiedSource(), makeDetectedSource()];
+      const result = await resolveAudioLanguages(sources, 1429, "tv", {
+        region: "IN"
+      });
+      const detectedCodes = result.detectedAudioLanguages.map((l) => l.code);
+      // Hindi/Tamil/Telugu AND Arabic/Bulgarian/etc. are both present
+      // in the internal list (Japanese is removed as original).
+      expect(detectedCodes).toEqual(
+        expect.arrayContaining([
+          "hi",
+          "ta",
+          "te",
+          "ar",
+          "bg",
+          "zh",
+          "fr",
+          "de",
+          "hy",
+          "be"
+        ])
+      );
+      // Japanese (the original) is never in detectedAudioLanguages
+      // (it's already filtered out by the original-subtraction step
+      // would happen later, but detectedAudioLanguages is pre-subtraction).
+      // Actually detectedAudioLanguages IS pre-subtraction — Japanese
+      // is there only if a source reported it. Our verified source
+      // did NOT report Japanese, so it should not appear.
+      expect(detectedCodes).not.toContain("ja");
+    });
+
+    it("when ONLY a DETECTED source contributes, dubbedLanguages is empty", async () => {
+      // Edge case: if the only source is the detected one, the
+      // resolver must produce an EMPTY dubbedLanguages (NOT a list of
+      // detected entries). The user must NOT see Arabic/Bulgarian/...
+      // in the modal.
+      const sources = [makeDetectedSource()];
+      const result = await resolveAudioLanguages(sources, 1429, "tv", {
+        region: "IN"
+      });
+      expect(result.dubbedLanguages).toEqual([]);
+      // detectedAudioLanguages still has them (internal).
+      expect(result.detectedAudioLanguages.length).toBeGreaterThan(0);
+      const detectedCodes = result.detectedAudioLanguages.map((l) => l.code);
+      expect(detectedCodes).toEqual(
+        expect.arrayContaining(["ar", "bg", "zh", "fr"])
+      );
+    });
+
+    it("sourceCount counts only sources that contributed verified entries", async () => {
+      // Per the targeted fix: "2 VERIFIED SOURCES must count only the
+      // remaining verified audio evidence. It must NOT count hidden
+      // DETECTED languages."
+      //
+      // The API endpoint recomputes sourceCount from the FILTERED
+      // dubbedLanguages list (see [tmdbId].ts). Here we verify the
+      // equivalent computation: gather source names from the filtered
+      // list, count distinct sources.
+      const sources = [makeVerifiedSource(), makeDetectedSource()];
+      const result = await resolveAudioLanguages(sources, 1429, "tv", {
+        region: "IN"
+      });
+
+      // The filtered dubbedLanguages contains only hi/ta/te (all from
+      // the JustWatch verified source). The detected source is NOT
+      // represented.
+      const verifiedSourceNames = new Set<string>();
+      for (const lang of result.dubbedLanguages) {
+        for (const src of lang.sources) verifiedSourceNames.add(src);
+      }
+      expect(verifiedSourceNames.size).toBe(1);
+      expect(Array.from(verifiedSourceNames)).toEqual(["JustWatch"]);
+
+      // Sanity: the raw source-result array still has both sources
+      // (this is what the API USED to count — and what we explicitly
+      // no longer use after the fix).
+      const rawSuccessCount = result.sources.filter(
+        (s) => s.success && !s.noData
+      ).length;
+      expect(rawSuccessCount).toBe(2);
+      // The filtered count (1) is strictly less than the raw count (2),
+      // proving the sourceCount was recomputed from the FILTERED list.
+      expect(verifiedSourceNames.size).toBeLessThan(rawSuccessCount);
+    });
+
+    it("AudioLanguageModal does not render a separate DETECTED-only list", () => {
+      // Source-level assertion: the modal renders dubbed languages
+      // from `data()!.dubbedLanguages` (which the API guarantees has
+      // no "low" entries). The modal's `confidenceMeta` still maps
+      // "low" → "Detected" (we did NOT change the modal design), but
+      // since the API never sends "low" entries, the "Detected" label
+      // is never rendered in practice.
+      //
+      // We assert:
+      //   1. The modal renders `data()!.dubbedLanguages` directly
+      //      (no separate code path for detected entries).
+      //   2. The modal's dubbed-list render block is the ONLY place
+      //      that renders dubbed languages.
+      const src = readFileSync(MODAL_PATH, "utf-8");
+      // The render loop iterates over data()!.dubbedLanguages.
+      expect(src).toMatch(/For each=\{data\(\)!\.dubbedLanguages\}/);
+      // The confidenceMeta helper still has the "low" → "Detected"
+      // case (we did NOT remove it — the modal design is unchanged).
+      // This is intentional: it's dead code in practice because the
+      // API never sends "low" entries, but removing it would be a
+      // modal-design change which the spec forbids.
+      expect(src).toMatch(/case "low":/);
+      expect(src).toMatch(/"Detected"/);
+    });
+
+    it("AudioLanguageModal still renders VERIFIED (high) dubbed languages", () => {
+      // Source-level assertion: the modal's render loop maps
+      // confidence "high" → "Verified" label and renders the language
+      // name + the confidence pill. This is the EXISTING render path
+      // that must remain functional.
+      const src = readFileSync(MODAL_PATH, "utf-8");
+      expect(src).toMatch(/case "high":/);
+      expect(src).toMatch(/"Verified"/);
+      // The render block contains the confidence pill.
+      expect(src).toMatch(/audio-lang-confidence/);
+    });
+
+    it("AudioLanguageModal still renders ORIGINAL / SPOKEN languages", () => {
+      // Source-level assertion: the modal's ORIGINAL section renders
+      // from `originalLanguages()` (built locally from TMDB details,
+      // NOT from the API). This must remain unchanged.
+      const src = readFileSync(MODAL_PATH, "utf-8");
+      expect(src).toMatch(/Original \/ Spoken/);
+      expect(src).toMatch(/For each=\{originalLanguages\(\)\}/);
+    });
+
+    it("existing TMDB-translation removal remains intact (worker still has no tmdb-translations)", () => {
+      // Defense-in-depth: the targeted fix adds a SECOND filter at
+      // the resolver+API layer, but the FIRST line of defense (TMDB
+      // translations removed from the worker) must remain intact.
+      const workerSrc = readFileSync(WORKER_PATH, "utf-8");
+      expect(workerSrc).not.toMatch(/tmdb-translations/);
+      expect(workerSrc).not.toMatch(/TmdbTranslationsSource/);
+      // The source file itself must still not exist.
+      expect(() => readFileSync(TMDB_TRANSLATIONS_PATH, "utf-8")).toThrow();
+    });
+
+    it("region + cache architecture unchanged by the targeted fix", () => {
+      // Defense-in-depth: the targeted fix only touches the
+      // confidence-filter step. The region + cache architecture from
+      // commit b4d36c7 must remain intact.
+      const workerSrc = readFileSync(WORKER_PATH, "utf-8");
+      expect(workerSrc).toMatch(/DEFAULT_REGION\s*=\s*["']US["']/);
+      expect(workerSrc).not.toMatch(/region\s*=\s*["']IN["']/);
+
+      const apiSrc = readFileSync(API_PATH, "utf-8");
+      expect(apiSrc).toMatch(/resolveProfileCountry/);
+
+      const migrationSrc = readFileSync(MIGRATION_20260817_PATH, "utf-8");
+      expect(migrationSrc).toMatch(/add column if not exists region/);
+      expect(migrationSrc).toMatch(/unique \(media_type, tmdb_id, region\)/);
+    });
+
+    it("excludeDetected is exported by the resolver and used at the API layer", () => {
+      // The fix introduces a small, reusable helper `excludeDetected`
+      // that drops "low"-confidence entries. The resolver exports it
+      // and the API endpoint imports + uses it (defensive filter for
+      // stale cache rows written before b4d36c7).
+      const resolverSrc = readFileSync(RESOLVER_PATH, "utf-8");
+      expect(resolverSrc).toMatch(/export function excludeDetected/);
+      expect(resolverSrc).toMatch(/excludeDetected\(/);
+
+      const apiSrc = readFileSync(API_PATH, "utf-8");
+      expect(apiSrc).toMatch(/from ["']~\/server\/audio-language\/resolver["']/);
+      expect(apiSrc).toMatch(/excludeDetected/);
+      // sourceCount is recomputed from the FILTERED list, not from
+      // result.sources directly.
+      expect(apiSrc).toMatch(/verifiedSourceNames/);
+      expect(apiSrc).toMatch(/sourceCount:\s*verifiedSourceNames\.size/);
+    });
+  });
 });
