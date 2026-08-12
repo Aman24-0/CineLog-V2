@@ -159,10 +159,12 @@
 // numeric-only versions (`cinelog-static-v11`) will be matched by
 // the `!key.endsWith("-v13-localstorage")` filter and deleted on
 // activate, which is exactly what we want.
-const CACHE_VERSION = "v16-phase18-deep-fix";
+const CACHE_VERSION = "v17-perf-caching";
 const CACHE_STATIC = `cinelog-static-${CACHE_VERSION}`;
 const CACHE_HTML = `cinelog-html-${CACHE_VERSION}`;
 const CACHE_RUNTIME = `cinelog-runtime-${CACHE_VERSION}`;
+const CACHE_TMDB = `cinelog-tmdb-${CACHE_VERSION}`;
+const CACHE_FONTS = `cinelog-fonts-${CACHE_VERSION}`;
 
 // ─── App-shell URLs to precache on install ──────────────────────────
 //   Only the bare minimum: the entry HTML and the offline fallback.
@@ -175,6 +177,13 @@ const APP_SHELL_URLS = ["/", "/offline.html"];
 const MAX_STATIC_ENTRIES = 80;
 const MAX_HTML_ENTRIES = 8;
 const MAX_RUNTIME_ENTRIES = 200;
+const MAX_TMDB_ENTRIES = 400;
+const MAX_FONT_ENTRIES = 30;
+
+// ─── Time-based cache expiry (seconds) ───────────────────────────────
+const TMDB_IMAGE_MAX_AGE_S = 30 * 24 * 60 * 60;   // 30 days
+const DISCOVER_SWR_STALE_S = 5 * 60;              // 5 minutes
+const STATIC_MAX_AGE_S = 365 * 24 * 60 * 60;     // 1 year (immutable)
 
 // ─── HTML navigation fetch timeout ──────────────────────────────────
 //   Phase 14 Chunk 8 hotfix — COLD-START LOADING BAR FIX
@@ -277,7 +286,9 @@ self.addEventListener("activate", (event) => {
     (async () => {
       // Delete any cache from a previous CACHE_VERSION so we don't
       // leak storage after a deploy. Caches for the current version
-      // are kept.
+      // are kept. This now also covers the new CACHE_TMDB and
+      // CACHE_FONTS caches — any cache prefixed "cinelog-" that
+      // doesn't end with the current version is deleted.
       const allKeys = await caches.keys();
       await Promise.all(
         allKeys
@@ -285,7 +296,10 @@ self.addEventListener("activate", (event) => {
             (key) =>
               key.startsWith("cinelog-") && !key.endsWith(`-${CACHE_VERSION}`)
           )
-          .map((key) => caches.delete(key))
+          .map((key) => {
+            console.info(`[SW] Deleting old cache: ${key}`);
+            return caches.delete(key);
+          })
       );
       await self.clients.claim();
     })()
@@ -346,6 +360,16 @@ self.addEventListener("fetch", (event) => {
 
   // ─── Strategy 2: CACHE-FIRST for same-origin static assets ────────
   if (url.origin === self.location.origin) {
+    // Hashed static assets under /_solidjs/ and /assets/ → cache-first
+    // with 1-year expiry (Vite hashes filenames → immutable).
+    if (
+      url.pathname.startsWith("/_solidjs/") ||
+      url.pathname.startsWith("/assets/")
+    ) {
+      event.respondWith(cacheFirstWithExpiry(req, CACHE_STATIC, MAX_STATIC_ENTRIES, STATIC_MAX_AGE_S));
+      return;
+    }
+
     const dest = req.destination;
     if (
       dest === "style" ||
@@ -356,7 +380,24 @@ self.addEventListener("fetch", (event) => {
       event.respondWith(cacheFirstStatic(req));
       return;
     }
-    // Same-origin /api/* → SWR
+
+    // Same-origin /api/media/* (TMDB image proxy) → cache-first 30-day
+    if (url.pathname.startsWith("/api/media/")) {
+      event.respondWith(cacheFirstWithExpiry(req, CACHE_TMDB, MAX_TMDB_ENTRIES, TMDB_IMAGE_MAX_AGE_S));
+      return;
+    }
+
+    // API discover routes → SWR with 5-minute stale tolerance
+    if (
+      url.pathname.startsWith("/api/discover/") ||
+      url.pathname === "/api/spotlight" ||
+      url.pathname === "/api/taste"
+    ) {
+      event.respondWith(staleWhileRevalidateWithTolerance(req, DISCOVER_SWR_STALE_S));
+      return;
+    }
+
+    // Same-origin /api/* → standard SWR
     if (url.pathname.startsWith("/api/")) {
       event.respondWith(staleWhileRevalidate(req));
       return;
@@ -366,15 +407,25 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // ─── Strategy 3: STALE-WHILE-REVALIDATE for TMDB image CDN ───────
-  // TMDB posters are served from image.tmdb.org. They're large, rarely
-  // change, and the user sees them on every page — perfect SWR targets.
-  // Cross-origin fonts (Google Fonts) are also SWR'd.
+  // ─── Strategy 3: CACHE-FIRST for TMDB image CDN (30-day expiry) ───
+  // TMDB posters from image.tmdb.org are immutable per URL — each path
+  // encodes the file hash. Cache-first with a 30-day expiry gives instant
+  // repeat loads and evicts stale entries automatically.
   if (
     url.hostname === "image.tmdb.org" ||
-    url.hostname.endsWith(".image.tmdb.org")
+    url.hostname.endsWith(".image.tmdb.org") ||
+    url.hostname === "api.themoviedb.org"
   ) {
-    event.respondWith(staleWhileRevalidate(req));
+    event.respondWith(cacheFirstWithExpiry(req, CACHE_TMDB, MAX_TMDB_ENTRIES, TMDB_IMAGE_MAX_AGE_S));
+    return;
+  }
+
+  // ─── Strategy 4: CACHE-FIRST for fontsource fonts (1-year expiry) ──
+  if (
+    url.hostname.includes("fontsource") ||
+    url.hostname === "cdn.jsdelivr.net" && url.pathname.includes("/@fontsource")
+  ) {
+    event.respondWith(cacheFirstWithExpiry(req, CACHE_FONTS, MAX_FONT_ENTRIES, STATIC_MAX_AGE_S));
     return;
   }
 });
@@ -568,11 +619,21 @@ async function cacheFirstStatic(req) {
   try {
     const networkResp = await fetch(req);
     if (networkResp && networkResp.ok) {
+      // Inject sw-cached-at timestamp for age-based expiry in
+      // cacheFirstWithExpiry and staleWhileRevalidateWithTolerance.
+      const body = await networkResp.clone().arrayBuffer();
+      const headers = new Headers(networkResp.headers);
+      headers.set("sw-cached-at", new Date().toISOString());
+      const stampedResp = new Response(body, {
+        status: networkResp.status,
+        statusText: networkResp.statusText,
+        headers
+      });
       // Phase 18 deep fix: wrap cache.put in its own .catch() so a
       // rejection doesn't become an unhandled promise rejection. The
       // response is already being returned to the caller; this cache
       // update is purely best-effort.
-      cache.put(req, networkResp.clone()).catch((err) => {
+      cache.put(req, stampedResp).catch((err) => {
         console.warn(
           "[sw] cache.put failed for static asset (non-fatal):",
           err?.message || err
@@ -620,17 +681,28 @@ async function staleWhileRevalidate(req) {
   const revalidate = fetch(req)
     .then((networkResp) => {
       if (networkResp && networkResp.ok && networkResp.status === 200) {
-        // Phase 18 deep fix: wrap cache.put in its own .catch() so a
-        // rejection doesn't become an unhandled promise rejection.
-        // Opaque / CORS-blocked responses can throw on cache.put; we
-        // swallow + log so the SW doesn't emit console errors.
-        cache.put(req, networkResp.clone()).catch((err) => {
-          console.warn(
-            "[sw] cache.put failed for runtime asset (non-fatal):",
-            err?.message || err
-          );
+        // Inject sw-cached-at timestamp for age-based expiry.
+        const bodyPromise = networkResp.clone().arrayBuffer();
+        bodyPromise.then((body) => {
+          const headers = new Headers(networkResp.headers);
+          headers.set("sw-cached-at", new Date().toISOString());
+          const stampedResp = new Response(body, {
+            status: networkResp.status,
+            statusText: networkResp.statusText,
+            headers
+          });
+          // Phase 18 deep fix: wrap cache.put in its own .catch() so a
+          // rejection doesn't become an unhandled promise rejection.
+          // Opaque / CORS-blocked responses can throw on cache.put; we
+          // swallow + log so the SW doesn't emit console errors.
+          cache.put(req, stampedResp).catch((err) => {
+            console.warn(
+              "[sw] cache.put failed for runtime asset (non-fatal):",
+              err?.message || err
+            );
+          });
+          trimCache(CACHE_RUNTIME, MAX_RUNTIME_ENTRIES);
         });
-        trimCache(CACHE_RUNTIME, MAX_RUNTIME_ENTRIES);
       }
       return networkResp;
     })
@@ -656,6 +728,155 @@ async function staleWhileRevalidate(req) {
     // revalidate already caught its own errors, but defensive: if it
     // somehow rejected, fall through to the 504 below.
   }
+  return new Response("Offline and not cached", {
+    status: 504,
+    statusText: "Gateway Timeout",
+    headers: { "Content-Type": "text/plain" }
+  });
+}
+
+/**
+ * CACHE-FIRST WITH EXPIRY — serves from cache if present and not expired,
+ * otherwise fetches from network, caches with a timestamp, and returns.
+ *
+ * Each cached entry has a custom `sw-cached-at` header injected when stored.
+ * If the entry's age exceeds `maxAgeSeconds`, it is treated as a miss:
+ * deleted from cache and re-fetched from the network.
+ *
+ * @param {Request} req
+ * @param {string} cacheName  - the Cache API store name
+ * @param {number} maxEntries - cap for trimCache()
+ * @param {number} maxAgeSeconds - max age in seconds before entry is stale
+ */
+async function cacheFirstWithExpiry(req, cacheName, maxEntries, maxAgeSeconds) {
+  const cache = await caches.open(cacheName);
+  const cached = await cache.match(req);
+
+  if (cached) {
+    const cachedAt = cached.headers.get("sw-cached-at");
+    if (cachedAt) {
+      const ageSeconds = (Date.now() - new Date(cachedAt).getTime()) / 1000;
+      if (ageSeconds < maxAgeSeconds) {
+        // Cache hit and within expiry — serve instantly.
+        return cached;
+      }
+      // Expired — delete from cache and re-fetch.
+      await cache.delete(req);
+    } else {
+      // No timestamp header (legacy entry) — serve it, but re-validate
+      // in the background so it gets a timestamp next time.
+      return cached;
+    }
+  }
+
+  // Cache miss or expired — fetch from network.
+  try {
+    const networkResp = await fetch(req);
+    if (networkResp && networkResp.ok && networkResp.status === 200) {
+      // Clone and inject the cached-at timestamp so we can check expiry
+      // on the next read. We create a new Response to add the header
+      // without mutating the original.
+      const body = await networkResp.clone().arrayBuffer();
+      const headers = new Headers(networkResp.headers);
+      headers.set("sw-cached-at", new Date().toISOString());
+      const stampedResp = new Response(body, {
+        status: networkResp.status,
+        statusText: networkResp.statusText,
+        headers
+      });
+      cache.put(req, stampedResp.clone()).catch((err) => {
+        console.warn("[sw] cache.put failed (non-fatal):", err?.message || err);
+      });
+      trimCache(cacheName, maxEntries);
+      // Return the ORIGINAL response (without the custom header) so the
+      // page gets a clean response. The stamped copy is only for the cache.
+      return networkResp;
+    }
+    return networkResp;
+  } catch (err) {
+    // Network failed — if we still have a stale cached copy (race with
+    // delete above), serve it as a fallback. Otherwise 504.
+    const staleCached = await cache.match(req);
+    if (staleCached) return staleCached;
+    return new Response("Offline and not cached", {
+      status: 504,
+      statusText: "Gateway Timeout",
+      headers: { "Content-Type": "text/plain" }
+    });
+  }
+}
+
+/**
+ * STALE-WHILE-REVALIDATE WITH STALE TOLERANCE — like SWR, but if the
+ * cached entry is older than `staleToleranceSeconds`, the network
+ * response is awaited and returned instead of the stale copy. This
+ * prevents serving very stale data (e.g. a 1-hour-old discover response)
+ * while still providing instant loads for fresh-enough cache entries.
+ *
+ * @param {Request} req
+ * @param {number} staleToleranceSeconds - max age to serve stale; beyond
+ *   this, we wait for the network.
+ */
+async function staleWhileRevalidateWithTolerance(req, staleToleranceSeconds) {
+  const cache = await caches.open(CACHE_RUNTIME);
+  const cached = await cache.match(req);
+
+  // Check if the cached entry is within stale tolerance.
+  let cachedIsFresh = false;
+  if (cached) {
+    const cachedAt = cached.headers.get("sw-cached-at");
+    if (cachedAt) {
+      const ageSeconds = (Date.now() - new Date(cachedAt).getTime()) / 1000;
+      cachedIsFresh = ageSeconds < staleToleranceSeconds;
+    } else {
+      // No timestamp — treat as fresh (legacy entry).
+      cachedIsFresh = true;
+    }
+  }
+
+  // Build the network fetch + cache-update promise.
+  const revalidate = fetch(req)
+    .then((networkResp) => {
+      if (networkResp && networkResp.ok && networkResp.status === 200) {
+        // Inject timestamp header for age tracking.
+        const bodyPromise = networkResp.clone().arrayBuffer();
+        bodyPromise.then((body) => {
+          const headers = new Headers(networkResp.headers);
+          headers.set("sw-cached-at", new Date().toISOString());
+          const stampedResp = new Response(body, {
+            status: networkResp.status,
+            statusText: networkResp.statusText,
+            headers
+          });
+          cache.put(req, stampedResp).catch((err) => {
+            console.warn("[sw] cache.put failed (non-fatal):", err?.message || err);
+          });
+          trimCache(CACHE_RUNTIME, MAX_RUNTIME_ENTRIES);
+        });
+      }
+      return networkResp;
+    })
+    .catch(() => {
+      // Background revalidation failed — silently swallow.
+    });
+
+  // If cached and within tolerance → serve immediately, revalidate in bg.
+  if (cached && cachedIsFresh) {
+    event_queueMicrotask(() => revalidate);
+    return cached;
+  }
+
+  // Cached but stale (beyond tolerance) OR not cached → wait for network.
+  try {
+    const networkResp = await revalidate;
+    if (networkResp) return networkResp;
+  } catch (err) {
+    // Network failed — fall through.
+  }
+
+  // If we have a stale cached copy, serve it as a fallback.
+  if (cached) return cached;
+
   return new Response("Offline and not cached", {
     status: 504,
     statusText: "Gateway Timeout",
