@@ -637,6 +637,49 @@ export type Database = {
         };
         Relationships: [];
       };
+      // ── OTT Provider Availability Cache ──
+      // Added by 20260813_ott_provider_availability_cache.sql.
+      // Stores per-title JustWatch provider availability. Composite key
+      // (media_type, tmdb_id, region) — region is included because
+      // JustWatch offer data is region-specific. `data` is the full
+      // ProviderAvailabilityResult JSON. Reads are world-readable (RLS);
+      // writes go through the service role.
+      ott_provider_availability: {
+        Row: {
+          id: string;
+          media_type: string;
+          tmdb_id: number;
+          region: string;
+          data: Json;
+          expires_at: string;
+          fetched_at: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          media_type: string;
+          tmdb_id: number;
+          region: string;
+          data: Json;
+          expires_at: string;
+          fetched_at?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          media_type?: string;
+          tmdb_id?: number;
+          region?: string;
+          data?: Json;
+          expires_at?: string;
+          fetched_at?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       login_history: {
         Row: {
           id: string;

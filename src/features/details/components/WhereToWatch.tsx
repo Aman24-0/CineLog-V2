@@ -8,18 +8,18 @@ import {
   type Component
 } from "solid-js";
 import type { Accessor } from "solid-js";
-import { tmdbImage, fetchTitleWatchProviders } from "~/core/tmdb/tmdb";
+import { tmdbImage } from "~/core/tmdb/tmdb";
+import { getWatchProviderList, getWatchProviderListTv } from "~/core/tmdb/discover";
+import { mergeAndSortProviders } from "~/core/preferences/streamingProviders";
 import { useDiscoverRegion } from "~/core/config/discoverRegion";
 import { useFeatureFlags } from "~/lib/featureFlags";
 import {
   canonicalForTmdbId,
+  canonicalForJustWatchClearName,
   displayNameFor
 } from "~/features/discover/components/ottProviderRegistry";
-import type {
-  WatchlistItem,
-  TMDBDetails,
-  TMDBWatchProvider
-} from "~/shared/types";
+import type { WatchlistItem, TMDBDetails } from "~/shared/types";
+import type { ProviderAvailabilityEntry } from "~/server/ott-providers/types";
 import DetailSection from "~/features/details/components/DetailSection";
 
 interface WhereToWatchProps {
@@ -33,11 +33,14 @@ interface WhereToWatchProps {
  * Shows the streaming/rent/buy platforms where the title is available in
  * the user's currently-set country (from Account settings → discoverRegion).
  *
+ * DATA SOURCES:
+ *   - Provider availability: JustWatch (via getProviderAvailability)
+ *   - Provider logos: TMDB /watch/providers list (for logo_path only)
+ *   - Provider names: JustWatch package.clearName, mapped to canonical names
+ *
  * KEY BEHAVIORS:
- *   - Country-filtered: only shows providers for the user's region. If the
- *     title isn't available in that region, the entire section is hidden.
- *   - Provider names are canonicalized via ottProviderRegistry so aliases
- *     (e.g. "Amazon Prime Video" + "Amazon Video") collapse to "Prime Video".
+ *   - Country-filtered: only shows providers for the user's region.
+ *   - Provider names come from JustWatch; logos come from TMDB provider list.
  *   - Deduplicated by canonical key — one chip per real-world service.
  *   - Ordered by access model: Streaming (flatrate) first, then Rent, Buy.
  *   - Each chip: circular logo + provider name beneath.
@@ -45,20 +48,14 @@ interface WhereToWatchProps {
  *       • TMDB details aren't loaded yet
  *       • The title has no watch providers in the user's region
  *       • The fetch fails (silent — no error UI, just hidden)
- *
- * PLACEMENT:
- *   Rendered between DetailsMetadata and DetailsSeasons in the DetailsModal.
  */
 const WhereToWatch: Component<WhereToWatchProps> = (props) => {
   const region = useDiscoverRegion();
   const featureFlags = useFeatureFlags();
-  const [providers, setProviders] = createSignal<TMDBWatchProvider[] | null>(
-    null
-  );
+  const [providers, setProviders] = createSignal<
+    Array<{ name: string; monetizationType: string; logoPath: string | null }>
+  >([]);
   const [loaded, setLoaded] = createSignal(false);
-  // Deep link to the title's page on the platform (country-specific).
-  // TMDB returns ONE link per country that points to JustWatch's page
-  // for the title in that region — clicking any provider opens it.
   const [deepLink, setDeepLink] = createSignal<string | null>(null);
 
   const mediaType = createMemo(() => {
@@ -73,76 +70,136 @@ const WhereToWatch: Component<WhereToWatchProps> = (props) => {
     return d?.id ?? (b?.id ? Number(b.id) : null);
   });
 
+  const title = createMemo(() => {
+    const d = props.details();
+    return d?.title ?? d?.name ?? d?.original_title ?? d?.original_name ?? "";
+  });
+
+  /** Load TMDB provider list for logo resolution (cached, cheap). */
+  const loadLogoMap = async (reg: string): Promise<Map<string, string | null>> => {
+    const [movieRows, tvRows] = await Promise.allSettled([
+      getWatchProviderList(reg),
+      getWatchProviderListTv(reg)
+    ]);
+    const movie = movieRows.status === "fulfilled" ? movieRows.value : [];
+    const tv = tvRows.status === "fulfilled" ? tvRows.value : [];
+    const merged = mergeAndSortProviders(movie, tv);
+    const logoMap = new Map<string, string | null>();
+    for (const p of merged) {
+      // Map by canonical key for JustWatch-resolved providers.
+      const canonical = canonicalForTmdbId(Number(p.id));
+      if (!logoMap.has(canonical)) {
+        logoMap.set(canonical, p.logoPath);
+      }
+      // Also map by TMDB ID string for direct lookups.
+      if (!logoMap.has(p.id)) {
+        logoMap.set(p.id, p.logoPath);
+      }
+      // Map by display name (case-insensitive) for JustWatch clearName lookups.
+      const nameKey = p.name.toLowerCase();
+      if (!logoMap.has(nameKey)) {
+        logoMap.set(nameKey, p.logoPath);
+      }
+    }
+    return logoMap;
+  };
+
   const loadProviders = async () => {
     const id = tmdbId();
     const mt = mediaType();
-    if (id === null || id === undefined) {
-      setProviders(null);
+    const titleStr = title();
+    if (id === null || id === undefined || !titleStr) {
+      setProviders([]);
       setDeepLink(null);
       setLoaded(true);
       return;
     }
     setLoaded(false);
-    const results = await fetchTitleWatchProviders(mt as "movie" | "tv", id);
-    if (!results) {
-      setProviders(null);
+
+    try {
+      // Fetch JustWatch availability (via API route) + TMDB provider logos in parallel.
+      const [fetchResult, logoMap] = await Promise.allSettled([
+        fetch(`/api/ott-providers/${id}?type=${mt}&title=${encodeURIComponent(titleStr)}`),
+        loadLogoMap(region())
+      ]);
+
+      const logos = logoMap.status === "fulfilled" ? logoMap.value : new Map();
+
+      if (fetchResult.status === "rejected" || !fetchResult.value.ok) {
+        setProviders([]);
+        setDeepLink(null);
+        setLoaded(true);
+        return;
+      }
+
+      const jw = await fetchResult.value.json();
+      if (!jw.providers || jw.providers.length === 0) {
+        setProviders([]);
+        setDeepLink(null);
+        setLoaded(true);
+        return;
+      }
+
+      // Map JustWatch providers to display format.
+      const mapped = jw.providers.map((p: ProviderAvailabilityEntry) => {
+        const canonical = canonicalForJustWatchClearName(p.providerName);
+        const logoPath = logos.get(canonical) ??
+          logos.get(p.providerName.toLowerCase()) ??
+          logos.get(p.providerName) ??
+          null;
+        return {
+          name: displayNameFor(canonical),
+          monetizationType: p.monetizationType,
+          logoPath
+        };
+      });
+
+      // Sort: flatrate/streaming first, then rent, buy, free, ads.
+      const order = (m: string) => {
+        switch (m) {
+          case "flatrate": return 0;
+          case "free": return 1;
+          case "ads": return 2;
+          case "rent": return 3;
+          case "buy": return 4;
+          default: return 5;
+        }
+      };
+      mapped.sort((a: typeof mapped[0], b: typeof mapped[0]) => order(a.monetizationType) - order(b.monetizationType));
+
+      setProviders(mapped);
+
+      // Build a JustWatch search deep link as fallback.
+      const jwNodeId = jw.justWatchNodeId;
+      if (jwNodeId) {
+        setDeepLink(`https://www.justwatch.com/in/title/${jwNodeId}`);
+      } else {
+        setDeepLink(null);
+      }
+    } catch (err) {
+      console.warn("[WhereToWatch] Failed to load providers:", err);
+      setProviders([]);
       setDeepLink(null);
+    } finally {
       setLoaded(true);
-      return;
     }
-    const countryData = results[region()];
-    if (!countryData) {
-      setProviders(null);
-      setDeepLink(null);
-      setLoaded(true);
-      return;
-    }
-    // Capture the country-level deep link (JustWatch URL for this title
-    // in this region) — clicking any provider card opens this in a new tab.
-    setDeepLink(countryData.link ?? null);
-    // Merge flatrate + rent + buy + free + ads, then dedupe by canonical key
-    // so alias providers (Amazon Prime Video + Amazon Video) collapse to one.
-    const all: TMDBWatchProvider[] = [
-      ...(countryData.flatrate ?? []),
-      ...(countryData.rent ?? []),
-      ...(countryData.buy ?? []),
-      ...(countryData.free ?? []),
-      ...(countryData.ads ?? [])
-    ];
-    const seen = new Set<string>();
-    const deduped: TMDBWatchProvider[] = [];
-    for (const p of all) {
-      const key = canonicalForTmdbId(p.provider_id);
-      // For "other" canonical (unknown providers), dedupe by provider_id instead
-      const dedupKey = key === "other" ? `id:${p.provider_id}` : key;
-      if (seen.has(dedupKey)) continue;
-      seen.add(dedupKey);
-      deduped.push(p);
-    }
-    setProviders(deduped);
-    setLoaded(true);
   };
 
   onMount(() => {
     void loadProviders();
   });
 
-  /** Display name — uses canonical name when known, falls back to TMDB name. */
-  const displayName = (p: TMDBWatchProvider): string => {
-    const canonical = canonicalForTmdbId(p.provider_id);
-    return canonical === "other" ? p.provider_name : displayNameFor(canonical);
-  };
-
-  /** Sorted: streaming providers first (canonical !== "other"), then others. */
+  /** Sorted: streaming providers first (flatrate/free/ads), then others. */
   const sortedProviders = createMemo(() => {
     const list = providers() ?? [];
     return [...list].sort((a, b) => {
-      const ca = canonicalForTmdbId(a.provider_id);
-      const cb = canonicalForTmdbId(b.provider_id);
-      // "other" goes last
-      if (ca === "other" && cb !== "other") return 1;
-      if (ca !== "other" && cb === "other") return -1;
-      return displayName(a).localeCompare(displayName(b));
+      const order: Record<string, number> = {
+        flatrate: 0, free: 1, ads: 2, rent: 3, buy: 4
+      };
+      const oa = order[a.monetizationType] ?? 5;
+      const ob = order[b.monetizationType] ?? 5;
+      if (oa !== ob) return oa - ob;
+      return a.name.localeCompare(b.name);
     });
   });
 
@@ -170,14 +227,14 @@ const WhereToWatch: Component<WhereToWatchProps> = (props) => {
                 rel="noopener noreferrer"
                 title={
                   deepLink()
-                    ? `Open ${displayName(provider)} on a new tab`
-                    : displayName(provider)
+                    ? `Open ${provider.name} on a new tab`
+                    : provider.name
                 }
-                aria-label={`Open ${displayName(provider)} in a new tab`}
+                aria-label={`Open ${provider.name} in a new tab`}
               >
                 <div class="wheretowatch-logo-wrap">
                   <Show
-                    when={provider.logo_path}
+                    when={provider.logoPath}
                     fallback={
                       <div
                         class="wheretowatch-logo-fallback"
@@ -194,7 +251,7 @@ const WhereToWatch: Component<WhereToWatchProps> = (props) => {
                     }
                   >
                     <img
-                      src={tmdbImage(provider.logo_path, "w154")}
+                      src={tmdbImage(provider.logoPath, "w154")}
                       class="wheretowatch-logo"
                       loading="lazy"
                       decoding="async"
@@ -203,7 +260,6 @@ const WhereToWatch: Component<WhereToWatchProps> = (props) => {
                       alt=""
                       aria-hidden="true"
                       onError={(e) => {
-                        // Hide broken image, show fallback icon sibling
                         e.currentTarget.style.display = "none";
                         const fallback = e.currentTarget
                           .nextElementSibling as HTMLElement | null;
@@ -225,7 +281,7 @@ const WhereToWatch: Component<WhereToWatchProps> = (props) => {
                     </div>
                   </Show>
                 </div>
-                <span class="wheretowatch-name">{displayName(provider)}</span>
+                <span class="wheretowatch-name">{provider.name}</span>
               </a>
             )}
           </For>

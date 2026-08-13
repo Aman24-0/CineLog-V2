@@ -157,6 +157,44 @@ const TMDB_ID_TO_CANONICAL: Record<number, CanonicalProviderKey> = {
 };
 
 /**
+ * Map of JustWatch `package.clearName` values → canonical key.
+ *
+ * JustWatch uses slightly different names than TMDB for some providers
+ * (e.g. "Prime Video" vs "Amazon Prime Video", "Apple TV Plus" vs
+ * "Apple TV+"). This map normalizes those variants to the same
+ * canonical key so the rest of the app doesn't need to know about
+ * JustWatch naming conventions.
+ *
+ * Matching is case-insensitive and trimmed.
+ */
+const JUSTWATCH_CLEAR_NAME_TO_CANONICAL: Record<string, CanonicalProviderKey> = {
+  netflix: "netflix",
+  "amazon prime video": "prime_video",
+  prime: "prime_video",
+  "prime video": "prime_video",
+  "amazon video": "prime_video",
+  jiohotstar: "jiohotstar",
+  hotstar: "jiohotstar",
+  "disney+ hotstar": "jiohotstar",
+  "sony liv": "sonyliv",
+  "sonyliv": "sonyliv",
+  zee5: "zee5",
+  crunchyroll: "crunchyroll",
+  "apple tv+": "apple_tv",
+  "apple tv plus": "apple_tv",
+  "apple itunes": "apple_tv",
+  "disney+": "disney_plus",
+  mubi: "mubi",
+  "lionsgate play": "lionsgate_play",
+  hulu: "hulu",
+  "max": "max",
+  "hbo max": "max",
+  "paramount+": "paramount_plus",
+  peacock: "peacock",
+  "discovery+": "discovery_plus"
+};
+
+/**
  * The primary chip order for the OTT section. Each entry maps a
  * canonical key to its preferred TMDB provider ID (the one we use
  * for /discover queries). If a primary provider isn't available in
@@ -180,6 +218,14 @@ export const PRIMARY_PROVIDER_ORDER: PrimaryProviderDef[] = [
   { canonical: "zee5", ids: [567] },
   { canonical: "crunchyroll", ids: [283] }
 ];
+
+/** Resolve a JustWatch package.clearName to its canonical key. */
+export function canonicalForJustWatchClearName(
+  clearName: string
+): CanonicalProviderKey {
+  const key = clearName.trim().toLowerCase();
+  return JUSTWATCH_CLEAR_NAME_TO_CANONICAL[key] ?? "other";
+}
 
 /** Resolve a TMDB provider ID to its canonical key. */
 export function canonicalForTmdbId(tmdbId: number): CanonicalProviderKey {
