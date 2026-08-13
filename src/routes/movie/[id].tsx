@@ -303,7 +303,7 @@ export default function MovieDeepLinkRoute() {
             image: ogImage() || undefined,
             datePublished: meta()!.release_date ?? undefined,
             genre: meta()!.genres?.length ? meta()!.genres : undefined,
-            ...(meta()!.vote_average != null && meta()!.vote_count > 0
+            ...(meta()!.vote_average != null && (meta()!.vote_count ?? 0) > 0
               ? {
                   aggregateRating: {
                     "@type": "AggregateRating",

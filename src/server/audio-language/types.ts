@@ -223,10 +223,13 @@ export interface AudioLanguageResult {
   /** Per-source raw results (for the "source" indicator in the UI). */
   sources: AudioLanguageSourceResult[];
 
-  status: WorkerStatus;
+   status: WorkerStatus;
 
-  /** Region the worker queried (e.g. "IN"). */
-  region: string;
+   /** Human-readable message when status is "error". Undefined otherwise. */
+   statusMessage?: string;
+
+   /** Region the worker queried (e.g. "IN"). */
+   region: string;
 
   /** ISO timestamp the worker ran. */
   checkedAt: string;

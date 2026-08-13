@@ -48,7 +48,6 @@ import type {
   Confidence,
   DubbedLanguageEntry,
   NormalizedLanguage,
-  RawLanguageEntry,
   TitleType,
   WorkerStatus
 } from "./types";
@@ -323,7 +322,7 @@ export async function resolveAudioLanguages(
   // failed, we have no originals — but we can still attempt sources
   // (which may surface their own audio data). The result will be marked
   // with status="success" but the originalLanguages array will be empty.
-  let originalLanguages: NormalizedLanguage[] = [];
+  const originalLanguages: NormalizedLanguage[] = [];
   let title: string | undefined;
   let originalLanguageCode: string | undefined;
   let imdbId: string | undefined = opts.imdbId;
@@ -459,7 +458,7 @@ export async function resolveAudioLanguages(
     status = "success";
   }
 
-  return {
+   return {
     tmdbId,
     type,
     originalLanguages,
@@ -467,6 +466,7 @@ export async function resolveAudioLanguages(
     detectedAudioLanguages,
     sources: sourceResults,
     status,
+    statusMessage,
     region,
     checkedAt,
     imdbId

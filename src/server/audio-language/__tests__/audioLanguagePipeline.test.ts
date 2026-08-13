@@ -89,7 +89,7 @@ function makeMockSource(cfg: MockSourceConfig): AudioLanguageSource {
         };
       }
       const key = `${input.tmdbId}:${input.region}`;
-      let langs =
+      const langs =
         cfg.responsesByTmdbAndRegion?.[key] ??
         cfg.responsesByTmdb?.[input.tmdbId] ??
         [];
@@ -470,7 +470,6 @@ describe("audio-language pipeline: spec regression tests", () => {
       // The languages array MUST be populated from audioLanguages,
       // not subtitleLanguages. We check the union-building loop
       // iterates over `offer.audioLanguages`.
-      // eslint-disable-next-line no-useless-escape
       expect(src).toMatch(/offer\.audioLanguages|audios\s*=\s*offer\.audioLanguages/);
 
       // subtitleLanguages MAY be selected in the GraphQL query but

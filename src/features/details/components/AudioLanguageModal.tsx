@@ -262,16 +262,9 @@ export default function AudioLanguageModal(props: AudioLanguageModalProps) {
   });
   onCleanup(() => {
     if (typeof window !== "undefined") {
-      window.removeEventListener("keydown", onKey, true);
-    }
-  });
-
-  const titleName = () =>
-    props.baseItem?.title ||
-    props.baseItem?.name ||
-    props.details?.title ||
-    props.details?.name ||
-    "Title";
+    window.removeEventListener("keydown", onKey, true);
+  }
+});
 
   const isMovie = () => props.type === "movie";
 
