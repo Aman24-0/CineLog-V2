@@ -344,7 +344,7 @@ encountered.
 - Pre-existing `/api/media/tv/...` 404s — not investigated (per spec — out of scope unless directly caused by chunk changes; they are not).
 
 ### Chunk 6C Commit & Push
-- Commit hash: see `git log -1 origin/Justwatch` on the remote after push.
+- Commit hash: `7bc6362`
 - Commit message: `fix: allow JustWatch images in CSP and make OTT routes/cache resilient in preview`
 - Files in commit: 8 (justwatch_migration_worklog.md, vercel.json, src/server/justwatch/cache.ts, src/server/justwatch/service.ts, src/server/justwatch/region.ts, src/routes/api/ott/providers.ts, src/routes/api/ott/availability/[tmdbId].ts, src/routes/api/ott/batch-availability.ts)
-- Push status: PENDING — see below.
+- Push status: PUSHED to `origin/Justwatch` (range `3427d15..7bc6362`) using the user-supplied PAT (one-shot explicit push URL — NOT written to `.git/config`).
