@@ -3353,12 +3353,21 @@
   contain: content;
 }
 
+/* Chunk 6G — simplified row layout:
+   [ large provider logo ]                    [ Watch Now ]
+   - Single horizontal flex row, NO wrap on desktop (logo + button
+     fit comfortably even on narrow viewports).
+   - `justify-content: space-between` pushes the Watch Now button
+     to the right edge and the logo to the left edge.
+   - Spacious vertical padding (var(--space-2)) for a clean, modern
+     feel — no longer cramped like the Chunk 6F compact layout. */
 .wheretowatch-row {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-1) var(--space-2);
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-md);
   background: var(--glass-bg);
   border: 1px solid var(--hairline-2);
@@ -3385,9 +3394,17 @@
   flex: 1 1 160px;
 }
 
+/* Chunk 6G — large provider logo on the left of the row.
+   - Height: 40px (desktop) / 36px (mobile, see media query below).
+   - Width: auto — preserves the provider's natural aspect ratio
+     (most JustWatch logos are square or near-square).
+   - object-fit: contain so the logo isn't stretched.
+   - Subtle dark background + small radius so logos with transparent
+     or white backgrounds remain visible against the dark glass row. */
 .wheretowatch-row-logo {
-  width: 28px;
-  height: 28px;
+  height: 40px;
+  width: auto;
+  min-width: 40px;
   border-radius: var(--radius-sm);
   overflow: hidden;
   background: rgba(8, 8, 13, 0.3);
@@ -3413,10 +3430,9 @@
   background: rgba(8, 8, 13, 0.3);
 }
 
-/* Chunk 6F Task 2 — `.wheretowatch-row-meta` is now a horizontal
-   flex container holding badges (and the optional availability date).
-   Previously it was a vertical stack with the provider name on top.
-   Now it's a compact inline element between the logo and the buttons. */
+/* Chunk 6G — `.wheretowatch-row-meta` is no longer rendered in the
+   JSX (the badges + availability date were removed in Chunk 6G).
+   Rule kept for backwards compat; harmless when unused. */
 .wheretowatch-row-meta {
   display: flex;
   align-items: center;
@@ -3438,6 +3454,9 @@
   white-space: nowrap;
 }
 
+/* Chunk 6G — `.wheretowatch-row-date` is no longer rendered in the
+   JSX (the "Available <date>" label was removed in Chunk 6G).
+   Rule kept for backwards compat; harmless when unused. */
 .wheretowatch-row-date {
   font-size: 0.625rem;
   color: var(--p);
@@ -3445,9 +3464,10 @@
   white-space: nowrap;
 }
 
-/* Chunk 6F Task 2 — `.wheretowatch-row-actions` now holds ONLY the
-   buttons (badges moved into `.wheretowatch-row-meta`). Tight gap,
-   inline, no wrap on wide screens. */
+/* Chunk 6G — `.wheretowatch-row-actions` is no longer rendered in
+   the JSX (the single Watch Now button is now a direct child of
+   `.wheretowatch-row`, aligned to the right via space-between).
+   Rule kept for backwards compat; harmless when unused. */
 .wheretowatch-row-actions {
   display: flex;
   align-items: center;
@@ -3456,13 +3476,18 @@
   flex: 0 0 auto;
 }
 
+/* Chunk 6G — `.wheretowatch-badges` is no longer rendered in the JSX
+   (all badges were removed in Chunk 6G). Rule kept for backwards
+   compat; harmless when unused. */
 .wheretowatch-badges {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
 }
 
-/* Chunk 6F Task 2 — badges are slightly smaller for compactness. */
+/* Chunk 6G — `.wheretowatch-badge` is no longer rendered in the JSX
+   (all badges were removed in Chunk 6G). Rules kept for backwards
+   compat; harmless when unused. */
 .wheretowatch-badge {
   font-size: 0.5625rem;
   font-weight: 600;
@@ -3502,17 +3527,17 @@
   flex-wrap: wrap;
 }
 
-/* Chunk 6F Task 2 — buttons are smaller and more compact.
-   Reduced padding (4px 10px vs 6px 12px) and smaller font
-   (0.6875rem vs 0.75rem). Still easily tappable (24px+ height
-   with the 4px vertical padding + 0.6875rem line-height). */
+/* Chunk 6G — single compact "Watch Now" button on the right of the
+   row. Slightly larger padding than Chunk 6F (6px 14px vs 4px 10px)
+   for a more spacious, modern feel that matches the larger 40px logo.
+   Still easily tappable (~28px tap target with the 0.75rem line-height). */
 .wheretowatch-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 4px 10px;
+  padding: 6px 14px;
   border-radius: var(--radius-sm);
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   text-decoration: none;
   cursor: pointer;
@@ -3534,6 +3559,9 @@
   opacity: 0.9;
 }
 
+/* Chunk 6G — `.wheretowatch-btn-secondary` is no longer rendered in
+   the JSX (the "More Info" button was removed in Chunk 6G). Rule
+   kept for backwards compat; harmless when unused. */
 .wheretowatch-btn-secondary {
   background: transparent;
   color: var(--text-soft);
@@ -3546,17 +3574,19 @@
   background: rgba(74, 222, 128, 0.04);
 }
 
-/* Narrow screens: keep the row on one line if it fits; otherwise let
-   the actions wrap to a second line BELOW the logo+badges (NOT a
-   vertical column stack like before — that caused too much vertical
-   bloat). The actions row aligns to the right edge for a clean look. */
+/* Narrow screens: keep the row horizontal — logo shrinks slightly
+   (40px → 36px) and the gap tightens (var(--space-3) → var(--space-2))
+   so the logo + button still fit on one line at 320px viewport width.
+   The row only wraps if the viewport is EXTREMELY narrow (< 280px),
+   which is below any realistic phone width. */
 @media (max-width: 540px) {
   .wheretowatch-row {
-    flex-wrap: wrap;
+    gap: var(--space-2);
+    padding: var(--space-2);
   }
-  .wheretowatch-row-actions {
-    flex: 1 1 100%;
-    justify-content: flex-end;
+  .wheretowatch-row-logo {
+    height: 36px;
+    min-width: 36px;
   }
 }
 

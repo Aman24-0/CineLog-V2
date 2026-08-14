@@ -280,6 +280,18 @@ async function fetchChunksWithLimitedConcurrency(
             country?: string;
             results?: Record<string, JustWatchTitleOffers>;
           };
+          // Chunk 6G Task 2 — diagnostic log. Logs the response country
+          // and the actual result keys returned by the server for this
+          // chunk. Verifies the server is returning the expected
+          // `${mediaType}:${tmdbId}` key format and that the keys match
+          // the items we asked about. Temporary; will be removed in a
+          // later cleanup chunk. Logs only key strings + counts (no PII).
+          console.log(
+            "[Watchlist OTT] batch response keys",
+            Object.keys(data?.results ?? {}),
+            "country=" + (data?.country ?? "?"),
+            "requested=" + chunk.length
+          );
           return {
             chunk,
             results: data?.results ?? {}
@@ -596,6 +608,25 @@ export function useWatchlistOttAvailability(
     });
 
     return out;
+  });
+
+  // Chunk 6G Task 2 — diagnostic effect. Watches `enrichedItems` and
+  // logs a sample (first 3 items) showing each item's `id`, `media_type`,
+  // and `justwatchProviders` array. This verifies that the enrichment
+  // step correctly populates `justwatchProviders` from `availabilityMap`.
+  // If `justwatchProviders` is `[]` for every item even though the batch
+  // response had entries, the issue is in the key-matching between the
+  // fetch (which builds keys as `${mediaType}:${tmdbId}`) and the
+  // enrichment memo (which builds keys the same way but reads from
+  // `availabilityMap`). Temporary; will be removed in a later cleanup.
+  // Logs only ids + provider counts (no titles, no PII).
+  createEffect(() => {
+    const sample = enrichedItems().slice(0, 3).map((i) => ({
+      id: i.id,
+      mediaType: i.media_type,
+      providers: i.justwatchProviders
+    }));
+    console.log("[Watchlist OTT] enriched sample", sample);
   });
 
   return {

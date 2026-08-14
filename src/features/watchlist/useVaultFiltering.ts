@@ -279,6 +279,16 @@ export function useVaultFiltering(
     );
     return catalog;
   });
+
+  // Chunk 6G Task 2 — diagnostic effect. Logs the actual
+  // `uniquePlatforms()` array (not just the count) so we can verify
+  // each option carries `technicalName`, `clearName`, and `count`.
+  // Watches `uniquePlatforms` reactively so it re-logs whenever the
+  // catalog updates (initial empty → populated after OTT fetch).
+  // Temporary; will be removed in a later cleanup chunk.
+  createEffect(() => {
+    console.log("[Watchlist OTT] uniquePlatforms", uniquePlatforms());
+  });
   const uniqueTags = createMemo(() => {
     const set = new Set<string>();
     const list = args.watchlist();
