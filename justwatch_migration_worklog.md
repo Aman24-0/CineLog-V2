@@ -425,8 +425,8 @@ encountered.
 - Old TMDB provider registry files — not deleted (per spec).
 
 ### Chunk 6D Commit & Push
-- Commit hash: see `git log -1 origin/Justwatch` after push.
+- Commit hash: `08afe58`
 - Commit message: `fix: add client country override to OTT routes and pass title/year to Where to Watch`
 - Files in commit: 7 (justwatch_migration_worklog.md, src/routes/api/ott/providers.ts, src/routes/api/ott/availability/[tmdbId].ts, src/routes/api/ott/batch-availability.ts, src/features/settings/hooks/useSettingsState.tsx, src/features/details/components/WhereToWatch.tsx, src/features/watchlist/hooks/useWatchlistOttAvailability.ts)
-- Push status: see "Push" section below.
+- Push status: PUSHED to `origin/Justwatch` (range `bdbe720..08afe58`) using the credentials embedded in the existing `origin` remote URL.
 
