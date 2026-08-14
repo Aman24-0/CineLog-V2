@@ -116,13 +116,20 @@ function ProviderSearchRow(props: { row: ProviderRow }) {
   // `row` is not a reactive variable, it's a plain object).
   // eslint-disable-next-line solid/reactivity
   const row = props.row;
+  // CHUNK 6B FIX: Track image load errors so the fallback letter
+  // appears when the logo URL is broken (previously the onError
+  // handler just hid the <img>, leaving an empty box with no
+  // fallback — the <Show when={logoUrl()}> was still true because
+  // the URL string was non-empty, just broken).
+  const [imgError, setImgError] = createSignal(false);
   const logoUrl = createMemo(() => buildLogoUrl(row.provider.icon));
+  const showLogo = createMemo(() => logoUrl() !== "" && !imgError());
 
   return (
     <div class="ott-search-row" data-selected={row.selected}>
       <div class="ott-search-row-logo" aria-hidden="true">
         <Show
-          when={logoUrl()}
+          when={showLogo()}
           fallback={
             <span class="ott-provider-letter">
               {row.provider.clearName.charAt(0)}
@@ -135,9 +142,7 @@ function ProviderSearchRow(props: { row: ProviderRow }) {
             alt=""
             loading="lazy"
             decoding="async"
-            onError={(e) => {
-              e.currentTarget.style.display = "none";
-            }}
+            onError={() => setImgError(true)}
           />
         </Show>
       </div>
@@ -191,9 +196,13 @@ function SelectedProviderRow(props: {
   // eslint-disable-next-line solid/reactivity
   const onMoveDown = props.onMoveDown;
   const unavailable = row.provider === null;
+  // CHUNK 6B FIX: Same imgError pattern as ProviderSearchRow —
+  // show the fallback letter when the logo URL is broken.
+  const [imgError, setImgError] = createSignal(false);
   const logoUrl = createMemo(() =>
     row.provider ? buildLogoUrl(row.provider.icon) : ""
   );
+  const showLogo = createMemo(() => logoUrl() !== "" && !imgError());
   const displayName = createMemo(() =>
     row.provider ? row.provider.clearName : row.technicalName
   );
@@ -202,7 +211,7 @@ function SelectedProviderRow(props: {
     <div class="ott-selected-row" data-unavailable={unavailable}>
       <div class="ott-selected-row-logo" aria-hidden="true">
         <Show
-          when={logoUrl()}
+          when={showLogo()}
           fallback={
             <span class="ott-provider-letter">
               {displayName().charAt(0)}
@@ -215,9 +224,7 @@ function SelectedProviderRow(props: {
             alt=""
             loading="lazy"
             decoding="async"
-            onError={(e) => {
-              e.currentTarget.style.display = "none";
-            }}
+            onError={() => setImgError(true)}
           />
         </Show>
       </div>

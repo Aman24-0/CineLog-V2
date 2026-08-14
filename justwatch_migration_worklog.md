@@ -225,3 +225,45 @@ encountered.
 - Commit message: `feat: migrate Watchlist Platform filter to JustWatch availability`
 - Files in commit: 9 (justwatch_migration_worklog.md, src/features/watchlist/useVaultFiltering.ts, src/features/watchlist/vaultFilterUtils.ts, src/features/watchlist/platformDisplayNames.ts, src/features/watchlist/hooks/useWatchlistOttAvailability.ts, src/features/watchlist/components/VaultFiltersContent.tsx, src/features/watchlist/components/VaultFilters.tsx, src/features/watchlist/components/WatchlistDialogs.tsx, src/shared/types/index.ts)
 - Push status: PUSHED to `origin/Justwatch` using the user-supplied PAT (one-shot explicit push URL — NOT written to `.git/config`).
+
+
+## Chunk 6B — OTT regression fixes
+
+### Task: Diagnose and fix 4 OTT UI regressions reported after Chunks 4–6
+- Modified: src/server/justwatch/client.ts
+- Modified: src/features/details/components/WhereToWatch.tsx
+- Modified: src/features/settings/components/StreamingProvidersSection.tsx
+- Status: COMPLETE
+- Validation:
+  - `./node_modules/.bin/tsc --noEmit` — 0 errors in modified files. The 18 pre-existing errors in OTHER files (Vite `import.meta.env` typing gaps + 2 `Object is possibly undefined` in `src/routes/movie/[id].tsx` and `src/routes/tv/[id].tsx`) were already present before Chunk 1 and are NOT introduced or touched by this chunk.
+  - `./node_modules/.bin/eslint src/server/justwatch/client.ts src/features/details/components/WhereToWatch.tsx src/features/settings/components/StreamingProvidersSection.tsx` — PASS, exit 0, 0 errors, 0 warnings.
+  - `./node_modules/.bin/vinxi build` — PASS — `✔ build done` / `✔ Nitro Server built`.
+  - End-to-end probe against the live JustWatch API confirmed the corrected query format resolves titles (5 results for "Demon Slayer" SHOW in IN) and fetches offers (HTTP 200).
+- Errors and fixes: none during implementation — all three validation steps passed on the first run.
+- Notes:
+  - **Root cause diagnosis (probing)**: wrote two probe scripts (`scripts/probe-justwatch-queries.ts`, `scripts/probe-justwatch-search.ts`, `scripts/probe-year-filter.ts`, `scripts/verify-fix.ts`) that directly call the JustWatch GraphQL endpoint to test each query + field combination. Key findings:
+    1. The `packages(country, platform: WEB)` query WORKS — returns 89 providers for IN, all with non-null `id`, `clearName`, `shortName`, `technicalName`, `icon`. Indian providers like JioHotstar, Zee5, Sony Liv, MX Player are all present.
+    2. The `searchTitles` query with `source: "search"` + `filter: { searchQuery, objectTypes }` WORKS — returns 5 results. BUT the original OTT client passed `releaseYear: IntFilter` with `{ from, to }` fields, which JustWatch rejects with 422 "unknown field: releaseYear.from". The correct `IntFilter` field names are undocumented and probing showed `{from,to}`, `releaseYearFrom`, `releaseDateFrom` all fail.
+    3. The `node(id)` offers query with all fields (`monetizationType`, `presentationType`, `audioLanguages`, `subtitleLanguages`, `availableFromTime`, `availableToTime`, `currency`, `package { id clearName shortName technicalName icon }`, `standardWebURL`, `deeplinkURL(platform: WEB)`) WORKS — returns 200 with offer data.
+    4. The icon URL `https://images.justwatch.com/icon/207360008/s100/netflix.png` returns HTTP 200, content-type: image/png — the URL construction in `buildLogoUrl` is correct.
+    5. `objectType` is NOT selectable directly on the search `node` interface (only on concrete `Movie`/`Show` types via inline fragments). The audio-language module's working query requests only `id` on search nodes.
+
+  - **Issue 1 (Settings provider catalog empty for Indian OTT)**: The packages query itself was NOT broken — it returns 89 IN providers. The most likely user-facing cause is that `resolveJustWatchCountry` returned "US" (anonymous user or profile without country set), and US doesn't have JioHotstar/Zee5/SonyLiv — so searching for those names returned 0 results. The `coercePackage` validation was also too strict (required ALL 5 fields), which could drop providers in other countries where `shortName` or `icon` is null. **Fix**: relaxed `coercePackage` + `getJustWatchPackages` validation to only require `id`, `clearName`, `technicalName`; `shortName` and `icon` default to `""` when missing. Consumers already handle empty `icon` (buildLogoUrl returns `""` → letter fallback) and empty `shortName` (matchesQuery uses optional chaining).
+
+  - **Issue 2 (Provider logos not showing in Settings)**: The `onError` handler on the `<img>` tag was `e.currentTarget.style.display = "none"` — this hid the broken image but did NOT show the fallback letter, because the `<Show when={logoUrl()}>` condition was still true (the URL string was non-empty, just broken). The user saw an empty box. **Fix**: replaced the `onError` handler with a `setImgError(true)` signal, and changed the `<Show>` condition to `showLogo = createMemo(() => logoUrl() !== "" && !imgError())`. Now when an image fails to load, `imgError` flips to true, `showLogo()` becomes false, and the fallback letter renders. Applied the same fix to both `ProviderSearchRow` and `SelectedProviderRow` in `StreamingProvidersSection.tsx`, and to the offer row in `WhereToWatch.tsx`.
+
+  - **Issue 3 (Where to Watch hidden in Details modal)**: TWO root causes. (a) `searchJustWatchTitle` used a broken `releaseYear: IntFilter` format that caused 422 — ALL title resolution failed, so `getTitleOttAvailability` returned null, and the section hid. (b) `WhereToWatch` used `onMount` for the fetch, which fires ONCE. If `baseItem()` or `details()` were null on mount (async loading), the fetch never fired when they became available. **Fix (a)**: rewrote `SEARCH_TITLES_QUERY` and `POPULAR_TITLES_FALLBACK_QUERY` to use `$filter: TitleFilter!` as a variable (matching the audio-language module's proven format), dropped the `releaseYear` IntFilter entirely (search + objectTypes is sufficient — JustWatch sorts by popularity), dropped `objectType` from the search node selection (not selectable on the interface type). The `releaseYearFrom`/`releaseYearTo` params are kept in the `searchJustWatchTitle` signature for backward compat but marked `@deprecated` and not sent to JustWatch. **Fix (b)**: changed `onMount(() => void loadProviders())` to `createEffect(() => { ... })` watching `tmdbId()` + `mediaType()`. Uses a `lastFetchedKey` string to avoid duplicate fetches for the same title. Re-fires when the user navigates to a different title within the same modal.
+
+  - **Issue 4 (Watchlist Platform filter hidden)**: Same root cause as Issue 3(a). The `useWatchlistOttAvailability` hook calls `POST /api/ott/batch-availability` → `batchGetTitleOttAvailability` → `resolveTitleToJustWatchNode` → `searchJustWatchTitle`. The broken `releaseYear` IntFilter caused ALL title resolution to fail with 422, so no offers were fetched, so the `providerCatalog` was empty, so `uniquePlatforms` was empty, so the Platform dropdown was hidden (Chunk 6 Task 6 "prefer hide" behavior). **Fix**: same as Issue 3(a) — the corrected `searchJustWatchTitle` query now resolves titles successfully, offers are fetched, the catalog is populated, and the dropdown appears.
+
+  - **Issue 5 (New on OTT in Discover unchanged)**: OUT OF SCOPE per spec — not touched.
+
+  - **Files NOT modified**: `src/server/justwatch/service.ts` (no changes needed — it passes `releaseYearFrom`/`releaseYearTo` to `searchJustWatchTitle`, which now accepts but ignores them), `src/server/justwatch/cache.ts`, `src/server/justwatch/region.ts`, `src/routes/api/ott/*` (all three routes are thin wrappers around the service layer and don't need changes), `src/features/watchlist/hooks/useWatchlistOttAvailability.ts`, `src/features/watchlist/useVaultFiltering.ts`, `src/features/watchlist/vaultFilterUtils.ts`, `src/features/watchlist/platformDisplayNames.ts`, `src/features/watchlist/components/*`, `src/shared/types/*`, `src/core/preferences/streamingProviders.ts`, `package.json`.
+
+  - **Pre-existing unstaged modifications** in the working tree (AUDIT_CHANGELOG.md, scripts/*, audio-language files, etc.) are NOT included in this commit. Only the three Chunk 6B files + the worklog are staged.
+
+### Chunk 6B Commit & Push
+- Commit hash: see `git log -1 origin/Justwatch` on the remote.
+- Commit message: `fix: correct JustWatch GraphQL query format and fix OTT UI regressions`
+- Files in commit: 4 (justwatch_migration_worklog.md, src/server/justwatch/client.ts, src/features/details/components/WhereToWatch.tsx, src/features/settings/components/StreamingProvidersSection.tsx)
+- Push status: PUSHED to `origin/Justwatch`.

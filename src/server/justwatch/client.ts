@@ -187,26 +187,37 @@ async function rawGql<T = unknown>(
 // GraphQL operation strings
 // ---------------------------------------------------------------------------
 
+// CHUNK 6B FIX: The original queries used inline `filter: { searchQuery,
+// objectTypes, releaseYear }` with `releaseYear: IntFilter` typed as
+// `{ from, to }`. JustWatch's GraphQL schema rejects `{ from, to }` on
+// IntFilter with 422 "unknown field" — the correct IntFilter field names
+// are undocumented and probing showed `{from,to}` / `releaseYearFrom` /
+// `releaseDateFrom` all fail. The year filter is non-essential (search +
+// objectTypes is sufficient for title resolution), so it's dropped.
+//
+// Additionally, `objectType` is NOT selectable directly on the search
+// `node` (it's only on concrete Movie/Show types via inline fragments).
+// The audio-language module's working query requests only `id`. We do
+// the same — `JustWatchSearchResult.objectType` is optional and unused
+// by the only caller (`resolveTitleToJustWatchNode` uses `results[0].nodeId`).
+//
+// The `filter` is now passed as a `$filter: TitleFilter!` variable (matching
+// the audio-language module's proven format) instead of an inline object,
+// and `source` is passed as a required `$source: String!` variable.
 const SEARCH_TITLES_QUERY = `query SearchJustWatchTitle(
   $country: Country!,
-  $searchQuery: String!,
-  $objectTypes: [ObjectType!]!,
-  $releaseYear: IntFilter
+  $source: String!,
+  $filter: TitleFilter!
 ) {
   searchTitles(
     country: $country,
-    source: "search",
+    source: $source,
     first: 5,
-    filter: {
-      searchQuery: $searchQuery,
-      objectTypes: $objectTypes,
-      releaseYear: $releaseYear
-    }
+    filter: $filter
   ) {
     edges {
       node {
         id
-        objectType
       }
     }
   }
@@ -214,23 +225,16 @@ const SEARCH_TITLES_QUERY = `query SearchJustWatchTitle(
 
 const POPULAR_TITLES_FALLBACK_QUERY = `query PopularTitlesFallback(
   $country: Country!,
-  $searchQuery: String!,
-  $objectTypes: [ObjectType!]!,
-  $releaseYear: IntFilter
+  $filter: TitleFilter!
 ) {
   popularTitles(
     country: $country,
     first: 5,
-    filter: {
-      searchQuery: $searchQuery,
-      objectTypes: $objectTypes,
-      releaseYear: $releaseYear
-    }
+    filter: $filter
   ) {
     edges {
       node {
         id
-        objectType
       }
     }
   }
@@ -307,13 +311,13 @@ const GET_PACKAGES_QUERY = `query GetJustWatchPackages(
 
 interface GqlSearchResponse {
   searchTitles?: {
-    edges?: Array<{ node?: { id?: string; objectType?: string | null } }>;
+    edges?: Array<{ node?: { id?: string } }>;
   } | null;
 }
 
 interface GqlPopularResponse {
   popularTitles?: {
-    edges?: Array<{ node?: { id?: string; objectType?: string | null } }>;
+    edges?: Array<{ node?: { id?: string } }>;
   } | null;
 }
 
@@ -379,25 +383,29 @@ function coerceObjectType(
   return v;
 }
 
+// CHUNK 6B FIX: Relaxed validation — only `id`, `clearName`, and
+// `technicalName` are required. `shortName` and `icon` default to empty
+// string when missing. The original strict validation required ALL five
+// fields to be truthy, which dropped any package where JustWatch omitted
+// `shortName` or `icon` (observed for some regional providers). Probing
+// the IN catalog showed all 89 providers had all fields, but other
+// countries may not — the relaxed validation is defensive.
+// Consumers already handle empty `icon` (buildLogoUrl returns "" →
+// letter fallback) and empty `shortName` (matchesQuery uses optional
+// chaining).
 function coercePackage(
   p: GqlOfferObject["package"]
 ): JustWatchPackage | null {
   if (!p) return null;
-  if (
-    !p.id ||
-    !p.clearName ||
-    !p.shortName ||
-    !p.technicalName ||
-    !p.icon
-  ) {
+  if (!p.id || !p.clearName || !p.technicalName) {
     return null;
   }
   return {
     id: p.id,
     clearName: p.clearName,
-    shortName: p.shortName,
+    shortName: p.shortName ?? "",
     technicalName: p.technicalName,
-    icon: p.icon
+    icon: p.icon ?? ""
   };
 }
 
@@ -442,6 +450,10 @@ export async function searchJustWatchTitle(args: {
   country: string;
   searchQuery: string;
   objectTypes: Array<"MOVIE" | "SHOW">;
+  /** @deprecated Chunk 6B: the releaseYear IntFilter format is
+   *  undocumented and `{ from, to }` causes 422. The parameter is
+   *  accepted for backward compat but NOT sent to JustWatch. Title
+   *  resolution now relies on searchQuery + objectTypes only. */
   releaseYearFrom?: number;
   releaseYearTo?: number;
 }): Promise<JustWatchSearchResult[]> {
@@ -455,27 +467,28 @@ export async function searchJustWatchTitle(args: {
     );
   }
 
-  const releaseYear =
-    args.releaseYearFrom != null || args.releaseYearTo != null
-      ? {
-          from: args.releaseYearFrom ?? undefined,
-          to: args.releaseYearTo ?? undefined
-        }
-      : undefined;
-
-  const variables = {
-    country: args.country,
+  // CHUNK 6B: Build TitleFilter as a variable object. Only `searchQuery`
+  // and `objectTypes` are included — `releaseYear` is dropped because the
+  // IntFilter format (`{ from, to }`) causes 422 "unknown field" and the
+  // correct field names are undocumented. Search + objectTypes is
+  // sufficient for title resolution (JustWatch sorts by popularity, so
+  // the first result is almost always the right match).
+  const filter: { searchQuery: string; objectTypes: Array<"MOVIE" | "SHOW"> } = {
     searchQuery: args.searchQuery,
-    objectTypes: args.objectTypes,
-    releaseYear
+    objectTypes: args.objectTypes
   };
 
-  const dedupeKey = `searchJustWatchTitle:${JSON.stringify(variables)}`;
+  // searchTitles variables — `source` is a required String! argument.
+  const searchVariables = { country: args.country, source: "search", filter };
+  // popularTitles variables — no `source` argument.
+  const popularVariables = { country: args.country, filter };
+
+  const dedupeKey = `searchJustWatchTitle:${JSON.stringify(searchVariables)}`;
   return dedupe(dedupeKey, async () => {
-    // 1. searchTitles
+    // 1. searchTitles (primary)
     const primary = await rawGql<GqlSearchResponse>(
       SEARCH_TITLES_QUERY,
-      variables,
+      searchVariables,
       "searchTitles"
     );
     if (primary && primary.errors == null) {
@@ -483,11 +496,7 @@ export async function searchJustWatchTitle(args: {
       const results: JustWatchSearchResult[] = [];
       for (const e of edges) {
         if (e?.node?.id) {
-          results.push({
-            nodeId: e.node.id,
-            objectType:
-              coerceObjectType(e.node.objectType ?? null) ?? undefined
-          });
+          results.push({ nodeId: e.node.id });
         }
       }
       if (results.length > 0) return results;
@@ -497,10 +506,10 @@ export async function searchJustWatchTitle(args: {
       );
     }
 
-    // 2. popularTitles fallback
+    // 2. popularTitles (fallback — same filter, no `source` arg)
     const fallback = await rawGql<GqlPopularResponse>(
       POPULAR_TITLES_FALLBACK_QUERY,
-      variables,
+      popularVariables,
       "popularTitles(fallback)"
     );
     if (!fallback) return [];
@@ -514,11 +523,7 @@ export async function searchJustWatchTitle(args: {
     const results: JustWatchSearchResult[] = [];
     for (const e of edges) {
       if (e?.node?.id) {
-        results.push({
-          nodeId: e.node.id,
-          objectType:
-            coerceObjectType(e.node.objectType ?? null) ?? undefined
-        });
+        results.push({ nodeId: e.node.id });
       }
     }
     return results;
@@ -610,20 +615,17 @@ export async function getJustWatchPackages(args: {
     }
     const pkgs = res.data?.packages ?? [];
     const out: JustWatchPackage[] = [];
+    // CHUNK 6B: Relaxed validation — only require id, clearName,
+    // technicalName. shortName and icon default to "" when missing
+    // (matches coercePackage behavior in the offers path).
     for (const p of pkgs) {
-      if (
-        p.id &&
-        p.clearName &&
-        p.shortName &&
-        p.technicalName &&
-        p.icon
-      ) {
+      if (p.id && p.clearName && p.technicalName) {
         out.push({
           id: p.id,
           clearName: p.clearName,
-          shortName: p.shortName,
+          shortName: p.shortName ?? "",
           technicalName: p.technicalName,
-          icon: p.icon
+          icon: p.icon ?? ""
         });
       }
     }

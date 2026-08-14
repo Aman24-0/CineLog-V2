@@ -41,7 +41,7 @@ import {
   For,
   createSignal,
   createMemo,
-  onMount,
+  createEffect,
   type Component
 } from "solid-js";
 import type { Accessor } from "solid-js";
@@ -372,7 +372,33 @@ const WhereToWatch: Component<WhereToWatchProps> = (props) => {
     }
   };
 
-  onMount(() => {
+  // CHUNK 6B FIX: Changed from `onMount` to `createEffect` watching
+  // `tmdbId()` + `mediaType()`. The original `onMount` fired ONCE on
+  // component mount — if `baseItem()` or `details()` were still null
+  // (async loading), the fetch never fired when they became available.
+  // `createEffect` re-runs whenever its dependencies change, so the
+  // fetch fires as soon as both values are non-null, AND re-fires if
+  // the user navigates to a different title within the same modal
+  // (which reuses the component with new props).
+  //
+  // We guard against duplicate fetches by checking `loaded()` — if a
+  // fetch is already in progress for the current `tmdbId`/`mediaType`,
+  // the effect's first run sets `loaded(false)` then the async callback
+  // sets `loaded(true)`. The effect re-runs only when `tmdbId()` or
+  // `mediaType()` actually change value (SolidJS dedupes signal reads).
+  let lastFetchedKey = "";
+  createEffect(() => {
+    const id = tmdbId();
+    const mt = mediaType();
+    if (id === null || mt === null) {
+      setRows(null);
+      setLoaded(false);
+      lastFetchedKey = "";
+      return;
+    }
+    const key = `${mt}:${id}`;
+    if (key === lastFetchedKey) return; // already fetched for this title
+    lastFetchedKey = key;
     void loadProviders();
   });
 
@@ -395,6 +421,13 @@ const WhereToWatch: Component<WhereToWatchProps> = (props) => {
           <For each={visibleRows()}>
             {(row) => {
               const logoUrl = buildLogoUrl(row.icon);
+              // CHUNK 6B FIX: Track image load errors so the fallback
+              // icon appears when the logo URL is broken (previously
+              // onError just hid the <img>, leaving an empty box).
+              const [imgError, setImgError] = createSignal(false);
+              const showLogo = createMemo(
+                () => logoUrl !== "" && !imgError()
+              );
               const availabilityDate = createMemo(() =>
                 isFutureDate(row.availableFromTime)
                   ? formatAvailabilityDate(row.availableFromTime)
@@ -406,7 +439,7 @@ const WhereToWatch: Component<WhereToWatchProps> = (props) => {
                   <div class="wheretowatch-row-main">
                     <div class="wheretowatch-row-logo" aria-hidden="true">
                       <Show
-                        when={logoUrl}
+                        when={showLogo()}
                         fallback={
                           <div class="wheretowatch-row-logo-fallback">
                             <span
@@ -425,9 +458,7 @@ const WhereToWatch: Component<WhereToWatchProps> = (props) => {
                           loading="lazy"
                           decoding="async"
                           alt=""
-                          onError={(e) => {
-                            e.currentTarget.style.display = "none";
-                          }}
+                          onError={() => setImgError(true)}
                         />
                       </Show>
                     </div>
