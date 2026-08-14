@@ -261,9 +261,24 @@ export function useVaultFiltering(
   //   - `count`         (number of watchlist items with this provider)
   //
   // Empty array while loading, on error, or when no items have any
-  // JustWatch offer. The dropdown consumer hides itself when this is
-  // empty (per Chunk 6 Task 6.3 — "Prefer hide").
-  const uniquePlatforms = createMemo<PlatformFilterOption[]>(() => providerCatalog());
+  // JustWatch offer. The dropdown consumer renders a DISABLED state
+  // when this is empty (Chunk 6F Task 1 — previously it was hidden).
+  const uniquePlatforms = createMemo<PlatformFilterOption[]>(() => {
+    const catalog = providerCatalog();
+    // Chunk 6F Task 4 — diagnostic log. Tracks the watchlist size,
+    // the OTT loading state, the OTT error state (read indirectly
+    // via the catalog being empty even when not loading), and the
+    // unique provider count. Temporary; will be removed in a later
+    // cleanup chunk alongside the OTT server logs from Chunk 6E.
+    // Logs only counts (no PII / no titles).
+    console.log(
+      "[useVaultFiltering] uniquePlatforms memo" +
+        " watchlistSize=" + args.watchlist().length +
+        " ottLoading=" + ottLoading() +
+        " providerCatalogSize=" + catalog.length
+    );
+    return catalog;
+  });
   const uniqueTags = createMemo(() => {
     const set = new Set<string>();
     const list = args.watchlist();

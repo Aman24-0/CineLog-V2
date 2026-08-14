@@ -3330,12 +3330,16 @@
 
 /* ============================================================
    Stage 5 Chunk 5 — JustWatch "Where to Watch" rows
+   Chunk 6F Task 2 — COMPACT REDESIGN
    ============================================================
-   Replaces the old .wheretowatch-grid (TMDB chip grid) with a
-   vertical list of provider rows. Each row:
-     [logo] clearName              [badges] [Watch Now] [More Info]
-            Available <date>
-   Responsive: on narrow widths the actions wrap below the main.
+   Compact one-row-per-provider layout:
+     [logo] [badges] [Watch Now] [More Info]
+   The provider name is no longer rendered as visible text —
+   the logo carries `title`/`aria-label`/`alt` for accessibility
+   and hover info. Badges are tiny chips, buttons are small and
+   inline. The whole row stays on a single line on wide screens
+   and wraps cleanly on narrow viewports.
+
    Uses existing CSS variables (--glass-bg, --hairline-2, --p,
    --text-soft, --text-dim, --space-*, --radius-*, --dur-fast,
    --ease-out) so it adapts to the user's theme.
@@ -3344,8 +3348,8 @@
 .wheretowatch-list {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-1);
+  gap: var(--space-1);
+  padding: 0;
   contain: content;
 }
 
@@ -3353,9 +3357,8 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2) var(--space-3);
-  padding: var(--space-2) var(--space-3);
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-md);
   background: var(--glass-bg);
   border: 1px solid var(--hairline-2);
@@ -3369,6 +3372,11 @@
   background: rgba(74, 222, 128, 0.04);
 }
 
+/* Chunk 6F Task 2 — `.wheretowatch-row-main` is no longer rendered
+   in the JSX (the logo + meta are direct children of `.wheretowatch-row`
+   for a flatter, more compact DOM). The rule is kept for backwards
+   compatibility in case any other code path still renders the old
+   structure; it remains a no-op when unused. */
 .wheretowatch-row-main {
   display: flex;
   align-items: center;
@@ -3378,8 +3386,8 @@
 }
 
 .wheretowatch-row-logo {
-  width: 40px;
-  height: 40px;
+  width: 28px;
+  height: 28px;
   border-radius: var(--radius-sm);
   overflow: hidden;
   background: rgba(8, 8, 13, 0.3);
@@ -3405,13 +3413,22 @@
   background: rgba(8, 8, 13, 0.3);
 }
 
+/* Chunk 6F Task 2 — `.wheretowatch-row-meta` is now a horizontal
+   flex container holding badges (and the optional availability date).
+   Previously it was a vertical stack with the provider name on top.
+   Now it's a compact inline element between the logo and the buttons. */
 .wheretowatch-row-meta {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
   min-width: 0;
+  flex: 1 1 auto;
 }
 
+/* Chunk 6F Task 2 — `.wheretowatch-row-name` is no longer rendered
+   (provider name is conveyed via the logo's title/aria-label/alt).
+   Rule kept for backwards compat; harmless when unused. */
 .wheretowatch-row-name {
   font-size: 0.875rem;
   font-weight: 600;
@@ -3422,16 +3439,20 @@
 }
 
 .wheretowatch-row-date {
-  font-size: 0.6875rem;
+  font-size: 0.625rem;
   color: var(--p);
   font-weight: 500;
+  white-space: nowrap;
 }
 
+/* Chunk 6F Task 2 — `.wheretowatch-row-actions` now holds ONLY the
+   buttons (badges moved into `.wheretowatch-row-meta`). Tight gap,
+   inline, no wrap on wide screens. */
 .wheretowatch-row-actions {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: var(--space-2);
+  gap: var(--space-1);
   flex: 0 0 auto;
 }
 
@@ -3441,10 +3462,11 @@
   gap: 4px;
 }
 
+/* Chunk 6F Task 2 — badges are slightly smaller for compactness. */
 .wheretowatch-badge {
-  font-size: 0.625rem;
+  font-size: 0.5625rem;
   font-weight: 600;
-  padding: 2px 8px;
+  padding: 1px 6px;
   border-radius: 999px;
   letter-spacing: 0.02em;
   text-transform: uppercase;
@@ -3471,19 +3493,26 @@
   border-color: var(--hairline-2);
 }
 
+/* Chunk 6F Task 2 — `.wheretowatch-buttons` wrapper is no longer
+   rendered in the JSX (buttons are direct children of
+   `.wheretowatch-row-actions`). Rule kept for backwards compat. */
 .wheretowatch-buttons {
   display: flex;
   gap: var(--space-1);
   flex-wrap: wrap;
 }
 
+/* Chunk 6F Task 2 — buttons are smaller and more compact.
+   Reduced padding (4px 10px vs 6px 12px) and smaller font
+   (0.6875rem vs 0.75rem). Still easily tappable (24px+ height
+   with the 4px vertical padding + 0.6875rem line-height). */
 .wheretowatch-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 6px 12px;
+  padding: 4px 10px;
   border-radius: var(--radius-sm);
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   font-weight: 600;
   text-decoration: none;
   cursor: pointer;
@@ -3517,15 +3546,18 @@
   background: rgba(74, 222, 128, 0.04);
 }
 
-/* Narrow screens: stack actions below the main row. */
+/* Narrow screens: keep the row on one line if it fits; otherwise let
+   the actions wrap to a second line BELOW the logo+badges (NOT a
+   vertical column stack like before — that caused too much vertical
+   bloat). The actions row aligns to the right edge for a clean look. */
 @media (max-width: 540px) {
   .wheretowatch-row {
-    flex-direction: column;
-    align-items: stretch;
+    flex-wrap: wrap;
   }
   .wheretowatch-row-actions {
-    justify-content: space-between;
-    width: 100%;
+    flex: 1 1 100%;
+    justify-content: flex-end;
   }
 }
+
 

@@ -543,3 +543,108 @@ The intermittent Where to Watch + Platform filter failures had three contributin
 - Commit message: `fix: harden title resolution, avoid caching empty OTT results, and reduce batch rate limits`
 - Files in commit: 8 (justwatch_migration_worklog.md, src/server/justwatch/service.ts, src/server/justwatch/client.ts, src/features/details/components/WhereToWatch.tsx, src/features/watchlist/hooks/useWatchlistOttAvailability.ts, src/routes/api/ott/providers.ts, src/routes/api/ott/availability/[tmdbId].ts, src/routes/api/ott/batch-availability.ts)
 - Push status: PUSHED to `origin/Justwatch` (range `3c9b0f3..cb85a4c`) using the credentials embedded in the existing `origin` remote URL.
+
+
+## Chunk 6F — Fix Watchlist Platform filter + compact Where to Watch
+
+### Task 1: Always show Watchlist Platform filter
+- Modified: src/features/watchlist/components/FilterControls.tsx
+- Modified: src/features/watchlist/components/VaultFiltersContent.tsx
+- Status: COMPLETE
+- Validation: tsc + eslint + build all pass (see Task 4 validation block).
+- Errors and fixes: none.
+- Notes:
+  - **Root cause of "Platform filter missing"**: In `VaultFiltersContent.tsx`, the Platform dropdown was wrapped in `<Show when={props.uniquePlatforms.length > 0}>`. The JustWatch provider catalog (`uniquePlatforms`) is empty in three legitimate states: (1) batch-availability fetch in flight (loading), (2) fetch failed (network/parse/server error), (3) no watchlist item has any JustWatch offer in the user's country. In ALL three states the dropdown was COMPLETELY HIDDEN — leading the user to report "Platform filter is missing". The hide-on-empty behavior was a Chunk 6 design choice ("Prefer hide") that turned out to be too aggressive: a transient JustWatch outage or a country with sparse JustWatch data made the filter invisible indefinitely.
+  - **Fix**: Removed the `<Show>` wrapper. The `GlassSelect` is now ALWAYS rendered for the Platform filter. Added a new `disabled?: boolean` prop to `GlassSelect` (FilterControls.tsx) that, when true, sets the `disabled` attribute on the trigger button + a muted opacity-0.55 style + `cursor: not-allowed`. The menu cannot be opened when disabled (the onClick handler short-circuits).
+  - **Empty state**: When `uniquePlatforms.length === 0`, the GlassSelect is rendered with `disabled=true` and `opts=[{ l: "All Platforms", v: "all" }]` (just the one default option). A small muted note "No platforms available" is rendered below the dropdown so the user understands WHY it's disabled. The filter value (`filters.platform`) is NOT forcibly reset — if the catalog transiently empties during a refetch, the user's previous selection is preserved.
+  - **aria-label**: Updated to append "(no options available)" when disabled, so screen-reader users get context for the disabled state.
+  - **Backwards compatibility**: The `disabled` prop is optional (defaults to `undefined`/falsy). Existing GlassSelect call sites (Genre, Tag) are unaffected.
+
+### Task 2: Compact Where to Watch rows
+- Modified: src/features/details/components/WhereToWatch.tsx
+- Modified: src/styles/features/details.css
+- Status: COMPLETE
+- Validation: tsc + eslint + build all pass (see Task 4 validation block).
+- Errors and fixes: none.
+- Notes:
+  - **Problem**: The previous Where to Watch row layout used 40×40 logos, a separate vertical stack for the provider name + date, a `flex-direction: column` mobile fallback that stacked actions BELOW the main row, and 6×12px padded buttons at 0.75rem font. Each row consumed ~64-80px of vertical space — too much when a title has 5+ providers.
+  - **New DOM**: Removed the `wheretowatch-row-main` wrapper and the `wheretowatch-row-name` text. The row is now a flat three-child flex container:
+    1. `wheretowatch-row-logo` (28×28 logo with title/aria)
+    2. `wheretowatch-row-meta` (horizontal: badges + optional availability date)
+    3. `wheretowatch-row-actions` (compact inline buttons, no longer wraps badges)
+  - **CSS changes**: 
+    - Logo: 40×40 → 28×28
+    - Row padding: `var(--space-2) var(--space-3)` → `var(--space-1) var(--space-2)` (half the vertical padding)
+    - List gap: `var(--space-2)` → `var(--space-1)`
+    - Badge font: 0.625rem → 0.5625rem; padding 2px 8px → 1px 6px
+    - Button font: 0.75rem → 0.6875rem; padding 6px 12px → 4px 10px
+    - Button gap: `var(--space-1)` (kept)
+    - `wheretowatch-row-meta` changed from vertical column to horizontal flex (badges + date inline)
+    - Mobile `flex-direction: column` removed — replaced with `flex-wrap: wrap` + actions row taking `flex: 1 1 100%` and aligning to the right edge. The row now wraps gracefully instead of stacking into a tall column.
+  - **Old CSS rules kept for backwards compat**: `.wheretowatch-row-main`, `.wheretowatch-row-name`, `.wheretowatch-buttons` rules are no longer applied (their classes aren't rendered) but kept in the stylesheet with comments explaining they're retained for compatibility. Removing them would be a separate cleanup.
+  - **Vertical space savings**: Each row is now ~32-40px tall (down from ~64-80px) — roughly 50% reduction. A 5-provider list now takes ~200px instead of ~360px.
+
+### Task 3: Provider logo tooltip / title
+- Modified: src/features/details/components/WhereToWatch.tsx (covered in Task 2)
+- Status: COMPLETE
+- Validation: tsc + eslint + build all pass.
+- Notes:
+  - Since the provider name is no longer rendered as visible text, the logo's containing `<div class="wheretowatch-row-logo">` now carries:
+    - `title={row.clearName}` — native HTML hover tooltip
+    - `aria-label={row.clearName}` — screen-reader label
+    - `role="img"` — marks the div as an image-like element so the screen-reader announces the label as an image
+  - The inner `<img>` element's `alt` attribute was changed from `alt=""` (decorative) to `alt={row.clearName}` (informative) so the provider name is announced by screen readers AND surfaces in image-context menus (copy URL, save image as, etc.).
+  - The fallback `live_tv` Material Symbol icon size was reduced from 20px to 16px to match the smaller 28×28 logo container.
+
+### Task 4: Verify Platform filter data flow (diagnostic logs)
+- Modified: src/features/watchlist/hooks/useWatchlistOttAvailability.ts
+- Modified: src/features/watchlist/useVaultFiltering.ts
+- Modified: src/features/watchlist/components/VaultFiltersContent.tsx (log added in Task 1)
+- Status: COMPLETE
+- Validation:
+  - `./node_modules/.bin/tsc --noEmit` — 0 errors in modified files (18 pre-existing errors in OTHER files: Vite `import.meta.env` typing gaps + 2 `Object is possibly undefined` in `src/routes/movie/[id].tsx` and `src/routes/tv/[id].tsx` — unchanged, NOT touched by this chunk).
+  - `./node_modules/.bin/eslint src/features/watchlist/components/VaultFiltersContent.tsx src/features/watchlist/components/FilterControls.tsx src/features/details/components/WhereToWatch.tsx src/features/watchlist/useVaultFiltering.ts src/features/watchlist/hooks/useWatchlistOttAvailability.ts` — PASS, exit 0, 0 errors, 0 warnings.
+  - `./node_modules/.bin/vinxi build` — PASS — `✔ build done` / `✔ Nitro Server built`. Verified the bundled output (`WatchlistView-BQPh3Y-z.js`) contains: the "No platforms available" string, the `[VaultFiltersContent] uniquePlatforms count=` log, the `[useVaultFiltering] uniquePlatforms memo` log, and the `[useWatchlistOttAvailability] batch complete` log. The compact CSS classes (`wheretowatch-row-logo`, `wheretowatch-row-actions`, `wheretowatch-row-meta`) are present in the CSS bundle (`index-KTRs-WQO.js`).
+- Errors and fixes: none — all three validation steps passed on the first run.
+- Notes:
+  - **Logs added** (all use `console.log`, not `console.warn`, per spec):
+    - `[useWatchlistOttAvailability] batch complete`: watchlistItems=N fetchItems=N chunks=N successCount=N mergedEntries=N uniqueProviders=N country=XX
+    - `[useVaultFiltering] uniquePlatforms memo`: watchlistSize=N ottLoading=true|false providerCatalogSize=N
+    - `[VaultFiltersContent] uniquePlatforms count`: count=N platformFilter=all|netflix|...
+  - **No sensitive data logged**: only counts (item counts, chunk counts, provider counts), the country code (already in the URL/region signal), and the current platform filter value (already in the URL state). No titles, no user identifiers, no auth tokens.
+  - These logs are TEMPORARY — they will be removed in a later cleanup chunk alongside the OTT server logs added in Chunk 6E. Do NOT remove existing Chunk 6E server logs yet (per spec).
+
+### Files NOT modified
+- `src/features/watchlist/components/VaultFilters.tsx` — no changes needed. Passes `uniquePlatforms` straight through to `VaultFiltersContent`; the always-show behavior is implemented inside `VaultFiltersContent`.
+- `src/features/watchlist/components/WatchlistDialogs.tsx` — no changes needed. Same passthrough.
+- `src/features/watchlist/WatchlistView.tsx` — no changes needed. The `uniquePlatforms` accessor is already wired up to `VaultFiltersContent` / `WatchlistDialogs`.
+- `src/features/watchlist/vaultFilterUtils.ts` — no changes needed. `matchesPlatform` predicate already handles `undefined`/`[]` provider lists (treats them as "no providers" → only matches "all").
+- `src/shared/types/justwatch.ts` — no changes needed.
+- `src/server/justwatch/*` — no changes needed. The Chunk 6E resilience fixes (never cache empty, retry, limited concurrency, diagnostic logs) are intact.
+- `src/routes/api/ott/*` — no changes needed. Chunk 6D country override + Chunk 6E diagnostic logs are intact.
+- `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml` — not modified (per spec).
+- Discover "New on OTT", Upcoming, Statistics — not modified (per spec).
+- Old TMDB provider registry files — not deleted (per spec).
+
+### Root Cause Analysis Summary
+
+The "Watchlist Platform filter missing" symptom had ONE root cause:
+
+1. **Hide-on-empty catalog behavior**: The Platform dropdown was wrapped in `<Show when={props.uniquePlatforms.length > 0}>`. The JustWatch provider catalog is legitimately empty in three states (loading, error, no offers in country) — and in ALL three the dropdown was completely hidden. The user perceived this as "the filter is missing" because there was no visual indication that the filter existed at all. The fix is to ALWAYS render the dropdown in a disabled/muted state when the catalog is empty, with a "No platforms available" hint. This makes it clear the filter exists but has no data yet.
+
+The "Where to Watch takes too much vertical space" symptom had ONE root cause:
+
+1. **Verbose row layout**: The previous row used 40×40 logos, a vertical stack for provider name + date, full-width buttons in a separate row, and a mobile fallback that stacked everything into a tall column. Each row consumed ~64-80px. The compact redesign reduces each row to ~32-40px (50% reduction) by removing the visible provider name (replaced with logo title/aria), shrinking the logo to 28×28, tightening padding, and using a single horizontal flex row that wraps gracefully on narrow viewports.
+
+### Verification Results
+- TypeScript: 0 errors in modified files (18 pre-existing in other files, unchanged).
+- ESLint: 0 errors, 0 warnings on all 5 modified TS/TSX files.
+- Build: PASS — `✔ build done` / `✔ Nitro Server built`. New "No platforms available" string, diagnostic logs, and compact CSS classes confirmed present in bundled output.
+
+
+### Chunk 6F Commit & Push
+- Commit hash: `41429e6`
+- Commit message: `fix: keep Watchlist Platform filter visible and compact Where to Watch rows`
+- Files in commit: 7 (justwatch_migration_worklog.md, src/features/details/components/WhereToWatch.tsx, src/features/watchlist/components/FilterControls.tsx, src/features/watchlist/components/VaultFiltersContent.tsx, src/features/watchlist/hooks/useWatchlistOttAvailability.ts, src/features/watchlist/useVaultFiltering.ts, src/styles/features/details.css)
+- Push status: see below.
+

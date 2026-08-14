@@ -1,5 +1,5 @@
 // src/features/watchlist/components/VaultFiltersContent.tsx
-import { For, Show, createSignal, batch, type Accessor } from "solid-js";
+import { For, Show, createSignal, createEffect, batch, type Accessor } from "solid-js";
 import Icon from "~/shared/ui/Icon";
 import {
   RangeFilter,
@@ -22,13 +22,20 @@ import type { PlatformFilterOption } from "../hooks/useWatchlistOttAvailability"
  *     selectable chip rows (FilterChips component).
  *   - Platform filter uses the JustWatch provider catalog derived
  *     from the user's watchlist availability in their profile country
- *     (passed via `uniquePlatforms: PlatformFilterOption[]`). The
- *     dropdown is HIDDEN when the catalog is empty (loading, fetch
- *     error, or no items have any JustWatch offer) — per Chunk 6
- *     Task 6.3 "Prefer hide".
+ *     (passed via `uniquePlatforms: PlatformFilterOption[]`).
  *   - Metric inputs (IMDb, RT, Year, Runtime) use dark-theme polished
  *     numeric inputs (.filter-range-input class) instead of plain white
  *     text inputs.
+ *
+ * Chunk 6F Task 1 — ALWAYS-VISIBLE PLATFORM FILTER:
+ *   The Platform dropdown was previously HIDDEN when `uniquePlatforms`
+ *   was empty (loading / error / no offers). This caused the filter to
+ *   "disappear" from the user's perspective, leading to confusion
+ *   ("where did the Platform filter go?"). The dropdown is now ALWAYS
+ *   rendered — when the catalog is empty it appears in a disabled,
+ *   muted state with "All Platforms" as the only option and an
+ *   optional muted note ("No platforms available"). This makes it
+ *   clear to the user that the filter exists but has no data yet.
  *
  * v2.6.2 (Phase 6.2 Task 1a):
  *   - RE-ADDED Tags filter (was removed in v2 redesign because the
@@ -53,7 +60,10 @@ export interface VaultFiltersContentProps {
    *  the watchlist items in the user's country. Empty while the
    *  batch-availability fetch is in flight, on error, or when no
    *  watchlist item has any JustWatch offer — in all three cases the
-   *  Platform dropdown is HIDDEN (per Chunk 6 Task 6.3 "Prefer hide"). */
+   *  Platform dropdown is now RENDERED IN A DISABLED STATE (Chunk 6F
+   *  Task 1) rather than hidden, so the user can see the filter
+   *  exists. The dropdown becomes interactive as soon as the catalog
+   *  populates. */
   uniquePlatforms: PlatformFilterOption[];
   uniqueTags: string[];
   /** Union of tag vocabulary + tags in use. Drives the Tag filter dropdown
@@ -71,6 +81,20 @@ export default function VaultFiltersContent(props: VaultFiltersContentProps) {
   const [newTagName, setNewTagName] = createSignal("");
   const [pendingDeleteTag, setPendingDeleteTag] = createSignal<string | null>(null);
   const vault = useVault();
+
+  // Chunk 6F Task 4 — temporary diagnostic log to help diagnose why
+  // the Platform filter catalog might be empty. Tracks the unique
+  // platforms count and the current platform filter value. Will be
+  // removed in a later cleanup chunk alongside the OTT server logs
+  // added in Chunk 6E. Logs only counts (no PII / no titles).
+  createEffect(() => {
+    console.log(
+      "[VaultFiltersContent] uniquePlatforms count=" +
+        props.uniquePlatforms.length +
+        " platformFilter=" +
+        props.filters.platform
+    );
+  });
 
   /** Batched setFilters — wraps each filter update in batch() so the
       filtered memo re-computes ONCE instead of triggering cascading
@@ -192,33 +216,50 @@ export default function VaultFiltersContent(props: VaultFiltersContentProps) {
               `matchesPlatform` compares against `m.justwatchProviders`);
               the label is the human-readable `clearName`.
 
-              HIDES when the catalog is empty — this covers three cases
-              uniformly (Chunk 6 Task 6):
-                1. Batch-availability fetch in flight (loading).
-                2. Fetch failed (network / parse / server error).
-                3. No watchlist item has any JustWatch offer in country.
-              "Prefer hide" is the chosen behavior — falling back to a
-              disabled "All Platforms" only would be confusing because
-              the user wouldn't know whether the dropdown is loading,
-              broken, or genuinely empty. Hiding removes ambiguity.
+              Chunk 6F Task 1 — ALWAYS VISIBLE (was previously hidden
+              when the catalog was empty). The dropdown now renders in
+              ALL states:
+                1. Catalog populated → normal interactive dropdown with
+                   "All Platforms" + provider options.
+                2. Catalog empty (loading / fetch error / no offers in
+                   country) → DISABLED dropdown showing only "All
+                   Platforms" + a muted "No platforms available" note.
+              This makes it clear to the user that the filter EXISTS —
+              previously they reported "Platform filter is missing"
+              because the dropdown was simply hidden whenever the
+              JustWatch fetch hadn't yet returned usable data.
 
               If a Platform filter was already active when the catalog
               becomes empty (e.g. user removed all watchlist items),
-              we reset it to "all" so the chip + dropdown don't show a
-              stale technicalName that no longer matches anything. */}
-          <Show when={props.uniquePlatforms.length > 0}>
-            <GlassSelect
-              label="Platform"
-              val={props.filters.platform}
-              set={(v) => batchedSet({ platform: v })}
-              opts={[
-                { l: "All Platforms", v: "all" },
-                ...props.uniquePlatforms.map((p) => ({
-                  l: p.clearName,
-                  v: p.technicalName
-                }))
-              ]}
-            />
+              the filter value remains "all" or resets via the user's
+              own clear action — we do NOT forcibly reset it here
+              because the catalog may be transiently empty during a
+              refetch and we don't want to wipe the user's selection. */}
+          <GlassSelect
+            label="Platform"
+            val={props.filters.platform}
+            set={(v) => batchedSet({ platform: v })}
+            disabled={props.uniquePlatforms.length === 0}
+            opts={[
+              { l: "All Platforms", v: "all" },
+              ...props.uniquePlatforms.map((p) => ({
+                l: p.clearName,
+                v: p.technicalName
+              }))
+            ]}
+          />
+          <Show when={props.uniquePlatforms.length === 0}>
+            <p
+              class="type-body-soft"
+              style={{
+                "font-size": "0.625rem",
+                "margin-top": "-0.25rem",
+                "margin-left": "0.125rem",
+                opacity: "0.7"
+              }}
+            >
+              No platforms available
+            </p>
           </Show>
           {/* Tag — RE-ADDED in Phase 6.2 Task 1a.
               Shows the union of (tag vocabulary in localStorage) ∪ (tags

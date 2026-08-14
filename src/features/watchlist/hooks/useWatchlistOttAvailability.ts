@@ -466,6 +466,22 @@ export function useWatchlistOttAvailability(
             }
           }
 
+          // Chunk 6F Task 4 — diagnostic log. Logs the watchlist size,
+          // number of chunks fetched, number of successful chunks,
+          // merged provider-entries count, and unique provider count.
+          // Temporary; will be removed in a later cleanup chunk.
+          // Logs only counts (no PII / no titles).
+          console.log(
+            "[useWatchlistOttAvailability] batch complete" +
+              " watchlistItems=" + items.length +
+              " fetchItems=" + fetchItems.length +
+              " chunks=" + chunks.length +
+              " successCount=" + successCount +
+              " mergedEntries=" + merged.size +
+              " uniqueProviders=" + meta.size +
+              " country=" + currentCountry
+          );
+
           // Chunk 6E: if every chunk came back empty AND we still have
           // retry budget, schedule a retry. This is the difference
           // between "JustWatch is down/429 — hide Platform filter

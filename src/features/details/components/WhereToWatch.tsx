@@ -522,45 +522,50 @@ const WhereToWatch: Component<WhereToWatchProps> = (props) => {
               );
               return (
                 <div class="wheretowatch-row" role="listitem">
-                  {/* Provider logo + name */}
-                  <div class="wheretowatch-row-main">
-                    <div class="wheretowatch-row-logo" aria-hidden="true">
-                      <Show
-                        when={showLogo()}
-                        fallback={
-                          <div class="wheretowatch-row-logo-fallback">
-                            <span
-                              class="material-symbols-outlined"
-                              style={{ "font-size": "20px" }}
-                              aria-hidden="true"
-                            >
-                              live_tv
-                            </span>
-                          </div>
-                        }
-                      >
-                        <img
-                          src={logoUrl}
-                          class="wheretowatch-row-logo-img"
-                          loading="lazy"
-                          decoding="async"
-                          alt=""
-                          onError={() => setImgError(true)}
-                        />
-                      </Show>
-                    </div>
-                    <div class="wheretowatch-row-meta">
-                      <span class="wheretowatch-row-name">{row.clearName}</span>
-                      <Show when={availabilityDate()}>
-                        <span class="wheretowatch-row-date">
-                          Available {availabilityDate()}
-                        </span>
-                      </Show>
-                    </div>
+                  {/* Provider logo — Chunk 6F Task 3: the provider name
+                      is no longer rendered as visible text (it took
+                      too much vertical space). Instead, the logo carries
+                      `title`, `aria-label`, and `alt` attributes so
+                      hover-tooltip + screen readers still announce the
+                      provider name. Accessibility is preserved without
+                      the visual bloat. */}
+                  <div
+                    class="wheretowatch-row-logo"
+                    title={row.clearName}
+                    aria-label={row.clearName}
+                    role="img"
+                  >
+                    <Show
+                      when={showLogo()}
+                      fallback={
+                        <div class="wheretowatch-row-logo-fallback">
+                          <span
+                            class="material-symbols-outlined"
+                            style={{ "font-size": "16px" }}
+                            aria-hidden="true"
+                          >
+                            live_tv
+                          </span>
+                        </div>
+                      }
+                    >
+                      <img
+                        src={logoUrl}
+                        class="wheretowatch-row-logo-img"
+                        loading="lazy"
+                        decoding="async"
+                        alt={row.clearName}
+                        onError={() => setImgError(true)}
+                      />
+                    </Show>
                   </div>
 
-                  {/* Badges + buttons */}
-                  <div class="wheretowatch-row-actions">
+                  {/* Meta — badges + future availability date.
+                      Chunk 6F Task 2: collapsed into a single compact
+                      horizontal row alongside the logo and buttons.
+                      The provider name is intentionally NOT rendered
+                      here (it's available via the logo's title/aria). */}
+                  <div class="wheretowatch-row-meta">
                     <div class="wheretowatch-badges">
                       <For each={MONETIZATION_ORDER}>
                         {(mt) => (
@@ -575,30 +580,40 @@ const WhereToWatch: Component<WhereToWatchProps> = (props) => {
                         )}
                       </For>
                     </div>
-                    <div class="wheretowatch-buttons">
-                      <Show when={row.watchNowUrl}>
-                        <a
-                          class="wheretowatch-btn wheretowatch-btn-primary focus-ring"
-                          href={row.watchNowUrl ?? "#"}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          aria-label={`Watch now on ${row.clearName}`}
-                        >
-                          Watch Now
-                        </a>
-                      </Show>
-                      <Show when={row.moreInfoUrl}>
-                        <a
-                          class="wheretowatch-btn wheretowatch-btn-secondary focus-ring"
-                          href={row.moreInfoUrl ?? "#"}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          aria-label={`More info about ${row.clearName}`}
-                        >
-                          More Info
-                        </a>
-                      </Show>
-                    </div>
+                    <Show when={availabilityDate()}>
+                      <span class="wheretowatch-row-date">
+                        Available {availabilityDate()}
+                      </span>
+                    </Show>
+                  </div>
+
+                  {/* Actions — Chunk 6F Task 2: compact inline buttons
+                      on the same row as the logo + badges. Buttons
+                      are no longer full-width; they wrap cleanly on
+                      narrow viewports via the row's flex-wrap. */}
+                  <div class="wheretowatch-row-actions">
+                    <Show when={row.watchNowUrl}>
+                      <a
+                        class="wheretowatch-btn wheretowatch-btn-primary focus-ring"
+                        href={row.watchNowUrl ?? "#"}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={`Watch now on ${row.clearName}`}
+                      >
+                        Watch Now
+                      </a>
+                    </Show>
+                    <Show when={row.moreInfoUrl}>
+                      <a
+                        class="wheretowatch-btn wheretowatch-btn-secondary focus-ring"
+                        href={row.moreInfoUrl ?? "#"}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={`More info about ${row.clearName}`}
+                      >
+                        More Info
+                      </a>
+                    </Show>
                   </div>
                 </div>
               );
