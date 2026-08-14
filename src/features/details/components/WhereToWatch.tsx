@@ -1,4 +1,41 @@
 // src/features/details/components/WhereToWatch.tsx
+//
+// CineLog V2 — JustWatch OTT Migration — Chunk 5
+// ---------------------------------------------------------------------
+// "Where to Watch" section for the Details modal.
+//
+// PREVIOUSLY (Chunk ≤4): fetched TMDB watch providers via
+// `fetchTitleWatchProviders(mediaType, id)` and rendered a horizontal
+// grid of provider logo chips. All providers shared a single JustWatch
+// deep link from TMDB's `countryData.link`.
+//
+// NOW (Chunk 5): fetches JustWatch offers from the new
+// `/api/ott/availability/{tmdbId}?type={movie|tv}` route. The route
+// resolves the caller's country from their profile (anonymous → "US")
+// and returns `{ tmdbId, mediaType, country, justwatchNodeId?, offers }`.
+//
+// Offers are normalized into one row per JustWatch Package (grouping
+// multiple monetization types — e.g. Netflix may offer both FLATRATE
+// and RENT for the same title). Each row shows:
+//   - Provider logo (JustWatch CDN)
+//   - clearName
+//   - Badges: Subscription / Free with ads / Rent / Buy
+//   - "Watch Now" button (deeplinkURL) + "More Info" button (standardWebURL)
+//   - "Available <date>" label if availableFromTime is in the future
+//
+// SECTION VISIBILITY:
+//   - Hidden when `streaming_button` feature flag is false.
+//   - Hidden while loading (skeleton would be too noisy in the modal —
+//     we just don't render until we have data).
+//   - Hidden when offers array is empty (title not available in region).
+//   - Hidden on any fetch error (silent — no error UI).
+//
+// PLACEMENT:
+//   Rendered between DetailsMetadata and DetailsSeasons in the
+//   DetailsModal (unchanged from Chunk ≤4 — the parent <Show> gate
+//   moved inside this component but the parent import site doesn't
+//   need to change).
+
 import {
   Show,
   For,
@@ -8,18 +45,9 @@ import {
   type Component
 } from "solid-js";
 import type { Accessor } from "solid-js";
-import { tmdbImage, fetchTitleWatchProviders } from "~/core/tmdb/tmdb";
-import { useDiscoverRegion } from "~/core/config/discoverRegion";
 import { useFeatureFlags } from "~/lib/featureFlags";
-import {
-  canonicalForTmdbId,
-  displayNameFor
-} from "~/features/discover/components/ottProviderRegistry";
-import type {
-  WatchlistItem,
-  TMDBDetails,
-  TMDBWatchProvider
-} from "~/shared/types";
+import type { WatchlistItem, TMDBDetails } from "~/shared/types";
+import type { JustWatchOffer, JustWatchMonetizationType } from "~/shared/types/justwatch";
 import DetailSection from "~/features/details/components/DetailSection";
 
 interface WhereToWatchProps {
@@ -27,207 +55,436 @@ interface WhereToWatchProps {
   details: Accessor<TMDBDetails | null>;
 }
 
-/**
- * WhereToWatch — "Where to Watch" section for the Details modal.
- *
- * Shows the streaming/rent/buy platforms where the title is available in
- * the user's currently-set country (from Account settings → discoverRegion).
- *
- * KEY BEHAVIORS:
- *   - Country-filtered: only shows providers for the user's region. If the
- *     title isn't available in that region, the entire section is hidden.
- *   - Provider names are canonicalized via ottProviderRegistry so aliases
- *     (e.g. "Amazon Prime Video" + "Amazon Video") collapse to "Prime Video".
- *   - Deduplicated by canonical key — one chip per real-world service.
- *   - Ordered by access model: Streaming (flatrate) first, then Rent, Buy.
- *   - Each chip: circular logo + provider name beneath.
- *   - Section is hidden entirely when:
- *       • TMDB details aren't loaded yet
- *       • The title has no watch providers in the user's region
- *       • The fetch fails (silent — no error UI, just hidden)
- *
- * PLACEMENT:
- *   Rendered between DetailsMetadata and DetailsSeasons in the DetailsModal.
- */
-const WhereToWatch: Component<WhereToWatchProps> = (props) => {
-  const region = useDiscoverRegion();
-  const featureFlags = useFeatureFlags();
-  const [providers, setProviders] = createSignal<TMDBWatchProvider[] | null>(
-    null
-  );
-  const [loaded, setLoaded] = createSignal(false);
-  // Deep link to the title's page on the platform (country-specific).
-  // TMDB returns ONE link per country that points to JustWatch's page
-  // for the title in that region — clicking any provider opens it.
-  const [deepLink, setDeepLink] = createSignal<string | null>(null);
+// ─── Local types ────────────────────────────────────────────────────
 
-  const mediaType = createMemo(() => {
-    const b = props.baseItem();
-    const d = props.details();
-    return b?.media_type ?? d?.media_type ?? "movie";
+/**
+ * A normalized provider row — one per unique JustWatch Package.
+ * Multiple offers from the same package (e.g. Netflix FLATRATE + RENT)
+ * collapse into a single row with all monetization types listed as
+ * badges.
+ */
+type ProviderRow = {
+  packageId: string;
+  clearName: string;
+  technicalName: string;
+  icon: string;
+  monetizationTypes: Set<JustWatchMonetizationType>;
+  watchNowUrl: string | null;
+  moreInfoUrl: string | null;
+  availableFromTime: string | null;
+};
+
+/**
+ * API response shape from /api/ott/availability/[tmdbId].
+ * Mirrors what the route returns (see src/routes/api/ott/availability/[tmdbId].ts).
+ * `justwatchNodeId` is only present when offers is non-empty.
+ */
+interface AvailabilityApiResponse {
+  tmdbId: number;
+  mediaType: "movie" | "tv";
+  country: string;
+  justwatchNodeId?: string;
+  offers: JustWatchOffer[];
+}
+
+// ─── Helpers ────────────────────────────────────────────────────────
+
+/**
+ * Build the full JustWatch CDN logo URL from the icon template.
+ *
+ * The icon template from the API looks like:
+ *   "/icon/4982/{profile}/{technicalName}.{format}"
+ *
+ * We substitute {profile} → s100 and {format} → png, then prefix
+ * with "https://images.justwatch.com".
+ */
+function buildLogoUrl(iconTemplate: string): string {
+  if (!iconTemplate) return "";
+  const path = iconTemplate
+    .replace("{profile}", "s100")
+    .replace("{format}", "png");
+  return `https://images.justwatch.com${path}`;
+}
+
+/**
+ * Normalize a flat list of JustWatch offers into one ProviderRow per
+ * unique Package, collapsing multiple monetization types into a single
+ * row's badge set.
+ *
+ * Rules (per Chunk 5 spec):
+ *   - Group by `offer.package.id`.
+ *   - For each group:
+ *       packageId         = package.id
+ *       clearName         = package.clearName
+ *       technicalName     = package.technicalName
+ *       icon              = package.icon
+ *       monetizationTypes = unique set of offer.monetizationType
+ *       watchNowUrl       = first non-null offer.deeplinkURL
+ *       moreInfoUrl       = first non-null offer.standardWebURL
+ *       availableFromTime = earliest non-null availableFromTime
+ *                           (if all null, null)
+ *   - Sort:
+ *       1. Subscription (FLATRATE) or free ad-supported (FAST) first,
+ *          then rent/buy.
+ *       2. Within same group, alphabetically by clearName.
+ *   - No duplicate package rows.
+ *   - No filtering by user-selected providers.
+ */
+function normalizeOffers(offers: JustWatchOffer[]): ProviderRow[] {
+  if (!offers || offers.length === 0) return [];
+
+  const groups = new Map<string, ProviderRow>();
+
+  for (const offer of offers) {
+    const pkg = offer.package;
+    if (!pkg || !pkg.id) continue;
+
+    let row = groups.get(pkg.id);
+    if (!row) {
+      row = {
+        packageId: pkg.id,
+        clearName: pkg.clearName ?? "",
+        technicalName: pkg.technicalName ?? "",
+        icon: pkg.icon ?? "",
+        monetizationTypes: new Set<JustWatchMonetizationType>(),
+        watchNowUrl: null,
+        moreInfoUrl: null,
+        availableFromTime: null
+      };
+      groups.set(pkg.id, row);
+    }
+
+    // Track monetization type (defensive — the type is already a union,
+    // but JustWatch schema drift could send unknown values).
+    if (
+      offer.monetizationType === "FLATRATE" ||
+      offer.monetizationType === "RENT" ||
+      offer.monetizationType === "BUY" ||
+      offer.monetizationType === "FAST"
+    ) {
+      row.monetizationTypes.add(offer.monetizationType);
+    }
+
+    // First non-null deeplinkURL wins
+    if (row.watchNowUrl === null && offer.deeplinkURL) {
+      row.watchNowUrl = offer.deeplinkURL;
+    }
+    // First non-null standardWebURL wins
+    if (row.moreInfoUrl === null && offer.standardWebURL) {
+      row.moreInfoUrl = offer.standardWebURL;
+    }
+
+    // Earliest non-null availableFromTime wins
+    if (offer.availableFromTime) {
+      if (
+        row.availableFromTime === null ||
+        offer.availableFromTime < row.availableFromTime
+      ) {
+        row.availableFromTime = offer.availableFromTime;
+      }
+    }
+  }
+
+  const rows = Array.from(groups.values());
+
+  // Sort: subscription/free-first, then rent/buy. Within the same
+  // group, alphabetical by clearName.
+  const rankFor = (r: ProviderRow): number => {
+    if (r.monetizationTypes.has("FLATRATE") || r.monetizationTypes.has("FAST")) {
+      return 0;
+    }
+    return 1; // RENT / BUY / unknown
+  };
+
+  rows.sort((a, b) => {
+    const ra = rankFor(a);
+    const rb = rankFor(b);
+    if (ra !== rb) return ra - rb;
+    return a.clearName.localeCompare(b.clearName);
   });
 
-  const tmdbId = createMemo(() => {
+  return rows;
+}
+
+/**
+ * Format an ISO date string as "Sep 1, 2026" — no external library.
+ * Returns an empty string if the input is null or unparseable.
+ */
+function formatAvailabilityDate(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  // toLocaleDateString with en-US gives "Sep 1, 2026"
+  try {
+    return d.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric"
+    });
+  } catch {
+    // Fall back to a manual format if the locale is unavailable
+    return d.toISOString().slice(0, 10);
+  }
+}
+
+/**
+ * Returns true if the ISO date is in the future (used to decide
+ * whether to show the "Available <date>" label).
+ */
+function isFutureDate(iso: string | null): boolean {
+  if (!iso) return false;
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return false;
+  return d.getTime() > Date.now();
+}
+
+/**
+ * Map a JustWatch monetization type to the badge label per the
+ * finalized wireframe:
+ *   FLATRATE → "Subscription"
+ *   FAST     → "Free with ads"
+ *   RENT     → "Rent"
+ *   BUY      → "Buy"
+ */
+function monetizationLabel(type: JustWatchMonetizationType): string {
+  switch (type) {
+    case "FLATRATE":
+      return "Subscription";
+    case "FAST":
+      return "Free with ads";
+    case "RENT":
+      return "Rent";
+    case "BUY":
+      return "Buy";
+    default:
+      return type;
+  }
+}
+
+/**
+ * Ordered list of monetization types for badge rendering, so badges
+ * always appear in a consistent order regardless of the Set iteration
+ * order. Subscription first, then free-with-ads, then rent, then buy.
+ */
+const MONETIZATION_ORDER: JustWatchMonetizationType[] = [
+  "FLATRATE",
+  "FAST",
+  "RENT",
+  "BUY"
+];
+
+// ─── Component ──────────────────────────────────────────────────────
+
+const WhereToWatch: Component<WhereToWatchProps> = (props) => {
+  const featureFlags = useFeatureFlags();
+  const [rows, setRows] = createSignal<ProviderRow[] | null>(null);
+  const [loaded, setLoaded] = createSignal(false);
+
+  const mediaType = createMemo<"movie" | "tv" | null>(() => {
     const b = props.baseItem();
     const d = props.details();
-    return d?.id ?? (b?.id ? Number(b.id) : null);
+    const mt = b?.media_type ?? d?.media_type ?? null;
+    if (mt === "movie" || mt === "tv") return mt;
+    return null;
+  });
+
+  const tmdbId = createMemo<number | null>(() => {
+    const b = props.baseItem();
+    const d = props.details();
+    if (d?.id != null) return d.id;
+    if (b?.id != null) {
+      const n = Number(b.id);
+      return Number.isFinite(n) && n > 0 ? n : null;
+    }
+    return null;
+  });
+
+  /**
+   * Extract a display title from the TMDB details / base item, for
+   * passing to the API route as the `title` query param. This helps
+   * the JustWatch resolver find the right node on a cache miss.
+   */
+  const titleForLookup = createMemo<string | null>(() => {
+    const d = props.details();
+    const b = props.baseItem();
+    return (
+      d?.title ??
+      d?.name ??
+      d?.original_title ??
+      d?.original_name ??
+      b?.title ??
+      null
+    );
+  });
+
+  /**
+   * Extract a release year (number) from TMDB details, for the
+   * `year` query param. Helps disambiguate title collisions.
+   */
+  const yearForLookup = createMemo<number | null>(() => {
+    const d = props.details();
+    const dateStr = d?.release_date ?? d?.first_air_date;
+    if (!dateStr || typeof dateStr !== "string") return null;
+    const year = parseInt(dateStr.slice(0, 4), 10);
+    return Number.isFinite(year) && year > 1800 ? year : null;
   });
 
   const loadProviders = async () => {
     const id = tmdbId();
     const mt = mediaType();
-    if (id === null || id === undefined) {
-      setProviders(null);
-      setDeepLink(null);
+    if (id === null || mt === null) {
+      setRows(null);
       setLoaded(true);
       return;
     }
+
     setLoaded(false);
-    const results = await fetchTitleWatchProviders(mt as "movie" | "tv", id);
-    if (!results) {
-      setProviders(null);
-      setDeepLink(null);
+    try {
+      const params = new URLSearchParams({ type: mt });
+      const title = titleForLookup();
+      if (title) params.set("title", title);
+      const year = yearForLookup();
+      if (year !== null) params.set("year", String(year));
+
+      const url = `/api/ott/availability/${id}?${params.toString()}`;
+      const res = await fetch(url, { method: "GET" });
+      if (!res.ok) {
+        setRows(null);
+        setLoaded(true);
+        return;
+      }
+      const body = (await res.json()) as AvailabilityApiResponse;
+      if (!body || !Array.isArray(body.offers)) {
+        setRows(null);
+        setLoaded(true);
+        return;
+      }
+      setRows(normalizeOffers(body.offers));
       setLoaded(true);
-      return;
-    }
-    const countryData = results[region()];
-    if (!countryData) {
-      setProviders(null);
-      setDeepLink(null);
+    } catch (err) {
+      // Silent — hide the section on any error.
+      console.warn(
+        "[WhereToWatch] failed to load JustWatch offers:",
+        err instanceof Error ? err.message : String(err)
+      );
+      setRows(null);
       setLoaded(true);
-      return;
     }
-    // Capture the country-level deep link (JustWatch URL for this title
-    // in this region) — clicking any provider card opens this in a new tab.
-    setDeepLink(countryData.link ?? null);
-    // Merge flatrate + rent + buy + free + ads, then dedupe by canonical key
-    // so alias providers (Amazon Prime Video + Amazon Video) collapse to one.
-    const all: TMDBWatchProvider[] = [
-      ...(countryData.flatrate ?? []),
-      ...(countryData.rent ?? []),
-      ...(countryData.buy ?? []),
-      ...(countryData.free ?? []),
-      ...(countryData.ads ?? [])
-    ];
-    const seen = new Set<string>();
-    const deduped: TMDBWatchProvider[] = [];
-    for (const p of all) {
-      const key = canonicalForTmdbId(p.provider_id);
-      // For "other" canonical (unknown providers), dedupe by provider_id instead
-      const dedupKey = key === "other" ? `id:${p.provider_id}` : key;
-      if (seen.has(dedupKey)) continue;
-      seen.add(dedupKey);
-      deduped.push(p);
-    }
-    setProviders(deduped);
-    setLoaded(true);
   };
 
   onMount(() => {
     void loadProviders();
   });
 
-  /** Display name — uses canonical name when known, falls back to TMDB name. */
-  const displayName = (p: TMDBWatchProvider): string => {
-    const canonical = canonicalForTmdbId(p.provider_id);
-    return canonical === "other" ? p.provider_name : displayNameFor(canonical);
-  };
-
-  /** Sorted: streaming providers first (canonical !== "other"), then others. */
-  const sortedProviders = createMemo(() => {
-    const list = providers() ?? [];
-    return [...list].sort((a, b) => {
-      const ca = canonicalForTmdbId(a.provider_id);
-      const cb = canonicalForTmdbId(b.provider_id);
-      // "other" goes last
-      if (ca === "other" && cb !== "other") return 1;
-      if (ca !== "other" && cb === "other") return -1;
-      return displayName(a).localeCompare(displayName(b));
-    });
-  });
+  const visibleRows = createMemo(() => rows() ?? []);
 
   return (
     <Show
       when={
         featureFlags.isEnabled("streaming_button") &&
         loaded() &&
-        sortedProviders().length > 0
+        visibleRows().length > 0
       }
     >
       <DetailSection label="Where to Watch" icon="play_circle">
         <div
-          class="wheretowatch-grid"
+          class="wheretowatch-list"
           role="list"
-          aria-label={`Available on ${sortedProviders().length} platforms in ${region()}`}
+          aria-label={`Available on ${visibleRows().length} platforms`}
         >
-          <For each={sortedProviders()}>
-            {(provider) => (
-              <a
-                class="wheretowatch-card"
-                role="listitem"
-                href={deepLink() ?? "#"}
-                target="_blank"
-                rel="noopener noreferrer"
-                title={
-                  deepLink()
-                    ? `Open ${displayName(provider)} on a new tab`
-                    : displayName(provider)
-                }
-                aria-label={`Open ${displayName(provider)} in a new tab`}
-              >
-                <div class="wheretowatch-logo-wrap">
-                  <Show
-                    when={provider.logo_path}
-                    fallback={
-                      <div
-                        class="wheretowatch-logo-fallback"
-                        aria-hidden="true"
+          <For each={visibleRows()}>
+            {(row) => {
+              const logoUrl = buildLogoUrl(row.icon);
+              const availabilityDate = createMemo(() =>
+                isFutureDate(row.availableFromTime)
+                  ? formatAvailabilityDate(row.availableFromTime)
+                  : ""
+              );
+              return (
+                <div class="wheretowatch-row" role="listitem">
+                  {/* Provider logo + name */}
+                  <div class="wheretowatch-row-main">
+                    <div class="wheretowatch-row-logo" aria-hidden="true">
+                      <Show
+                        when={logoUrl}
+                        fallback={
+                          <div class="wheretowatch-row-logo-fallback">
+                            <span
+                              class="material-symbols-outlined"
+                              style={{ "font-size": "20px" }}
+                              aria-hidden="true"
+                            >
+                              live_tv
+                            </span>
+                          </div>
+                        }
                       >
-                        <span
-                          class="material-symbols-outlined"
-                          style={{ "font-size": "20px" }}
-                          aria-hidden="true"
-                        >
-                          live_tv
-                        </span>
-                      </div>
-                    }
-                  >
-                    <img
-                      src={tmdbImage(provider.logo_path, "w154")}
-                      class="wheretowatch-logo"
-                      loading="lazy"
-                      decoding="async"
-                      width={154}
-                      height={103}
-                      alt=""
-                      aria-hidden="true"
-                      onError={(e) => {
-                        // Hide broken image, show fallback icon sibling
-                        e.currentTarget.style.display = "none";
-                        const fallback = e.currentTarget
-                          .nextElementSibling as HTMLElement | null;
-                        if (fallback) fallback.style.display = "flex";
-                      }}
-                    />
-                    <div
-                      class="wheretowatch-logo-fallback"
-                      style={{ display: "none" }}
-                      aria-hidden="true"
-                    >
-                      <span
-                        class="material-symbols-outlined"
-                        style={{ "font-size": "20px" }}
-                        aria-hidden="true"
-                      >
-                        live_tv
-                      </span>
+                        <img
+                          src={logoUrl}
+                          class="wheretowatch-row-logo-img"
+                          loading="lazy"
+                          decoding="async"
+                          alt=""
+                          onError={(e) => {
+                            e.currentTarget.style.display = "none";
+                          }}
+                        />
+                      </Show>
                     </div>
-                  </Show>
+                    <div class="wheretowatch-row-meta">
+                      <span class="wheretowatch-row-name">{row.clearName}</span>
+                      <Show when={availabilityDate()}>
+                        <span class="wheretowatch-row-date">
+                          Available {availabilityDate()}
+                        </span>
+                      </Show>
+                    </div>
+                  </div>
+
+                  {/* Badges + buttons */}
+                  <div class="wheretowatch-row-actions">
+                    <div class="wheretowatch-badges">
+                      <For each={MONETIZATION_ORDER}>
+                        {(mt) => (
+                          <Show when={row.monetizationTypes.has(mt)}>
+                            <span
+                              class="wheretowatch-badge"
+                              data-monetization={mt}
+                            >
+                              {monetizationLabel(mt)}
+                            </span>
+                          </Show>
+                        )}
+                      </For>
+                    </div>
+                    <div class="wheretowatch-buttons">
+                      <Show when={row.watchNowUrl}>
+                        <a
+                          class="wheretowatch-btn wheretowatch-btn-primary focus-ring"
+                          href={row.watchNowUrl ?? "#"}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          aria-label={`Watch now on ${row.clearName}`}
+                        >
+                          Watch Now
+                        </a>
+                      </Show>
+                      <Show when={row.moreInfoUrl}>
+                        <a
+                          class="wheretowatch-btn wheretowatch-btn-secondary focus-ring"
+                          href={row.moreInfoUrl ?? "#"}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          aria-label={`More info about ${row.clearName}`}
+                        >
+                          More Info
+                        </a>
+                      </Show>
+                    </div>
+                  </div>
                 </div>
-                <span class="wheretowatch-name">{displayName(provider)}</span>
-              </a>
-            )}
+              );
+            }}
           </For>
         </div>
       </DetailSection>

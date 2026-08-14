@@ -3328,3 +3328,204 @@
   transform: translateX(2px);
 }
 
+/* ============================================================
+   Stage 5 Chunk 5 — JustWatch "Where to Watch" rows
+   ============================================================
+   Replaces the old .wheretowatch-grid (TMDB chip grid) with a
+   vertical list of provider rows. Each row:
+     [logo] clearName              [badges] [Watch Now] [More Info]
+            Available <date>
+   Responsive: on narrow widths the actions wrap below the main.
+   Uses existing CSS variables (--glass-bg, --hairline-2, --p,
+   --text-soft, --text-dim, --space-*, --radius-*, --dur-fast,
+   --ease-out) so it adapts to the user's theme.
+   ============================================================ */
+
+.wheretowatch-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-1);
+  contain: content;
+}
+
+.wheretowatch-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--glass-bg);
+  border: 1px solid var(--hairline-2);
+  transition:
+    border-color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out);
+}
+
+.wheretowatch-row:hover {
+  border-color: var(--p);
+  background: rgba(74, 222, 128, 0.04);
+}
+
+.wheretowatch-row-main {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  flex: 1 1 160px;
+}
+
+.wheretowatch-row-logo {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: rgba(8, 8, 13, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.wheretowatch-row-logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.wheretowatch-row-logo-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+  background: rgba(8, 8, 13, 0.3);
+}
+
+.wheretowatch-row-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.wheretowatch-row-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary, currentColor);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wheretowatch-row-date {
+  font-size: 0.6875rem;
+  color: var(--p);
+  font-weight: 500;
+}
+
+.wheretowatch-row-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  flex: 0 0 auto;
+}
+
+.wheretowatch-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.wheretowatch-badge {
+  font-size: 0.625rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  border: 1px solid var(--hairline-2);
+  color: var(--text-soft);
+  background: rgba(255, 255, 255, 0.02);
+  white-space: nowrap;
+}
+
+.wheretowatch-badge[data-monetization="FLATRATE"] {
+  color: var(--p);
+  border-color: rgba(74, 222, 128, 0.35);
+  background: rgba(74, 222, 128, 0.08);
+}
+
+.wheretowatch-badge[data-monetization="FAST"] {
+  color: var(--text-soft);
+  border-color: var(--hairline-2);
+}
+
+.wheretowatch-badge[data-monetization="RENT"],
+.wheretowatch-badge[data-monetization="BUY"] {
+  color: var(--text-soft);
+  border-color: var(--hairline-2);
+}
+
+.wheretowatch-buttons {
+  display: flex;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+}
+
+.wheretowatch-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+  border: 1px solid transparent;
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
+}
+
+.wheretowatch-btn-primary {
+  background: var(--p);
+  color: #0a0a0f;
+  border-color: var(--p);
+}
+
+.wheretowatch-btn-primary:hover {
+  opacity: 0.9;
+}
+
+.wheretowatch-btn-secondary {
+  background: transparent;
+  color: var(--text-soft);
+  border-color: var(--hairline-2);
+}
+
+.wheretowatch-btn-secondary:hover {
+  color: var(--p);
+  border-color: var(--p);
+  background: rgba(74, 222, 128, 0.04);
+}
+
+/* Narrow screens: stack actions below the main row. */
+@media (max-width: 540px) {
+  .wheretowatch-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .wheretowatch-row-actions {
+    justify-content: space-between;
+    width: 100%;
+  }
+}
+
