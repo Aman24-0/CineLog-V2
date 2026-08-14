@@ -65,6 +65,33 @@ import type {
 } from "~/shared/types/justwatch";
 import { useDiscoverRegion } from "~/core/config/discoverRegion";
 
+/**
+ * Chunk 6H: normalize an OTT batch-response key by stripping ALL
+ * whitespace (`\s+` → `""`). The server is expected to return keys
+ * formatted as `"${mediaType}:${tmdbId}"` (e.g. `"movie:530385"`) with
+ * no internal whitespace, but the client has observed responses where
+ * keys appear to contain stray whitespace (e.g. `"movie: 1233413"`).
+ * When that happens, the client's lookup using `"movie:1233413"` (no
+ * whitespace) fails silently and the Platform filter catalog ends up
+ * empty even though the server returned data.
+ *
+ * Stripping whitespace from BOTH the server's response keys AND the
+ * client's lookup key makes the lookup resilient to any whitespace
+ * variation, while remaining a no-op when the server already returns
+ * clean keys (the normal case).
+ *
+ * Used in:
+ *   - `fetchChunksWithLimitedConcurrency` — normalizes the server's
+ *     response keys before returning them to the caller.
+ *   - `runBatch` (inside the merge loop) — normalizes the client-side
+ *     lookup key `${item.mediaType}:${item.tmdbId}`.
+ *   - `enrichedItems` memo — normalizes the client-side lookup key
+ *     `${it.media_type}:${tmdbId}` when reading from `availabilityMap`.
+ */
+function normalizeOttKey(value: string): string {
+  return value.replace(/\s+/g, "");
+}
+
 /** Max items per `/api/ott/batch-availability` request (enforced by the route). */
 const MAX_BATCH = 25;
 /**
@@ -292,9 +319,49 @@ async function fetchChunksWithLimitedConcurrency(
             "country=" + (data?.country ?? "?"),
             "requested=" + chunk.length
           );
+          // Chunk 6H Task 1 — raw JSON diagnostic logs. The Chunk 6G log
+          // above prints the keys as a JS array (browser devtools may
+          // render the array elements without quote marks, making it
+          // hard to spot stray whitespace like `"movie: 1233413"`).
+          // `JSON.stringify` produces a literal string with quote marks
+          // and escape sequences — any whitespace inside the key strings
+          // becomes visible. We also log the first result's full JSON
+          // (truncated to 500 chars) so we can verify the offer structure
+          // (in particular that each offer has `package.technicalName`).
+          // Temporary; will be removed in a later cleanup chunk alongside
+          // the Chunk 6E/6F/6G logs.
+          const rawResults = data?.results ?? {};
+          const rawKeys = Object.keys(rawResults);
+          console.log(
+            "[Watchlist OTT] raw keys JSON",
+            JSON.stringify(rawKeys.slice(0, 5))
+          );
+          const firstKey = rawKeys[0];
+          if (firstKey) {
+            console.log(
+              "[Watchlist OTT] first raw result",
+              JSON.stringify(rawResults[firstKey]).slice(0, 500)
+            );
+          }
+          // Chunk 6H Task 2 — normalize server response keys. Build a
+          // new record with whitespace stripped from every key (see
+          // `normalizeOttKey`). This makes the client resilient to any
+          // whitespace variation in the server's response: the server
+          // is expected to send clean keys like `"movie:530385"`, but
+          // if it ever sends `"movie: 1233413"` (with stray whitespace)
+          // the lookup at the call site would silently fail and the
+          // Platform filter catalog would end up empty. The caller's
+          // lookup key is also normalized (see `runBatch` and
+          // `enrichedItems`) so both sides match regardless of
+          // whitespace. No-op when the server already returns clean
+          // keys (the normal case).
+          const normalizedResults: Record<string, JustWatchTitleOffers> = {};
+          for (const [key, value] of Object.entries(rawResults)) {
+            normalizedResults[normalizeOttKey(key)] = value;
+          }
           return {
             chunk,
-            results: data?.results ?? {}
+            results: normalizedResults
           };
         } catch {
           // Network error / JSON parse error — return empty results
@@ -468,7 +535,13 @@ export function useWatchlistOttAvailability(
           for (const { chunk, results } of allResults) {
             if (Object.keys(results).length > 0) successCount++;
             for (const item of chunk) {
-              const key = `${item.mediaType}:${item.tmdbId}`;
+              // Chunk 6H Task 2 — normalize the client-side lookup key
+              // so it matches the normalized server response keys
+              // returned by `fetchChunksWithLimitedConcurrency`. No-op
+              // when the client already produces clean keys (the normal
+              // case — `${item.mediaType}:${item.tmdbId}` has no
+              // internal whitespace).
+              const key = normalizeOttKey(`${item.mediaType}:${item.tmdbId}`);
               const entry = results[key];
               const providers = extractProvidersFromOffers(
                 entry?.offers,
@@ -555,8 +628,12 @@ export function useWatchlistOttAvailability(
     for (let i = 0; i < items.length; i++) {
       const it = items[i];
       const tmdbId = Number(it.id);
+      // Chunk 6H Task 2 — normalize the client-side lookup key so it
+      // matches the normalized keys stored in `availabilityMap` (which
+      // were normalized in `runBatch` above). No-op when the client
+      // already produces clean keys.
       const key = Number.isFinite(tmdbId) && tmdbId > 0
-        ? `${it.media_type}:${tmdbId}`
+        ? normalizeOttKey(`${it.media_type}:${tmdbId}`)
         : null;
       const providers = key ? map.get(key) : undefined;
       // Always set the field (even to `[]`) once the fetch has run —
@@ -627,6 +704,44 @@ export function useWatchlistOttAvailability(
       providers: i.justwatchProviders
     }));
     console.log("[Watchlist OTT] enriched sample", sample);
+  });
+
+  // Chunk 6H Task 3 — diagnostic effect. Finds the FIRST enriched item
+  // that carries at least one JustWatch provider and logs its id,
+  // mediaType, and providers array (as JSON). If NO item has any
+  // provider, logs a warning — this would indicate either (a) every
+  // batch lookup failed (key mismatch — should be fixed by the
+  // `normalizeOttKey` helper added in Task 2), or (b) every title
+  // genuinely has no JustWatch offers in the user's country (legitimate
+  // empty catalog).
+  //
+  // The existing Chunk 6G `enriched sample` log above shows the first
+  // 3 items regardless of whether they have providers; this log
+  // specifically surfaces a POPULATED example (or the absence of one)
+  // so we can distinguish "enrichment ran but no items had providers"
+  // from "enrichment didn't run at all". Temporary; will be removed in
+  // a later cleanup chunk alongside the Chunk 6E/6F/6G logs.
+  // Logs only ids + provider technicalNames (no titles, no PII).
+  createEffect(() => {
+    const sampleItem = enrichedItems().find(
+      (item) =>
+        Array.isArray(item.justwatchProviders) &&
+        item.justwatchProviders.length > 0
+    );
+    if (!sampleItem) {
+      console.warn(
+        "[Watchlist OTT] no item has justwatchProviders after enrichment"
+      );
+      return;
+    }
+    console.log(
+      "[Watchlist OTT] sample enriched item",
+      JSON.stringify({
+        id: sampleItem.id,
+        mediaType: sampleItem.media_type,
+        providers: sampleItem.justwatchProviders
+      })
+    );
   });
 
   return {

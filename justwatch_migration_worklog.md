@@ -733,3 +733,97 @@ If the logs reveal `uniqueProviders > 0` but `uniquePlatforms` is empty, the bug
 - Commit message: `fix: simplify Where to Watch row UI and fix watchlist platform provider mapping`
 - Files in commit: 5 (justwatch_migration_worklog.md, src/features/details/components/WhereToWatch.tsx, src/features/watchlist/hooks/useWatchlistOttAvailability.ts, src/features/watchlist/useVaultFiltering.ts, src/styles/features/details.css)
 - Push status: PUSHED to `origin/Justwatch` (range `6be7eeb..1dcc420`) using the credentials embedded in the existing `origin` remote URL.
+
+
+## Chunk 6H — Fix empty Watchlist Platform provider list
+
+### Task 1: Diagnose response key mismatch (raw JSON logs)
+- Modified: src/features/watchlist/hooks/useWatchlistOttAvailability.ts
+- Status: COMPLETE
+- Validation: tsc + eslint + build all pass.
+- Errors and fixes: none.
+- Notes:
+  - The Chunk 6G `batch response keys` log printed the server's response keys as a JS array via `Object.keys(data.results)`. Browser devtools may render array elements without quote marks, making it hard to spot stray whitespace inside the key strings (e.g. `"movie: 1233413"` vs `"movie:1233413"`).
+  - Added two new `console.log` calls inside `fetchChunksWithLimitedConcurrency` right after the existing Chunk 6G log:
+    1. `[Watchlist OTT] raw keys JSON` — `JSON.stringify(Object.keys(data.results).slice(0, 5))`. Produces a literal string with quote marks and escape sequences — any whitespace inside the key strings becomes visible.
+    2. `[Watchlist OTT] first raw result` — `JSON.stringify(data.results[firstKey]).slice(0, 500)`. Truncated to 500 chars to avoid log spam; lets us verify the offer structure (in particular that each offer has `package.technicalName`).
+  - These logs are TEMPORARY — they will be removed in a later cleanup chunk alongside the Chunk 6E/6F/6G logs.
+
+### Task 2: Normalize response keys on client (resilience fix)
+- Modified: src/features/watchlist/hooks/useWatchlistOttAvailability.ts
+- Status: COMPLETE
+- Validation: tsc + eslint + build all pass.
+- Errors and fixes: none.
+- Notes:
+  - Added `normalizeOttKey(value: string): string` helper near the top of the file (after imports, before `MAX_BATCH`). Implementation: `value.replace(/\s+/g, "")` — strips ALL whitespace characters (spaces, tabs, newlines) from the key string.
+  - Applied the helper in THREE places to make the client resilient to any whitespace variation in the server's response keys:
+    1. **`fetchChunksWithLimitedConcurrency`** — after parsing `data.results`, build a new `normalizedResults: Record<string, JustWatchTitleOffers>` record with `normalizeOttKey(key)` for every entry. Return `normalizedResults` instead of the raw `data.results`. This is the primary fix: if the server ever sends keys with stray whitespace, the normalization makes them match the client's lookup format.
+    2. **`runBatch` merge loop** — when building the per-item lookup key, use `normalizeOttKey(\`${item.mediaType}:${item.tmdbId}\`)`. No-op when the client already produces clean keys (the normal case), but defensive against future code changes that might introduce whitespace into the client-side key construction.
+    3. **`enrichedItems` memo** — when looking up `availabilityMap.get(key)`, use `normalizeOttKey(\`${it.media_type}:${tmdbId}\`)`. Same defensive rationale as above.
+  - The fix is a NO-OP when the server returns clean keys (the normal case): `normalizeOttKey("movie:530385")` returns `"movie:530385"` unchanged. The fix only kicks in when the server sends keys with stray whitespace, in which case the lookup would have silently failed before.
+  - Did NOT modify the server-side route or service — the server-side key construction (`\`${item.mediaType}:${item.tmdbId}\`` in `service.ts` lines 525 + 615) is already clean. The fix is purely client-side resilience.
+
+### Task 3: Verify provider extraction (diagnostic log)
+- Modified: src/features/watchlist/hooks/useWatchlistOttAvailability.ts
+- Status: COMPLETE
+- Validation: tsc + eslint + build all pass.
+- Errors and fixes: none.
+- Notes:
+  - The existing Chunk 6G `[Watchlist OTT] enriched sample` log prints the first 3 enriched items regardless of whether they have providers. If the first 3 items happen to have empty `justwatchProviders` (e.g. they're obscure titles JustWatch hasn't indexed), the log doesn't tell us whether ANY item has providers — only that those specific 3 don't.
+  - Added a new `createEffect` that watches `enrichedItems` and:
+    - Finds the FIRST item with `Array.isArray(justwatchProviders) && justwatchProviders.length > 0`.
+    - If found: logs `[Watchlist OTT] sample enriched item` with `JSON.stringify({ id, mediaType, providers })` — confirms enrichment is populating the field correctly.
+    - If NOT found: logs `console.warn("[Watchlist OTT] no item has justwatchProviders after enrichment")` — would indicate either (a) every batch lookup failed (key mismatch — should now be fixed by Task 2's `normalizeOttKey` helper), or (b) every title genuinely has no JustWatch offers in the user's country (legitimate empty catalog).
+  - This log is TEMPORARY — it will be removed in a later cleanup chunk alongside the Chunk 6E/6F/6G logs.
+  - Did NOT remove the existing Chunk 6G `enriched sample` log (spec: "Do NOT remove existing temporary logs").
+
+### Task 4: Verify provider catalog construction
+- Modified: none (verification only — the existing memo is correct)
+- Status: COMPLETE
+- Validation: tsc + eslint + build all pass.
+- Errors and fixes: none.
+- Notes:
+  - Inspected the `providerCatalog` memo (lines 655-688). It correctly:
+    1. Reads from `availabilityMap` (Map<string, string[]> — key is `${mediaType}:${tmdbId}`, value is the providers array for that item) — NOT from raw response keys.
+    2. For each map entry, iterates each technicalName in the providers array.
+    3. Counts each unique technicalName across all items via a `Map<string, number>`.
+    4. For display metadata (clearName, icon), reads from `packageMeta` (Map<string, {clearName, icon}>) which is populated during offer extraction in `extractProvidersFromOffers`. This is equivalent to "find first matching offer package where package.technicalName === technicalName" but more efficient — one pass instead of N.
+    5. Sorts by count desc, then clearName asc (alphabetical tiebreaker for deterministic dropdown order).
+    6. Returns `PlatformFilterOption[]` of `{ technicalName, clearName, icon, count }`.
+  - The memo is correct. No fix needed.
+  - The `uniquePlatforms` memo in `useVaultFiltering.ts` is a thin pass-through of `providerCatalog()` — also correct.
+
+### Files NOT modified
+- `src/features/watchlist/useVaultFiltering.ts` — no changes needed. `uniquePlatforms` memo is a correct pass-through of `providerCatalog()`.
+- `src/features/watchlist/components/VaultFiltersContent.tsx` — no changes needed. The `disabled={props.uniquePlatforms.length === 0}` + "No platforms available" hint from Chunk 6F still works correctly. The `GlassSelect` opts mapping (`{ l: p.clearName, v: p.technicalName }`) is correct.
+- `src/routes/api/ott/batch-availability.ts` — no changes needed. Server-side key construction is already clean (no whitespace).
+- `src/server/justwatch/service.ts` — no changes needed. Server-side key construction (`\`${item.mediaType}:${item.tmdbId}\``) is already clean.
+- `src/shared/types/justwatch.ts` — no changes needed. Types already match the server response shape.
+- `src/shared/types/index.ts` — no changes needed. `WatchlistItem.justwatchProviders?: string[]` field is already declared.
+- `src/server/justwatch/client.ts` — no changes needed. `coerceOffer` + `coercePackage` already drop offers without valid `package.technicalName` before they reach the client.
+- `src/server/justwatch/cache.ts` — no changes needed. Cache returns offers in the correct shape.
+- `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml` — not modified (per spec).
+- Discover "New on OTT", Upcoming, Statistics — not modified (per spec).
+- Old TMDB provider registry files — not deleted (per spec).
+- Existing Chunk 6E/6F/6G temporary logs — NOT removed (per spec).
+
+### Root Cause Analysis
+
+The "Watchlist Platform filter visible but inactive with no provider options" symptom has ONE likely root cause:
+
+1. **Silent key mismatch between server response keys and client lookup keys.** The server is expected to return `Record<string, JustWatchTitleOffers>` keyed by `"${mediaType}:${tmdbId}"` (e.g. `"movie:530385"` — no whitespace). The client looks up `results[\`${item.mediaType}:${item.tmdbId}\`]` — same format. When both sides produce clean keys, the lookup succeeds and the catalog is populated. BUT: client logs from Chunk 6G showed `providerCatalogSize=0` despite `ottLoading=false` and `watchlistSize=1045`, with batch response keys that appeared (under visual inspection of devtools array rendering) to contain possible spaces like `'movie: 1233413'`. If the server ever sends keys with stray whitespace, the client's clean-key lookup silently returns `undefined`, `extractProvidersFromOffers` returns `[]`, the merged map ends up with all-empty provider arrays, and the catalog memo returns `[]`.
+
+The fix is purely defensive: a `normalizeOttKey` helper strips ALL whitespace from BOTH the server's response keys (in `fetchChunksWithLimitedConcurrency`) AND the client's lookup keys (in `runBatch` and `enrichedItems`). When the server returns clean keys (the normal case), the helper is a no-op. When the server returns keys with stray whitespace, the helper makes the lookup succeed.
+
+The Task 1 raw JSON logs will confirm whether the server is actually sending keys with whitespace (the `JSON.stringify` output will show literal quote marks and any whitespace inside the key strings). If the logs show clean keys but the catalog is still empty, the root cause is elsewhere (e.g. offers shape drift, package.technicalName missing) — the Task 3 `sample enriched item` log will then reveal whether any item has any provider, narrowing the diagnosis further.
+
+### Verification Results
+- TypeScript (`./node_modules/.bin/tsc --noEmit`): 0 errors in modified files. 18 pre-existing errors in OTHER files (Vite `import.meta.env` typing gaps + 2 `Object is possibly undefined` in `src/routes/movie/[id].tsx` and `src/routes/tv/[id].tsx` — unchanged, NOT touched by this chunk).
+- ESLint (`./node_modules/.bin/eslint src/features/watchlist/hooks/useWatchlistOttAvailability.ts`): PASS, exit 0, 0 errors, 0 warnings.
+- Build (`./node_modules/.bin/vinxi build`): PASS — `✔ build done` / `✔ Nitro Server built` / `✔ You can deploy this build using npx vercel deploy --prebuilt`. Verified the bundled output (`WatchlistView-EKCawr4d.js`) contains all 3 new diagnostic log strings (`[Watchlist OTT] raw keys JSON`, `[Watchlist OTT] first raw result`, `[Watchlist OTT] sample enriched item` / `no item has justwatchProviders`) and the `replace(/\s+/g, "")` regex literal from the `normalizeOttKey` helper.
+
+### Chunk 6H Commit & Push
+- Commit hash: `713265b`
+- Commit message: `fix: normalize OTT batch response keys and fix watchlist platform provider mapping`
+- Files in commit: 2 (justwatch_migration_worklog.md, src/features/watchlist/hooks/useWatchlistOttAvailability.ts)
+- Push status: <TO_BE_FILLED_AFTER_PUSH>
