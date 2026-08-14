@@ -70,7 +70,7 @@ import {
   updateNotifPref,
   applyAccentToDocument,
   clearAccentFromDocument,
-  type TmdbProvider,
+  type JustWatchProviderItem,
   type NotificationPrefs
 } from "~/core/preferences";
 
@@ -79,11 +79,6 @@ import {
   COUNTRIES,
   countryLabel
 } from "~/shared/data/countryLanguages";
-import {
-  getWatchProviderList,
-  getWatchProviderListTv
-} from "~/core/tmdb/discover";
-import { mergeAndSortProviders } from "~/core/preferences";
 import { tmdbImage, fetchTmdbMetadata } from "~/core/tmdb/tmdb";
 import { extractDominantColor } from "~/shared/utils/colorExtractor";
 
@@ -198,7 +193,7 @@ export function useSettingsState(): SettingsState {
   const [bannerUrl, setBannerUrl] = createSignal<string | null>(null);
 
   // ── Content state ────────────────────────────────────────────────
-  const [providers, setProviders] = createSignal<TmdbProvider[]>([]);
+  const [providers, setProviders] = createSignal<JustWatchProviderItem[]>([]);
   const [providersLoading, setProvidersLoading] = createSignal(true);
 
   // ── Notifications state ──────────────────────────────────────────
@@ -507,16 +502,36 @@ export function useSettingsState(): SettingsState {
     }
   }
 
-  async function loadProviders(reg: string) {
+  async function loadProviders(_reg: string) {
     setProvidersLoading(true);
     try {
-      const [movieRes, tvRes] = await Promise.allSettled([
-        getWatchProviderList(reg),
-        getWatchProviderListTv(reg)
-      ]);
-      const movieRows = movieRes.status === "fulfilled" ? movieRes.value : [];
-      const tvRows = tvRes.status === "fulfilled" ? tvRes.value : [];
-      setProviders(mergeAndSortProviders(movieRows, tvRows));
+      // Stage 5 Chunk 4: providers now come from the JustWatch-backed
+      // /api/ott/providers route instead of TMDB's
+      // /watch/providers/{movie,tv} endpoints. The route resolves the
+      // caller's country from their profile (falling back to "US" for
+      // anonymous users), so the `reg` argument is no longer used to
+      // select the country — it's kept in the signature (renamed to
+      // `_reg` to satisfy the unused-args lint rule) to preserve the
+      // existing onMount + createEffect call sites and to trigger a
+      // re-fetch when the user changes their Discover region.
+      //
+      // The route returns { country, providers: JustWatchPackage[] }.
+      // JustWatchPackage and JustWatchProviderItem have identical
+      // shapes, so the cast is a no-op at runtime.
+      const res = await fetch("/api/ott/providers", { method: "GET" });
+      if (!res.ok) {
+        console.warn(
+          "[settings] /api/ott/providers returned HTTP",
+          res.status
+        );
+        setProviders([]);
+        return;
+      }
+      const body = (await res.json()) as {
+        country?: string;
+        providers?: JustWatchProviderItem[];
+      };
+      setProviders(Array.isArray(body.providers) ? body.providers : []);
     } catch (err) {
       console.warn("[settings] Failed to load providers:", err);
       setProviders([]);
@@ -912,8 +927,12 @@ export function useSettingsState(): SettingsState {
 
   // ── Content: streaming providers ────────────────────────────────
 
-  const handleToggleProvider = (provider: TmdbProvider) => {
-    toggleStreamingProvider(provider.id);
+  const handleToggleProvider = (provider: JustWatchProviderItem) => {
+    // The Settings UI passes the full JustWatchProviderItem, but the
+    // preference signal stores only the technicalName (the stable
+    // JustWatch provider identifier). toggleStreamingProvider adds
+    // the technicalName if absent, removes it if present.
+    toggleStreamingProvider(provider.technicalName);
   };
 
   // ── Derived display values ──────────────────────────────────────

@@ -2,7 +2,7 @@
 //
 // Content & Language section — language, region, date format, vault
 // status, adult content filter, rating cap, rating scale, default
-// discover tab, streaming provider chips.
+// discover tab, streaming provider selection.
 //
 // Pure JSX extractor: receives the `SettingsState` bag for local state
 // (providers, provider-loading state, memos) and imports the global
@@ -18,11 +18,12 @@
 //       - Adult content filter toggle + rating cap select
 //       - Rating scale segmented control
 //       - Default discover tab segmented control
-//       - Streaming provider chip grid (uses `s.providers()`,
-//         `s.providersLoading()`, and `streamingProviders()` from
-//         `~/core/preferences` to track active state)
+//       - Streaming providers subsection — DELEGATED to the new
+//         StreamingProvidersSection component (Stage 5 Chunk 4),
+//         which implements the JustWatch-backed search/add/remove/
+//         reorder UI. The old TMDB chip grid was removed.
 
-import { Show, For, createMemo } from "solid-js";
+import { Show } from "solid-js";
 import type { SettingsState } from "./types";
 import SectionResetButton from "~/features/settings/components/SectionResetButton";
 import {
@@ -48,12 +49,11 @@ import {
   ratingScale,
   setRatingScale,
   defaultDiscoverTab,
-  setDefaultDiscoverTab,
-  streamingProviders
+  setDefaultDiscoverTab
 } from "~/core/preferences";
 
-// TMDB image URL resolver (used for provider logos).
-import { tmdbImage } from "~/core/tmdb/tmdb";
+// Stage 5 Chunk 4 — new JustWatch-backed streaming providers UI.
+import { StreamingProvidersSection } from "~/features/settings/components/StreamingProvidersSection";
 
 // Static option lists — single source of truth.
 import {
@@ -257,102 +257,16 @@ export function ContentDiscoverSection(props: { state: SettingsState }) {
               </div>
             </div>
 
-            {/* Streaming providers */}
-            <div class="setting-subsection">
-              <p class="setting-subsection-label">
-                Streaming providers
-                <Show when={s.activeProviderCount() > 0}>
-                  <span
-                    style={{
-                      "margin-left": "var(--sp-2)",
-                      "font-size": "0.6875rem",
-                      color: "var(--p)",
-                      "font-weight": 700
-                    }}
-                  >
-                    {s.activeProviderCount()} active
-                  </span>
-                </Show>
-              </p>
-              <div
-                class="setting-group"
-                style={{ padding: "var(--sp-3) var(--sp-4)" }}
-              >
-                <p class="setting-subsection-hint">
-                  Tap the providers you subscribe to.
-                </p>
-                <div class="provider-chip-grid">
-                  <For each={s.providers()}>
-                    {(provider) => {
-                      const active = createMemo(() =>
-                        streamingProviders().includes(provider.id)
-                      );
-                      const logoUrl = createMemo(() =>
-                        provider.logoPath
-                          ? tmdbImage(provider.logoPath, "w92")
-                          : ""
-                      );
-                      return (
-                        <button
-                          type="button"
-                          class="provider-chip focus-ring"
-                          data-active={active()}
-                          onClick={() =>
-                            s.handleToggleProvider(provider)
-                          }
-                          aria-label={`${active() ? "Remove" : "Add"} ${provider.name}`}
-                          aria-pressed={active()}
-                        >
-                          <div
-                            class="provider-chip-icon"
-                            aria-hidden="true"
-                          >
-                            <Show
-                              when={logoUrl()}
-                              fallback={
-                                <span class="provider-chip-icon-letter">
-                                  {provider.name.charAt(0)}
-                                </span>
-                              }
-                            >
-                              <img
-                                src={logoUrl()}
-                                class="provider-chip-logo"
-                                alt=""
-                                loading="lazy"
-                                decoding="async"
-                                onError={(e) => {
-                                  e.currentTarget.style.display =
-                                    "none";
-                                }}
-                              />
-                            </Show>
-                          </div>
-                          <span class="provider-chip-name">
-                            {provider.name}
-                          </span>
-                          <span
-                            class="material-symbols-outlined provider-chip-check"
-                            aria-hidden="true"
-                          >
-                            check_circle
-                          </span>
-                        </button>
-                      );
-                    }}
-                  </For>
-                  <Show
-                    when={
-                      s.providersLoading() && s.providers().length === 0
-                    }
-                  >
-                    <div class="provider-chip-loading">
-                      Loading providers…
-                    </div>
-                  </Show>
-                </div>
-              </div>
-            </div>
+            {/* Streaming providers — Stage 5 Chunk 4: JustWatch-backed
+                search/add/remove/reorder UI. Replaces the old TMDB
+                chip grid. The new component reads s.providers()
+                (loaded from /api/ott/providers by useSettingsState)
+                and the global streamingProviders() signal directly. */}
+            <StreamingProvidersSection
+              providers={s.providers}
+              providersLoading={s.providersLoading}
+              activeCount={s.activeProviderCount}
+            />
 
             <SectionResetButton state={s} sectionId="content" />
           </div>

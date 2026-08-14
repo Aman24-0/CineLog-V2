@@ -103,8 +103,13 @@ export {
   setStreamingProviders,
   toggleStreamingProvider,
   hasStreamingProvider,
+  addStreamingProvider,
+  removeStreamingProvider,
+  moveStreamingProvider,
+  isLegacyProviderId,
   mergeAndSortProviders,
-  type TmdbProvider
+  type TmdbProvider,
+  type JustWatchProviderItem
 } from "./streamingProviders";
 
 // Default discover tab
