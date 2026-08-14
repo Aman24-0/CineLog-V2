@@ -13,7 +13,6 @@
 //   {
 //     "items": [
 //       { "tmdbId": 530385, "mediaType": "movie", "title": "Demon Slayer: Mugen Train", "releaseYear": 2020 },
-//       { "tmdbId": 85937, "mediaType": "tv", "title": "Demon Slayer", "releaseYear": 2019 },
 //       ...
 //     ]
 //   }
@@ -22,14 +21,8 @@
 //   {
 //     "country": "IN",
 //     "results": {
-//       "movie:530385": {
-//         "nodeId": "tmR6NTMwMzg1",
-//         "offers": [ ... ]
-//       },
-//       "tv:85937": {
-//         "nodeId": "dHN8...",
-//         "offers": [ ... ]
-//       }
+//       "movie:530385": { "nodeId": "...", "offers": [ ... ] },
+//       ...
 //     }
 //   }
 //
@@ -46,15 +39,15 @@
 //      cache-first per item, then a single batched JustWatch offers
 //      GraphQL request for all uncached+resolved items.
 //   6. Return `{ country, results }`. Items that could not be resolved
-//      or had no offers are OMITTED from `results` (not present as
-//      null values).
+//      or had no offers are OMITTED from `results`.
 //
 // Caching:
 //   - Success: `public, max-age=300, s-maxage=600`.
-//   - 400 error: `public, max-age=0, s-maxage=0, no-store` (the request
-//     body is caller-specific; do not cache the rejection).
+//   - 400 error: `public, max-age=0, s-maxage=0, no-store`.
 //
-// Auth: optional. Anonymous callers get "US" country.
+// Auth: optional. Anonymous callers get "US" country. NEVER returns 401
+// for missing/invalid session — the route always fails open with HTTP 200
+// (or 400 for invalid input) — mirrors `/api/audio-languages/[tmdbId]`.
 
 import { batchGetTitleOttAvailability } from "~/server/justwatch/service";
 import { resolveJustWatchCountry } from "~/server/justwatch/region";
@@ -85,6 +78,52 @@ const CACHE_HEADERS_400 = {
 };
 
 const MAX_BATCH = 25;
+
+// ─── CORS (same pattern as /api/audio-languages/[tmdbId].ts) ─────────
+
+function getAllowedOrigin(request: Request): string | null {
+  const origin = request.headers.get("origin");
+  if (!origin) return null;
+  let appBaseUrl: string;
+  try {
+    appBaseUrl =
+      (import.meta as ImportMeta & { env?: Record<string, string> }).env
+        ?.VITE_APP_BASE_URL ?? "https://cinelogv2.vercel.app";
+  } catch {
+    appBaseUrl = "https://cinelogv2.vercel.app";
+  }
+  appBaseUrl = appBaseUrl.replace(/\/+$/, "");
+  const allowedOrigins = [appBaseUrl];
+  if (appBaseUrl.includes("vercel.app")) {
+    try {
+      const url = new URL(origin);
+      if (url.hostname.endsWith(".vercel.app")) return origin;
+    } catch {
+      /* ignore */
+    }
+  }
+  if (
+    appBaseUrl.includes("localhost") ||
+    origin.startsWith("http://localhost:") ||
+    origin === "http://localhost:3000"
+  ) {
+    allowedOrigins.push("http://localhost:3000");
+    if (origin.startsWith("http://localhost:")) return origin;
+  }
+  if (allowedOrigins.includes(origin)) return origin;
+  return null;
+}
+
+function buildCorsHeaders(request: Request): Record<string, string> {
+  const origin = getAllowedOrigin(request);
+  if (!origin) return {};
+  return {
+    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    Vary: "Origin"
+  };
+}
 
 /**
  * Validate a single batch item. Returns the cleaned item or null if
@@ -121,7 +160,10 @@ function cleanItem(raw: unknown): BatchItem | null {
   return { tmdbId, mediaType, title, releaseYear };
 }
 
+// ─── POST handler ────────────────────────────────────────────────────
+
 export async function POST(event: APIEvent): Promise<Response> {
+  const corsHeaders = buildCorsHeaders(event.request);
   try {
     // ── Parse body ────────────────────────────────────────────────
     let body: BatchRequestBody;
@@ -130,21 +172,21 @@ export async function POST(event: APIEvent): Promise<Response> {
     } catch {
       return new Response(
         JSON.stringify({ error: "Invalid JSON body" }),
-        { status: 400, headers: CACHE_HEADERS_400 }
+        { status: 400, headers: { ...corsHeaders, ...CACHE_HEADERS_400 } }
       );
     }
 
     if (!body || !Array.isArray(body.items)) {
       return new Response(
         JSON.stringify({ error: "Missing 'items' array in request body" }),
-        { status: 400, headers: CACHE_HEADERS_400 }
+        { status: 400, headers: { ...corsHeaders, ...CACHE_HEADERS_400 } }
       );
     }
 
     if (body.items.length > MAX_BATCH) {
       return new Response(
         JSON.stringify({ error: "batch limit exceeded" }),
-        { status: 400, headers: CACHE_HEADERS_400 }
+        { status: 400, headers: { ...corsHeaders, ...CACHE_HEADERS_400 } }
       );
     }
 
@@ -156,15 +198,33 @@ export async function POST(event: APIEvent): Promise<Response> {
     }
 
     if (items.length === 0) {
-      const country = await resolveJustWatchCountry(event.request);
+      // Resolve country even for empty batches so the response shape
+      // is consistent. Never throws.
+      let country = "US";
+      try {
+        country = await resolveJustWatchCountry(event.request);
+      } catch (err) {
+        console.warn(
+          "[/api/ott/batch-availability] resolveJustWatchCountry threw:",
+          err instanceof Error ? err.message : String(err)
+        );
+      }
       return new Response(
         JSON.stringify({ country, results: {} }),
-        { status: 200, headers: CACHE_HEADERS_SUCCESS }
+        { status: 200, headers: { ...corsHeaders, ...CACHE_HEADERS_SUCCESS } }
       );
     }
 
-    // ── Resolve country (anonymous → "US") ────────────────────────
-    const country = await resolveJustWatchCountry(event.request);
+    // ── Resolve country (anonymous → "US", never throws) ───────────
+    let country = "US";
+    try {
+      country = await resolveJustWatchCountry(event.request);
+    } catch (err) {
+      console.warn(
+        "[/api/ott/batch-availability] resolveJustWatchCountry threw:",
+        err instanceof Error ? err.message : String(err)
+      );
+    }
 
     // ── Batch fetch ───────────────────────────────────────────────
     let results: Record<string, unknown>;
@@ -180,17 +240,30 @@ export async function POST(event: APIEvent): Promise<Response> {
 
     return new Response(
       JSON.stringify({ country, results }),
-      { status: 200, headers: CACHE_HEADERS_SUCCESS }
+      { status: 200, headers: { ...corsHeaders, ...CACHE_HEADERS_SUCCESS } }
     );
   } catch (err) {
     console.warn(
       "[/api/ott/batch-availability] POST error:",
       err instanceof Error ? err.message : String(err)
     );
-    // Defensive fallback — never throw to client
+    // Defensive fallback — never throw to client, never return 401
     return new Response(
       JSON.stringify({ country: "US", results: {} }),
-      { status: 200, headers: CACHE_HEADERS_SUCCESS }
+      { status: 200, headers: { ...corsHeaders, ...CACHE_HEADERS_SUCCESS } }
     );
   }
+}
+
+// ─── OPTIONS handler (CORS preflight) ────────────────────────────────
+
+export async function OPTIONS(event: APIEvent): Promise<Response> {
+  const corsHeaders = buildCorsHeaders(event.request);
+  return new Response(null, {
+    status: 204,
+    headers: {
+      ...corsHeaders,
+      "Access-Control-Max-Age": "86400"
+    }
+  });
 }

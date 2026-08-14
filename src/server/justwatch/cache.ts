@@ -150,24 +150,66 @@ type JustWatchDatabase = Database & {
 };
 
 // ---------------------------------------------------------------------------
-// Service-role client (lazy init, server-only)
+// Service-role client (lazy init, server-only, never throws)
 // ---------------------------------------------------------------------------
+//
+// `getServiceClient()` returns `null` (and warns) when env vars are missing,
+// instead of throwing. This makes the cache layer resilient on Vercel
+// preview deployments where `SUPABASE_SERVICE_ROLE_KEY` may not yet be
+// configured — cache reads return `null` (→ service falls through to
+// live JustWatch), cache writes are skipped (no-op), and the route still
+// returns 200 with live data. Mirrors the "fail open" philosophy of
+// `src/lib/supabase/server.ts` and the audio-language cache.
 
 let _client: ReturnType<typeof createClient<JustWatchDatabase>> | null = null;
+let _clientInitAttempted = false;
 
-function getServiceClient() {
+function getServiceClient(): ReturnType<typeof createClient<JustWatchDatabase>> | null {
   if (_client) return _client;
-  const url = process.env.VITE_SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !serviceKey) {
-    throw new Error(
-      "[justwatch/cache] service client requires VITE_SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY"
-    );
+  if (_clientInitAttempted) return null; // already failed once — don't retry
+  _clientInitAttempted = true;
+
+  // Read env vars via both `import.meta.env` (Vite-inlined at build time)
+  // and `process.env` (runtime env on Vercel serverless) — same pattern
+  // as `src/server/justwatch/region.ts:readEnv`.
+  let url: string | undefined;
+  let serviceKey: string | undefined;
+  try {
+    const env = (import.meta as ImportMeta & { env?: Record<string, string> }).env;
+    if (env) {
+      url = env.VITE_SUPABASE_URL;
+      serviceKey = env.SUPABASE_SERVICE_ROLE_KEY;
+    }
+  } catch {
+    /* not in a Vite context */
   }
-  _client = createClient<JustWatchDatabase>(url, serviceKey, {
-    auth: { autoRefreshToken: false, persistSession: false }
-  });
-  return _client;
+  if (!url && typeof process !== "undefined" && process.env) {
+    url = process.env.VITE_SUPABASE_URL;
+  }
+  if (!serviceKey && typeof process !== "undefined" && process.env) {
+    serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  }
+
+  if (!url || !serviceKey) {
+    console.warn(
+      "[justwatch/cache] service client unavailable — missing VITE_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY. " +
+        "Cache reads will miss (falling through to live JustWatch) and cache writes will be skipped."
+    );
+    return null;
+  }
+
+  try {
+    _client = createClient<JustWatchDatabase>(url, serviceKey, {
+      auth: { autoRefreshToken: false, persistSession: false }
+    });
+    return _client;
+  } catch (err) {
+    console.warn(
+      "[justwatch/cache] service client init failed:",
+      err instanceof Error ? err.message : String(err)
+    );
+    return null;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -201,44 +243,47 @@ function daysFromNow(days: number): string {
 export async function getCachedProviderCatalog(
   country: string
 ): Promise<JustWatchPackage[] | null> {
-  let supabase;
+  const supabase = getServiceClient();
+  if (!supabase) return null;
+
   try {
-    supabase = getServiceClient();
+    const nowIso = new Date().toISOString();
+    const { data, error } = await supabase
+      .from("justwatch_provider_catalog")
+      .select(
+        "package_id, clear_name, short_name, technical_name, icon_template"
+      )
+      .eq("country", country)
+      .gt("expires_at", nowIso)
+      .order("clear_name", { ascending: true });
+
+    if (error) {
+      console.warn(
+        "[justwatch/cache] getCachedProviderCatalog query error:",
+        error.message
+      );
+      return null;
+    }
+
+    if (!data || data.length === 0) return null;
+
+    return data.map((row) => ({
+      id: row.package_id,
+      clearName: row.clear_name,
+      shortName: row.short_name,
+      technicalName: row.technical_name,
+      icon: row.icon_template
+    }));
   } catch (err) {
+    // Defensive: supabase-js normally returns errors in `res.error`, but
+    // a network failure, RLS rejection, or unexpected runtime error can
+    // still throw. Never propagate to the service layer.
     console.warn(
-      "[justwatch/cache] getCachedProviderCatalog: service client unavailable:",
+      "[justwatch/cache] getCachedProviderCatalog threw:",
       err instanceof Error ? err.message : String(err)
     );
     return null;
   }
-
-  const nowIso = new Date().toISOString();
-  const { data, error } = await supabase
-    .from("justwatch_provider_catalog")
-    .select(
-      "package_id, clear_name, short_name, technical_name, icon_template"
-    )
-    .eq("country", country)
-    .gt("expires_at", nowIso)
-    .order("clear_name", { ascending: true });
-
-  if (error) {
-    console.warn(
-      "[justwatch/cache] getCachedProviderCatalog query error:",
-      error.message
-    );
-    return null;
-  }
-
-  if (!data || data.length === 0) return null;
-
-  return data.map((row) => ({
-    id: row.package_id,
-    clearName: row.clear_name,
-    shortName: row.short_name,
-    technicalName: row.technical_name,
-    icon: row.icon_template
-  }));
 }
 
 // ---------------------------------------------------------------------------
@@ -261,44 +306,43 @@ export async function upsertProviderCatalog(
   providers: JustWatchPackage[],
   ttlHours = 48
 ): Promise<void> {
-  let supabase;
-  try {
-    supabase = getServiceClient();
-  } catch (err) {
-    console.warn(
-      "[justwatch/cache] upsertProviderCatalog: service client unavailable:",
-      err instanceof Error ? err.message : String(err)
-    );
-    return;
-  }
+  const supabase = getServiceClient();
+  if (!supabase) return;
 
   if (providers.length === 0) return;
 
-  const fetchedAt = new Date().toISOString();
-  const expiresAt = hoursFromNow(ttlHours);
+  try {
+    const fetchedAt = new Date().toISOString();
+    const expiresAt = hoursFromNow(ttlHours);
 
-  const rows = providers.map((p) => ({
-    country,
-    package_id: p.id,
-    clear_name: p.clearName,
-    short_name: p.shortName,
-    technical_name: p.technicalName,
-    icon_template: p.icon,
-    fetched_at: fetchedAt,
-    expires_at: expiresAt
-  }));
+    const rows = providers.map((p) => ({
+      country,
+      package_id: p.id,
+      clear_name: p.clearName,
+      short_name: p.shortName,
+      technical_name: p.technicalName,
+      icon_template: p.icon,
+      fetched_at: fetchedAt,
+      expires_at: expiresAt
+    }));
 
-  const { error } = await supabase
-    .from("justwatch_provider_catalog")
-    .upsert(rows, {
-      onConflict: "country,technical_name",
-      ignoreDuplicates: false
-    });
+    const { error } = await supabase
+      .from("justwatch_provider_catalog")
+      .upsert(rows, {
+        onConflict: "country,technical_name",
+        ignoreDuplicates: false
+      });
 
-  if (error) {
+    if (error) {
+      console.warn(
+        "[justwatch/cache] upsertProviderCatalog upsert error:",
+        error.message
+      );
+    }
+  } catch (err) {
     console.warn(
-      "[justwatch/cache] upsertProviderCatalog upsert error:",
-      error.message
+      "[justwatch/cache] upsertProviderCatalog threw:",
+      err instanceof Error ? err.message : String(err)
     );
   }
 }
@@ -316,37 +360,37 @@ export async function getCachedTitleMapping(
   tmdbId: number,
   country: string
 ): Promise<string | null> {
-  let supabase;
+  const supabase = getServiceClient();
+  if (!supabase) return null;
+
   try {
-    supabase = getServiceClient();
+    const nowIso = new Date().toISOString();
+    const { data, error } = await supabase
+      .from("justwatch_title_mapping")
+      .select("justwatch_node_id")
+      .eq("media_type", mediaType)
+      .eq("tmdb_id", tmdbId)
+      .eq("country", country)
+      .gt("expires_at", nowIso)
+      .maybeSingle();
+
+    if (error) {
+      console.warn(
+        "[justwatch/cache] getCachedTitleMapping query error:",
+        error.message
+      );
+      return null;
+    }
+
+    if (!data) return null;
+    return data.justwatch_node_id;
   } catch (err) {
     console.warn(
-      "[justwatch/cache] getCachedTitleMapping: service client unavailable:",
+      "[justwatch/cache] getCachedTitleMapping threw:",
       err instanceof Error ? err.message : String(err)
     );
     return null;
   }
-
-  const nowIso = new Date().toISOString();
-  const { data, error } = await supabase
-    .from("justwatch_title_mapping")
-    .select("justwatch_node_id")
-    .eq("media_type", mediaType)
-    .eq("tmdb_id", tmdbId)
-    .eq("country", country)
-    .gt("expires_at", nowIso)
-    .maybeSingle();
-
-  if (error) {
-    console.warn(
-      "[justwatch/cache] getCachedTitleMapping query error:",
-      error.message
-    );
-    return null;
-  }
-
-  if (!data) return null;
-  return data.justwatch_node_id;
 }
 
 // ---------------------------------------------------------------------------
@@ -368,38 +412,37 @@ export async function upsertTitleMapping(
   justwatchNodeId: string,
   ttlDays = 30
 ): Promise<void> {
-  let supabase;
+  const supabase = getServiceClient();
+  if (!supabase) return;
+
   try {
-    supabase = getServiceClient();
+    const expiresAt = daysFromNow(ttlDays);
+    const { error } = await supabase
+      .from("justwatch_title_mapping")
+      .upsert(
+        {
+          media_type: mediaType,
+          tmdb_id: tmdbId,
+          country,
+          justwatch_node_id: justwatchNodeId,
+          expires_at: expiresAt
+        },
+        {
+          onConflict: "media_type,tmdb_id,country",
+          ignoreDuplicates: false
+        }
+      );
+
+    if (error) {
+      console.warn(
+        "[justwatch/cache] upsertTitleMapping upsert error:",
+        error.message
+      );
+    }
   } catch (err) {
     console.warn(
-      "[justwatch/cache] upsertTitleMapping: service client unavailable:",
+      "[justwatch/cache] upsertTitleMapping threw:",
       err instanceof Error ? err.message : String(err)
-    );
-    return;
-  }
-
-  const expiresAt = daysFromNow(ttlDays);
-  const { error } = await supabase
-    .from("justwatch_title_mapping")
-    .upsert(
-      {
-        media_type: mediaType,
-        tmdb_id: tmdbId,
-        country,
-        justwatch_node_id: justwatchNodeId,
-        expires_at: expiresAt
-      },
-      {
-        onConflict: "media_type,tmdb_id,country",
-        ignoreDuplicates: false
-      }
-    );
-
-  if (error) {
-    console.warn(
-      "[justwatch/cache] upsertTitleMapping upsert error:",
-      error.message
     );
   }
 }
@@ -420,48 +463,48 @@ export async function getCachedOttAvailability(
   tmdbId: number,
   country: string
 ): Promise<{ justwatchNodeId: string; offers: JustWatchOffer[] } | null> {
-  let supabase;
+  const supabase = getServiceClient();
+  if (!supabase) return null;
+
   try {
-    supabase = getServiceClient();
+    const nowIso = new Date().toISOString();
+    const { data, error } = await supabase
+      .from("ott_availability_cache")
+      .select("justwatch_node_id, offers")
+      .eq("media_type", mediaType)
+      .eq("tmdb_id", tmdbId)
+      .eq("country", country)
+      .gt("expires_at", nowIso)
+      .maybeSingle();
+
+    if (error) {
+      console.warn(
+        "[justwatch/cache] getCachedOttAvailability query error:",
+        error.message
+      );
+      return null;
+    }
+
+    if (!data) return null;
+
+    // Cast the JSONB blob to the typed offer array. We wrote it, so the
+    // shape is trusted. If JustWatch ever changes its offer schema and we
+    // cache stale-shape data, callers should defensively handle missing
+    // fields (the JustWatchOffer type already marks most fields optional
+    // or nullable).
+    const offers = (data.offers as unknown as JustWatchOffer[]) ?? [];
+
+    return {
+      justwatchNodeId: data.justwatch_node_id,
+      offers
+    };
   } catch (err) {
     console.warn(
-      "[justwatch/cache] getCachedOttAvailability: service client unavailable:",
+      "[justwatch/cache] getCachedOttAvailability threw:",
       err instanceof Error ? err.message : String(err)
     );
     return null;
   }
-
-  const nowIso = new Date().toISOString();
-  const { data, error } = await supabase
-    .from("ott_availability_cache")
-    .select("justwatch_node_id, offers")
-    .eq("media_type", mediaType)
-    .eq("tmdb_id", tmdbId)
-    .eq("country", country)
-    .gt("expires_at", nowIso)
-    .maybeSingle();
-
-  if (error) {
-    console.warn(
-      "[justwatch/cache] getCachedOttAvailability query error:",
-      error.message
-    );
-    return null;
-  }
-
-  if (!data) return null;
-
-  // Cast the JSONB blob to the typed offer array. We wrote it, so the
-  // shape is trusted. If JustWatch ever changes its offer schema and we
-  // cache stale-shape data, callers should defensively handle missing
-  // fields (the JustWatchOffer type already marks most fields optional
-  // or nullable).
-  const offers = (data.offers as unknown as JustWatchOffer[]) ?? [];
-
-  return {
-    justwatchNodeId: data.justwatch_node_id,
-    offers
-  };
 }
 
 // ---------------------------------------------------------------------------
@@ -486,42 +529,41 @@ export async function upsertOttAvailability(
   offers: JustWatchOffer[],
   ttlHours = 48
 ): Promise<void> {
-  let supabase;
+  const supabase = getServiceClient();
+  if (!supabase) return;
+
   try {
-    supabase = getServiceClient();
+    const fetchedAt = new Date().toISOString();
+    const expiresAt = hoursFromNow(ttlHours);
+
+    const { error } = await supabase
+      .from("ott_availability_cache")
+      .upsert(
+        {
+          media_type: mediaType,
+          tmdb_id: tmdbId,
+          country,
+          justwatch_node_id: justwatchNodeId,
+          offers: JSON.stringify(offers) as unknown as Json,
+          fetched_at: fetchedAt,
+          expires_at: expiresAt
+        },
+        {
+          onConflict: "media_type,tmdb_id,country",
+          ignoreDuplicates: false
+        }
+      );
+
+    if (error) {
+      console.warn(
+        "[justwatch/cache] upsertOttAvailability upsert error:",
+        error.message
+      );
+    }
   } catch (err) {
     console.warn(
-      "[justwatch/cache] upsertOttAvailability: service client unavailable:",
+      "[justwatch/cache] upsertOttAvailability threw:",
       err instanceof Error ? err.message : String(err)
-    );
-    return;
-  }
-
-  const fetchedAt = new Date().toISOString();
-  const expiresAt = hoursFromNow(ttlHours);
-
-  const { error } = await supabase
-    .from("ott_availability_cache")
-    .upsert(
-      {
-        media_type: mediaType,
-        tmdb_id: tmdbId,
-        country,
-        justwatch_node_id: justwatchNodeId,
-        offers: JSON.stringify(offers) as unknown as Json,
-        fetched_at: fetchedAt,
-        expires_at: expiresAt
-      },
-      {
-        onConflict: "media_type,tmdb_id,country",
-        ignoreDuplicates: false
-      }
-    );
-
-  if (error) {
-    console.warn(
-      "[justwatch/cache] upsertOttAvailability upsert error:",
-      error.message
     );
   }
 }

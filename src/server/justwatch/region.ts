@@ -39,6 +39,34 @@ const DEFAULT_COUNTRY = "US";
 
 const COUNTRY_RE = /^[A-Za-z]{2}$/;
 
+// ─── Env var resolution ──────────────────────────────────────────────
+// On Vercel, `VITE_*` env vars are inlined into the bundle at build time
+// via `import.meta.env.VITE_*`. They are ALSO exposed to the server
+// runtime via `process.env.VITE_*`, but only when configured as Server
+// env vars (not Preview-only / Build-only). To be resilient to either
+// configuration, we try `import.meta.env` first (build-time inlined,
+// always available if defined in .env) and fall back to `process.env`
+// (runtime, available when defined in the Vercel dashboard).
+
+function readEnv(name: string): string | undefined {
+  // 1. import.meta.env — Vite-inlined at build time. The cast is needed
+  //    because the project's vite-env.d.ts only declares a handful of
+  //    well-known VITE_ vars, not arbitrary ones.
+  try {
+    const v = (import.meta as ImportMeta & { env?: Record<string, string> })
+      .env?.[name];
+    if (typeof v === "string" && v.length > 0) return v;
+  } catch {
+    /* ignore — not in a Vite context (e.g. unit test) */
+  }
+  // 2. process.env — runtime env, available on Vercel/Nitro serverless
+  if (typeof process !== "undefined" && process.env) {
+    const v = process.env[name];
+    if (typeof v === "string" && v.length > 0) return v;
+  }
+  return undefined;
+}
+
 /**
  * Resolve the JustWatch country for an incoming API request.
  *
@@ -47,8 +75,8 @@ const COUNTRY_RE = /^[A-Za-z]{2}$/;
  *          "DE"). Never throws.
  */
 export async function resolveJustWatchCountry(request: Request): Promise<string> {
-  const supabaseUrl = process.env.VITE_SUPABASE_URL;
-  const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
+  const supabaseUrl = readEnv("VITE_SUPABASE_URL");
+  const supabaseAnonKey = readEnv("VITE_SUPABASE_ANON_KEY");
   if (!supabaseUrl || !supabaseAnonKey) return DEFAULT_COUNTRY;
 
   const accessToken = getSupabaseAccessTokenFromRequest(request);

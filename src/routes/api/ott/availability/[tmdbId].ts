@@ -22,21 +22,7 @@
 //     "mediaType": "movie",
 //     "country": "IN",
 //     "justwatchNodeId": "tmR6NTMwMzg1",
-//     "offers": [
-//       {
-//         "monetizationType": "FLATRATE",
-//         "presentationType": "HD",
-//         "audioLanguages": ["en", "hi"],
-//         "subtitleLanguages": ["en"],
-//         "availableFromTime": "...",
-//         "availableToTime": null,
-//         "currency": "INR",
-//         "package": { "id": "...", "clearName": "Netflix", ... },
-//         "standardWebURL": "https://...",
-//         "deeplinkURL": "https://..."
-//       },
-//       ...
-//     ]
+//     "offers": [ ... ]
 //   }
 //
 // When the title cannot be resolved or has no offers:
@@ -55,10 +41,9 @@
 //     JustWatch lookup will appear within 5 minutes once the title is
 //     indexed.
 //
-// Auth: optional. Anonymous callers get "US" country.
-//
-// Per spec: this route NEVER throws to the client. On any error it
-// returns the empty-offers shape with 200.
+// Auth: optional. Anonymous callers get "US" country. NEVER returns 401
+// for missing/invalid session — the route always fails open with HTTP 200
+// (or 400 for invalid input) — mirrors `/api/audio-languages/[tmdbId]`.
 
 import { getTitleOttAvailability } from "~/server/justwatch/service";
 import { resolveJustWatchCountry } from "~/server/justwatch/region";
@@ -77,7 +62,56 @@ const ERROR_HEADERS_400 = {
   "Content-Type": "application/json"
 };
 
+// ─── CORS (same pattern as /api/audio-languages/[tmdbId].ts) ─────────
+
+function getAllowedOrigin(request: Request): string | null {
+  const origin = request.headers.get("origin");
+  if (!origin) return null;
+  let appBaseUrl: string;
+  try {
+    appBaseUrl =
+      (import.meta as ImportMeta & { env?: Record<string, string> }).env
+        ?.VITE_APP_BASE_URL ?? "https://cinelogv2.vercel.app";
+  } catch {
+    appBaseUrl = "https://cinelogv2.vercel.app";
+  }
+  appBaseUrl = appBaseUrl.replace(/\/+$/, "");
+  const allowedOrigins = [appBaseUrl];
+  if (appBaseUrl.includes("vercel.app")) {
+    try {
+      const url = new URL(origin);
+      if (url.hostname.endsWith(".vercel.app")) return origin;
+    } catch {
+      /* ignore */
+    }
+  }
+  if (
+    appBaseUrl.includes("localhost") ||
+    origin.startsWith("http://localhost:") ||
+    origin === "http://localhost:3000"
+  ) {
+    allowedOrigins.push("http://localhost:3000");
+    if (origin.startsWith("http://localhost:")) return origin;
+  }
+  if (allowedOrigins.includes(origin)) return origin;
+  return null;
+}
+
+function buildCorsHeaders(request: Request): Record<string, string> {
+  const origin = getAllowedOrigin(request);
+  if (!origin) return {};
+  return {
+    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Methods": "GET, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    Vary: "Origin"
+  };
+}
+
+// ─── GET handler ─────────────────────────────────────────────────────
+
 export async function GET(event: APIEvent): Promise<Response> {
+  const corsHeaders = buildCorsHeaders(event.request);
   try {
     const url = new URL(event.request.url);
 
@@ -92,7 +126,7 @@ export async function GET(event: APIEvent): Promise<Response> {
     if (!Number.isFinite(tmdbId) || tmdbId <= 0) {
       return new Response(
         JSON.stringify({ error: `Invalid tmdb id: "${tmdbIdStr}"` }),
-        { status: 400, headers: ERROR_HEADERS_400 }
+        { status: 400, headers: { ...corsHeaders, ...ERROR_HEADERS_400 } }
       );
     }
 
@@ -103,7 +137,7 @@ export async function GET(event: APIEvent): Promise<Response> {
         JSON.stringify({
           error: `Invalid type "${rawType}" — expected "movie" or "tv"`
         }),
-        { status: 400, headers: ERROR_HEADERS_400 }
+        { status: 400, headers: { ...corsHeaders, ...ERROR_HEADERS_400 } }
       );
     }
     const mediaType: "movie" | "tv" = rawType;
@@ -116,8 +150,16 @@ export async function GET(event: APIEvent): Promise<Response> {
       releaseYear = Number.isFinite(parsed) && parsed > 0 ? parsed : null;
     }
 
-    // ── Resolve country (anonymous → "US") ────────────────────────
-    const country = await resolveJustWatchCountry(event.request);
+    // ── Resolve country (anonymous → "US", never throws) ───────────
+    let country = "US";
+    try {
+      country = await resolveJustWatchCountry(event.request);
+    } catch (err) {
+      console.warn(
+        "[/api/ott/availability] resolveJustWatchCountry threw:",
+        err instanceof Error ? err.message : String(err)
+      );
+    }
 
     // ── Fetch offers (cache-first, never throws) ──────────────────
     let result;
@@ -140,7 +182,7 @@ export async function GET(event: APIEvent): Promise<Response> {
     if (!result || !result.offers || result.offers.length === 0) {
       return new Response(
         JSON.stringify({ tmdbId, mediaType, country, offers: [] }),
-        { status: 200, headers: CACHE_HEADERS }
+        { status: 200, headers: { ...corsHeaders, ...CACHE_HEADERS } }
       );
     }
 
@@ -152,17 +194,30 @@ export async function GET(event: APIEvent): Promise<Response> {
         justwatchNodeId: result.nodeId,
         offers: result.offers
       }),
-      { status: 200, headers: CACHE_HEADERS }
+      { status: 200, headers: { ...corsHeaders, ...CACHE_HEADERS } }
     );
   } catch (err) {
     console.warn(
       "[/api/ott/availability] GET error:",
       err instanceof Error ? err.message : String(err)
     );
-    // Defensive fallback — never throw to client
+    // Defensive fallback — never throw to client, never return 401
     return new Response(
       JSON.stringify({ tmdbId: 0, mediaType: "movie", country: "US", offers: [] }),
-      { status: 200, headers: CACHE_HEADERS }
+      { status: 200, headers: { ...corsHeaders, ...CACHE_HEADERS } }
     );
   }
+}
+
+// ─── OPTIONS handler (CORS preflight) ────────────────────────────────
+
+export async function OPTIONS(event: APIEvent): Promise<Response> {
+  const corsHeaders = buildCorsHeaders(event.request);
+  return new Response(null, {
+    status: 204,
+    headers: {
+      ...corsHeaders,
+      "Access-Control-Max-Age": "86400"
+    }
+  });
 }

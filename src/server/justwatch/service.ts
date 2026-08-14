@@ -97,26 +97,36 @@ function validateMediaType(mediaType: unknown): asserts mediaType is
  *
  * Flow:
  *   1. Validate country.
- *   2. Check cache via `getCachedProviderCatalog`.
+ *   2. Check cache via `getCachedProviderCatalog` (wrapped in try/catch
+ *      so cache failures fall through to live JustWatch).
  *   3. If fresh cache exists, return it.
  *   4. Otherwise fetch from JustWatch via `getJustWatchPackages`.
  *   5. If JustWatch returns [], return [].
- *   6. Upsert the result into the cache.
+ *   6. Upsert the result into the cache (best-effort — errors are
+ *      swallowed inside the cache layer).
  *   7. Return the providers.
  *
- * On any JustWatch / network error: return `[]` and `console.warn`.
- * (This is a strict-cache chunk — stale-while-revalidate is deferred to
- * a later chunk per the spec.)
+ * Resilience: cache reads and writes NEVER cause this function to return
+ * empty. If the cache table is missing, RLS rejects the write, or the
+ * service-role key is absent, the function still returns the live
+ * JustWatch `packages()` result. Only JustWatch fetch failures return [].
  */
 export async function getProviderCatalog(
   country: string
 ): Promise<JustWatchPackage[]> {
   validateCountry(country);
 
-  // 1. Cache read
-  const cached = await getCachedProviderCatalog(country);
-  if (cached && cached.length > 0) {
-    return cached;
+  // 1. Cache read (best-effort — never blocks the live fetch)
+  try {
+    const cached = await getCachedProviderCatalog(country);
+    if (cached && cached.length > 0) {
+      return cached;
+    }
+  } catch (err) {
+    console.warn(
+      "[justwatch/service] getProviderCatalog: cache read threw:",
+      err instanceof Error ? err.message : String(err)
+    );
   }
 
   // 2. Fresh fetch
@@ -136,8 +146,17 @@ export async function getProviderCatalog(
   }
 
   // 3. Cache write (best-effort — the cache layer swallows its own
-  //    errors and warns).
-  await upsertProviderCatalog(country, providers);
+  //    errors and warns; we additionally wrap in try/catch as a
+  //    defensive backstop so a future regression can never propagate
+  //    a cache error to the route handler).
+  try {
+    await upsertProviderCatalog(country, providers);
+  } catch (err) {
+    console.warn(
+      "[justwatch/service] getProviderCatalog: cache write threw:",
+      err instanceof Error ? err.message : String(err)
+    );
+  }
 
   return providers;
 }
@@ -179,13 +198,20 @@ export async function resolveTitleToJustWatchNode(input: {
     return null;
   }
 
-  // 1. Cache read
-  const cached = await getCachedTitleMapping(
-    input.mediaType,
-    input.tmdbId,
-    input.country
-  );
-  if (cached) return cached;
+  // 1. Cache read (best-effort — never blocks the live search)
+  try {
+    const cached = await getCachedTitleMapping(
+      input.mediaType,
+      input.tmdbId,
+      input.country
+    );
+    if (cached) return cached;
+  } catch (err) {
+    console.warn(
+      "[justwatch/service] resolveTitleToJustWatchNode: cache read threw:",
+      err instanceof Error ? err.message : String(err)
+    );
+  }
 
   // 2. Build search args
   const objectTypes: Array<"MOVIE" | "SHOW"> =
@@ -224,13 +250,20 @@ export async function resolveTitleToJustWatchNode(input: {
   const nodeId = results[0].nodeId;
   if (!nodeId) return null;
 
-  // 4. Cache write
-  await upsertTitleMapping(
-    input.mediaType,
-    input.tmdbId,
-    input.country,
-    nodeId
-  );
+  // 4. Cache write (best-effort)
+  try {
+    await upsertTitleMapping(
+      input.mediaType,
+      input.tmdbId,
+      input.country,
+      nodeId
+    );
+  } catch (err) {
+    console.warn(
+      "[justwatch/service] resolveTitleToJustWatchNode: cache write threw:",
+      err instanceof Error ? err.message : String(err)
+    );
+  }
 
   return nodeId;
 }
@@ -268,17 +301,24 @@ export async function getTitleOttAvailability(input: {
   validateMediaType(input.mediaType);
   validateCountry(input.country);
 
-  // 1. Cache read
-  const cached = await getCachedOttAvailability(
-    input.mediaType,
-    input.tmdbId,
-    input.country
-  );
-  if (cached) {
-    return {
-      nodeId: cached.justwatchNodeId,
-      offers: cached.offers
-    };
+  // 1. Cache read (best-effort — never blocks the live fetch)
+  try {
+    const cached = await getCachedOttAvailability(
+      input.mediaType,
+      input.tmdbId,
+      input.country
+    );
+    if (cached) {
+      return {
+        nodeId: cached.justwatchNodeId,
+        offers: cached.offers
+      };
+    }
+  } catch (err) {
+    console.warn(
+      "[justwatch/service] getTitleOttAvailability: cache read threw:",
+      err instanceof Error ? err.message : String(err)
+    );
   }
 
   // 2. Need to resolve — title is required for resolution
@@ -315,14 +355,21 @@ export async function getTitleOttAvailability(input: {
     return null;
   }
 
-  // 4. Cache write
-  await upsertOttAvailability(
-    input.mediaType,
-    input.tmdbId,
-    input.country,
-    nodeId,
-    result.offers
-  );
+  // 4. Cache write (best-effort)
+  try {
+    await upsertOttAvailability(
+      input.mediaType,
+      input.tmdbId,
+      input.country,
+      nodeId,
+      result.offers
+    );
+  } catch (err) {
+    console.warn(
+      "[justwatch/service] getTitleOttAvailability: cache write threw:",
+      err instanceof Error ? err.message : String(err)
+    );
+  }
 
   return result;
 }
@@ -388,7 +435,10 @@ export async function batchGetTitleOttAvailability(input: {
 
   if (input.items.length === 0) return result;
 
-  // 1. Per-item cache read (sequential is fine — fast DB lookups)
+  // 1. Per-item cache read (sequential is fine — fast DB lookups).
+  //    Wrapped in try/catch so a cache failure on one item does not
+  //    abort the entire batch — the item simply falls through to the
+  //    live JustWatch fetch below.
   const uncached: typeof input.items = [];
   for (const item of input.items) {
     try {
@@ -399,11 +449,20 @@ export async function batchGetTitleOttAvailability(input: {
       // items. Individual bad items are dropped.
       continue;
     }
-    const cached = await getCachedOttAvailability(
-      item.mediaType,
-      item.tmdbId,
-      input.country
-    );
+    let cached = null;
+    try {
+      cached = await getCachedOttAvailability(
+        item.mediaType,
+        item.tmdbId,
+        input.country
+      );
+    } catch (err) {
+      console.warn(
+        "[justwatch/service] batchGetTitleOttAvailability: cache read threw for",
+        `${item.mediaType}:${item.tmdbId}:`,
+        err instanceof Error ? err.message : String(err)
+      );
+    }
     if (cached) {
       result[`${item.mediaType}:${item.tmdbId}`] = {
         nodeId: cached.justwatchNodeId,
@@ -455,21 +514,30 @@ export async function batchGetTitleOttAvailability(input: {
     return result;
   }
 
-  // 4. Match each item to its batched offers, upsert cache, merge
+  // 4. Match each item to its batched offers, upsert cache, merge.
+  //    Cache write errors are caught per-item so one bad write doesn't
+  //    lose the rest of the batch's results.
   for (const { item, nodeId } of toFetch) {
     const offerResult = batched[nodeId];
     if (!offerResult || !offerResult.offers || offerResult.offers.length === 0) {
       continue;
     }
 
-    // Best-effort cache write
-    await upsertOttAvailability(
-      item.mediaType,
-      item.tmdbId,
-      input.country,
-      nodeId,
-      offerResult.offers
-    );
+    try {
+      await upsertOttAvailability(
+        item.mediaType,
+        item.tmdbId,
+        input.country,
+        nodeId,
+        offerResult.offers
+      );
+    } catch (err) {
+      console.warn(
+        "[justwatch/service] batchGetTitleOttAvailability: cache write threw for",
+        `${item.mediaType}:${item.tmdbId}:`,
+        err instanceof Error ? err.message : String(err)
+      );
+    }
 
     result[`${item.mediaType}:${item.tmdbId}`] = offerResult;
   }

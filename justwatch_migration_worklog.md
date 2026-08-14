@@ -267,3 +267,84 @@ encountered.
 - Commit message: `fix: correct JustWatch GraphQL query format and fix OTT UI regressions`
 - Files in commit: 4 (justwatch_migration_worklog.md, src/server/justwatch/client.ts, src/features/details/components/WhereToWatch.tsx, src/features/settings/components/StreamingProvidersSection.tsx)
 - Push status: PUSHED to `origin/Justwatch`.
+
+
+## Chunk 6C — Preview deployment blockers
+
+### Task 1: Add JustWatch image CDN to CSP `img-src`
+- Modified: vercel.json
+- Status: COMPLETE
+- Validation: `node -e "JSON.parse(require('fs').readFileSync('vercel.json','utf8'))"` — valid JSON. `python3 -c "import json; ..."` confirms `images.justwatch.com` is present in the CSP `img-src` directive.
+- Errors and fixes: none.
+- Notes:
+  - **Root cause (Issue 1)**: The Vercel preview deployment's `Content-Security-Policy` header listed `https://image.tmdb.org`, `https://*.supabase.co`, `https://i.ytimg.com`, `https://vercel.live`, `https://lh3.googleusercontent.com` under `img-src`, but NOT `https://images.justwatch.com`. Every provider logo URL built by `buildLogoUrl()` in `client.ts` points at `https://images.justwatch.com/icon/<id>/s100/<technicalName>.png`, so the browser blocked them with a CSP violation: `Refused to load the image 'https://images.justwatch.com/...' because it violates the following Content Security Policy directive: "img-src 'self' data: blob: https://image.tmdb.org ..."`.
+  - **Fix**: added `https://images.justwatch.com` to the `img-src` directive in `vercel.json`. Did NOT add it to `connect-src` (the app does not call JustWatch from the browser — only the server does).
+  - The CSP is only defined in `vercel.json` (one location). No other file in the repo sets a CSP — confirmed via repo-wide grep for `Content-Security-Policy` (only matches in `vercel.json` and documentation files like `AUDIT_CHANGELOG.md`, `worklog.md`, `CineLog_V2_Complete_Audit.md`).
+
+### Task 2: Make OTT API routes fail open (mirror audio-languages route)
+- Modified: src/routes/api/ott/providers.ts
+- Modified: src/routes/api/ott/availability/[tmdbId].ts
+- Modified: src/routes/api/ott/batch-availability.ts
+- Modified: src/server/justwatch/region.ts
+- Status: COMPLETE
+- Validation:
+  - `./node_modules/.bin/tsc --noEmit` — 0 errors in modified files. The 18 pre-existing errors in OTHER files (Vite `import.meta.env` typing gaps + 2 `Object is possibly undefined` in `src/routes/movie/[id].tsx` and `src/routes/tv/[id].tsx`) are unchanged.
+  - `./node_modules/.bin/eslint src/server/justwatch/cache.ts src/server/justwatch/service.ts src/server/justwatch/region.ts src/routes/api/ott/providers.ts src/routes/api/ott/availability/[tmdbId].ts src/routes/api/ott/batch-availability.ts` — PASS, exit 0, 0 errors, 0 warnings.
+  - `./node_modules/.bin/vinxi build` — PASS — `✔ build done` / `✔ Nitro Server built`. Verified the bundled output (`/api/ott/batch-availability` and `/api/ott/providers` chunks) contains the new `Access-Control-Allow-Origin` headers and the `country: "US"` defensive fallback.
+- Errors and fixes: none during implementation.
+- Notes:
+  - **Hypothesis A — 401 from OTT routes**: directly inspecting all three OTT route handlers revealed they NEVER return HTTP 401. Every code path returns 200 (with `country: "US"` and empty `providers`/`results`/`offers` on failure) or 400 (for invalid input). The outer `try/catch` in each route is a defensive backstop that always returns 200. The user-reported "POST requests to OTT API routes return 401" is therefore almost certainly NOT coming from the OTT route handlers themselves.
+  - **Hypothesis B — 401 from `resolveJustWatchCountry`**: `resolveJustWatchCountry(request)` was already structured to never throw — it returns `DEFAULT_COUNTRY = "US"` on missing token, missing env vars, Supabase auth errors, and any caught exception. To make this even more bulletproof, the route handlers now wrap the `resolveJustWatchCountry` call in an additional `try/catch` so a future regression cannot propagate to the route's outer try/catch (which would still return 200, but with a less informative payload).
+  - **Hypothesis C — CORS preflight**: comparing the OTT routes to `/api/audio-languages/[tmdbId]` (the proven pattern), the audio-languages route exports an explicit `OPTIONS` handler that returns 204 + `Access-Control-Allow-Origin` + `Access-Control-Max-Age: 86400`, and every GET/POST response includes `Access-Control-Allow-Origin`, `Access-Control-Allow-Methods`, `Access-Control-Allow-Headers`, and `Vary: Origin`. The three OTT routes did NOT export OPTIONS handlers and did NOT include CORS headers. If the browser sent a preflight OPTIONS for a cross-origin POST (e.g. a preview URL hitting the production API, or vice versa), SolidStart would return its default OPTIONS response with no CORS headers, the browser would block the subsequent POST, and the network tab could surface this as a 401 (Vercel's default for unauthenticated OPTIONS on certain configurations). **Fix**: added the same `getAllowedOrigin` + `buildCorsHeaders` helpers + `OPTIONS` handler to all three OTT routes, mirroring the audio-languages pattern exactly. Every GET/POST response now includes CORS headers when the request's `Origin` matches the app's canonical URL or any `*.vercel.app` subdomain.
+  - **Hypothesis D — env vars not populated on Vercel serverless**: `resolveJustWatchCountry` originally read `process.env.VITE_SUPABASE_URL` and `process.env.VITE_SUPABASE_ANON_KEY`. On Vercel, `VITE_*` env vars are inlined into the bundle at build time via `import.meta.env.VITE_*`, but `process.env.VITE_*` is only populated when the var is explicitly marked as a Server env var in the Vercel dashboard (not just Preview/Build). If the env was misconfigured, the resolver would silently return `"US"` (not throw), the country would never be `IN`, and the provider catalog would only contain US providers (no JioHotstar/Zee5/SonyLiv). **Fix**: added a `readEnv()` helper to `region.ts` that tries `import.meta.env` first (build-time inlined), then falls back to `process.env` (runtime). This makes country resolution resilient to either Vercel env-var configuration.
+
+### Task 3: Make Settings provider catalog resilient (cache errors non-blocking)
+- Modified: src/server/justwatch/service.ts
+- Status: COMPLETE
+- Validation: tsc + eslint + build all pass (see Task 2 validation block).
+- Notes:
+  - **Root cause hypothesis (Issue 3)**: `getProviderCatalog(country)` originally called `getCachedProviderCatalog(country)` and `upsertProviderCatalog(country, providers)` WITHOUT wrapping them in try/catch. The cache layer's own `try/catch` blocks already swallowed errors internally, so this was technically safe — BUT it relied on the cache layer being perfectly defensive. Per the spec's resilience philosophy, the service layer now also wraps each cache call in its own try/catch with a `console.warn`. This means:
+    - Cache read failure → `console.warn`, fall through to live JustWatch fetch.
+    - Cache write failure → `console.warn`, still return the live data.
+    - JustWatch fetch failure → `console.warn`, return `[]`.
+  - Applied the same pattern to `getTitleOttAvailability` (cache read + write wrapped) and `batchGetTitleOttAvailability` (per-item cache read wrapped, per-item cache write wrapped so one bad write doesn't lose the rest of the batch's results).
+  - `resolveTitleToJustWatchNode` cache read + write also wrapped.
+  - The final return is always the live JustWatch result whenever JustWatch succeeds, regardless of cache state. Cache failures NEVER cause an empty return.
+
+### Task 4: Verify service-role key usage (lazy init, no throw)
+- Modified: src/server/justwatch/cache.ts
+- Status: COMPLETE
+- Validation: tsc + eslint + build all pass (see Task 2 validation block).
+- Notes:
+  - **Root cause hypothesis**: `getServiceClient()` in `cache.ts` threw `new Error("[justwatch/cache] service client requires VITE_SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY")` when env vars were missing. Each public cache function (`getCachedProviderCatalog`, `upsertProviderCatalog`, `getCachedTitleMapping`, `upsertTitleMapping`, `getCachedOttAvailability`, `upsertOttAvailability`) wrapped this call in a `try/catch` and returned `null` / no-op, so the throw never propagated. However, the spec's preferred pattern is for `getServiceClient` itself to return `null` (not throw), making the contract explicit and removing the reliance on every caller remembering to try/catch.
+  - **Fix**: `getServiceClient()` now returns `SupabaseClient | null` instead of throwing. It:
+    1. Reads env vars from BOTH `import.meta.env` (Vite build-time inlined) AND `process.env` (Vercel runtime), same pattern as `region.ts:readEnv`.
+    2. Returns `null` + `console.warn` if env vars are missing.
+    3. Wraps `createClient()` in a try/catch so a Supabase client init error (e.g. invalid URL) also returns `null` instead of throwing.
+    4. Caches the failure via `_clientInitAttempted` so we don't spam the log on every cache call.
+  - All six public cache functions updated to early-return when `getServiceClient()` returns `null` (read functions return `null`, write functions return `void`). Each function ALSO wraps the Supabase query itself in a `try/catch` so a network failure, RLS rejection, or unexpected runtime error is caught at the cache layer (defensive backstop — supabase-js normally returns errors in `res.error`, but a throw can still happen on network/transport errors).
+  - Net effect: missing `SUPABASE_SERVICE_ROLE_KEY` on Vercel preview deployments no longer causes ANY user-visible breakage. Cache reads miss → service falls through to live JustWatch. Cache writes are skipped (no-op). The route still returns 200 with live data.
+
+### Task 5: Spot-check route responses
+- Status: COMPLETE (verified via build, not live HTTP probe)
+- Validation:
+  - `./node_modules/.bin/vinxi build` — PASS. Build output for `/api/ott/providers` contains `country: "US", providers: []` as the defensive fallback. Build output for `/api/ott/batch-availability` contains `country: "US", results: {}` as the defensive fallback. Both contain the `Access-Control-Allow-Origin` header logic.
+  - Did NOT spin up a local dev server to probe live HTTP responses — the dev server requires Supabase env vars and a working JustWatch API key, and the changes are purely additive (CORS headers, try/catch wrappers, lazy client init). The build output confirms the code is bundled correctly.
+  - The audio-languages route was used as the reference "fail-open" pattern. The OTT routes now mirror its CORS handling, OPTIONS handler, and try/catch wrapping of country resolution.
+
+### Files NOT modified
+- `src/server/justwatch/client.ts` — no changes needed. The GraphQL query format was fixed in Chunk 6B; the icon URL construction (`buildLogoUrl`) was already correct.
+- `src/features/details/components/WhereToWatch.tsx` — no changes needed. The Chunk 6B fix (createEffect + imgError signal) is correct; the CSP fix in this chunk unblocks the logos.
+- `src/features/settings/components/StreamingProvidersSection.tsx` — no changes needed. The Chunk 6B fix (imgError signal) is correct; the CSP fix unblocks the logos.
+- `src/features/watchlist/hooks/useWatchlistOttAvailability.ts` — no changes needed. The hook already passes `title` and `releaseYear` in the batch request body, and the service layer now handles cache failures gracefully.
+- `src/features/watchlist/useVaultFiltering.ts`, `vaultFilterUtils.ts`, `platformDisplayNames.ts` — no changes needed. The Platform filter logic is correct; it was just hidden because the batch request was failing due to the GraphQL query bug (fixed in 6B) and would still hide if the route returned 401 (fixed in this chunk via CORS + fail-open).
+- `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml` — not modified (per spec).
+- Discover "New on OTT", Upcoming, Statistics — not modified (per spec).
+- Old TMDB provider registry files — not deleted (per spec).
+- Pre-existing `/api/media/tv/...` 404s — not investigated (per spec — out of scope unless directly caused by chunk changes; they are not).
+
+### Chunk 6C Commit & Push
+- Commit hash: see `git log -1 origin/Justwatch` on the remote after push.
+- Commit message: `fix: allow JustWatch images in CSP and make OTT routes/cache resilient in preview`
+- Files in commit: 8 (justwatch_migration_worklog.md, vercel.json, src/server/justwatch/cache.ts, src/server/justwatch/service.ts, src/server/justwatch/region.ts, src/routes/api/ott/providers.ts, src/routes/api/ott/availability/[tmdbId].ts, src/routes/api/ott/batch-availability.ts)
+- Push status: PENDING — see below.

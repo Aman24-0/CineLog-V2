@@ -38,7 +38,9 @@
 //   - Errors: same headers (the response is still 200 with empty
 //     providers — caching that for 5 min is fine).
 //
-// Auth: optional. Anonymous callers get "US" country.
+// Auth: optional. Anonymous callers get "US" country. NEVER returns 401
+// for missing/invalid session — the route always fails open with HTTP 200
+// (mirrors `/api/audio-languages/[tmdbId]`).
 
 import { getProviderCatalog } from "~/server/justwatch/service";
 import { resolveJustWatchCountry } from "~/server/justwatch/region";
@@ -53,9 +55,72 @@ const CACHE_HEADERS = {
   "Content-Type": "application/json"
 };
 
-export async function GET(event: APIEvent): Promise<Response> {
+// ─── CORS ────────────────────────────────────────────────────────────
+// Same pattern as /api/audio-languages/[tmdbId].ts — only allow the
+// app's own origin (and *.vercel.app preview siblings when the canonical
+// origin is a vercel.app domain). Pre-flight OPTIONS is answered with
+// 204 + Access-Control-Max-Age so the browser caches it for a day.
+
+function getAllowedOrigin(request: Request): string | null {
+  const origin = request.headers.get("origin");
+  if (!origin) return null;
+  let appBaseUrl: string;
   try {
-    const country = await resolveJustWatchCountry(event.request);
+    appBaseUrl =
+      (import.meta as ImportMeta & { env?: Record<string, string> }).env
+        ?.VITE_APP_BASE_URL ?? "https://cinelogv2.vercel.app";
+  } catch {
+    appBaseUrl = "https://cinelogv2.vercel.app";
+  }
+  appBaseUrl = appBaseUrl.replace(/\/+$/, "");
+  const allowedOrigins = [appBaseUrl];
+  if (appBaseUrl.includes("vercel.app")) {
+    try {
+      const url = new URL(origin);
+      if (url.hostname.endsWith(".vercel.app")) return origin;
+    } catch {
+      /* ignore */
+    }
+  }
+  if (
+    appBaseUrl.includes("localhost") ||
+    origin.startsWith("http://localhost:") ||
+    origin === "http://localhost:3000"
+  ) {
+    allowedOrigins.push("http://localhost:3000");
+    if (origin.startsWith("http://localhost:")) return origin;
+  }
+  if (allowedOrigins.includes(origin)) return origin;
+  return null;
+}
+
+function buildCorsHeaders(request: Request): Record<string, string> {
+  const origin = getAllowedOrigin(request);
+  if (!origin) return {};
+  return {
+    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Methods": "GET, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    Vary: "Origin"
+  };
+}
+
+// ─── GET handler ─────────────────────────────────────────────────────
+
+export async function GET(event: APIEvent): Promise<Response> {
+  const corsHeaders = buildCorsHeaders(event.request);
+  try {
+    let country = "US";
+    try {
+      country = await resolveJustWatchCountry(event.request);
+    } catch (err) {
+      // resolveJustWatchCountry already catches internally — this is a
+      // defensive backstop in case a future refactor introduces a throw.
+      console.warn(
+        "[/api/ott/providers] resolveJustWatchCountry threw:",
+        err instanceof Error ? err.message : String(err)
+      );
+    }
 
     let providers: JustWatchPackage[];
     try {
@@ -70,7 +135,7 @@ export async function GET(event: APIEvent): Promise<Response> {
 
     return new Response(JSON.stringify({ country, providers }), {
       status: 200,
-      headers: CACHE_HEADERS
+      headers: { ...corsHeaders, ...CACHE_HEADERS }
     });
   } catch (err) {
     console.warn(
@@ -79,7 +144,20 @@ export async function GET(event: APIEvent): Promise<Response> {
     );
     return new Response(
       JSON.stringify({ country: "US", providers: [] }),
-      { status: 200, headers: CACHE_HEADERS }
+      { status: 200, headers: { ...corsHeaders, ...CACHE_HEADERS } }
     );
   }
+}
+
+// ─── OPTIONS handler (CORS preflight) ────────────────────────────────
+
+export async function OPTIONS(event: APIEvent): Promise<Response> {
+  const corsHeaders = buildCorsHeaders(event.request);
+  return new Response(null, {
+    status: 204,
+    headers: {
+      ...corsHeaders,
+      "Access-Control-Max-Age": "86400"
+    }
+  });
 }
