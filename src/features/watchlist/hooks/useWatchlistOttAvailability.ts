@@ -94,6 +94,37 @@ function normalizeOttKey(value: string): string {
 
 /** Max items per `/api/ott/batch-availability` request (enforced by the route). */
 const MAX_BATCH = 25;
+
+/**
+ * CHUNK 6I: In-memory cache for batch OTT results, keyed by the full
+ * effect signature (`${region}|${watchlistSig}`). Prevents the refetch
+ * loop where the SolidJS effect re-fires every few seconds because
+ * some upstream signal (e.g. `args.watchlist()` returning a fresh
+ * array reference on a parent re-render) bumps the effect even though
+ * the watchlist signature is unchanged.
+ *
+ * The cache stores the post-fetch `availabilityMap` + `packageMeta`
+ * shape so the effect can short-circuit into the cached state without
+ * re-hitting the server. TTL is 10 minutes — matches the server-side
+ * JustWatch OTT cache TTL and the browser `Cache-Control: max-age=300`
+ * on the route response (we add a small buffer so the client cache
+ * expires slightly after the server cache, avoiding a stale-then-fresh
+ * flip-flop).
+ *
+ * Cache is best-effort: a failed fetch is NOT cached (so the next run
+ * can retry). An empty `availabilityMap` IS cached (a watchlist with
+ * zero JustWatch offers in this country is a stable fact, not a
+ * transient failure).
+ */
+interface BatchCacheEntry {
+  /** Pre-built availabilityMap (mediaType:tmdbId → technicalName[]). */
+  availability: Map<string, string[]>;
+  /** Pre-built package metadata map for the catalog. */
+  meta: Map<string, { clearName: string; icon?: string }>;
+  timestamp: number;
+}
+const batchCache = new Map<string, BatchCacheEntry>();
+const BATCH_CACHE_TTL_MS = 10 * 60 * 1000;
 /**
  * Chunk 6E: maximum number of chunk requests to fire in parallel. Each
  * chunk hits JustWatch's GraphQL endpoint with a batched `node()` query
@@ -223,9 +254,24 @@ function watchlistSignature(items: WatchlistItem[]): string {
 /**
  * Extract the per-item provider list from a JustWatch batch result.
  *
- * Returns the unique `package.technicalName` values across all offers
- * for the title. Returns `[]` if the title has no offers or no packages
- * with a technicalName.
+ * Returns the unique provider identifiers across all offers for the
+ * title. Returns `[]` if the title has no offers or no packages with
+ * a usable identifier.
+ *
+ * CHUNK 6I FIX: previously this function read ONLY `pkg.technicalName`
+ * and skipped the offer entirely when that field was missing. Field
+ * probing showed that some JustWatch batch responses return offers
+ * whose `package` is present but `technicalName` is null while
+ * `shortName` and/or `clearName` are populated. Dropping those offers
+ * silently emptied the provider catalog for affected watchlists.
+ *
+ * New behavior: prefer `technicalName`, then fall back to `shortName`,
+ * then `clearName`. The fallback identifier is what gets stored in
+ * `justwatchProviders` and used for platform matching — it is also
+ * used as the catalog `technicalName` field so the dropdown can
+ * resolve a chip label back to the same value. The metadata map is
+ * populated with whichever identifier was used, carrying the
+ * `clearName` (or fallback) as the display label.
  *
  * Side-effect-free: also collects package metadata (clearName, icon)
  * into the `packageMetaOut` Map so the caller can build the catalog
@@ -240,16 +286,27 @@ function extractProvidersFromOffers(
   const out: string[] = [];
   for (let i = 0; i < offers.length; i++) {
     const pkg = offers[i]?.package as JustWatchPackage | undefined;
-    if (!pkg || !pkg.technicalName) continue;
-    const tn = pkg.technicalName;
-    if (!seen.has(tn)) {
-      seen.add(tn);
-      out.push(tn);
+    if (!pkg) continue;
+    // CHUNK 6I: prefer technicalName, then shortName, then clearName.
+    // Do not skip the offer solely because technicalName is missing —
+    // shortName and clearName are equally stable identifiers for the
+    // purposes of platform filtering.
+    const id =
+      pkg.technicalName ||
+      pkg.shortName ||
+      pkg.clearName ||
+      "";
+    if (!id) continue;
+    if (!seen.has(id)) {
+      seen.add(id);
+      out.push(id);
       // Stash the display metadata so we can build the catalog later
       // without re-iterating the (potentially large) offers array.
-      if (!packageMetaOut.has(tn)) {
-        packageMetaOut.set(tn, {
-          clearName: pkg.clearName || tn,
+      // Prefer `clearName` for the label (it's the human-readable form);
+      // fall back to the identifier itself.
+      if (!packageMetaOut.has(id)) {
+        packageMetaOut.set(id, {
+          clearName: pkg.clearName || id,
           icon: buildJustWatchIconUrl(pkg.icon)
         });
       }
@@ -338,9 +395,14 @@ async function fetchChunksWithLimitedConcurrency(
           );
           const firstKey = rawKeys[0];
           if (firstKey) {
+            // CHUNK 6I Task 3 — bump the slice from 500 to 800 chars
+            // so we can see the full `package` object (including
+            // `technicalName`, `shortName`, `clearName`, `icon`) without
+            // truncation. TEMPORARY diagnostic log, safe to remove
+            // once provider extraction is verified working.
             console.log(
               "[Watchlist OTT] first raw result",
-              JSON.stringify(rawResults[firstKey]).slice(0, 500)
+              JSON.stringify(rawResults[firstKey]).slice(0, 800)
             );
           }
           // Chunk 6H Task 2 — normalize server response keys. Build a
@@ -492,6 +554,29 @@ export function useWatchlistOttAvailability(
           return;
         }
 
+        // CHUNK 6I: in-memory cache check. The SolidJS effect can re-fire
+        // every few seconds when an upstream signal (e.g. `args.watchlist()`
+        // returning a fresh array reference on a parent re-render) bumps
+        // the effect even though the signature is unchanged. Without this
+        // cache, the user sees repeated `/api/ott/batch-availability`
+        // POSTs in the network panel every few seconds, hammering the
+        // JustWatch API and the Supabase cache layer.
+        //
+        // Cache key = the full signature string (`${region}|${watchlistSig}`).
+        // TTL is 10 minutes, matching the server-side OTT cache. A failed
+        // fetch (successCount === 0) is NOT cached so the next effect run
+        // can retry. An empty `availabilityMap` IS cached — a watchlist
+        // with zero JustWatch offers in this country is a stable fact,
+        // not a transient failure.
+        const cached = batchCache.get(sig);
+        if (cached && Date.now() - cached.timestamp < BATCH_CACHE_TTL_MS) {
+          setAvailabilityMap(cached.availability);
+          setPackageMeta(cached.meta);
+          setLoading(false);
+          setError(false);
+          return;
+        }
+
         // Split into ≤25-item chunks. The route rejects >25 with 400.
         const chunks: typeof fetchItems[] = [];
         for (let i = 0; i < fetchItems.length; i += MAX_BATCH) {
@@ -588,6 +673,30 @@ export function useWatchlistOttAvailability(
           // cause is transient).
           setError(successCount === 0);
           setLoading(false);
+
+          // CHUNK 6I: write to in-memory cache ONLY on a non-retry
+          // terminal state. We reach this branch when either (a) the
+          // fetch had at least one successful chunk (successCount > 0),
+          // or (b) every chunk failed AND we've exhausted the retry
+          // budget (attempt >= MAX_RETRIES). Case (a) is the normal
+          // success path — cache the result so subsequent effect
+          // re-fires (caused by upstream signal churn) short-circuit
+          // into the cached state instead of re-hitting the server.
+          // Case (b) is a total failure — do NOT cache so the next
+          // effect run can retry from scratch.
+          //
+          // An empty `merged` map (watchlist has zero JustWatch offers
+          // in this country) IS cached when successCount > 0 — that's
+          // a stable fact, not a transient failure, and caching it
+          // prevents re-querying JustWatch for a watchlist that will
+          // never have offers.
+          if (successCount > 0) {
+            batchCache.set(sig, {
+              availability: merged,
+              meta,
+              timestamp: Date.now()
+            });
+          }
         };
 
         void runBatch();

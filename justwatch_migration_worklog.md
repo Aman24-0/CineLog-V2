@@ -827,3 +827,76 @@ The Task 1 raw JSON logs will confirm whether the server is actually sending key
 - Commit message: `fix: normalize OTT batch response keys and fix watchlist platform provider mapping`
 - Files in commit: 2 (justwatch_migration_worklog.md, src/features/watchlist/hooks/useWatchlistOttAvailability.ts)
 - Push status: PUSHED to `origin/Justwatch` (range `22466c4..84ce384`) using the credentials embedded in the existing `origin` remote URL.
+
+
+## Chunk 6I — Fix batch offer package extraction and Watchlist refetch loop
+
+### Task: Verify batch GraphQL query has package fields
+- Inspected: src/server/justwatch/client.ts (`batchGetJustWatchOffers` query string, lines ~667-712)
+- Status: COMPLETE
+- Validation: N/A (read-only inspection)
+- Notes:
+  - The batch aliased query already includes `package { id clearName shortName technicalName icon }` on both `... on Movie` and `... on Show` inline fragments — field-for-field identical to the single-title `GET_OFFERS_QUERY` selection set. No query change was needed.
+  - The full offer selection set (monetizationType, presentationType, audioLanguages, subtitleLanguages, availableFromTime, availableToTime, currency, standardWebURL, deeplinkURL(platform: WEB)) is also present and matches the single-title query.
+
+### Task: Add temporary server log for batch sample
+- Modified: src/server/justwatch/service.ts (`batchGetTitleOttAvailability`, after the merge loop, before `return result;`)
+- Status: COMPLETE
+- Validation: tsc + eslint + vinxi build all PASS (see Verification section).
+- Notes:
+  - Added a `console.log("[OTT batch debug] sample key", sampleKey, "offers", count, "first package", JSON.stringify(firstOffer?.package ?? null).slice(0, 500))` after the result map is built.
+  - Uses `console.log` (not `warn`) per spec — this is a diagnostic log, not an error.
+  - Existing logs in the file (the `[OTT batch] fetch OK` / `[OTT batch] all resolved-failed` / `cache write threw` logs from Chunks 6E/6F) are untouched.
+
+### Task: Add temporary client log for first batch result
+- Modified: src/features/watchlist/hooks/useWatchlistOttAvailability.ts (inside `fetchChunksWithLimitedConcurrency`, the existing `first raw result` log)
+- Status: COMPLETE
+- Validation: tsc + eslint + vinxi build all PASS.
+- Notes:
+  - Chunk 6H already added a `[Watchlist OTT] first raw result` log sliced to 500 chars. Chunk 6I Task 3 asks for the same log sliced to 800 chars (to fit the full `package` object including `technicalName`, `shortName`, `clearName`, `icon`). Bumped the slice from 500 → 800. No new log added — the existing one was already in the right place and serves the spec's purpose ("show exactly what client receives").
+  - Existing Chunk 6G/6H logs (`batch response keys`, `raw keys JSON`, `enriched sample`, `sample enriched item`, `batch complete`) are untouched.
+
+### Task: Fix provider extraction if package is missing
+- Modified: src/server/justwatch/client.ts (`coercePackage`)
+- Modified: src/features/watchlist/hooks/useWatchlistOttAvailability.ts (`extractProvidersFromOffers`)
+- Status: COMPLETE
+- Validation: tsc + eslint + vinxi build all PASS.
+- Errors and fixes: none during implementation.
+- Notes:
+  - **Root cause hypothesis**: `coercePackage` in client.ts required `id`, `clearName`, AND `technicalName` to all be truthy. If the JustWatch BATCH response (multi-`node()` aliased query) returned an offer whose `package` had `technicalName: null` (while `shortName` / `clearName` were populated), the entire offer was silently dropped by `coerceOffer`. If ALL offers for a title were dropped, the title was omitted from the result entirely by `batchGetTitleOttAvailability`'s `if (!offerResult || !offerResult.offers || offerResult.offers.length === 0) continue;` guard. The result: server logs showed 20–25 results per chunk (because the SERVICE thought it had offers), but client-side `extractProvidersFromOffers` saw zero providers in any of those offers (because they were all dropped at the package validation gate).
+  - **Fix 1 (client.ts `coercePackage`)**: relaxed validation to require ONLY `id`. `clearName`, `shortName`, `technicalName`, and `icon` all default to `""` when missing (the `JustWatchPackage` type already declares them as `string`, so `""` is type-safe). This allows offers with partial package data to flow through to the extraction layer.
+  - **Fix 2 (extractProvidersFromOffers)**: replaced the strict `if (!pkg || !pkg.technicalName) continue;` check with a fallback chain: `id = pkg.technicalName || pkg.shortName || pkg.clearName || ""`. If `id` is empty, skip; otherwise use it as the provider identifier stored in `justwatchProviders` and as the catalog key. The `clearName` (or fallback to `id`) is used as the dropdown label.
+  - **Why this is safe for the single-title path (Where to Watch)**: the single-title `getJustWatchOffers` query returns offers with all package fields populated (confirmed working per Chunk 6B), so the relaxed validation has no effect on that path. The WhereToWatch component already handles empty `clearName` / `icon` strings (letter fallback for missing logos).
+  - **Why this is safe for the Settings catalog**: `getJustWatchPackages` already had its own relaxed validation (Chunk 6B) that only required `id`, `clearName`, `technicalName`. The further relaxation here (only require `id`) is consistent with that direction. Probing showed all 89 IN providers have all 5 fields, so this is purely defensive.
+
+### Task: Prevent Watchlist batch refetch loop
+- Modified: src/features/watchlist/hooks/useWatchlistOttAvailability.ts (added module-level `batchCache` Map + `BATCH_CACHE_TTL_MS` constant + cache check before fetch + cache write after successful fetch)
+- Status: COMPLETE
+- Validation: tsc + eslint + vinxi build all PASS.
+- Notes:
+  - **Root cause of the refetch loop**: the SolidJS effect body reads `watchlist()` directly (to build `fetchItems` from `it.id` / `it.media_type` / `it.title` / `it.release_date`). This creates a reactive dependency on `watchlist()`. When the parent component (WatchlistView) re-renders and passes a fresh array reference for `args.watchlist` — even if the items are identical — the effect re-fires. SolidJS `on(signature, fn)` gates `fn` execution on signature equality, but the effect itself still re-runs. The signature is order-sensitive (`mediaType:tmdbId|...`), so any re-sort of the watchlist (e.g., after a favorite toggle that triggers a re-sort) changes the signature and triggers a refetch.
+  - **Fix**: added a module-level `batchCache: Map<string, BatchCacheEntry>` keyed by the full signature string (`${region}|${watchlistSig}`). The entry stores `{ availability, meta, timestamp }`. TTL is 10 minutes (matches the server-side OTT cache). Before fetching, the effect checks the cache: if a fresh entry exists for the current signature, it short-circuits — `setAvailabilityMap(cached.availability)`, `setPackageMeta(cached.meta)`, `setLoading(false)`, `setError(false)`, `return`. No fetch is made. On a successful fetch (`successCount > 0`), the result is written to the cache AFTER the retry loop decides not to retry (so transient failures that eventually succeed are cached, but total failures are not).
+  - **Cache eviction**: explicit eviction is NOT implemented. The Map is bounded in practice by the number of distinct watchlist signatures a single user generates in a session — typically 1–5 (initial load, a few re-sorts, maybe an item add/remove). Each entry holds a Map of ~25–50 provider entries. Memory footprint is negligible. If this ever becomes a concern, an LRU eviction policy can be added later.
+  - **Failure handling**: a total fetch failure (`successCount === 0` after retries exhausted) is NOT cached — the next effect run can retry. An empty `merged` map (watchlist has zero JustWatch offers in this country) IS cached when `successCount > 0` — that's a stable fact, not a transient failure, and caching it prevents re-querying JustWatch for a watchlist that will never have offers.
+  - **Region in cache key**: the signature already includes the region (`${reg}|${watchlistSig}` from Chunk 6D), so the cache key automatically invalidates when the user switches country in Settings. No separate region field needed in the cache entry.
+
+### Verification
+- `./node_modules/.bin/tsc --noEmit` — 0 errors in any modified file. The 18 pre-existing errors in OTHER files (Vite `import.meta.env` typing gaps + 2 `Object is possibly 'undefined'` in `src/routes/movie/[id].tsx` and `src/routes/tv/[id].tsx`) were already present before Chunk 1 and are NOT introduced or touched by this chunk.
+- `./node_modules/.bin/eslint src/server/justwatch/client.ts src/server/justwatch/service.ts src/features/watchlist/hooks/useWatchlistOttAvailability.ts` — PASS, exit 0, 0 errors, 0 warnings.
+- `./node_modules/.bin/vinxi build` — PASS — `✔ build done` / `✔ Nitro Server built`.
+
+### Files NOT modified
+- `src/features/watchlist/useVaultFiltering.ts` — inspected, no changes needed. The `uniquePlatforms` memo is a thin pass-through from `providerCatalog()`, which is now correctly populated once the package extraction fix lands.
+- `src/features/watchlist/components/VaultFiltersContent.tsx` — inspected, no changes needed. The dropdown consumer already reads `props.uniquePlatforms` (a `PlatformFilterOption[]`) and hides itself when the array is empty.
+- `src/routes/api/ott/batch-availability.ts` — inspected, no changes needed. The route is a thin wrapper around `batchGetTitleOttAvailability` and doesn't touch offer shape.
+- `src/shared/types/justwatch.ts` — inspected, no changes needed. `JustWatchPackage` already types `clearName`, `shortName`, `technicalName`, `icon` as `string` (allowing `""`).
+- Discover New on OTT, Upcoming, Statistics, Where to Watch, package.json, and all TMDB provider registry files — NOT touched per spec.
+
+### Rebase note
+- The initial Chunk 6I implementation in this session was based on a stale local branch that was missing Chunks 6C-6H (which had been pushed from a different working copy in a previous session). When `git push origin Justwatch` was rejected (remote had 10 commits not in local), the local commit was discarded with `git reset --hard FETCH_HEAD` and the Chunk 6I changes were re-applied on top of the current remote HEAD (`b2723ae`). The re-application adapted to the Chunks 6C-6H additions in `useWatchlistOttAvailability.ts`: the `normalizeOttKey()` helper (Chunk 6H), `fetchChunksWithLimitedConcurrency` (Chunk 6E), region-based signature (Chunk 6D), and the retry logic (Chunk 6E). The cache write was placed AFTER the retry check (`if (successCount === 0 && attempt < MAX_RETRIES) { ... return; }`) so a retry-scheduled run does not write to the cache prematurely — only the terminal state (either success or exhausted-retry failure) reaches the cache-write code.
+
+### Chunk 6I Commit & Push
+- Commit message: `fix: ensure batch offers include package data and cache watchlist OTT results`
+- Files in commit: 4 (justwatch_migration_worklog.md, src/server/justwatch/client.ts, src/server/justwatch/service.ts, src/features/watchlist/hooks/useWatchlistOttAvailability.ts)
+- Commit hash: `69fe711`
+- Push status: PUSHED to `origin/Justwatch` (range `b2723ae..69fe711`) using the user-supplied PAT (one-shot explicit push URL — NOT written to `.git/config`).

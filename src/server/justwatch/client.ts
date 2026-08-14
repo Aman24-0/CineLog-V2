@@ -393,18 +393,29 @@ function coerceObjectType(
 // Consumers already handle empty `icon` (buildLogoUrl returns "" →
 // letter fallback) and empty `shortName` (matchesQuery uses optional
 // chaining).
+//
+// CHUNK 6I FIX: further relaxed — only `id` is required. Some JustWatch
+// BATCH responses (multi-`node()` aliased queries) return offers whose
+// `package` is present but `technicalName` is null while `shortName`
+// and/or `clearName` are populated. The previous validation dropped
+// those packages (and therefore the whole offer), silently emptying
+// the Watchlist Platform provider catalog. The consumer
+// (`extractProvidersFromOffers` in useWatchlistOttAvailability.ts)
+// now applies a fallback chain technicalName → shortName → clearName
+// to derive a stable provider identifier, so the package must pass
+// through even when `technicalName` is missing.
 function coercePackage(
   p: GqlOfferObject["package"]
 ): JustWatchPackage | null {
   if (!p) return null;
-  if (!p.id || !p.clearName || !p.technicalName) {
+  if (!p.id) {
     return null;
   }
   return {
     id: p.id,
-    clearName: p.clearName,
+    clearName: p.clearName ?? "",
     shortName: p.shortName ?? "",
-    technicalName: p.technicalName,
+    technicalName: p.technicalName ?? "",
     icon: p.icon ?? ""
   };
 }

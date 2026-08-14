@@ -615,5 +615,23 @@ export async function batchGetTitleOttAvailability(input: {
     result[`${item.mediaType}:${item.tmdbId}`] = offerResult;
   }
 
+  // CHUNK 6I DEBUG: log a sample of the batch result so we can verify
+  // whether `package` is present and whether `technicalName` is
+  // populated. This is a TEMPORARY diagnostic log — safe to remove
+  // once provider extraction is verified working.
+  const sampleKey = Object.keys(result)[0];
+  if (sampleKey) {
+    const sample = result[sampleKey];
+    const firstOffer = sample?.offers?.[0];
+    console.log(
+      "[OTT batch debug] sample key",
+      sampleKey,
+      "offers",
+      sample?.offers?.length,
+      "first package",
+      JSON.stringify(firstOffer?.package ?? null).slice(0, 500)
+    );
+  }
+
   return result;
 }
