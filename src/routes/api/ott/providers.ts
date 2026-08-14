@@ -170,6 +170,13 @@ export async function GET(event: APIEvent): Promise<Response> {
       providers = [];
     }
 
+    // Chunk 6E: temporary diagnostic log — helps diagnose intermittent
+    // provider catalog emptiness in Vercel preview. Will be removed in
+    // a later cleanup chunk.
+    console.log(
+      `[OTT providers] country=${country} count=${providers.length} source=${queryCountry ? "query-override" : "session-resolver"}`
+    );
+
     return new Response(JSON.stringify({ country, providers }), {
       status: 200,
       headers: { ...corsHeaders, ...CACHE_HEADERS }

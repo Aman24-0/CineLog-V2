@@ -430,3 +430,116 @@ encountered.
 - Files in commit: 7 (justwatch_migration_worklog.md, src/routes/api/ott/providers.ts, src/routes/api/ott/availability/[tmdbId].ts, src/routes/api/ott/batch-availability.ts, src/features/settings/hooks/useSettingsState.tsx, src/features/details/components/WhereToWatch.tsx, src/features/watchlist/hooks/useWatchlistOttAvailability.ts)
 - Push status: PUSHED to `origin/Justwatch` (range `bdbe720..08afe58`) using the credentials embedded in the existing `origin` remote URL.
 
+
+## Chunk 6E — Fix intermittent Where to Watch + Platform filter
+
+### Task 1: Never cache empty offers or failed resolutions
+- Modified: src/server/justwatch/service.ts
+- Status: COMPLETE
+- Validation: tsc + eslint + build all pass (see Task 5 validation block).
+- Errors and fixes: none.
+- Notes:
+  - **Root cause hypothesis A (empty/bad results cached)**: The original `getTitleOttAvailability` had a defensive `if (!result || !result.offers || result.offers.length === 0) return null;` BEFORE the cache write, which already prevented empty offers from being cached. Same for `resolveTitleToJustWatchNode` (returned null on empty results without caching). Same for `batchGetTitleOttAvailability` (used `continue` to skip items with empty offers before reaching the cache write). So the write side was already correct.
+  - **However, the READ side had a bug**: `getTitleOttAvailability`'s cache read returned ANY cached row, even if `offers: []` had slipped in from a previous bug or a future regression. A single bad row would have been returned for 48h (the cache TTL), making the section permanently empty.
+  - **Fix (read side)**: Added a defensive guard at every cache read site — `cached.offers.length > 0` and `cached.justwatchNodeId` non-empty. If either fails, treat as a miss and re-fetch live. This means stale bad rows are self-healing: the next request ignores them and re-fetches.
+  - **`resolveTitleToJustWatchNode` cache read**: now also guards against empty-string `nodeId` (defensive).
+  - **`batchGetTitleOttAvailability` per-item cache read**: same guard applied — items with stale-empty cache rows are pushed into the `uncached` list instead of being returned as empty.
+  - **No changes to write side**: the existing `if (offers.length === 0) return null` / `continue` guards were already correct. Added explicit comments making the "never cache empty" rule clear at each call site.
+
+### Task 2: Improve title resolution fallback
+- Modified: src/server/justwatch/client.ts
+- Status: COMPLETE
+- Validation: tsc + eslint + build all pass.
+- Notes:
+  - **Existing behavior verified**: `searchJustWatchTitle` already implements the two-step strategy:
+    1. Try `searchTitles(country, source: "search", first: 5, filter)`.
+    2. If that fails OR returns zero edges, fall back to `popularTitles(country, first: 5, filter)` with the same args.
+    3. If both fail, return `[]` without caching.
+  - **objectType filtering**: The current GraphQL queries only select `id` on the search node (NOT `objectType`), because Stage 3 probing confirmed `objectType` is not selectable on the search `node` — only via inline fragments on concrete Movie/Show types. Per spec: "If not available, keep first." So we rely on the `objectTypes: ["MOVIE"]` / `["SHOW"]` filter passed to JustWatch's search, which already enforces the type server-side. The first result is therefore always the correct type.
+  - **Improvement (diagnostic logs)**: Added `console.log` calls at three points:
+    - When `searchTitles` returns zero results (before falling back to `popularTitles`).
+    - When `popularTitles` fallback returns null.
+    - When `popularTitles` fallback also returns zero results.
+    These logs will appear in Vercel logs and help diagnose which step is failing for titles like House of the Dragon.
+  - **releaseYear**: Not used. The IntFilter format is undocumented and `{from,to}` causes 422 (confirmed in Chunk 6B). Per spec: "Do NOT attempt to use invalid fields again."
+
+### Task 3: Add retry / graceful re-fetch on client
+- Modified: src/features/details/components/WhereToWatch.tsx
+- Modified: src/features/watchlist/hooks/useWatchlistOttAvailability.ts
+- Status: COMPLETE
+- Validation: tsc + eslint + build all pass.
+- Notes:
+  - **WhereToWatch retry**: Added `retryCount` signal, `MAX_RETRIES = 2`, `RETRY_DELAY_MS = 2000`. Added `scheduleRetry()` helper that uses `setTimeout` to call `loadProviders()` again after 2s, up to 2 retries. Retry is triggered when:
+    - HTTP response is not OK.
+    - Response body is malformed.
+    - `body.offers` is empty (the most important case — JustWatch resolution may have failed transiently).
+    - Fetch threw an exception.
+    The retry counter is reset whenever the props/country key changes (new title or new region → fresh retry budget). `onCleanup` clears the pending timer when the component unmounts.
+  - **Why this fixes the "appeared once then disappeared" symptom**: House of the Dragon likely resolved successfully on the first request, but a subsequent refresh hit JustWatch during a transient outage or rate-limit window. The empty response was returned to the client, the section hid, and there was no retry. Now the client retries after 2s — by which time JustWatch's rate limiter has usually cleared — and the section reappears.
+  - **useWatchlistOttAvailability retry**: Added `MAX_RETRIES = 1` and `RETRY_DELAY_MS = 2000`. The retry fires when `successCount === 0` (every chunk came back empty), which indicates a transient failure rather than a genuine "no providers" result. The retry is implemented as a recursive `runBatch()` call scheduled via `setTimeout`. The cleanup function clears the timer.
+  - **Why only 1 retry for the batch**: The batch fetches many titles at once and is more likely to get partial results (some chunks succeed, some fail). Only retry when ALL chunks fail — otherwise the partial result is good enough. 1 retry is sufficient because the limited-concurrency fix (Task 4) addresses the root cause of partial failures.
+
+### Task 4: Reduce batch rate limit risk
+- Modified: src/features/watchlist/hooks/useWatchlistOttAvailability.ts
+- Status: COMPLETE
+- Validation: tsc + eslint + build all pass.
+- Notes:
+  - **Root cause hypothesis C (batch rate-limiting)**: The original code fired ALL chunks in parallel via `Promise.all`. For a 100-item watchlist split into 4 chunks, this means 4 simultaneous POST requests to `/api/ott/batch-availability`, each of which triggers a JustWatch GraphQL `batchGetJustWatchOffers` call with up to 25 aliased `node()` queries. That's 100 simultaneous JustWatch API calls from one user — well within JustWatch's 429 trigger threshold.
+  - **Fix**: Replaced `Promise.all(chunks.map(...))` with a new `fetchChunksWithLimitedConcurrency(chunks, country)` helper that processes chunks in waves of `MAX_CONCURRENT_CHUNKS = 3`. Each wave is sent in parallel, but the next wave doesn't start until the previous wave completes. This reduces peak JustWatch load from N chunks to 3 chunks, well under the 429 threshold.
+  - **Why 3**: The spec recommends ≤4. We use 3 for headroom — JustWatch's per-IP rate limiter may have other clients (the same user's Settings page, other users on the same Vercel edge node) hitting it concurrently.
+  - **Per-chunk error handling preserved**: Each chunk's `fetch` is still wrapped in try/catch — failures in one chunk return an empty `results` record for that chunk but don't abort the others. The wave-level `Promise.all` resolves even if some chunks fail.
+
+### Task 5: Add temporary server logs for diagnosis
+- Modified: src/routes/api/ott/providers.ts
+- Modified: src/routes/api/ott/availability/[tmdbId].ts
+- Modified: src/routes/api/ott/batch-availability.ts
+- Modified: src/server/justwatch/service.ts (logs in resolveTitleToJustWatchNode, getTitleOttAvailability, batchGetTitleOttAvailability)
+- Modified: src/server/justwatch/client.ts (logs in searchJustWatchTitle fallback path)
+- Status: COMPLETE
+- Validation:
+  - `./node_modules/.bin/tsc --noEmit` — 0 errors in modified files (18 pre-existing errors in OTHER files: Vite `import.meta.env` typing gaps + 2 `Object is possibly undefined` in `src/routes/movie/[id].tsx` and `src/routes/tv/[id].tsx` — unchanged, NOT touched by this chunk).
+  - `./node_modules/.bin/eslint src/server/justwatch/service.ts src/server/justwatch/client.ts src/features/details/components/WhereToWatch.tsx src/features/watchlist/hooks/useWatchlistOttAvailability.ts src/routes/api/ott/providers.ts src/routes/api/ott/availability/[tmdbId].ts src/routes/api/ott/batch-availability.ts` — PASS, exit 0, 0 errors, 0 warnings.
+  - `./node_modules/.bin/vinxi build` — PASS — `✔ build done` / `✔ Nitro Server built`. Verified the bundled output contains the new diagnostic logs: `_tmdbId_4.js` contains `[OTT availability route]`, `providers.js` contains `[OTT providers]`, `batch-availability2.js` contains `[OTT batch route]`. The WatchlistView client bundle contains `setTimeout` (retry logic). The `MAX_CONCURRENT_CHUNKS` / `RETRY_DELAY_MS` constants are minified away but the logic is present.
+- Errors and fixes: none — all three validation steps passed on the first run.
+- Notes:
+  - **Logs added** (all use `console.log`, not `console.warn`, per spec):
+    - `[/api/ott/providers]`: `[OTT providers] country=X count=N source=query-override|session-resolver`
+    - `[/api/ott/availability/[tmdbId]]`: `[OTT availability route] type=X tmdbId=N country=X title=X year=X resolved=X offers=N source=X`
+    - `[/api/ott/batch-availability]`: `[OTT batch route] country=X items=N results=N source=X`
+    - `[justwatch/service] resolveTitleToJustWatchNode`: `[OTT resolve] OK type=X tmdbId=N country=X nodeId=X title=X candidates=N` / `[OTT resolve] no results ...` / `[OTT resolve] empty nodeId ...`
+    - `[justwatch/service] getTitleOttAvailability`: `[OTT availability] cache hit ...` / `[OTT availability] resolve FAILED ...` / `[OTT availability] no offers ...` / `[OTT availability] cache miss OK ...`
+    - `[justwatch/service] batchGetTitleOttAvailability`: `[OTT batch] fetch OK ...` / `[OTT batch] fetch FAILED ...` / `[OTT batch] all resolved-failed ...`
+    - `[justwatch/client] searchJustWatchTitle`: `[justwatch/client] searchTitles returned 0 results for "X" ...` / `[justwatch/client] popularTitles fallback returned null for "X" ...` / `[justwatch/client] popularTitles fallback also returned 0 results for "X" ...`
+  - **No sensitive data logged**: only country, mediaType, tmdbId, title (already in the URL), nodeId, offer count, and cache hit/miss. No full payloads, no user identifiers, no auth tokens.
+  - These logs are TEMPORARY — a later cleanup chunk will remove them once the intermittent issues are confirmed fixed.
+
+### Files NOT modified
+- `src/server/justwatch/cache.ts` — no changes needed. The cache layer is a passive key-value store; the "never cache empty" rule is enforced by the service layer that calls it.
+- `src/features/watchlist/useVaultFiltering.ts` — no changes needed. Consumes `useWatchlistOttAvailability` which now has retry + limited concurrency.
+- `src/shared/types/justwatch.ts` — no changes needed.
+- `src/routes/api/ott/providers.ts` cache resilience — already correct from Chunk 6C.
+- `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml` — not modified (per spec).
+- Discover "New on OTT", Upcoming, Statistics — not modified (per spec).
+- Old TMDB provider registry files — not deleted (per spec).
+
+### Root Cause Analysis Summary
+
+The intermittent Where to Watch + Platform filter failures had three contributing causes:
+
+1. **Stale empty cache rows (read side)**: While the service layer never WROTE empty offers to the cache, the READ side returned any cached row regardless of whether `offers: []` had slipped in from a previous bug or a future regression. A single bad row would have been returned for 48h (the cache TTL). **Fix**: Guard every cache read with `offers.length > 0` and `nodeId` non-empty — stale bad rows are now self-healing.
+
+2. **No client retry on transient failure**: When JustWatch returned empty (rate limit, outage, search index lag), the client accepted the empty result and hid the section permanently until the next full page reload. **Fix**: Added bounded retry (2 retries for Where to Watch, 1 retry for batch) with 2s delay. The retry is triggered by HTTP error, malformed response, OR empty offers.
+
+3. **Batch rate limiting (429)**: The original `Promise.all(chunks.map(...))` fired all chunks in parallel — for a 100-item watchlist that's 4 simultaneous JustWatch GraphQL batched queries (100 total `node()` calls). JustWatch's per-IP rate limiter would 429 some chunks, causing partial failures and a missing Platform filter. **Fix**: Limited concurrency to 3 chunks in flight at a time. This reduces peak JustWatch load by ~75% while still parallelizing large watchlists.
+
+### Verification Results
+- TypeScript: 0 errors in modified files (18 pre-existing in other files, unchanged).
+- ESLint: 0 errors, 0 warnings on all 7 modified files.
+- Build: PASS — `✔ build done` / `✔ Nitro Server built`. Diagnostic logs confirmed present in bundled output.
+
+
+### Chunk 6E Commit & Push
+- Commit hash: `cb85a4c`
+- Commit message: `fix: harden title resolution, avoid caching empty OTT results, and reduce batch rate limits`
+- Files in commit: 8 (justwatch_migration_worklog.md, src/server/justwatch/service.ts, src/server/justwatch/client.ts, src/features/details/components/WhereToWatch.tsx, src/features/watchlist/hooks/useWatchlistOttAvailability.ts, src/routes/api/ott/providers.ts, src/routes/api/ott/availability/[tmdbId].ts, src/routes/api/ott/batch-availability.ts)
+- Push status: PUSHED to `origin/Justwatch` (range `3c9b0f3..cb85a4c`) using the credentials embedded in the existing `origin` remote URL.

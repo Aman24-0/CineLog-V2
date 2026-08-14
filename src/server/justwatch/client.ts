@@ -500,6 +500,11 @@ export async function searchJustWatchTitle(args: {
         }
       }
       if (results.length > 0) return results;
+      // Chunk 6E: log when primary returns zero — helps diagnose
+      // intermittent resolution failures in Vercel logs.
+      console.log(
+        `[justwatch/client] searchTitles returned 0 results for "${args.searchQuery}" objectTypes=${JSON.stringify(args.objectTypes)} country=${args.country} — falling back to popularTitles`
+      );
     } else if (primary && primary.errors != null) {
       console.warn(
         `[justwatch/client] searchTitles GraphQL errors — falling back to popularTitles`
@@ -507,12 +512,20 @@ export async function searchJustWatchTitle(args: {
     }
 
     // 2. popularTitles (fallback — same filter, no `source` arg)
+    //    Chunk 6E: this fallback is essential for titles that are
+    //    indexed in JustWatch's popularTitles index but not in the
+    //    searchTitles index (observed for some newly-added titles).
     const fallback = await rawGql<GqlPopularResponse>(
       POPULAR_TITLES_FALLBACK_QUERY,
       popularVariables,
       "popularTitles(fallback)"
     );
-    if (!fallback) return [];
+    if (!fallback) {
+      console.log(
+        `[justwatch/client] popularTitles fallback returned null for "${args.searchQuery}" country=${args.country}`
+      );
+      return [];
+    }
     if (fallback.errors != null) {
       console.warn(
         `[justwatch/client] popularTitles fallback also returned GraphQL errors`
@@ -525,6 +538,11 @@ export async function searchJustWatchTitle(args: {
       if (e?.node?.id) {
         results.push({ nodeId: e.node.id });
       }
+    }
+    if (results.length === 0) {
+      console.log(
+        `[justwatch/client] popularTitles fallback also returned 0 results for "${args.searchQuery}" country=${args.country}`
+      );
     }
     return results;
   });

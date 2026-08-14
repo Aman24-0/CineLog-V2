@@ -266,6 +266,13 @@ export async function POST(event: APIEvent): Promise<Response> {
       results = {};
     }
 
+    // Chunk 6E: temporary diagnostic log — helps diagnose intermittent
+    // Platform filter emptiness in Vercel preview. Will be removed in
+    // a later cleanup chunk.
+    console.log(
+      `[OTT batch route] country=${country} items=${items.length} results=${Object.keys(results).length} source=${bodyCountry ? "body-override" : "session-resolver"}`
+    );
+
     return new Response(
       JSON.stringify({ country, results }),
       { status: 200, headers: { ...corsHeaders, ...CACHE_HEADERS_SUCCESS } }

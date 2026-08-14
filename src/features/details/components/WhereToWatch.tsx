@@ -42,6 +42,7 @@ import {
   createSignal,
   createMemo,
   createEffect,
+  onCleanup,
   type Component
 } from "solid-js";
 import type { Accessor } from "solid-js";
@@ -287,6 +288,20 @@ const WhereToWatch: Component<WhereToWatchProps> = (props) => {
   const region = useDiscoverRegion();
   const [rows, setRows] = createSignal<ProviderRow[] | null>(null);
   const [loaded, setLoaded] = createSignal(false);
+  // Chunk 6E: retry counter for transient JustWatch failures.
+  // Bounded to MAX_RETRIES=2 — avoids infinite loops. Reset whenever
+  // the props/country key changes (so a new title always starts fresh).
+  const MAX_RETRIES = 2;
+  const RETRY_DELAY_MS = 2000;
+  const [retryCount, setRetryCount] = createSignal(0);
+  let retryTimer: ReturnType<typeof setTimeout> | null = null;
+
+  onCleanup(() => {
+    if (retryTimer) {
+      clearTimeout(retryTimer);
+      retryTimer = null;
+    }
+  });
 
   const mediaType = createMemo<"movie" | "tv" | null>(() => {
     const b = props.baseItem();
@@ -367,12 +382,28 @@ const WhereToWatch: Component<WhereToWatchProps> = (props) => {
       if (!res.ok) {
         setRows(null);
         setLoaded(true);
+        // Chunk 6E: schedule a single retry on HTTP error. Bounded by
+        // MAX_RETRIES so we don't loop forever.
+        scheduleRetry();
         return;
       }
       const body = (await res.json()) as AvailabilityApiResponse;
       if (!body || !Array.isArray(body.offers)) {
         setRows(null);
         setLoaded(true);
+        scheduleRetry();
+        return;
+      }
+      // Chunk 6E: if offers came back empty, schedule a retry — the
+      // JustWatch resolution may have failed transiently (rate limit,
+      // search index lag, etc.) and a retry after 2s often succeeds.
+      // The server no longer caches empty results (Chunk 6E Task 1),
+      // so the retry will hit JustWatch again rather than returning
+      // the same empty cache row.
+      if (body.offers.length === 0) {
+        setRows(null);
+        setLoaded(true);
+        scheduleRetry();
         return;
       }
       setRows(normalizeOffers(body.offers));
@@ -385,7 +416,27 @@ const WhereToWatch: Component<WhereToWatchProps> = (props) => {
       );
       setRows(null);
       setLoaded(true);
+      scheduleRetry();
     }
+  };
+
+  /**
+   * Schedule a single retry after RETRY_DELAY_MS, up to MAX_RETRIES
+   * total. The retry only fires if the component is still mounted
+   * (cleanup clears the timer) and the props/country key hasn't
+   * changed (the effect resets retryCount when the key changes).
+   */
+  const scheduleRetry = () => {
+    if (retryTimer) {
+      clearTimeout(retryTimer);
+      retryTimer = null;
+    }
+    if (retryCount() >= MAX_RETRIES) return;
+    const next = retryCount() + 1;
+    retryTimer = setTimeout(() => {
+      setRetryCount(next);
+      void loadProviders();
+    }, RETRY_DELAY_MS);
   };
 
   // CHUNK 6B FIX: Changed from `onMount` to `createEffect` watching
@@ -417,11 +468,24 @@ const WhereToWatch: Component<WhereToWatchProps> = (props) => {
       setRows(null);
       setLoaded(false);
       lastFetchedKey = "";
+      // Chunk 6E: reset retry counter when props change.
+      if (retryTimer) {
+        clearTimeout(retryTimer);
+        retryTimer = null;
+      }
+      setRetryCount(0);
       return;
     }
     const key = `${mt}:${id}:${reg}`;
     if (key === lastFetchedKey) return; // already fetched for this title+region
     lastFetchedKey = key;
+    // Chunk 6E: reset retry counter when the key changes (new title or
+    // new region → fresh retry budget).
+    if (retryTimer) {
+      clearTimeout(retryTimer);
+      retryTimer = null;
+    }
+    setRetryCount(0);
     void loadProviders();
   });
 

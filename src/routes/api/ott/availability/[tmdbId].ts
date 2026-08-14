@@ -204,6 +204,13 @@ export async function GET(event: APIEvent): Promise<Response> {
       result = null;
     }
 
+    // Chunk 6E: temporary diagnostic log — helps diagnose intermittent
+    // Where to Watch emptiness in Vercel preview. Will be removed in
+    // a later cleanup chunk.
+    console.log(
+      `[OTT availability route] type=${mediaType} tmdbId=${tmdbId} country=${country} title=${title ?? ""} year=${releaseYear ?? ""} resolved=${result?.nodeId ?? "none"} offers=${result?.offers?.length ?? 0} source=${queryCountry ? "query-override" : "session-resolver"}`
+    );
+
     if (!result || !result.offers || result.offers.length === 0) {
       return new Response(
         JSON.stringify({ tmdbId, mediaType, country, offers: [] }),

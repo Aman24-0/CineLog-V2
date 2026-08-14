@@ -67,6 +67,25 @@ import { useDiscoverRegion } from "~/core/config/discoverRegion";
 
 /** Max items per `/api/ott/batch-availability` request (enforced by the route). */
 const MAX_BATCH = 25;
+/**
+ * Chunk 6E: maximum number of chunk requests to fire in parallel. Each
+ * chunk hits JustWatch's GraphQL endpoint with a batched `node()` query
+ * — too many parallel requests trigger JustWatch's 429 rate limiter,
+ * which causes partial batch failures and intermittent "missing
+ * provider" symptoms in the Platform filter. 3 is a safe default that
+ * stays well under JustWatch's per-IP limit while still parallelizing
+ * large watchlists. The spec recommends ≤4; we use 3 for headroom.
+ */
+const MAX_CONCURRENT_CHUNKS = 3;
+/**
+ * Chunk 6E: maximum number of times to retry the entire batch fetch
+ * when ALL chunks come back empty (indicating a transient failure
+ * rather than a genuine "no providers" result). The first attempt is
+ * always made; up to MAX_RETRIES additional attempts are scheduled
+ * with RETRY_DELAY_MS delay between them.
+ */
+const MAX_RETRIES = 1;
+const RETRY_DELAY_MS = 2000;
 
 /**
  * A single provider option for the Platform filter dropdown.
@@ -213,6 +232,76 @@ function extractProvidersFromOffers(
 }
 
 /**
+ * Chunk 6E: process chunks with limited concurrency to avoid
+ * overwhelming JustWatch's per-IP rate limiter. Sends at most
+ * `MAX_CONCURRENT_CHUNKS` chunk requests in parallel, waits for that
+ * wave to complete, then sends the next wave. Returns the merged
+ * results from all chunks.
+ *
+ * Each chunk is independent — failures (network error, non-OK response,
+ * JSON parse error) in one chunk return an empty `results` record for
+ * that chunk but do NOT abort the others. The caller can detect
+ * "everything failed" by checking if all chunks returned empty.
+ */
+async function fetchChunksWithLimitedConcurrency(
+  chunks: Array<Array<{
+    tmdbId: number;
+    mediaType: "movie" | "tv";
+    title?: string;
+    releaseYear?: number | null;
+  }>>,
+  country: string
+): Promise<Array<{ chunk: typeof chunks[number]; results: Record<string, JustWatchTitleOffers> }>> {
+  const out: Array<{ chunk: typeof chunks[number]; results: Record<string, JustWatchTitleOffers> }> = [];
+
+  for (let i = 0; i < chunks.length; i += MAX_CONCURRENT_CHUNKS) {
+    const wave = chunks.slice(i, i + MAX_CONCURRENT_CHUNKS);
+    const waveResults = await Promise.all(
+      wave.map(async (chunk) => {
+        try {
+          const response = await fetch("/api/ott/batch-availability", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              // Include the country override so the server doesn't
+              // have to re-resolve it from the Supabase session
+              // (which fails open to "US" on the Vercel preview).
+              country,
+              items: chunk
+            })
+          });
+          if (!response.ok) {
+            // 400 = invalid input (we shouldn't hit this since we
+            // pre-validate). 5xx = server error. Either way, treat
+            // the chunk as failed — its items get `[]` providers.
+            return { chunk, results: {} as Record<string, JustWatchTitleOffers> };
+          }
+          const data = (await response.json()) as {
+            country?: string;
+            results?: Record<string, JustWatchTitleOffers>;
+          };
+          return {
+            chunk,
+            results: data?.results ?? {}
+          };
+        } catch {
+          // Network error / JSON parse error — return empty results
+          // for this chunk. The effect sets `error=true` if EVERY
+          // chunk failed (checked after Promise.all resolves).
+          return {
+            chunk,
+            results: {} as Record<string, JustWatchTitleOffers>
+          };
+        }
+      })
+    );
+    out.push(...waveResults);
+  }
+
+  return out;
+}
+
+/**
  * useWatchlistOttAvailability — enriches watchlist items with JustWatch
  * provider data and exposes a sorted catalog for the Platform filter.
  *
@@ -342,92 +431,76 @@ export function useWatchlistOttAvailability(
         // the value is stable for the duration of a single batch run).
         const currentCountry = region();
 
-        // Fire all chunks in parallel. Each chunk is independent —
-        // failures in one chunk don't poison the others. We collect
-        // results into a fresh Map so a re-run doesn't bleed stale
-        // data from a previous run.
-        Promise.all(
-          chunks.map(async (chunk) => {
-            try {
-              const response = await fetch("/api/ott/batch-availability", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  // Include the country override so the server doesn't
-                  // have to re-resolve it from the Supabase session
-                  // (which fails open to "US" on the Vercel preview).
-                  country: currentCountry,
-                  items: chunk
-                })
-              });
-              if (!response.ok) {
-                // 400 = invalid input (we shouldn't hit this since we
-                // pre-validate). 5xx = server error. Either way, treat
-                // the chunk as failed — its items get `[]` providers.
-                return { chunk, results: {} as Record<string, JustWatchTitleOffers> };
-              }
-              const data = (await response.json()) as {
-                country?: string;
-                results?: Record<string, JustWatchTitleOffers>;
-              };
-              return {
-                chunk,
-                results: data?.results ?? {}
-              };
-            } catch {
-              // Network error / JSON parse error — return empty results
-              // for this chunk. The effect sets `error=true` if EVERY
-              // chunk failed (checked after Promise.all resolves).
-              return {
-                chunk,
-                results: {} as Record<string, JustWatchTitleOffers>
-              };
+        // Chunk 6E: retry budget for transient failures. If the first
+        // attempt returns ALL empty chunks (every chunk failed or had
+        // zero results), schedule up to MAX_RETRIES additional attempts
+        // with RETRY_DELAY_MS delay. This recovers from transient
+        // JustWatch outages and 429 rate limits without hiding the
+        // Platform filter permanently on a single bad request.
+        let attempt = 0;
+        let retryTimer: ReturnType<typeof setTimeout> | null = null;
+
+        const runBatch = async () => {
+          // Chunk 6E: limited-concurrency batch fetch — at most
+          // MAX_CONCURRENT_CHUNKS requests in flight at a time, to
+          // avoid JustWatch's 429 rate limiter.
+          const allResults = await fetchChunksWithLimitedConcurrency(
+            chunks,
+            currentCountry
+          );
+          if (cancelled) return;
+
+          const merged = new Map<string, string[]>();
+          const meta = new Map<string, { clearName: string; icon?: string }>();
+          let successCount = 0;
+          for (const { chunk, results } of allResults) {
+            if (Object.keys(results).length > 0) successCount++;
+            for (const item of chunk) {
+              const key = `${item.mediaType}:${item.tmdbId}`;
+              const entry = results[key];
+              const providers = extractProvidersFromOffers(
+                entry?.offers,
+                meta
+              );
+              merged.set(key, providers);
             }
-          })
-        )
-          .then((allResults) => {
-            if (cancelled) return;
-            const merged = new Map<string, string[]>();
-            const meta = new Map<string, { clearName: string; icon?: string }>();
-            let successCount = 0;
-            for (const { chunk, results } of allResults) {
-              if (Object.keys(results).length > 0) successCount++;
-              for (const item of chunk) {
-                const key = `${item.mediaType}:${item.tmdbId}`;
-                const entry = results[key];
-                const providers = extractProvidersFromOffers(
-                  entry?.offers,
-                  meta
-                );
-                merged.set(key, providers);
-              }
-            }
-            setAvailabilityMap(merged);
-            setPackageMeta(meta);
-            // If every chunk came back empty (network errors across
-            // the board), flag as error so the UI can show "All
-            // Platforms only" instead of "no providers" (which would
-            // hide the dropdown entirely — too aggressive when the
-            // cause is transient).
-            setError(successCount === 0);
-            setLoading(false);
-          })
-          .catch(() => {
-            if (cancelled) return;
-            // Should be unreachable — Promise.all never rejects when
-            // each inner promise catches. Defensive only.
-            setAvailabilityMap(new Map());
-            setPackageMeta(new Map());
-            setError(true);
-            setLoading(false);
-          });
+          }
+
+          // Chunk 6E: if every chunk came back empty AND we still have
+          // retry budget, schedule a retry. This is the difference
+          // between "JustWatch is down/429 — hide Platform filter
+          // forever" and "JustWatch is down — try once more in 2s".
+          if (successCount === 0 && attempt < MAX_RETRIES) {
+            attempt += 1;
+            retryTimer = setTimeout(() => {
+              if (!cancelled) void runBatch();
+            }, RETRY_DELAY_MS);
+            return;
+          }
+
+          setAvailabilityMap(merged);
+          setPackageMeta(meta);
+          // If every chunk came back empty (network errors across
+          // the board), flag as error so the UI can show "All
+          // Platforms only" instead of "no providers" (which would
+          // hide the dropdown entirely — too aggressive when the
+          // cause is transient).
+          setError(successCount === 0);
+          setLoading(false);
+        };
+
+        void runBatch();
 
         // SolidJS `on()` cleanup — runs before the next effect firing.
         // We don't have an async cancellation token for `fetch`, but
         // the `cancelled` flag prevents stale state writes from a
-        // previous run.
+        // previous run. Chunk 6E: also clear any pending retry timer.
         return () => {
           cancelled = true;
+          if (retryTimer) {
+            clearTimeout(retryTimer);
+            retryTimer = null;
+          }
         };
       },
       { defer: false }

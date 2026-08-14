@@ -199,13 +199,19 @@ export async function resolveTitleToJustWatchNode(input: {
   }
 
   // 1. Cache read (best-effort — never blocks the live search)
+  //    Chunk 6E: also guard against stale/null cached nodeIds — if a
+  //    previous bug ever wrote an empty-string nodeId, treat it as a
+  //    cache miss so we re-resolve instead of returning a known-bad
+  //    value forever.
   try {
     const cached = await getCachedTitleMapping(
       input.mediaType,
       input.tmdbId,
       input.country
     );
-    if (cached) return cached;
+    if (cached && typeof cached === "string" && cached.length > 0) {
+      return cached;
+    }
   } catch (err) {
     console.warn(
       "[justwatch/service] resolveTitleToJustWatchNode: cache read threw:",
@@ -244,13 +250,31 @@ export async function resolveTitleToJustWatchNode(input: {
   }
 
   if (!results || results.length === 0) {
+    // Chunk 6E: do NOT cache a failed resolution. Returning null here
+    // without writing to the cache means the next request will retry
+    // JustWatch — important when the failure was transient (rate limit,
+    // outage) or when JustWatch hasn't indexed the title yet.
+    console.log(
+      `[OTT resolve] no results type=${input.mediaType} tmdbId=${input.tmdbId} country=${input.country} title=${input.title}`
+    );
     return null;
   }
 
   const nodeId = results[0].nodeId;
-  if (!nodeId) return null;
+  if (!nodeId || typeof nodeId !== "string" || nodeId.length === 0) {
+    // Defensive: search returned a result but no nodeId — do NOT cache.
+    console.log(
+      `[OTT resolve] empty nodeId type=${input.mediaType} tmdbId=${input.tmdbId} country=${input.country} title=${input.title}`
+    );
+    return null;
+  }
 
-  // 4. Cache write (best-effort)
+  console.log(
+    `[OTT resolve] OK type=${input.mediaType} tmdbId=${input.tmdbId} country=${input.country} nodeId=${nodeId} title=${input.title} candidates=${results.length}`
+  );
+
+  // 4. Cache write (best-effort) — only on successful resolution with a
+  //    non-empty nodeId.
   try {
     await upsertTitleMapping(
       input.mediaType,
@@ -302,13 +326,25 @@ export async function getTitleOttAvailability(input: {
   validateCountry(input.country);
 
   // 1. Cache read (best-effort — never blocks the live fetch)
+  //    Chunk 6E: guard against stale cache rows whose `offers` array is
+  //    empty. A previous bug (or a future regression) could have written
+  //    a row with `offers: []`. Treat such rows as a miss so we re-fetch
+  //    live instead of returning empty forever.
   try {
     const cached = await getCachedOttAvailability(
       input.mediaType,
       input.tmdbId,
       input.country
     );
-    if (cached) {
+    if (
+      cached &&
+      cached.justwatchNodeId &&
+      Array.isArray(cached.offers) &&
+      cached.offers.length > 0
+    ) {
+      console.log(
+        `[OTT availability] cache hit type=${input.mediaType} tmdbId=${input.tmdbId} country=${input.country} nodeId=${cached.justwatchNodeId} offers=${cached.offers.length}`
+      );
       return {
         nodeId: cached.justwatchNodeId,
         offers: cached.offers
@@ -333,7 +369,12 @@ export async function getTitleOttAvailability(input: {
     title: input.title,
     releaseYear: input.releaseYear ?? null
   });
-  if (!nodeId) return null;
+  if (!nodeId) {
+    console.log(
+      `[OTT availability] resolve FAILED type=${input.mediaType} tmdbId=${input.tmdbId} country=${input.country} title=${input.title}`
+    );
+    return null;
+  }
 
   // 3. Fetch offers
   let result: JustWatchTitleOffers | null;
@@ -352,10 +393,19 @@ export async function getTitleOttAvailability(input: {
   }
 
   if (!result || !result.offers || result.offers.length === 0) {
+    // Chunk 6E: do NOT cache empty offers — a transient JustWatch
+    // outage or indexing delay should not poison the cache for 48h.
+    console.log(
+      `[OTT availability] no offers type=${input.mediaType} tmdbId=${input.tmdbId} country=${input.country} nodeId=${nodeId} title=${input.title}`
+    );
     return null;
   }
 
-  // 4. Cache write (best-effort)
+  console.log(
+    `[OTT availability] cache miss OK type=${input.mediaType} tmdbId=${input.tmdbId} country=${input.country} nodeId=${nodeId} offers=${result.offers.length} title=${input.title}`
+  );
+
+  // 4. Cache write (best-effort) — only when offers are non-empty.
   try {
     await upsertOttAvailability(
       input.mediaType,
@@ -463,7 +513,15 @@ export async function batchGetTitleOttAvailability(input: {
         err instanceof Error ? err.message : String(err)
       );
     }
-    if (cached) {
+    // Chunk 6E: skip cache rows with empty offers — treat as a miss.
+    // A previous bug could have written an empty-offers row; we don't
+    // want to return that forever.
+    if (
+      cached &&
+      cached.justwatchNodeId &&
+      Array.isArray(cached.offers) &&
+      cached.offers.length > 0
+    ) {
       result[`${item.mediaType}:${item.tmdbId}`] = {
         nodeId: cached.justwatchNodeId,
         offers: cached.offers
@@ -495,7 +553,12 @@ export async function batchGetTitleOttAvailability(input: {
     (r): r is { item: (typeof uncached)[number]; nodeId: string } => r !== null
   );
 
-  if (toFetch.length === 0) return result;
+  if (toFetch.length === 0) {
+    console.log(
+      `[OTT batch] all resolved-failed country=${input.country} uncached=${uncached.length}`
+    );
+    return result;
+  }
 
   // 3. Batch fetch offers for all resolved node IDs
   const nodeIds = toFetch.map((r) => r.nodeId);
@@ -511,15 +574,25 @@ export async function batchGetTitleOttAvailability(input: {
       "[justwatch/service] batchGetTitleOttAvailability: batchGetJustWatchOffers threw:",
       err instanceof Error ? err.message : String(err)
     );
+    console.log(
+      `[OTT batch] fetch FAILED country=${input.country} nodeIds=${nodeIds.length}`
+    );
     return result;
   }
+
+  console.log(
+    `[OTT batch] fetch OK country=${input.country} nodeIds=${nodeIds.length} returned=${Object.keys(batched).length}`
+  );
 
   // 4. Match each item to its batched offers, upsert cache, merge.
   //    Cache write errors are caught per-item so one bad write doesn't
   //    lose the rest of the batch's results.
+  //    Chunk 6E: only cache when offers are non-empty — never write
+  //    empty offers to the cache (would poison it for 48h).
   for (const { item, nodeId } of toFetch) {
     const offerResult = batched[nodeId];
     if (!offerResult || !offerResult.offers || offerResult.offers.length === 0) {
+      // Skip — do NOT cache empty.
       continue;
     }
 
