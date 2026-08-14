@@ -643,8 +643,8 @@ The "Where to Watch takes too much vertical space" symptom had ONE root cause:
 
 
 ### Chunk 6F Commit & Push
-- Commit hash: `41429e6`
+- Commit hash: `156b549` (initial commit was `41429e6` before the worklog-hash-amend)
 - Commit message: `fix: keep Watchlist Platform filter visible and compact Where to Watch rows`
 - Files in commit: 7 (justwatch_migration_worklog.md, src/features/details/components/WhereToWatch.tsx, src/features/watchlist/components/FilterControls.tsx, src/features/watchlist/components/VaultFiltersContent.tsx, src/features/watchlist/hooks/useWatchlistOttAvailability.ts, src/features/watchlist/useVaultFiltering.ts, src/styles/features/details.css)
-- Push status: see below.
+- Push status: PUSHED to `origin/Justwatch` (range `cc4883c..156b549`) using the credentials embedded in the existing `origin` remote URL.
 
