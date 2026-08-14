@@ -823,7 +823,7 @@ The Task 1 raw JSON logs will confirm whether the server is actually sending key
 - Build (`./node_modules/.bin/vinxi build`): PASS — `✔ build done` / `✔ Nitro Server built` / `✔ You can deploy this build using npx vercel deploy --prebuilt`. Verified the bundled output (`WatchlistView-EKCawr4d.js`) contains all 3 new diagnostic log strings (`[Watchlist OTT] raw keys JSON`, `[Watchlist OTT] first raw result`, `[Watchlist OTT] sample enriched item` / `no item has justwatchProviders`) and the `replace(/\s+/g, "")` regex literal from the `normalizeOttKey` helper.
 
 ### Chunk 6H Commit & Push
-- Commit hash: `713265b`
+- Commit hash: `84ce384`
 - Commit message: `fix: normalize OTT batch response keys and fix watchlist platform provider mapping`
 - Files in commit: 2 (justwatch_migration_worklog.md, src/features/watchlist/hooks/useWatchlistOttAvailability.ts)
-- Push status: <TO_BE_FILLED_AFTER_PUSH>
+- Push status: PUSHED to `origin/Justwatch` (range `22466c4..84ce384`) using the credentials embedded in the existing `origin` remote URL.
