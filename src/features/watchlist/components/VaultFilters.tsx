@@ -4,13 +4,17 @@ import { Portal } from "solid-js/web";
 import Icon from "~/shared/ui/Icon";
 import { useVault } from "../useVault";
 import type { VaultFilters as FilterType } from "~/shared/types";
+import type { PlatformFilterOption } from "../hooks/useWatchlistOttAvailability";
 import VaultFiltersContent from "./VaultFiltersContent";
 
 interface VaultFiltersProps {
   filters: FilterType;
   setFilters: (filters: FilterType) => void;
   uniqueGenres: string[];
-  uniquePlatforms: string[];
+  /** JustWatch provider catalog (Chunk 6). Empty while loading / on
+   *  error / when no items have any offer — the Platform dropdown is
+   *  hidden in those cases (see VaultFiltersContent). */
+  uniquePlatforms: PlatformFilterOption[];
   uniqueTags: string[];
   /** Union of tag vocabulary + tags in use. Phase 6.2 Task 1a. */
   uniqueTagsPlus: string[];

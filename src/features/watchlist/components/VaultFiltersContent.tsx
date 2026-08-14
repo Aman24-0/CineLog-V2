@@ -11,6 +11,7 @@ import type { VaultFilters as FilterType } from "~/shared/types";
 import type { FilterPreset } from "~/shared/types";
 import { useVault } from "../useVault";
 import { addTagDefinition, removeTagDefinition } from "../tagStore";
+import type { PlatformFilterOption } from "../hooks/useWatchlistOttAvailability";
 
 /**
  * VaultFiltersContent — the scrollable body of the filter drawer.
@@ -19,8 +20,12 @@ import { addTagDefinition, removeTagDefinition } from "../tagStore";
  *   - REMOVED Status filter (now handled by header status chips).
  *   - Type + Region converted from <select> dropdowns to horizontal
  *     selectable chip rows (FilterChips component).
- *   - Platform filter uses the dynamic TMDB provider list from
- *     streamingProviders preference (passed via uniquePlatforms).
+ *   - Platform filter uses the JustWatch provider catalog derived
+ *     from the user's watchlist availability in their profile country
+ *     (passed via `uniquePlatforms: PlatformFilterOption[]`). The
+ *     dropdown is HIDDEN when the catalog is empty (loading, fetch
+ *     error, or no items have any JustWatch offer) — per Chunk 6
+ *     Task 6.3 "Prefer hide".
  *   - Metric inputs (IMDb, RT, Year, Runtime) use dark-theme polished
  *     numeric inputs (.filter-range-input class) instead of plain white
  *     text inputs.
@@ -44,7 +49,12 @@ export interface VaultFiltersContentProps {
   filters: FilterType;
   setFilters: (v: FilterType) => void;
   uniqueGenres: string[];
-  uniquePlatforms: string[];
+  /** Platform filter options derived from JustWatch availability of
+   *  the watchlist items in the user's country. Empty while the
+   *  batch-availability fetch is in flight, on error, or when no
+   *  watchlist item has any JustWatch offer — in all three cases the
+   *  Platform dropdown is HIDDEN (per Chunk 6 Task 6.3 "Prefer hide"). */
+  uniquePlatforms: PlatformFilterOption[];
   uniqueTags: string[];
   /** Union of tag vocabulary + tags in use. Drives the Tag filter dropdown
    *  and the Manage Tags list. Phase 6.2 Task 1a. */
@@ -177,18 +187,39 @@ export default function VaultFiltersContent(props: VaultFiltersContentProps) {
               ...props.uniqueGenres.map((g) => ({ l: g, v: g }))
             ]}
           />
-          {/* Platform — custom dark-glass dropdown populated from the user's
-              vault platformsList data (uniquePlatforms from useVaultFiltering).
-              Same GlassSelect pattern as Genre above. */}
-          <GlassSelect
-            label="Platform"
-            val={props.filters.platform}
-            set={(v) => batchedSet({ platform: v })}
-            opts={[
-              { l: "All Platforms", v: "all" },
-              ...props.uniquePlatforms.map((p) => ({ l: p, v: p }))
-            ]}
-          />
+          {/* Platform — JustWatch provider catalog (Chunk 6).
+              Each option's value is the JustWatch `technicalName` (what
+              `matchesPlatform` compares against `m.justwatchProviders`);
+              the label is the human-readable `clearName`.
+
+              HIDES when the catalog is empty — this covers three cases
+              uniformly (Chunk 6 Task 6):
+                1. Batch-availability fetch in flight (loading).
+                2. Fetch failed (network / parse / server error).
+                3. No watchlist item has any JustWatch offer in country.
+              "Prefer hide" is the chosen behavior — falling back to a
+              disabled "All Platforms" only would be confusing because
+              the user wouldn't know whether the dropdown is loading,
+              broken, or genuinely empty. Hiding removes ambiguity.
+
+              If a Platform filter was already active when the catalog
+              becomes empty (e.g. user removed all watchlist items),
+              we reset it to "all" so the chip + dropdown don't show a
+              stale technicalName that no longer matches anything. */}
+          <Show when={props.uniquePlatforms.length > 0}>
+            <GlassSelect
+              label="Platform"
+              val={props.filters.platform}
+              set={(v) => batchedSet({ platform: v })}
+              opts={[
+                { l: "All Platforms", v: "all" },
+                ...props.uniquePlatforms.map((p) => ({
+                  l: p.clearName,
+                  v: p.technicalName
+                }))
+              ]}
+            />
+          </Show>
           {/* Tag — RE-ADDED in Phase 6.2 Task 1a.
               Shows the union of (tag vocabulary in localStorage) ∪ (tags
               currently in use on vault items). When the user picks a tag,

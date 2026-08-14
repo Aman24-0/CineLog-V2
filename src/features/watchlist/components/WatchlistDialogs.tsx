@@ -1,6 +1,7 @@
 // src/features/watchlist/components/WatchlistDialogs.tsx
 import { Show, Suspense, lazy, type Accessor } from "solid-js";
 import type { VaultFilters, WatchlistItem } from "~/shared/types";
+import type { PlatformFilterOption } from "../hooks/useWatchlistOttAvailability";
 
 const VaultFilters = lazy(() => import("./VaultFilters"));
 
@@ -17,7 +18,10 @@ export interface WatchlistDialogsProps {
   filters: Accessor<VaultFilters>;
   setFilters: (v: VaultFilters) => void;
   uniqueGenres: Accessor<string[]>;
-  uniquePlatforms: Accessor<string[]>;
+  /** JustWatch provider catalog (Chunk 6). Empty while loading / on
+   *  error / when no items have any offer — the Platform dropdown is
+   *  hidden in those cases (see VaultFiltersContent). */
+  uniquePlatforms: Accessor<PlatformFilterOption[]>;
   uniqueTags: Accessor<string[]>;
   /** Union of (tag vocabulary in localStorage) ∪ (tags in use on items).
    *  Phase 6.2 Task 1a — drives the Tags filter dropdown + Manage Tags list. */

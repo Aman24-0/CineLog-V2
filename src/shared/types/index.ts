@@ -95,8 +95,32 @@ export interface WatchlistItem {
   platformsList?: string[];
   /** Streaming/watch providers (e.g. ["Netflix", "Prime Video"]). Sometimes
    *  populated by the watch-provider enrichment step. The Platform filter
-   *  checks this field in addition to `platformsList` and `watchProgress.server`. */
+   *  checks this field in addition to `platformsList` and `watchProgress.server`.
+   *
+   *  @deprecated Since the JustWatch OTT migration (Chunk 6) — the Platform
+   *  filter now reads `justwatchProviders` (JustWatch `technicalName` values)
+   *  instead of this legacy TMDB-derived field. Kept for backward compat
+   *  with vault items that still carry TMDB watch-provider strings. */
   providers?: string[];
+  /**
+   * JustWatch OTT providers for this title, as an array of JustWatch
+   * `package.technicalName` values (e.g. `["netflix", "apple.tv.plus"]`).
+   *
+   * Populated by the `useWatchlistOttAvailability` hook, which batch-fetches
+   * JustWatch availability for every item in the watchlist via
+   * `POST /api/ott/batch-availability` and stores the unique provider
+   * technicalNames per item.
+   *
+   * The Watchlist Platform filter (Chunk 6+) reads THIS field — NOT
+   * `providers`, `platformsList`, or `watchProgress.server`. Items with
+   * `undefined` or empty `justwatchProviders` are excluded from the
+   * filtered list when a specific platform is selected.
+   *
+   * `undefined` = availability not yet fetched (initial load).
+   * `[]`        = fetched, but the title has no JustWatch offers in the
+   *               user's country (excluded from any specific platform).
+   */
+  justwatchProviders?: string[];
   /** TMDB origin_country (e.g. ["IN", "US"]). Used by the Region filter to
    *  detect Indian vs International titles when the explicit `region` field
    *  is missing. Populated by the TMDB enrichment step. */
