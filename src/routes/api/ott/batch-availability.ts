@@ -65,6 +65,18 @@ interface BatchItem {
 
 interface BatchRequestBody {
   items?: BatchItem[];
+  /**
+   * Optional client-supplied country override (Chunk 6D). When present
+   * and a valid 2-letter ISO code, this takes precedence over
+   * `resolveJustWatchCountry(request)`. The client uses this to pass
+   * the user's profile country (from `useDiscoverRegion()`) so the
+   * server doesn't have to re-resolve it from the Supabase session —
+   * which can fail on the Vercel preview when the session cookie isn't
+   * forwarded to the serverless function.
+   */
+  country?: string;
+  /** Alias for `country` — same precedence. */
+  region?: string;
 }
 
 const CACHE_HEADERS_SUCCESS = {
@@ -160,6 +172,20 @@ function cleanItem(raw: unknown): BatchItem | null {
   return { tmdbId, mediaType, title, releaseYear };
 }
 
+// ─── Country override (Chunk 6D) ─────────────────────────────────────
+// See `providers.ts` for the long rationale. Same helper, same precedence:
+//   1. body.country / body.region if valid 2-letter code
+//   2. resolveJustWatchCountry(request) (server-side session resolver)
+//   3. "US" defensive fallback
+
+function normalizeCountry(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const upper = trimmed.toUpperCase();
+  return /^[A-Z]{2}$/.test(upper) ? upper : null;
+}
+
 // ─── POST handler ────────────────────────────────────────────────────
 
 export async function POST(event: APIEvent): Promise<Response> {
@@ -190,17 +216,18 @@ export async function POST(event: APIEvent): Promise<Response> {
       );
     }
 
-    // ── Clean + validate each item ────────────────────────────────
-    const items: BatchItem[] = [];
-    for (const raw of body.items) {
-      const cleaned = cleanItem(raw);
-      if (cleaned) items.push(cleaned);
-    }
-
-    if (items.length === 0) {
-      // Resolve country even for empty batches so the response shape
-      // is consistent. Never throws.
-      let country = "US";
+    // ── Resolve country ────────────────────────────────────────────
+    // Precedence (Chunk 6D):
+    //   1. body.country / body.region if valid 2-letter code.
+    //   2. resolveJustWatchCountry(request) (Supabase session cookie).
+    //   3. "US" defensive fallback.
+    // We resolve country ONCE per request and reuse it for both the
+    // empty-batch short-circuit and the main batch fetch below.
+    const bodyCountry = normalizeCountry(body.country ?? body.region);
+    let country = "US";
+    if (bodyCountry) {
+      country = bodyCountry;
+    } else {
       try {
         country = await resolveJustWatchCountry(event.request);
       } catch (err) {
@@ -209,20 +236,21 @@ export async function POST(event: APIEvent): Promise<Response> {
           err instanceof Error ? err.message : String(err)
         );
       }
+    }
+
+    // ── Clean + validate each item ────────────────────────────────
+    const items: BatchItem[] = [];
+    for (const raw of body.items) {
+      const cleaned = cleanItem(raw);
+      if (cleaned) items.push(cleaned);
+    }
+
+    if (items.length === 0) {
+      // Empty batch — return the resolved country so the response shape
+      // is consistent with the non-empty path.
       return new Response(
         JSON.stringify({ country, results: {} }),
         { status: 200, headers: { ...corsHeaders, ...CACHE_HEADERS_SUCCESS } }
-      );
-    }
-
-    // ── Resolve country (anonymous → "US", never throws) ───────────
-    let country = "US";
-    try {
-      country = await resolveJustWatchCountry(event.request);
-    } catch (err) {
-      console.warn(
-        "[/api/ott/batch-availability] resolveJustWatchCountry threw:",
-        err instanceof Error ? err.message : String(err)
       );
     }
 

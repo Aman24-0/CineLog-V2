@@ -105,21 +105,58 @@ function buildCorsHeaders(request: Request): Record<string, string> {
   };
 }
 
+// ─── Country override (Chunk 6D) ─────────────────────────────────────
+// The client knows the user's profile country reactively via
+// `useDiscoverRegion()` (a global signal kept in sync with the
+// `profiles.country` column). On the Vercel preview, server-side
+// `resolveJustWatchCountry()` may fall back to "US" because the Supabase
+// session cookie isn't always present on the serverless request (e.g.
+// when the route is hit via a fetch without credentials, or when the
+// session token has expired). Accepting a `region` / `country` query
+// param lets the client hand its already-known country to the route,
+// which is the same pattern the audio-languages admin route uses for its
+// `region` override. The override is validated as a 2-letter ISO code;
+// any invalid value is dropped and we fall back to the server resolver.
+
+/**
+ * Validate and normalize a country code from a query param.
+ * Accepts any 2-letter string, uppercases it. Returns null for invalid
+ * input so the caller can fall back to `resolveJustWatchCountry`.
+ */
+function normalizeCountry(value: string | null): string | null {
+  if (!value) return null;
+  const upper = value.trim().toUpperCase();
+  return /^[A-Z]{2}$/.test(upper) ? upper : null;
+}
+
 // ─── GET handler ─────────────────────────────────────────────────────
 
 export async function GET(event: APIEvent): Promise<Response> {
   const corsHeaders = buildCorsHeaders(event.request);
   try {
+    // Parse the optional region/country query override. `region` is the
+    // preferred name (matches the audio-languages admin route); `country`
+    // is accepted as an alias for caller convenience.
+    const url = new URL(event.request.url);
+    const queryCountry = normalizeCountry(
+      url.searchParams.get("region") ?? url.searchParams.get("country")
+    );
+
     let country = "US";
-    try {
-      country = await resolveJustWatchCountry(event.request);
-    } catch (err) {
-      // resolveJustWatchCountry already catches internally — this is a
-      // defensive backstop in case a future refactor introduces a throw.
-      console.warn(
-        "[/api/ott/providers] resolveJustWatchCountry threw:",
-        err instanceof Error ? err.message : String(err)
-      );
+    if (queryCountry) {
+      // Client-supplied override wins — skip the Supabase round-trip.
+      country = queryCountry;
+    } else {
+      try {
+        country = await resolveJustWatchCountry(event.request);
+      } catch (err) {
+        // resolveJustWatchCountry already catches internally — this is a
+        // defensive backstop in case a future refactor introduces a throw.
+        console.warn(
+          "[/api/ott/providers] resolveJustWatchCountry threw:",
+          err instanceof Error ? err.message : String(err)
+        );
+      }
     }
 
     let providers: JustWatchPackage[];

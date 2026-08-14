@@ -46,6 +46,7 @@ import {
 } from "solid-js";
 import type { Accessor } from "solid-js";
 import { useFeatureFlags } from "~/lib/featureFlags";
+import { useDiscoverRegion } from "~/core/config/discoverRegion";
 import type { WatchlistItem, TMDBDetails } from "~/shared/types";
 import type { JustWatchOffer, JustWatchMonetizationType } from "~/shared/types/justwatch";
 import DetailSection from "~/features/details/components/DetailSection";
@@ -277,6 +278,13 @@ const MONETIZATION_ORDER: JustWatchMonetizationType[] = [
 
 const WhereToWatch: Component<WhereToWatchProps> = (props) => {
   const featureFlags = useFeatureFlags();
+  // Chunk 6D: read the global Discover region (kept in sync with
+  // `profiles.country` via `setDiscoverRegion()`) so we can pass it to
+  // the OTT API route as a `region` query param. This is the same
+  // source of truth the Settings page uses — see `useSettingsState`.
+  // Falls back to the default region ("IN") when no user override is
+  // set, which is the correct behavior for the JustWatch API.
+  const region = useDiscoverRegion();
   const [rows, setRows] = createSignal<ProviderRow[] | null>(null);
   const [loaded, setLoaded] = createSignal(false);
 
@@ -345,6 +353,14 @@ const WhereToWatch: Component<WhereToWatchProps> = (props) => {
       if (title) params.set("title", title);
       const year = yearForLookup();
       if (year !== null) params.set("year", String(year));
+      // Chunk 6D: pass the user's Discover region so the route uses
+      // the user's profile country (e.g. "IN") instead of falling back
+      // to "US" on the serverless function. The route validates this
+      // as a 2-letter code; an invalid value is dropped server-side.
+      const reg = region();
+      if (reg && /^[A-Za-z]{2}$/.test(reg)) {
+        params.set("region", reg.toUpperCase());
+      }
 
       const url = `/api/ott/availability/${id}?${params.toString()}`;
       const res = await fetch(url, { method: "GET" });
@@ -381,23 +397,30 @@ const WhereToWatch: Component<WhereToWatchProps> = (props) => {
   // the user navigates to a different title within the same modal
   // (which reuses the component with new props).
   //
-  // We guard against duplicate fetches by checking `loaded()` — if a
-  // fetch is already in progress for the current `tmdbId`/`mediaType`,
-  // the effect's first run sets `loaded(false)` then the async callback
-  // sets `loaded(true)`. The effect re-runs only when `tmdbId()` or
-  // `mediaType()` actually change value (SolidJS dedupes signal reads).
+  // CHUNK 6D: also depend on `region()` so the section re-fetches if
+  // the user changes their country in Settings while the modal is
+  // open. The `lastFetchedKey` now includes the region so a country
+  // change is treated as a new fetch (not deduped).
+  //
+  // We guard against duplicate fetches by checking `lastFetchedKey` —
+  // if a fetch is already in progress for the current
+  // `tmdbId`/`mediaType`/`region`, the effect's first run sets
+  // `loaded(false)` then the async callback sets `loaded(true)`. The
+  // effect re-runs only when the key actually changes value (SolidJS
+  // dedupes signal reads).
   let lastFetchedKey = "";
   createEffect(() => {
     const id = tmdbId();
     const mt = mediaType();
+    const reg = region();
     if (id === null || mt === null) {
       setRows(null);
       setLoaded(false);
       lastFetchedKey = "";
       return;
     }
-    const key = `${mt}:${id}`;
-    if (key === lastFetchedKey) return; // already fetched for this title
+    const key = `${mt}:${id}:${reg}`;
+    if (key === lastFetchedKey) return; // already fetched for this title+region
     lastFetchedKey = key;
     void loadProviders();
   });

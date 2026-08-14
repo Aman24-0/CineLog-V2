@@ -63,6 +63,7 @@ import type {
   JustWatchPackage,
   JustWatchTitleOffers
 } from "~/shared/types/justwatch";
+import { useDiscoverRegion } from "~/core/config/discoverRegion";
 
 /** Max items per `/api/ott/batch-availability` request (enforced by the route). */
 const MAX_BATCH = 25;
@@ -220,6 +221,12 @@ function extractProvidersFromOffers(
 export function useWatchlistOttAvailability(
   watchlist: Accessor<WatchlistItem[]>
 ): UseWatchlistOttAvailabilityResult {
+  // Chunk 6D: read the global Discover region so we can pass it as the
+  // `country` field in the batch request body. The route uses this as
+  // an override (taking precedence over the server-side session-based
+  // resolver, which fails open to "US" on the Vercel preview).
+  const region = useDiscoverRegion();
+
   // Map keyed by `${mediaType}:${tmdbId}` → list of JustWatch
   // `technicalName` values for that title. `null` = fetch in progress
   // or never attempted; the enriched memo falls back to the raw item.
@@ -238,19 +245,33 @@ export function useWatchlistOttAvailability(
   const [error, setError] = createSignal(false);
 
   // ── Trigger effect ────────────────────────────────────────────────
-  // Fires when the watchlist signature changes (items added/removed).
-  // `on()` with `defer: false` runs immediately on mount and on every
-  // signature change. We use `createMemo` to compute the signature
-  // (cached between reactive reads) and `on()` to gate the effect on
+  // Fires when the watchlist signature OR the user's region changes
+  // (Chunk 6D — region is now part of the dependency key so the batch
+  // re-fetches if the user switches country in Settings). `on()` with
+  // `defer: false` runs immediately on mount and on every signature
+  // change. We use `createMemo` to compute the signature (cached
+  // between reactive reads) and `on()` to gate the effect on
   // signature equality (avoids re-fetching when only item content
   // changes, e.g. favorite toggled).
-  const signature = createMemo(() => watchlistSignature(watchlist()));
+  const signature = createMemo(() => {
+    // Read region() inside the memo so the memo re-computes when the
+    // region changes — the returned signature string includes the
+    // region, which makes `on()` see a different value and re-fires
+    // the effect.
+    const reg = region();
+    return `${reg}|${watchlistSignature(watchlist())}`;
+  });
 
   createEffect(
     on(
       signature,
       (sig) => {
-        if (!sig) {
+        // The signature is `"${region}|${watchlistSig}"`. region is
+        // always a 2-letter code (never empty — defaults to "IN"), so
+        // we use the watchlist portion to detect an empty watchlist.
+        // When empty, we still want to reset state and bail out.
+        const watchlistSig = sig.includes("|") ? sig.slice(sig.indexOf("|") + 1) : sig;
+        if (!watchlistSig) {
           // Empty watchlist — no fetch needed. Reset state so the
           // Platform filter hides cleanly.
           setAvailabilityMap(new Map());
@@ -313,6 +334,14 @@ export function useWatchlistOttAvailability(
         setLoading(true);
         setError(false);
 
+        // Chunk 6D: pass the user's Discover region as the `country`
+        // field in the request body so the route uses the user's
+        // profile country (e.g. "IN") instead of falling back to "US"
+        // on the Vercel preview. Read once here so all chunks in this
+        // run use the same value (the region signal is reactive but
+        // the value is stable for the duration of a single batch run).
+        const currentCountry = region();
+
         // Fire all chunks in parallel. Each chunk is independent —
         // failures in one chunk don't poison the others. We collect
         // results into a fresh Map so a re-run doesn't bleed stale
@@ -323,7 +352,13 @@ export function useWatchlistOttAvailability(
               const response = await fetch("/api/ott/batch-availability", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ items: chunk })
+                body: JSON.stringify({
+                  // Include the country override so the server doesn't
+                  // have to re-resolve it from the Supabase session
+                  // (which fails open to "US" on the Vercel preview).
+                  country: currentCountry,
+                  items: chunk
+                })
               });
               if (!response.ok) {
                 // 400 = invalid input (we shouldn't hit this since we

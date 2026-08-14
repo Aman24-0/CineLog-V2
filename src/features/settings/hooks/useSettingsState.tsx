@@ -507,18 +507,26 @@ export function useSettingsState(): SettingsState {
     try {
       // Stage 5 Chunk 4: providers now come from the JustWatch-backed
       // /api/ott/providers route instead of TMDB's
-      // /watch/providers/{movie,tv} endpoints. The route resolves the
-      // caller's country from their profile (falling back to "US" for
-      // anonymous users), so the `reg` argument is no longer used to
-      // select the country — it's kept in the signature (renamed to
-      // `_reg` to satisfy the unused-args lint rule) to preserve the
-      // existing onMount + createEffect call sites and to trigger a
-      // re-fetch when the user changes their Discover region.
+      // /watch/providers/{movie,tv} endpoints.
+      //
+      // Stage 5 Chunk 6D: pass the client-known region as a `region`
+      // query param so the server uses the user's profile country
+      // directly instead of trying to re-resolve it from the Supabase
+      // session (which fails open to "US" on the Vercel preview when
+      // the session cookie isn't forwarded to the serverless function).
+      // The `region()` signal here is the SAME source of truth as the
+      // server-side `profiles.country` column — it's kept in sync via
+      // `setDiscoverRegion()` whenever `handleSaveCountry` runs.
       //
       // The route returns { country, providers: JustWatchPackage[] }.
       // JustWatchPackage and JustWatchProviderItem have identical
       // shapes, so the cast is a no-op at runtime.
-      const res = await fetch("/api/ott/providers", { method: "GET" });
+      const reg = region();
+      const url =
+        reg && /^[A-Za-z]{2}$/.test(reg)
+          ? `/api/ott/providers?region=${encodeURIComponent(reg.toUpperCase())}`
+          : "/api/ott/providers";
+      const res = await fetch(url, { method: "GET" });
       if (!res.ok) {
         console.warn(
           "[settings] /api/ott/providers returned HTTP",

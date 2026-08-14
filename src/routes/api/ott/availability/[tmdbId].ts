@@ -108,6 +108,19 @@ function buildCorsHeaders(request: Request): Record<string, string> {
   };
 }
 
+// ─── Country override (Chunk 6D) ─────────────────────────────────────
+// See the long comment in `providers.ts` for the rationale. Identical
+// helper, identical precedence: client-supplied `region` / `country`
+// query param wins if it's a valid 2-letter code; otherwise we fall
+// back to `resolveJustWatchCountry(request)` (which itself fails open
+// to "US").
+
+function normalizeCountry(value: string | null): string | null {
+  if (!value) return null;
+  const upper = value.trim().toUpperCase();
+  return /^[A-Z]{2}$/.test(upper) ? upper : null;
+}
+
 // ─── GET handler ─────────────────────────────────────────────────────
 
 export async function GET(event: APIEvent): Promise<Response> {
@@ -150,15 +163,27 @@ export async function GET(event: APIEvent): Promise<Response> {
       releaseYear = Number.isFinite(parsed) && parsed > 0 ? parsed : null;
     }
 
-    // ── Resolve country (anonymous → "US", never throws) ───────────
+    // ── Resolve country ────────────────────────────────────────────
+    // Precedence (Chunk 6D):
+    //   1. `region` / `country` query param if valid 2-letter code.
+    //   2. `resolveJustWatchCountry(request)` (reads the Supabase
+    //      session cookie, falls back to "US" on anonymous/error).
+    //   3. "US" defensive fallback.
     let country = "US";
-    try {
-      country = await resolveJustWatchCountry(event.request);
-    } catch (err) {
-      console.warn(
-        "[/api/ott/availability] resolveJustWatchCountry threw:",
-        err instanceof Error ? err.message : String(err)
-      );
+    const queryCountry = normalizeCountry(
+      url.searchParams.get("region") ?? url.searchParams.get("country")
+    );
+    if (queryCountry) {
+      country = queryCountry;
+    } else {
+      try {
+        country = await resolveJustWatchCountry(event.request);
+      } catch (err) {
+        console.warn(
+          "[/api/ott/availability] resolveJustWatchCountry threw:",
+          err instanceof Error ? err.message : String(err)
+        );
+      }
     }
 
     // ── Fetch offers (cache-first, never throws) ──────────────────

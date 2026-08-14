@@ -348,3 +348,85 @@ encountered.
 - Commit message: `fix: allow JustWatch images in CSP and make OTT routes/cache resilient in preview`
 - Files in commit: 8 (justwatch_migration_worklog.md, vercel.json, src/server/justwatch/cache.ts, src/server/justwatch/service.ts, src/server/justwatch/region.ts, src/routes/api/ott/providers.ts, src/routes/api/ott/availability/[tmdbId].ts, src/routes/api/ott/batch-availability.ts)
 - Push status: PUSHED to `origin/Justwatch` (range `3427d15..7bc6362`) using the user-supplied PAT (one-shot explicit push URL — NOT written to `.git/config`).
+
+## Chunk 6D — Country override and Where to Watch resolution
+
+### Task 1: Add client country override to OTT API routes
+- Modified: src/routes/api/ott/providers.ts
+- Modified: src/routes/api/ott/availability/[tmdbId].ts
+- Modified: src/routes/api/ott/batch-availability.ts
+- Status: COMPLETE
+- Validation:
+  - `./node_modules/.bin/tsc --noEmit` — 0 errors in modified files (18 pre-existing errors in OTHER files: Vite `import.meta.env` typing gaps + 2 `Object is possibly undefined` in `src/routes/movie/[id].tsx` and `src/routes/tv/[id].tsx` — unchanged).
+  - `./node_modules/.bin/eslint src/routes/api/ott/providers.ts src/routes/api/ott/availability/[tmdbId].ts src/routes/api/ott/batch-availability.ts` — PASS, exit 0, 0 errors, 0 warnings.
+  - `./node_modules/.bin/vinxi build` — PASS — `✔ build done` / `✔ Nitro Server built`. Verified the bundled output (`providers.js`, `_tmdbId_4.js`, `batch-availability2.js`) contains the new `normalizeCountry` helper and the `region`/`country` query (or body) override logic.
+- Errors and fixes: none.
+- Notes:
+  - **Root cause (Issue 2/3/4 — country stuck at "US")**: All three OTT routes called `resolveJustWatchCountry(request)` which reads the Supabase session cookie to look up `profiles.country`. On the Vercel preview, the session cookie isn't always forwarded to the serverless function (depends on `SameSite`, `Domain`, and the preview URL's host not matching the cookie's host), so the resolver fails open to `"US"`. Result: Settings provider catalog showed only US providers (no JioHotstar/Zee5/SonyLIV), Where to Watch returned US offers (often empty for Indian titles), and the Watchlist Platform filter derived US providers like Fandango.
+  - **Fix**: Accept an optional client-supplied country override. The client already knows the user's profile country reactively via `useDiscoverRegion()` (a global signal kept in sync with `profiles.country` via `setDiscoverRegion()` whenever the user picks a country in Settings). Passing it to the route as a query/body param skips the Supabase round-trip entirely.
+  - **`providers.ts`**: Added `normalizeCountry()` helper (validates 2-letter ISO code, uppercases). Reads `url.searchParams.get("region") ?? url.searchParams.get("country")`. If valid → use it. Else fall back to `resolveJustWatchCountry(request)`. Else `"US"` defensive fallback.
+  - **`availability/[tmdbId].ts`**: Same helper, same precedence. The route already parses URLSearchParams for `type`/`title`/`year` — added `region`/`country` next to them.
+  - **`batch-availability.ts`**: Extended `BatchRequestBody` interface with optional `country?: string` and `region?: string` fields. `normalizeCountry()` accepts `unknown` (since the body is parsed from JSON). Same precedence: body.country / body.region → `resolveJustWatchCountry` → `"US"`. Country is resolved ONCE per request and reused for both the empty-batch short-circuit and the main batch fetch (avoids the duplicate resolver call that existed before).
+  - **`region` vs `country` naming**: `region` is the preferred name (matches the audio-languages admin route's `region` override); `country` is accepted as an alias for caller convenience. Both work on all three routes.
+  - The override is validated as a 2-letter ISO 3166-1 alpha-2 code. Any invalid value (3-letter codes, lowercase without proper format, numbers, etc.) is silently dropped and we fall back to the server resolver — never throws, never returns 400.
+
+### Task 2: Pass profile country from client
+- Modified: src/features/settings/hooks/useSettingsState.tsx
+- Modified: src/features/details/components/WhereToWatch.tsx
+- Modified: src/features/watchlist/hooks/useWatchlistOttAvailability.ts
+- Status: COMPLETE
+- Validation: tsc + eslint + build all pass (see Task 1 validation block).
+- Errors and fixes: none.
+- Notes:
+  - **Country source**: `useDiscoverRegion()` from `src/core/config/discoverRegion.ts` is the single source of truth for the app's "watch region". It's a module-level SolidJS signal that defaults to `"IN"` and is updated via `setDiscoverRegion()` whenever the user picks a country in Settings (`handleSaveCountry` calls it after the Supabase `profiles.update` succeeds). The signal is reactive — every consumer re-runs when the country changes.
+  - **Settings provider fetch (Task 2A)**: `loadProviders(_reg)` now reads `region()` and builds the URL as `/api/ott/providers?region=${encodeURIComponent(reg.toUpperCase())}` when `reg` is a valid 2-letter code. The `_reg` parameter (passed by the `onMount` and `createEffect` call sites) is still ignored in favor of the reactive `region()` signal — kept in the signature for backwards compatibility with the existing call sites.
+  - **Where to Watch fetch (Task 2B)**: Imported `useDiscoverRegion` and added `const region = useDiscoverRegion()` at the top of the component. The `loadProviders` async function now sets `params.set("region", reg.toUpperCase())` when `reg` is valid. The `createEffect`'s `lastFetchedKey` is now `${mt}:${id}:${reg}` so a country change re-fires the fetch (instead of being deduped).
+  - **Watchlist batch (Task 2C)**: Imported `useDiscoverRegion`. The `useWatchlistOttAvailability` hook now reads `const region = useDiscoverRegion()` and includes `country: currentCountry` in the POST body. The `signature` memo is now `${reg}|${watchlistSig}` so a country change re-fires the batch fetch — otherwise the watchlist would show stale US providers after the user switches to IN. The empty-watchlist check was updated to inspect just the `watchlistSig` portion (the composite signature is always truthy since `region()` never returns empty).
+
+### Task 3: Ensure WhereToWatch passes title and year
+- Modified: src/features/details/components/WhereToWatch.tsx (already covered in Task 2B)
+- Status: COMPLETE
+- Validation: tsc + eslint + build all pass.
+- Notes:
+  - **Already in place**: The `WhereToWatch` component already had `titleForLookup` and `yearForLookup` memos that extract title/year from `props.details()` and `props.baseItem()` (added in Chunk 5). The `loadProviders` async function already built a `URLSearchParams` with `type`, `title`, and `year`. This task's only addition was adding `region` to the same params object.
+  - **DetailsModal call site**: `<WhereToWatch baseItem={baseItem} details={tmdb} />` — already passes both accessors. `baseItem` is a `WatchlistItem` accessor with `title`, `name`, `original_title`, `original_name`, `release_date`, `first_air_date`. `tmdb` is a `TMDBDetails` accessor with the same fields. No changes needed at the call site.
+  - **Effect re-runs on title/year availability**: The `createEffect` already depends on `tmdbId()` and `mediaType()` (which are derived from `props.details()` and `props.baseItem()` via `createMemo`). When the modal opens and TMDB details load asynchronously, the memos update → the effect re-fires → `loadProviders` runs with the now-available title/year. The new `region()` dependency follows the same pattern.
+
+### Task 4: Fix watchlist country and items
+- Modified: src/features/watchlist/hooks/useWatchlistOttAvailability.ts (already covered in Task 2C)
+- Status: COMPLETE
+- Validation: tsc + eslint + build all pass.
+- Notes:
+  - **Country**: `country: currentCountry` is now included in the POST body sent to `/api/ott/batch-availability`. The route uses it as the override (Chunk 6D Task 1).
+  - **Items**: Each item already includes `tmdbId`, `mediaType`, `title` (if available), `releaseYear` (if available). The `title` is derived from `it.title || it.name || it.original_title || it.original_name`. The `releaseYear` is parsed from `it.release_date || it.first_air_date` (first 4 chars as a number). Items without a title still go in the batch — the server will hit the per-title cache; on a cache miss without a title, the resolver returns null and the item gets `[]` providers.
+  - **Result mapping**: Unchanged — `result[`${item.mediaType}:${item.tmdbId}`] = offerResult`. The hook's `extractProvidersFromOffers` then collects unique `package.technicalName` values per item, which the Platform filter reads via `matchesPlatform` in `vaultFilterUtils.ts`.
+
+### Task 5: Verify provider catalog fallback logic
+- Status: COMPLETE — no changes needed.
+- Validation: re-read `src/server/justwatch/service.ts` and confirmed Chunk 6C's resilience wrapping is intact.
+- Notes:
+  - `getProviderCatalog(country)`: cache read wrapped in try/catch (lines 120-130), live JustWatch fetch wrapped in try/catch (lines 134-142), cache write wrapped in try/catch (lines 152-159). Returns `[]` only when JustWatch itself returns empty.
+  - `getTitleOttAvailability`: cache read, offers fetch, and cache write all wrapped.
+  - `batchGetTitleOttAvailability`: per-item cache read wrapped, batch fetch wrapped, per-item cache write wrapped.
+  - `resolveTitleToJustWatchNode`: cache read + write wrapped.
+  - The final return is always the live JustWatch result whenever JustWatch succeeds, regardless of cache state. Cache failures NEVER cause an empty return.
+
+### Files NOT modified
+- `src/server/justwatch/region.ts` — no changes needed. The resolver already fails open to `"US"` on missing token / missing env / Supabase error. The Chunk 6D fix is to bypass it entirely when the client supplies a valid country.
+- `src/server/justwatch/cache.ts` — no changes needed. Lazy init + null-on-failure from Chunk 6C is intact.
+- `src/server/justwatch/service.ts` — no changes needed. Cache resilience from Chunk 6C is intact.
+- `src/features/settings/components/StreamingProvidersSection.tsx` — no changes needed. The component reads `s.providers()` (loaded by `useSettingsState`'s `loadProviders`); with Task 2A the providers are now country-correct.
+- `src/features/details/DetailsModal/DetailsModal.tsx` — no changes needed. Already passes `baseItem={baseItem} details={tmdb}` to `WhereToWatch`, which is sufficient for title/year extraction.
+- `src/features/watchlist/useVaultFiltering.ts` — no changes needed. Consumes `useWatchlistOttAvailability` which now passes the country override.
+- `src/shared/types/index.ts` — no changes needed. `WatchlistItem` already has `release_date`/`first_air_date`/`title`/`name`/`original_title`/`original_name`.
+- `src/core/config/discoverRegion.ts` — no changes needed. The signal + setter are already exported and used.
+- `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml` — not modified (per spec).
+- Discover "New on OTT", Upcoming, Statistics — not modified (per spec).
+- Old TMDB provider registry files — not deleted (per spec).
+
+### Chunk 6D Commit & Push
+- Commit hash: see `git log -1 origin/Justwatch` after push.
+- Commit message: `fix: add client country override to OTT routes and pass title/year to Where to Watch`
+- Files in commit: 7 (justwatch_migration_worklog.md, src/routes/api/ott/providers.ts, src/routes/api/ott/availability/[tmdbId].ts, src/routes/api/ott/batch-availability.ts, src/features/settings/hooks/useSettingsState.tsx, src/features/details/components/WhereToWatch.tsx, src/features/watchlist/hooks/useWatchlistOttAvailability.ts)
+- Push status: see "Push" section below.
+
