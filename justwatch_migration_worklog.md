@@ -1399,3 +1399,146 @@ THE FIX (Chunk 6K Task 3): move extraction INTO `enrichedItems` at read time. Th
 - Files in commit: 7 (justwatch_migration_worklog.md + 6 source files)
 - Commit hash: `59e6c5c` (full SHA: `59e6c5cc02c3041c16a200956081589ac053f706`)
 - Push status: PUSHED to `origin/Justwatch` (range `be47727..59e6c5c`) using the user-supplied PAT (one-shot explicit push URL — NOT written to `.git/config`).
+
+## Chunk 6P — Visible progress and timeout for OTT batch fetch
+### Task: Add visible progress and 20s hard timeout to Watchlist OTT debug
+- Status: IN-PROGRESS
+- User-reported state: `DEBUG: watchlist=1046 state=loading loading=true catalog=0 keys=(none yet) error=none` stays forever.
+- Goal: add `effectRunId` (so we can see if the effect is restarting in a loop) and `chunkProgress` (so we can see if chunks are resolving) to the visible debug UI, plus a 20-second hard timeout that flips the state to `error` with a `timeout after 20000ms; progress=…` message if the fetch hangs.
+
+### Task 1: Add effectRunId + chunkProgress signals
+- Modified: `src/features/watchlist/hooks/useWatchlistOttAvailability.ts`
+- Status: COMPLETE
+- Added two new signals next to the existing `fetchState`/`fetchError` (Chunk 6O):
+  - `const [effectRunId, setEffectRunId] = createSignal<number>(0);` — monotonic counter that bumps at the start of every effect run that actually begins a fetch (i.e. the cache-miss path that calls `setLoading(true)`). Lets the visible debug UI distinguish "stuck on a single run" (runId stable, state=loading, progress=0/N forever) from "restarting in a loop" (runId keeps climbing while state=loading).
+  - `const [chunkProgress, setChunkProgress] = createSignal<string>("");` — `${done}/${total}` string updated by the `onChunkDone` callback passed to `fetchChunksWithLimitedConcurrency` after each chunk resolves. Stays at `0/${total}` until the first wave of MAX_CONCURRENT_CHUNKS requests completes, then bumps by 1 per chunk.
+- Added both to `UseWatchlistOttAvailabilityResult` interface + the hook's return object.
+
+### Task 2: Update effect start
+- Modified: `src/features/watchlist/hooks/useWatchlistOttAvailability.ts`
+- Status: COMPLETE
+- Inserted at the top of the cache-miss fetch path (BEFORE `setLoading(true)`):
+  ```ts
+  const runId = effectRunId() + 1;
+  setEffectRunId(runId);
+  setChunkProgress(`0/${chunks.length}`);
+  ```
+- `runId` is captured in a closure local so the timeout callback (Task 4) can verify the signal still belongs to THIS run (vs. a new effect firing and starting a new fetch with a new runId).
+- `chunks.length` is computed above this point (the `for` loop that splits `fetchItems` into ≤25-item chunks), so `0/${chunks.length}` is the correct total.
+- The existing `setLoading(true)`, `setError(false)`, `setFetchState("loading")`, `setFetchError("")` calls remain unchanged — they fire AFTER the runId/progress setup, matching the spec's prescribed order (runId → progress → loading → state → error).
+
+### Task 3: Report progress as chunks complete
+- Modified: `src/features/watchlist/hooks/useWatchlistOttAvailability.ts` (signature of `fetchChunksWithLimitedConcurrency`)
+- Status: COMPLETE
+- Added an optional `onChunkDone?: (done: number, total: number) => void` parameter to `fetchChunksWithLimitedConcurrency`.
+- Inside the wave loop, after `out.push(...waveResults)`, added a `for` loop that bumps `done` by 1 per chunk in the wave and calls `onChunkDone(done, total)`. This fires once per chunk (not once per wave), so progress is as granular as possible — for a 42-chunk batch with MAX_CONCURRENT_CHUNKS=3, the user sees `0/42 → 3/42 → 6/42 → ... → 42/42`.
+- Both success and failure chunks count as "completed" for progress purposes — a failed chunk still resolves the Promise (the `catch` block returns an empty-result object), so it's still a unit of progress.
+- At the call site inside `runBatch`, passed the callback:
+  ```ts
+  const allResults = await fetchChunksWithLimitedConcurrency(
+    chunks,
+    currentCountry,
+    (done, total) => setChunkProgress(`${done}/${total}`)
+  );
+  ```
+
+### Task 4: Add 20-second hard timeout
+- Modified: `src/features/watchlist/hooks/useWatchlistOttAvailability.ts`
+- Status: COMPLETE
+- Added a `setTimeout` in the effect scope, right after `setFetchError("")`:
+  ```ts
+  const timeoutMs = 20_000;
+  const timeout = setTimeout(() => {
+    if (fetchState() === 'loading' && effectRunId() === runId) {
+      cancelled = true;
+      setLoading(false);
+      setFetchState("error");
+      setFetchError(`timeout after ${timeoutMs}ms; progress=${chunkProgress()}`);
+    }
+  }, timeoutMs);
+  ```
+- The `effectRunId() === runId` guard prevents a stale timeout from a previous run firing on a new run (which would have its own fresh `loading` state).
+- The `fetchState() === 'loading'` guard prevents firing after the run already completed (Path G or Path H).
+- The timeout ALSO sets `cancelled = true` so that if the in-flight fetch eventually resolves LATER (after the timeout fired), the Path E `if (cancelled) return;` check bails out and does NOT override the timeout's error state with a stale success/error from the late-completing fetch. Without this, the user would briefly see `error=timeout…` then it would flip to `state=success` (or a different error) when the slow fetch finally landed — confusing.
+- `clearTimeout(timeout)` is called in EVERY terminal/cancel path:
+  - **Path E** (cancelled after fetch resolves) — clear, this run is done.
+  - **Path G** (terminal success/error, no more retries) — clear, the fetch completed within budget.
+  - **Path H** (runBatch threw unexpectedly) — clear at the start of the `.catch()` handler.
+  - **Cleanup function** (effect re-fire or unmount) — clear, the new run has its own fresh timeout.
+- **Path F** (retry scheduled) does NOT clear the timeout — the 20s budget covers ALL retries for this effect run. If attempt 1 takes 15s and fails, the retry has only 5s left before the timeout fires. This is intentional: a retry that takes another 15s would push the total to 30s+, which is too long for the user to wait without feedback.
+
+### Task 5: Update visible debug UI
+- Modified: `src/features/watchlist/components/VaultFiltersContent.tsx` (+ prop wiring through `useVaultFiltering.ts`, `VaultFilters.tsx`, `WatchlistDialogs.tsx`, `WatchlistView.tsx`)
+- Status: COMPLETE
+- Added `effectRunId: number` and `chunkProgress: string` to `VaultFiltersContentProps`.
+- Extended the existing multi-line debug `<p>` to show 2 new fields:
+  ```
+  DEBUG:
+  watchlist=<size>
+  state=<fetchState>
+  loading=<true/false>
+  catalog=<catalogSize>
+  run=<effectRunId>
+  progress=<chunkProgress || "(none yet)">
+  keys=<first 3 raw keys JSON or "(none yet)">
+  error=<fetchError or "none">
+  ```
+- Same orange (#ff8c00) styling, monospace font, `white-space: pre-wrap`, `word-break: break-all`.
+- Prop chain wired through all 4 parent components:
+  - `useVaultFiltering` — added `effectRunId` + `chunkProgress` to `UseVaultFilteringResult`, destructured from `useWatchlistOttAvailability`, re-exported.
+  - `VaultFilters` — added `effectRunId` + `chunkProgress` to `VaultFiltersProps`, forwarded to `VaultFiltersContent`.
+  - `WatchlistDialogs` — added `effectRunId` + `chunkProgress` to `WatchlistDialogsProps`, forwarded to `VaultFilters`.
+  - `WatchlistView` — destructured `effectRunId` + `chunkProgress` from `useVaultFiltering`, passed to BOTH the inline desktop `VaultFiltersContent` AND the modal `WatchlistDialogs`.
+
+### Files Modified
+- `src/features/watchlist/hooks/useWatchlistOttAvailability.ts`:
+  - Added `effectRunId` + `chunkProgress` signals + their types in `UseWatchlistOttAvailabilityResult`.
+  - Added `onChunkDone?: (done: number, total: number) => void` parameter to `fetchChunksWithLimitedConcurrency`; calls it once per chunk after the wave resolves.
+  - At effect start: bumps `effectRunId`, sets `chunkProgress` to `0/${chunks.length}`.
+  - Inside `runBatch`: passes an `onChunkDone` callback that updates `chunkProgress`.
+  - Added a 20s `setTimeout` that flips state to `error` with `timeout after 20000ms; progress=…` if the fetch hangs. Sets `cancelled = true` so a late-resolving fetch can't override the timeout state.
+  - Added `clearTimeout(timeout)` in Path E (cancelled), Path G (terminal), Path H (runBatch threw), and the cleanup function. Path F (retry) deliberately does NOT clear — the 20s budget covers all retries.
+  - Added `effectRunId` + `chunkProgress` to the hook's return object.
+- `src/features/watchlist/useVaultFiltering.ts`:
+  - Added `effectRunId` + `chunkProgress` to `UseVaultFilteringResult`.
+  - Destructured both from `useWatchlistOttAvailability`.
+  - Added both to the return object.
+- `src/features/watchlist/components/VaultFiltersContent.tsx`:
+  - Added `effectRunId` + `chunkProgress` to `VaultFiltersContentProps`.
+  - Extended the multi-line debug `<p>` to show 2 new fields (`run=` and `progress=`) — total 8 debug fields.
+- `src/features/watchlist/components/VaultFilters.tsx`:
+  - Added `effectRunId` + `chunkProgress` to `VaultFiltersProps`.
+  - Forwarded both to `VaultFiltersContent`.
+- `src/features/watchlist/components/WatchlistDialogs.tsx`:
+  - Added `effectRunId` + `chunkProgress` to `WatchlistDialogsProps`.
+  - Forwarded both to `VaultFilters`.
+- `src/features/watchlist/WatchlistView.tsx`:
+  - Destructured `effectRunId` + `chunkProgress` from `useVaultFiltering`.
+  - Passed both to inline `VaultFiltersContent` AND modal `WatchlistDialogs`.
+
+### Files NOT Modified (verified, no change needed)
+- `src/server/justwatch/*` — server-side code is correct.
+- `src/routes/api/ott/batch-availability.ts` — route is correct.
+- `src/shared/types/justwatch.ts` + `src/shared/types/index.ts` — types are correct.
+- `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml` — NOT modified (per spec).
+- Discover "New on OTT", Upcoming, Statistics, Where to Watch — NOT touched per spec.
+- Old TMDB provider registry files — NOT deleted per spec.
+- Existing Chunk 6E/6F/6G/6H/6I/6J/6K/6M/6N/6O temporary logs — NOT removed per spec.
+
+### Verification Results
+- TypeScript (`./node_modules/.bin/tsc --noEmit`): 0 errors in modified files. 2 pre-existing errors in OTHER files (`src/routes/movie/[id].tsx:306` and `src/routes/tv/[id].tsx:230` — `Object is possibly 'undefined'`). Verified pre-existing — NOT touched by this chunk.
+- ESLint (`./node_modules/.bin/eslint` on all 6 modified files): PASS, exit 0, 0 errors, 0 warnings.
+- Build (`./node_modules/.bin/vinxi build`): PASS — `✔ build done` / `✔ Nitro Server built` / `✔ You can deploy this build using npx vercel deploy --prebuilt`. Verified the bundled output (`WatchlistView-BCdAEDv_.js` in client build) contains:
+  - The extended multi-line debug template `DEBUG:` with all 8 fields (watchlist / state / loading / catalog / run / progress / keys / error).
+  - `effectRunId` references (9 matches).
+  - `chunkProgress` references (9 matches).
+  - The timeout error string template `timeout after ${U}ms` (1 match — minifier renamed the local `timeoutMs` to `U`).
+
+### Diagnostic Interpretation Guide
+When the user reports the new debug line, here's how to read it:
+- `state=loading run=N progress=0/42` stuck for >20s → the very FIRST wave of 3 chunk requests is hanging. Likely a network-level stall, a JustWatch 5xx that the route is slow to time out, or the route itself is hung. The 20s timeout will fire and flip to `state=error error=timeout after 20000ms; progress=0/42`.
+- `state=loading run=N progress=21/42` stuck for >20s → a MID-BATCH wave hung. The first 7 waves (21 chunks) landed fine, but wave 8 (chunks 22-24) is stuck. Same timeout behavior.
+- `state=loading run=N progress=42/42` stuck → all chunks resolved but the merge loop is hung (shouldn't happen — it's pure CPU). Or the timeout fired but the guard `fetchState() === 'loading'` failed somehow.
+- `state=loading run=1 → run=2 → run=3 → ...` (runId keeps climbing) → the effect is restarting in a loop. Each new run resets `progress=0/N`. This points to an upstream signal churn issue (the `signature` memo is re-computing on every parent re-render because `args.watchlist()` returns a fresh array reference). The in-memory cache (Chunk 6I) should prevent re-fetches, but if the cache TTL expired or the signature includes a volatile component, this is the failure mode.
+- `state=error error=timeout after 20000ms; progress=K/42` → the 20s hard timeout fired. `K` tells you how far the batch got before stalling.
+- `state=success run=1 progress=42/42 catalog=15` → everything worked. 42 chunks resolved, 15 unique providers landed in the catalog.

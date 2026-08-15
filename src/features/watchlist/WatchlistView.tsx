@@ -78,7 +78,11 @@ export default function WatchlistView() {
     // CHUNK 6O Task 1 — TEMPORARY debug accessors for the visible
     // debug line in the Platform filter modal.
     fetchState,
-    fetchError
+    fetchError,
+    // CHUNK 6P Task 1 — TEMPORARY debug accessors for the visible
+    // debug line in the Platform filter modal.
+    effectRunId,
+    chunkProgress
   } = filtering;
 
   // Infinite scroll — bump display limit when user nears the bottom.
@@ -205,6 +209,8 @@ export default function WatchlistView() {
                 watchlistSize={watchlist().length}
                 fetchState={fetchState()}
                 fetchError={fetchError()}
+                effectRunId={effectRunId()}
+                chunkProgress={chunkProgress()}
                 presets={presets}
                 onSavePreset={(name) => savePreset(name, filters())}
                 onDeletePreset={(id) => deletePreset(id)}
@@ -303,6 +309,8 @@ export default function WatchlistView() {
         watchlistSize={() => watchlist().length}
         fetchState={fetchState}
         fetchError={fetchError}
+        effectRunId={effectRunId}
+        chunkProgress={chunkProgress}
         onClose={() => setShowFilter(false)}
         onClear={() => {
           clearFilters();

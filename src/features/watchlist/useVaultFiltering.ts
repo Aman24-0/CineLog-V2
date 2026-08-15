@@ -126,6 +126,26 @@ export interface UseVaultFilteringResult {
    * other Chunk 6E-6N diagnostic logs.
    */
   fetchError: Accessor<string>;
+  /**
+   * CHUNK 6P Task 1 — TEMPORARY debug accessor. Monotonic counter
+   * that bumps every time the OTT fetch effect actually starts a
+   * fetch (cache-miss path). Surfaced in the visible debug line so
+   * the user can distinguish "stuck on a single run" (runId stable,
+   * state=loading, progress=0/N forever) from "restarting in a loop"
+   * (runId keeps climbing while state=loading). Will be removed
+   * alongside the other Chunk 6E-6O diagnostic logs.
+   */
+  effectRunId: Accessor<number>;
+  /**
+   * CHUNK 6P Task 1 — TEMPORARY debug accessor. `${done}/${total}`
+   * progress string updated as each chunk in the OTT batch resolves.
+   * Stays at `0/${total}` until the first wave of
+   * MAX_CONCURRENT_CHUNKS requests completes. Surfaced in the
+   * visible debug line so the user can see whether ANY chunks are
+   * landing (vs. the very first wave hanging). Will be removed
+   * alongside the other Chunk 6E-6O diagnostic logs.
+   */
+  chunkProgress: Accessor<string>;
   uniqueTags: Accessor<string[]>;
   /**
    * Union of the user's tag vocabulary (saved in localStorage) and the
@@ -255,7 +275,9 @@ export function useVaultFiltering(
     loading: ottLoading,
     debugRawKeys,
     fetchState,
-    fetchError
+    fetchError,
+    effectRunId,
+    chunkProgress
   } = ottAvailability;
 
   // ── UNIQUE VALUES — single-pass Set accumulation (no intermediate arrays) ──
@@ -451,6 +473,11 @@ export function useVaultFiltering(
     // the other Chunk 6E-6N diagnostic logs.
     fetchState,
     fetchError,
+    // CHUNK 6P Task 1 — TEMPORARY debug accessors for the visible
+    // debug line in VaultFiltersContent. Will be removed alongside
+    // the other Chunk 6E-6O diagnostic logs.
+    effectRunId,
+    chunkProgress,
     uniqueTags,
     uniqueTagsPlus,
     refreshTagVocab

@@ -103,6 +103,22 @@ export interface VaultFiltersContentProps {
    *  unless `fetchState` is `'error'`. Will be removed alongside the
    *  other Chunk 6E-6N diagnostic logs. */
   fetchError: string;
+  /** CHUNK 6P Task 1 — TEMPORARY debug prop. Monotonic counter that
+   *  bumps every time the OTT fetch effect actually starts a fetch
+   *  (cache-miss path). Surfaced in the visible debug line so the
+   *  user can distinguish "stuck on a single run" (runId stable,
+   *  state=loading, progress=0/N forever) from "restarting in a
+   *  loop" (runId keeps climbing while state=loading). Will be
+   *  removed alongside the other Chunk 6E-6O diagnostic logs. */
+  effectRunId: number;
+  /** CHUNK 6P Task 1 — TEMPORARY debug prop. `${done}/${total}`
+   *  progress string updated as each chunk in the OTT batch
+   *  resolves. Stays at `0/${total}` until the first wave of
+   *  MAX_CONCURRENT_CHUNKS requests completes. Surfaced in the
+   *  visible debug line so the user can see whether ANY chunks are
+   *  landing (vs. the very first wave hanging). Will be removed
+   *  alongside the other Chunk 6E-6O diagnostic logs. */
+  chunkProgress: string;
   presets: Accessor<FilterPreset[]>;
   onSavePreset: (name: string) => Promise<void>;
   onDeletePreset: (id: string) => void;
@@ -323,7 +339,19 @@ export default function VaultFiltersContent(props: VaultFiltersContentProps) {
                 - fetchError (human-readable error message) so the user
                   can see WHY the fetch failed (e.g. "all chunks
                   returned empty", "runBatch threw: ...") without
-                  opening the console. */}
+                  opening the console.
+              CHUNK 6P Task 5 — EXTENDED to also show:
+                - effectRunId (monotonic counter) so the user can tell
+                  whether the effect is stuck on a single run (runId
+                  stable, state=loading forever) or restarting in a
+                  loop (runId keeps climbing while state=loading).
+                - chunkProgress (`${done}/${total}`) so the user can
+                  see whether ANY chunks are landing (vs. the very
+                  first wave hanging — progress stays at 0/N).
+                - The 20s hard timeout (Task 4) will also flip state
+                  to `error` with `timeout after 20000ms; progress=…`
+                  if the fetch hangs, which will surface in the
+                  `error=` field. */}
           <p
             style={{
               "font-size": "11px",
@@ -344,6 +372,8 @@ watchlist=${props.watchlistSize}
 state=${props.fetchState}
 loading=${props.ottLoading ? "true" : "false"}
 catalog=${props.uniquePlatforms.length}
+run=${props.effectRunId}
+progress=${props.chunkProgress || "(none yet)"}
 keys=${props.debugRawKeys || "(none yet)"}
 error=${props.fetchError || "none"}`}
           </p>

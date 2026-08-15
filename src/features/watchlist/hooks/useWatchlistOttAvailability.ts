@@ -293,6 +293,36 @@ export interface UseWatchlistOttAvailabilityResult {
    * Will be removed alongside the other Chunk 6E-6N diagnostic logs.
    */
   fetchError: Accessor<string>;
+  /**
+   * CHUNK 6P Task 1 — TEMPORARY debug accessor. Monotonically
+   * increasing counter that bumps every time the effect that triggers
+   * `runBatch` fires. Surfaced in the visible debug line so the user
+   * can tell whether the effect is restarting in a loop (runId keeps
+   * climbing while `state=loading`) vs. stuck on a single run (runId
+   * stable, `state=loading`, `progress=0/total`).
+   *
+   * Will be removed alongside the other Chunk 6E-6O diagnostic logs.
+   */
+  effectRunId: Accessor<number>;
+  /**
+   * CHUNK 6P Task 1 — TEMPORARY debug accessor. Human-readable
+   * `${done}/${total}` progress string updated as each chunk in the
+   * batch resolves (success or failure). Stays at `0/${total}` until
+   * the first wave of `MAX_CONCURRENT_CHUNKS` requests resolves, then
+   * bumps by 1 per chunk. Reaches `${total}/${total}` when every chunk
+   * in the batch has resolved.
+   *
+   * If the user sees `progress=0/42` for >20 seconds, the very first
+   * wave is hung (likely a network-level stall or a JustWatch 5xx that
+   * the route is slow to time out). If they see `progress=21/42` stuck,
+   * a mid-batch wave hung — partial progress but the rest never
+   * resolves. Either way, the 20-second hard timeout (Task 4) will
+   * flip the state to `error` with `timeout after 20000ms;
+   * progress=…`.
+   *
+   * Will be removed alongside the other Chunk 6E-6O diagnostic logs.
+   */
+  chunkProgress: Accessor<string>;
 }
 
 /**
@@ -420,6 +450,15 @@ function extractProvidersFromOffers(
  * JSON parse error) in one chunk return an empty `results` record for
  * that chunk but do NOT abort the others. The caller can detect
  * "everything failed" by checking if all chunks returned empty.
+ *
+ * CHUNK 6P Task 3 — `onChunkDone` callback. After each chunk resolves
+ * (success or failure), the function calls `onChunkDone(done, total)`
+ * where `done` is the number of chunks that have completed so far and
+ * `total` is `chunks.length`. The caller uses this to update a
+ * `chunkProgress` signal so the visible debug UI can show whether ANY
+ * chunks are landing (vs. the very first wave hanging, which would
+ * mean a network-level stall or a JustWatch 5xx the route is slow to
+ * time out). The callback is optional and is a no-op when omitted.
  */
 async function fetchChunksWithLimitedConcurrency(
   chunks: Array<Array<{
@@ -428,9 +467,16 @@ async function fetchChunksWithLimitedConcurrency(
     title?: string;
     releaseYear?: number | null;
   }>>,
-  country: string
+  country: string,
+  onChunkDone?: (done: number, total: number) => void
 ): Promise<Array<{ chunk: typeof chunks[number]; results: Record<string, JustWatchTitleOffers>; rawKeys: string[] }>> {
   const out: Array<{ chunk: typeof chunks[number]; results: Record<string, JustWatchTitleOffers>; rawKeys: string[] }> = [];
+  // CHUNK 6P Task 3 — running count of chunks that have resolved so
+  // far (success or failure). Bumped by 1 inside the `waveResults.forEach`
+  // loop below, then passed to `onChunkDone` so the caller can render
+  // `${done}/${total}` progress in the visible debug UI.
+  let done = 0;
+  const total = chunks.length;
 
   for (let i = 0; i < chunks.length; i += MAX_CONCURRENT_CHUNKS) {
     const wave = chunks.slice(i, i + MAX_CONCURRENT_CHUNKS);
@@ -602,6 +648,21 @@ async function fetchChunksWithLimitedConcurrency(
       })
     );
     out.push(...waveResults);
+    // CHUNK 6P Task 3 — bump `done` once per chunk that resolved in
+    // this wave (success or failure — both count as "completed" for
+    // progress purposes) and notify the caller via `onChunkDone`. The
+    // caller updates a `chunkProgress` signal so the visible debug UI
+    // can show `${done}/${total}` progress.
+    //
+    // We notify AFTER `out.push` so the count is consistent with the
+    // number of results actually accumulated in `out`. We notify once
+    // per chunk (not once per wave) so progress is as granular as
+    // possible — for a 42-chunk batch with MAX_CONCURRENT_CHUNKS=3,
+    // the user sees 0/42 → 3/42 → 6/42 → ... → 42/42.
+    for (let r = 0; r < waveResults.length; r++) {
+      done += 1;
+      if (onChunkDone) onChunkDone(done, total);
+    }
   }
 
   return out;
@@ -661,6 +722,30 @@ export function useWatchlistOttAvailability(
     "idle" | "loading" | "success" | "error"
   >("idle");
   const [fetchError, setFetchError] = createSignal<string>("");
+
+  // CHUNK 6P Task 1 — TEMPORARY debug signals.
+  //
+  // `effectRunId` — monotonic counter that bumps at the start of every
+  // effect run that actually begins a fetch (i.e. the cache-miss path
+  // that calls `setLoading(true)`). Used by the visible debug UI to
+  // distinguish "the effect is stuck on a single run" (runId stable,
+  // state=loading, progress=0/N forever) from "the effect is restarting
+  // in a loop" (runId keeps climbing, state=loading flickers). Without
+  // this signal, both failure modes look identical to the user.
+  //
+  // `chunkProgress` — `${done}/${total}` string updated by the
+  // `onChunkDone` callback passed to `fetchChunksWithLimitedConcurrency`
+  // after each chunk resolves. Stays at `0/${total}` until the first
+  // wave of MAX_CONCURRENT_CHUNKS requests completes, then bumps by 1
+  // per chunk. Lets the user see whether ANY chunks are landing at all
+  // (vs. the very first wave hanging, which would mean a network-level
+  // stall or a JustWatch 5xx the route is slow to time out).
+  //
+  // Both are read by VaultFiltersContent and rendered in the visible
+  // debug line. Will be removed alongside the other Chunk 6E-6O
+  // diagnostic logs.
+  const [effectRunId, setEffectRunId] = createSignal<number>(0);
+  const [chunkProgress, setChunkProgress] = createSignal<string>("");
 
   // ── Trigger effect ────────────────────────────────────────────────
   // Fires when the watchlist signature OR the user's region changes
@@ -802,6 +887,18 @@ export function useWatchlistOttAvailability(
           chunks.push(fetchItems.slice(i, i + MAX_BATCH));
         }
 
+        // CHUNK 6P Task 2 — bump the effect run counter + initialize
+        // chunk progress BEFORE setLoading(true). `runId` is captured
+        // in a local so the timeout callback (Task 4) can verify the
+        // signal still belongs to THIS run (vs. a new effect firing
+        // and starting a new fetch with a new runId). `chunkProgress`
+        // starts at `0/${total}` and bumps by 1 per chunk as they
+        // resolve (see the `onChunkDone` callback passed to
+        // `fetchChunksWithLimitedConcurrency` below).
+        const runId = effectRunId() + 1;
+        setEffectRunId(runId);
+        setChunkProgress(`0/${chunks.length}`);
+
         let cancelled = false;
         setLoading(true);
         setError(false);
@@ -813,6 +910,39 @@ export function useWatchlistOttAvailability(
         // `'success'` or `'error'` when the fetch completes.
         setFetchState("loading");
         setFetchError("");
+
+        // CHUNK 6P Task 4 — 20-second hard timeout. If the fetch is
+        // still in flight after 20s (the user-reported symptom:
+        // `state=loading loading=true catalog=0 keys=(none yet)
+        // error=none` stays forever), flip the state to `error` with
+        // a `timeout after 20000ms; progress=…` message so the user
+        // can see EXACTLY how far the batch got before stalling.
+        //
+        // The `effectRunId() === runId` guard prevents a stale
+        // timeout from a previous run firing on a new run (which
+        // would have its own fresh `loading` state). The
+        // `fetchState() === 'loading'` guard prevents firing after
+        // the run already completed (Path G or Path H).
+        //
+        // We ALSO set `cancelled = true` so that if the in-flight
+        // fetch eventually resolves LATER (after the timeout fired),
+        // the Path E `if (cancelled) return;` check bails out and
+        // does NOT override the timeout's error state with a stale
+        // success/error from the late-completing fetch. Without this,
+        // the user would briefly see `error=timeout…` then it would
+        // flip to `state=success` (or a different error) when the
+        // slow fetch finally landed — confusing.
+        const timeoutMs = 20_000;
+        const timeout = setTimeout(() => {
+          if (fetchState() === 'loading' && effectRunId() === runId) {
+            cancelled = true;
+            setLoading(false);
+            setFetchState("error");
+            setFetchError(
+              `timeout after ${timeoutMs}ms; progress=${chunkProgress()}`
+            );
+          }
+        }, timeoutMs);
 
         // Chunk 6D: pass the user's Discover region as the `country`
         // field in the request body so the route uses the user's
@@ -835,20 +965,34 @@ export function useWatchlistOttAvailability(
           // Chunk 6E: limited-concurrency batch fetch — at most
           // MAX_CONCURRENT_CHUNKS requests in flight at a time, to
           // avoid JustWatch's 429 rate limiter.
+          //
+          // CHUNK 6P Task 3 — pass an `onChunkDone` callback that
+          // updates the `chunkProgress` signal after each chunk
+          // resolves. The visible debug UI reads this signal so the
+          // user can see whether ANY chunks are landing (vs. the very
+          // first wave hanging). The callback fires once per chunk,
+          // success or failure.
           const allResults = await fetchChunksWithLimitedConcurrency(
             chunks,
-            currentCountry
+            currentCountry,
+            (done, total) => setChunkProgress(`${done}/${total}`)
           );
           if (cancelled) {
             // CHUNK 6O Task 2 — Path E: cancelled. The `on()` cleanup
             // fired (a new effect run started, or the component
-            // unmounted). The new run — if any — is responsible for
-            // setting its own fetchState/loading. We deliberately do
-            // NOT call `setFetchState` / `setLoading(false)` here
-            // because doing so would race with the new run's
-            // `setFetchState('loading')` / `setLoading(true)` and
-            // could transiently flip the UI back to idle/success while
-            // the new fetch is in flight. Just bail.
+            // unmounted) OR the 20s timeout (Task 4) fired and set
+            // `cancelled = true` to abandon this run. In either case
+            // the new run / the timeout callback is responsible for
+            // setting fetchState/loading. We deliberately do NOT call
+            // `setFetchState` / `setLoading(false)` here because doing
+            // so would race with the new run's
+            // `setFetchState('loading')` / `setLoading(true)` (or
+            // the timeout's `setFetchState('error')`) and could
+            // transiently flip the UI back to idle/success while the
+            // new fetch is in flight. Just bail. We DO clear the
+            // timeout though — this run is done, the timeout is no
+            // longer needed.
+            clearTimeout(timeout);
             return;
           }
 
@@ -975,6 +1119,15 @@ export function useWatchlistOttAvailability(
           // retry budget, schedule a retry. This is the difference
           // between "JustWatch is down/429 — hide Platform filter
           // forever" and "JustWatch is down — try once more in 2s".
+          //
+          // CHUNK 6P Task 4 — we do NOT clear the 20s `timeout` here.
+          // The 20s budget covers ALL retries for this effect run —
+          // if attempt 1 takes 15s and fails, the retry has only 5s
+          // left before the timeout fires. This is intentional: a
+          // retry that takes another 15s would push the total to 30s+,
+          // which is too long for the user to wait without feedback.
+          // The timeout will fire during the retry's fetch (if slow)
+          // or after the retry completes (if fast — Path G clears it).
           if (successCount === 0 && attempt < MAX_RETRIES) {
             attempt += 1;
             // CHUNK 6O Task 2 — Path F: retry scheduled. We keep
@@ -993,6 +1146,15 @@ export function useWatchlistOttAvailability(
           }
 
           setAvailabilityMap(merged);
+          // CHUNK 6P Task 4 — Path G (terminal success/error): clear
+          // the 20s timeout. The fetch completed within budget, so the
+          // timeout is no longer needed. If we don't clear it here, it
+          // would fire 20s after the effect started — but the
+          // `fetchState() === 'loading'` guard inside the timeout
+          // callback would prevent it from doing anything (fetchState
+          // is now 'success' or 'error'). Still, clearing is cleaner
+          // and avoids a dangling timer.
+          clearTimeout(timeout);
           // CHUNK 6N Task 3 — commit the collected raw keys to the
           // debug signal so the visible debug line in VaultFiltersContent
           // can render them. JSON.stringify so the consumer doesn't have
@@ -1078,7 +1240,12 @@ export function useWatchlistOttAvailability(
         // leaving `loading=true` forever (which is exactly the symptom
         // the user reported in Chunk 6N: "DEBUG: loading=true catalog=0
         // keys=(none yet)" that never changed).
+        //
+        // CHUNK 6P Task 4 — Path H (runBatch threw): clear the 20s
+        // timeout. The run is over (with an error), the timeout is no
+        // longer needed.
         void runBatch().catch((err: unknown) => {
+          clearTimeout(timeout);
           if (cancelled) return;
           console.warn(
             "[useWatchlistOttAvailability] runBatch threw unexpectedly:",
@@ -1097,8 +1264,18 @@ export function useWatchlistOttAvailability(
         // We don't have an async cancellation token for `fetch`, but
         // the `cancelled` flag prevents stale state writes from a
         // previous run. Chunk 6E: also clear any pending retry timer.
+        //
+        // CHUNK 6P Task 4 — also clear the 20s hard timeout. If the
+        // effect re-fires (signature changed) or the component
+        // unmounts while the fetch is still in flight, the timeout
+        // from THIS run should NOT fire on the new run (the new run
+        // has its own fresh timeout). The `effectRunId() === runId`
+        // guard inside the timeout callback would prevent any state
+        // update, but clearing the timer avoids a dangling reference
+        // and is the spec-required cleanup path.
         return () => {
           cancelled = true;
+          clearTimeout(timeout);
           if (retryTimer) {
             clearTimeout(retryTimer);
             retryTimer = null;
@@ -1356,6 +1533,11 @@ export function useWatchlistOttAvailability(
     // debug line in VaultFiltersContent. Will be removed alongside
     // the other Chunk 6E-6N diagnostic logs.
     fetchState,
-    fetchError
+    fetchError,
+    // CHUNK 6P Task 1 — TEMPORARY debug accessors for the visible
+    // debug line in VaultFiltersContent. Will be removed alongside
+    // the other Chunk 6E-6O diagnostic logs.
+    effectRunId,
+    chunkProgress
   };
 }

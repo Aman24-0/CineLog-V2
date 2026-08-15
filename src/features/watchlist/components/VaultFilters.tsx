@@ -38,6 +38,14 @@ interface VaultFiltersProps {
   /** CHUNK 6O Task 1 — TEMPORARY debug prop. Human-readable error
    *  message from the most recent OTT fetch attempt. */
   fetchError: string;
+  /** CHUNK 6P Task 1 — TEMPORARY debug prop. Monotonic counter that
+   *  bumps every time the OTT fetch effect actually starts a fetch
+   *  (cache-miss path). For the visible debug line. */
+  effectRunId: number;
+  /** CHUNK 6P Task 1 — TEMPORARY debug prop. `${done}/${total}`
+   *  progress string updated as each chunk in the OTT batch resolves.
+   *  For the visible debug line. */
+  chunkProgress: string;
   onClose: () => void;
   onClear: () => void;
 }
@@ -153,6 +161,8 @@ export default function VaultFilters(props: VaultFiltersProps) {
             watchlistSize={props.watchlistSize}
             fetchState={props.fetchState}
             fetchError={props.fetchError}
+            effectRunId={props.effectRunId}
+            chunkProgress={props.chunkProgress}
             presets={presets}
             onSavePreset={(name) => savePreset(name, props.filters)}
             onDeletePreset={(id) => deletePreset(id)}

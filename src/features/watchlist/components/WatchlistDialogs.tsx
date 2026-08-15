@@ -44,6 +44,14 @@ export interface WatchlistDialogsProps {
   /** CHUNK 6O Task 1 — TEMPORARY debug accessor. Human-readable error
    *  message from the most recent OTT fetch attempt. */
   fetchError: Accessor<string>;
+  /** CHUNK 6P Task 1 — TEMPORARY debug accessor. Monotonic counter
+   *  that bumps every time the OTT fetch effect actually starts a
+   *  fetch (cache-miss path). For the visible debug line. */
+  effectRunId: Accessor<number>;
+  /** CHUNK 6P Task 1 — TEMPORARY debug accessor. `${done}/${total}`
+   *  progress string updated as each chunk in the OTT batch resolves.
+   *  For the visible debug line. */
+  chunkProgress: Accessor<string>;
   onClose: () => void;
   onClear: () => void;
 }
@@ -80,6 +88,8 @@ export default function WatchlistDialogs(props: WatchlistDialogsProps) {
           watchlistSize={props.watchlistSize()}
           fetchState={props.fetchState()}
           fetchError={props.fetchError()}
+          effectRunId={props.effectRunId()}
+          chunkProgress={props.chunkProgress()}
           onClose={props.onClose}
           onClear={props.onClear}
         />
