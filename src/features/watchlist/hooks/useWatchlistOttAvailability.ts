@@ -405,6 +405,45 @@ async function fetchChunksWithLimitedConcurrency(
               JSON.stringify(rawResults[firstKey]).slice(0, 800)
             );
           }
+
+          // CHUNK 6J Task 1 — PRECISE per-batch diagnostic logs. These
+          // complement the existing 6G/6H logs by surfacing the exact
+          // fields the spec asked us to inspect: the first 5 raw keys
+          // (as a JSON string so whitespace is visible), the first
+          // result's `nodeId` + `offers.length` + first `package` object,
+          // and the result of running `extractProvidersFromOffers` on
+          // that first result's offers. This proves end-to-end whether
+          // the API is returning the expected shape AND whether the
+          // client extractor can parse it. TEMPORARY; will be removed
+          // in a later cleanup chunk alongside the 6E/6F/6G/6H logs.
+          // Logs only structural metadata (no PII, no titles).
+          console.log(
+            "[Watchlist OTT] batch raw keys",
+            JSON.stringify(rawKeys.slice(0, 5))
+          );
+          if (firstKey && rawResults[firstKey]) {
+            const first = rawResults[firstKey];
+            console.log(
+              "[Watchlist OTT] first result",
+              JSON.stringify({
+                key: firstKey,
+                nodeId: first.nodeId,
+                offersCount: first.offers?.length ?? 0,
+                firstPackage: first.offers?.[0]?.package ?? null
+              })
+            );
+            if (first.offers && first.offers.length > 0) {
+              // Run the same extractor the production code uses, with
+              // a throwaway metadata map, so we can see exactly which
+              // provider identifiers it would produce for this title.
+              const extractionMeta = new Map<string, { clearName: string; icon?: string }>();
+              const extracted = extractProvidersFromOffers(first.offers, extractionMeta);
+              console.log(
+                "[Watchlist OTT] first extraction",
+                JSON.stringify(extracted)
+              );
+            }
+          }
           // Chunk 6H Task 2 — normalize server response keys. Build a
           // new record with whitespace stripped from every key (see
           // `normalizeOttKey`). This makes the client resilient to any
@@ -757,43 +796,62 @@ export function useWatchlistOttAvailability(
   });
 
   // ── Provider catalog memo ─────────────────────────────────────────
-  // Unique providers across all items in `availabilityMap`, with
+  // Unique providers across all items in `enrichedItems`, with
   // count = number of items that carry each provider. Sorted by
   // count desc, then clearName asc (alphabetical tiebreaker so the
   // dropdown is deterministic when counts are equal).
+  //
+  // CHUNK 6J Task 4 — READS FROM `enrichedItems`, NOT `availabilityMap`.
+  // Previously this memo iterated `availabilityMap.forEach(...)` to
+  // count providers per item. That worked, but it bypassed the
+  // `enrichedItems` clone step (which is the actual data the user
+  // sees in the Watchlist grid + the data `matchesPlatform` reads).
+  // In edge cases where `enrichedItems` post-processes an item's
+  // providers (e.g. an item whose `availabilityMap` lookup returned
+  // `undefined` and was coerced to `[]`), the catalog would diverge
+  // from what `matchesPlatform` actually sees. Reading from
+  // `enrichedItems` guarantees the catalog reflects exactly the items
+  // + providers the filter operates on.
+  //
+  // The `packageMeta` map is still consulted for display metadata
+  // (clearName + icon URL) — it is populated during
+  // `extractProvidersFromOffers` in `runBatch` and survives across
+  // re-fetches. If a provider's metadata is missing from the map
+  // (e.g. a stale entry from a previous run), we fall back to using
+  // the `technicalName` as the display label.
   const providerCatalog = createMemo<PlatformFilterOption[]>(() => {
-    const map = availabilityMap();
+    const items = enrichedItems();
     const meta = packageMeta();
-    if (!map || map.size === 0) return [];
+    if (!items || items.length === 0) return [];
 
-    // Aggregate counts across all items.
-    const counts = new Map<string, number>();
-    map.forEach((providers) => {
-      for (let i = 0; i < providers.length; i++) {
-        const tn = providers[i];
-        counts.set(tn, (counts.get(tn) ?? 0) + 1);
+    // Aggregate counts across all enriched items. An item with no
+    // `justwatchProviders` (undefined or empty) contributes nothing
+    // — it is skipped, not counted as "no provider".
+    const catalog: Record<string, PlatformFilterOption> = {};
+    for (let i = 0; i < items.length; i++) {
+      const providers = items[i]?.justwatchProviders;
+      if (!Array.isArray(providers) || providers.length === 0) continue;
+      for (let j = 0; j < providers.length; j++) {
+        const technicalName = providers[j];
+        if (!technicalName) continue;
+        if (!catalog[technicalName]) {
+          const m = meta.get(technicalName);
+          catalog[technicalName] = {
+            technicalName,
+            clearName: m?.clearName ?? technicalName,
+            icon: m?.icon,
+            count: 0
+          };
+        }
+        catalog[technicalName].count += 1;
       }
-    });
-
-    // Build the catalog array.
-    const out: PlatformFilterOption[] = [];
-    counts.forEach((count, technicalName) => {
-      const m = meta.get(technicalName);
-      out.push({
-        technicalName,
-        clearName: m?.clearName ?? technicalName,
-        icon: m?.icon,
-        count
-      });
-    });
+    }
 
     // Sort: count desc, then clearName asc.
-    out.sort((a, b) => {
+    return Object.values(catalog).sort((a, b) => {
       if (a.count !== b.count) return b.count - a.count;
       return a.clearName.localeCompare(b.clearName);
     });
-
-    return out;
   });
 
   // Chunk 6G Task 2 — diagnostic effect. Watches `enrichedItems` and
