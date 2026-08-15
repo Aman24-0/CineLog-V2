@@ -383,6 +383,16 @@ async function fetchChunksWithLimitedConcurrency(
             country?: string;
             results?: Record<string, JustWatchTitleOffers>;
           };
+          // CHUNK 6M Task 1 — Log 2A: dump the raw response keys exactly
+          // as the server sent them. This is the FIRST place where a
+          // whitespace mismatch would surface — if the server sends
+          // `"movie: 299534"` (note the space) the un-normalized key
+          // will never match `runBatch`'s lookup of `"movie:299534"`.
+          // TEMPORARY diagnostic; will be removed in a later cleanup chunk.
+          console.log(
+            "[OTT TRACE] chunk response raw keys",
+            JSON.stringify(Object.keys(data.results || {}).slice(0, 5))
+          );
           // Chunk 6G Task 2 — diagnostic log. Logs the response country
           // and the actual result keys returned by the server for this
           // chunk. Verifies the server is returning the expected
@@ -479,6 +489,16 @@ async function fetchChunksWithLimitedConcurrency(
           for (const [key, value] of Object.entries(rawResults)) {
             normalizedResults[normalizeOttKey(key)] = value;
           }
+          // CHUNK 6M Task 1 — Log 2B: dump the normalized keys so we can
+          // compare them side-by-side with Log 2A. If these differ from
+          // the raw keys, `normalizeOttKey` is doing its job (stripping
+          // whitespace). If they're identical, the server is sending
+          // already-clean keys and the mismatch is elsewhere.
+          // TEMPORARY diagnostic; will be removed in a later cleanup chunk.
+          console.log(
+            "[OTT TRACE] chunk normalized keys",
+            JSON.stringify(Object.keys(normalizedResults).slice(0, 5))
+          );
           return {
             chunk,
             results: normalizedResults
@@ -609,6 +629,17 @@ export function useWatchlistOttAvailability(
           });
         }
 
+        // CHUNK 6M Task 1 — Log 1: dump the first 3 fetchItems so we can
+        // verify the source fields (`tmdbId`, `mediaType`) look exactly
+        // like what `runBatch` will use to build the lookup key. If `tmdbId`
+        // is `undefined` / `NaN` / a string here, EVERY downstream lookup
+        // will silently fail and the Platform filter will be empty.
+        // TEMPORARY diagnostic; will be removed in a later cleanup chunk.
+        console.log(
+          "[OTT TRACE] fetchItems first 3",
+          JSON.stringify(fetchItems.slice(0, 3))
+        );
+
         if (fetchItems.length === 0) {
           setAvailabilityMap(new Map());
           setPackageMeta(new Map());
@@ -687,6 +718,12 @@ export function useWatchlistOttAvailability(
           const merged = new Map<string, JustWatchTitleOffers>();
           const meta = new Map<string, { clearName: string; icon?: string }>();
           let successCount = 0;
+          // CHUNK 6M Task 1 — Log 3 counter: log only the first 2 items
+          // processed across ALL chunks. Logging every item would spam
+          // the console; the first 2 are enough to spot a systematic key
+          // mismatch (if item #1 is wrong, item #2 is almost certainly
+          // wrong for the same reason).
+          let mergeLogCount = 0;
           for (const { chunk, results } of allResults) {
             if (Object.keys(results).length > 0) successCount++;
             for (const item of chunk) {
@@ -698,6 +735,26 @@ export function useWatchlistOttAvailability(
               // internal whitespace).
               const key = normalizeOttKey(`${item.mediaType}:${item.tmdbId}`);
               const entry = results[key];
+              // CHUNK 6M Task 1 — Log 3: for the first 2 items only,
+              // dump the exact lookup inputs and outcomes. If
+              // `foundInResults` is `false` for items that the server
+              // DID return data for, the lookup key construction is
+              // wrong — this is the smoking gun for the empty catalog.
+              // TEMPORARY diagnostic; will be removed in a later cleanup chunk.
+              if (mergeLogCount < 2) {
+                mergeLogCount++;
+                console.log(
+                  "[OTT TRACE] merge item",
+                  JSON.stringify({
+                    itemMediaType: item.mediaType,
+                    itemTmdbId: item.tmdbId,
+                    typeofTmdbId: typeof item.tmdbId,
+                    lookupKey: key,
+                    foundInResults: !!entry,
+                    availableResultKeys: Object.keys(results || {}).slice(0, 5)
+                  })
+                );
+              }
               if (entry) {
                 merged.set(key, entry);
                 // Populate display metadata by running the extractor
@@ -752,6 +809,23 @@ export function useWatchlistOttAvailability(
           }
 
           setAvailabilityMap(merged);
+          // CHUNK 6M Task 1 — Log 4: dump the `merged` map's size, first
+          // few keys, and the first value, IMMEDIATELY before committing
+          // it to the `availabilityMap` signal. This is the LAST chance
+          // to verify the map's contents before SolidJS's reactivity
+          // takes over. If `merged.size` is 0 here, the merge loop above
+          // never found a match — Log 3 will show why. If `merged.size`
+          // is >0 but the keys don't match what `enrichedItems` builds,
+          // Log 5 will show the mismatch.
+          // TEMPORARY diagnostic; will be removed in a later cleanup chunk.
+          console.log(
+            "[OTT TRACE] availabilityMap before set",
+            JSON.stringify({
+              size: merged.size,
+              firstKeys: Array.from(merged.keys()).slice(0, 5),
+              firstValue: Array.from(merged.values())[0] ?? null
+            })
+          );
           setPackageMeta(meta);
           // If every chunk came back empty (network errors across
           // the board), flag as error so the UI can show "All
@@ -830,6 +904,32 @@ export function useWatchlistOttAvailability(
       // Fetch not yet started or in flight — return raw items.
       return items;
     }
+    // CHUNK 6M Task 1 — Log 5: dump the first 3 watchlist items and
+    // verify the lookup key we're about to use actually exists in
+    // `availabilityMap`. This is the FINAL checkpoint before the
+    // `map.get(key)` call that determines `justwatchProviders`. If
+    // `hasInMap` is `false` here but `mapSize` is >0, the lookup key
+    // we're building does NOT match what `runBatch` stored — that's
+    // the exact break point.
+    //
+    // Safe to call `.has` / `.get` here because we're past the
+    // `map === null` early-return above.
+    // TEMPORARY diagnostic; will be removed in a later cleanup chunk.
+    console.log(
+      "[OTT TRACE] enriched lookup check",
+      JSON.stringify(
+        items.slice(0, 3).map((it) => {
+          const tmdbId = Number(it.id);
+          const key = normalizeOttKey(`${it.media_type}:${tmdbId}`);
+          return {
+            key,
+            hasInMap: map.has(key),
+            mapSize: map.size,
+            value: map.get(key) ?? null
+          };
+        })
+      )
+    );
     // Map is set (possibly empty). Clone each item with its providers.
     // CHUNK 6K — hoist the throwaway metadata Map OUTSIDE the loop so
     // we don't allocate a new Map per item. The metadata it would

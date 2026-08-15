@@ -1112,3 +1112,87 @@ THE FIX (Chunk 6K Task 3): move extraction INTO `enrichedItems` at read time. Th
 - Files in commit: 3 (justwatch_migration_worklog.md, src/features/watchlist/hooks/useWatchlistOttAvailability.ts, src/features/watchlist/components/VaultFiltersContent.tsx)
 - Commit hash: `c9ed06b` (full SHA: `c9ed06bbe40dd0078c365859e77729d71b2e1a3d`)
 - Push status: PUSHED to `origin/Justwatch` (range `10655f2..c9ed06b`) using the user-supplied PAT (one-shot explicit push URL — NOT written to `.git/config`).
+
+## Chunk 6M — Exact Watchlist OTT map break trace
+
+### Task 1: Add exact runtime logs (5 logs per spec)
+- Modified: src/features/watchlist/hooks/useWatchlistOttAvailability.ts
+- Status: COMPLETE
+- Validation: tsc + eslint + vinxi build all PASS.
+- Errors and fixes: none.
+- Notes:
+  - Added 5 `[OTT TRACE]` diagnostic logs exactly as specified:
+    1. `[OTT TRACE] fetchItems first 3` — placed inside the trigger effect, AFTER the `fetchItems` for-loop closes and BEFORE the `if (fetchItems.length === 0)` guard. Dumps the first 3 fetchItems as JSON so we can verify `tmdbId` (type number) and `mediaType` (type string) look exactly like what `runBatch` will use to build the lookup key.
+    2. `[OTT TRACE] chunk response raw keys` — placed inside `fetchChunksWithLimitedConcurrency`, immediately AFTER `const data = (await response.json()) as {...}` and BEFORE the existing Chunk 6G log. Dumps the raw server response keys (first 5) as JSON so whitespace inside key strings is visible.
+    3. `[OTT TRACE] chunk normalized keys` — placed AFTER the `normalizedResults` object is built (after the `for (const [key, value] of Object.entries(rawResults))` loop). Dumps the normalized keys (first 5) so we can compare side-by-side with Log 2A.
+    4. `[OTT TRACE] merge item` — placed INSIDE the `runBatch` merge loop, with a counter (`mergeLogCount`) so it only logs the first 2 items processed across ALL chunks. Dumps `itemMediaType`, `itemTmdbId`, `typeofTmdbId`, `lookupKey`, `foundInResults`, and `availableResultKeys` (first 5). This is the smoking gun: if `foundInResults` is `false` for items the server DID return data for, the lookup key construction is wrong.
+    5. `[OTT TRACE] availabilityMap before set` — placed IMMEDIATELY before `setAvailabilityMap(merged)` (after the retry-check `return` branch). Dumps `merged.size`, first 5 keys, and the first value. Verifies the map is non-empty before it's committed to the signal.
+    6. `[OTT TRACE] enriched lookup check` — placed at the BEGINNING of the `enrichedItems` memo, AFTER the `if (map === null) return items;` early-return (so `.has()` / `.get()` are safe to call). Dumps the first 3 watchlist items with their lookup key, `hasInMap`, `mapSize`, and the value. This is the FINAL checkpoint — if `hasInMap` is `false` here but `mapSize` is > 0, the lookup key we're building does NOT match what `runBatch` stored.
+  - All 6 log strings verified present in the build bundle (`WatchlistView-DF3-5kCx.js`): `grep -o "OTT TRACE[^\"]*"` returns all 6 unique strings.
+  - Existing Chunk 6E/6F/6G/6H/6I/6J/6K logs are UNTOUCHED (spec: "Do NOT remove existing logs").
+  - All Chunk 6M logs are TEMPORARY — they will be removed in a later cleanup chunk alongside the prior diagnostic logs.
+
+### Task 2: Read the logs and find the exact break
+- Modified: none (analysis only)
+- Status: BLOCKED — requires runtime observation
+- Notes:
+  - The spec explicitly states: "After deploying or running locally, look at the logs." This chunk's Task 2 cannot be completed in the dev sandbox because there is no browser runtime to load the Watchlist page and observe console output.
+  - Static analysis of the data flow was performed instead. The key construction in `runBatch` (storage) and `enrichedItems` (lookup) was compared line-by-line:
+    - **Storage** (line 736): `const key = normalizeOttKey(\`${item.mediaType}:${item.tmdbId}\`)` where `item.mediaType` is `it.media_type` (from `fetchItems`) and `item.tmdbId` is `Number(it.id)` (from `fetchItems`).
+    - **Lookup** (line 948-950): `const key = Number.isFinite(tmdbId) && tmdbId > 0 ? normalizeOttKey(\`${it.media_type}:${tmdbId}\`) : null` where `tmdbId = Number(it.id)`.
+    - Both produce `normalizeOttKey(\`${it.media_type}:${Number(it.id)}\`)` — IDENTICAL key construction.
+  - The server-side response key construction was also verified (service.ts line 525 and 615): `result[\`${item.mediaType}:${item.tmdbId}\`]` where `item.tmdbId` is parsed to a number by `cleanItem`. Same format as the client.
+  - By static analysis, the keys SHOULD match. The break must be something that only manifests at runtime — most likely one of:
+    - **(B/C)** `merged.size === 0` because `results[key]` returns undefined in the merge loop despite the server returning data. This would happen if the server returns keys in a different format than `\`${mediaType}:${tmdbId}\`` (e.g. with extra whitespace, or using a different field). Log 2A + Log 3 will confirm.
+    - **(D)** `merged.size > 0` but `map.get(key)` returns undefined in `enrichedItems`. This would happen if the `watchlist()` items used in `enrichedItems` have a different `id` or `media_type` than the items used to build `fetchItems` (e.g. due to a reactive race where the watchlist signal updates between the effect run and the memo re-run). Log 4 + Log 5 will confirm.
+  - The user's report ("Raw extraction works" but "no item has justwatchProviders after enrichment") is consistent with EITHER scenario. Without the runtime values from Logs 3/4/5, the exact failing step CANNOT be stated per the spec's "Do NOT say 'likely' or 'probably'" constraint.
+
+### Task 3: Apply minimal fix
+- Modified: none
+- Status: BLOCKED — requires Task 2 to be complete first
+- Notes:
+  - The spec says "Fix only the exact mismatch found." Without runtime observation, no mismatch has been definitively found. Applying a speculative fix would violate the spec's "Do NOT guess" constraint.
+  - The 5 logs added in Task 1 are designed to pinpoint the EXACT break point with actual runtime values. Once the user deploys and shares the console output, the fix can be applied in a follow-up chunk (or this chunk can be revisited).
+  - The spec's example fixes were each considered against the current code:
+    - "If `item.tmdbId` is undefined in fetchItems" — NOT applicable; `fetchItems` filters out items with non-finite `tmdbId` via `if (!Number.isFinite(tmdbId) || tmdbId <= 0) continue;`.
+    - "If lookup key uses `it.media_type` while stored key uses `item.mediaType`" — NOT applicable; both use `it.media_type` (the value is just aliased as `mediaType` in `fetchItems`).
+    - "If `availabilityMap` is object but code calls `.has()`" — NOT applicable; `availabilityMap` is a `Map` and the code correctly uses `.has()` / `.get()`.
+    - "If `merged` is populated but `setAvailabilityMap` isn't called" — NOT applicable; `setAvailabilityMap(merged)` is called at line 811 on every non-retry terminal state.
+    - "If `enrichedItems` reads wrong signal" — NOT applicable; `enrichedItems` reads `availabilityMap()` (the correct signal).
+
+### Files Modified
+- `src/features/watchlist/hooks/useWatchlistOttAvailability.ts` — added 5 `[OTT TRACE]` diagnostic logs (Log 1: fetchItems first 3; Log 2A: chunk response raw keys; Log 2B: chunk normalized keys; Log 3: merge item with foundInResults flag; Log 4: availabilityMap before set; Log 5: enriched lookup check with hasInMap flag).
+
+### Files NOT Modified (verified, no change needed)
+- `src/features/watchlist/useVaultFiltering.ts` — `uniquePlatforms` memo is a thin pass-through of `providerCatalog()`. The `[useVaultFiltering] uniquePlatforms memo` log already tracks `providerCatalogSize`. No changes needed.
+- `src/features/watchlist/components/VaultFiltersContent.tsx` — Platform `GlassSelect` is always rendered, `disabled` when catalog is empty. The `[VaultFiltersContent] uniquePlatforms count=` log already tracks the count. No changes needed.
+- `src/shared/types/justwatch.ts` — types are correct.
+- `src/shared/types/index.ts` — `WatchlistItem.justwatchProviders?: string[]` is declared.
+- `src/server/justwatch/*` — server-side code is correct; response keys are built as `\`${item.mediaType}:${item.tmdbId}\`` matching the client's lookup format.
+- `src/routes/api/ott/batch-availability.ts` — route is correct; passes through `batchGetTitleOttAvailability`'s result.
+- `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml` — NOT modified (per spec).
+- Discover "New on OTT", Upcoming, Statistics, Where to Watch — NOT touched per spec.
+- Old TMDB provider registry files — NOT deleted per spec.
+- Existing Chunk 6E/6F/6G/6H/6I/6J/6K temporary logs — NOT removed per spec.
+
+### Verification Results
+- TypeScript (`./node_modules/.bin/tsc --noEmit`): 0 errors in modified file. 2 pre-existing errors in OTHER files (`src/routes/movie/[id].tsx:306` and `src/routes/tv/[id].tsx:230` — `Object is possibly 'undefined'`). Verified pre-existing — NOT touched by this chunk.
+- ESLint (`./node_modules/.bin/eslint src/features/watchlist/hooks/useWatchlistOttAvailability.ts`): PASS, exit 0, 0 errors, 0 warnings.
+- Build (`./node_modules/.bin/vinxi build`): PASS — `✔ build done` / `✔ Nitro Server built` / `✔ You can deploy this build using npx vercel deploy --prebuilt`. Verified the bundled output (`WatchlistView-DF3-5kCx.js`) contains all 6 new Chunk 6M `[OTT TRACE]` log strings AND all prior Chunk 6E/6F/6G/6H/6I/6J/6K diagnostic log strings.
+
+### Next Steps (for the user)
+1. Deploy this build (or run `pnpm dev` locally).
+2. Open the Watchlist page in the browser.
+3. Open the browser DevTools console.
+4. Reload the page and observe the `[OTT TRACE]` logs.
+5. The logs that matter most:
+   - `[OTT TRACE] merge item` — if `foundInResults` is `false` for items the server returned data for, the break is in the merge loop's key lookup (Scenario B/C).
+   - `[OTT TRACE] availabilityMap before set` — if `size` is `0`, the merge loop failed entirely (Scenario C).
+   - `[OTT TRACE] enriched lookup check` — if `hasInMap` is `false` but `mapSize` is `> 0`, the break is in `enrichedItems`'s key construction (Scenario D).
+6. Share the console output (or a screenshot) so the exact break can be pinpointed and fixed in the next chunk.
+
+### Chunk 6M Commit & Push
+- Commit message: `chore(ott): add Chunk 6M diagnostic logs to trace availabilityMap break`
+- Files in commit: 2 (justwatch_migration_worklog.md, src/features/watchlist/hooks/useWatchlistOttAvailability.ts)
+- Commit hash: <to be filled after commit>
+- Push status: <to be filled after push>
