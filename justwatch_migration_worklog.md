@@ -1194,5 +1194,5 @@ THE FIX (Chunk 6K Task 3): move extraction INTO `enrichedItems` at read time. Th
 ### Chunk 6M Commit & Push
 - Commit message: `chore(ott): add Chunk 6M diagnostic logs to trace availabilityMap break`
 - Files in commit: 2 (justwatch_migration_worklog.md, src/features/watchlist/hooks/useWatchlistOttAvailability.ts)
-- Commit hash: <to be filled after commit>
-- Push status: <to be filled after push>
+- Commit hash: `e716757` (full SHA: `e716757e...` — see `git log -1` for full SHA)
+- Push status: PUSHED to `origin/Justwatch` (range `fcc9c84..e716757`) using the user-supplied PAT (one-shot explicit push URL — NOT written to `.git/config`).
