@@ -1397,5 +1397,5 @@ THE FIX (Chunk 6K Task 3): move extraction INTO `enrichedItems` at read time. Th
 ### Chunk 6O Commit & Push
 - Commit message: `fix: add visible Watchlist OTT fetch state and error debug`
 - Files in commit: 7 (justwatch_migration_worklog.md + 6 source files)
-- Commit hash: (see `git log -1` after commit)
-- Push status: (filled after push)
+- Commit hash: `59e6c5c` (full SHA: `59e6c5cc02c3041c16a200956081589ac053f706`)
+- Push status: PUSHED to `origin/Justwatch` (range `be47727..59e6c5c`) using the user-supplied PAT (one-shot explicit push URL — NOT written to `.git/config`).
