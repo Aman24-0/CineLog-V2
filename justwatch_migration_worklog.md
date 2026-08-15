@@ -1295,5 +1295,5 @@ THE FIX (Chunk 6K Task 3): move extraction INTO `enrichedItems` at read time. Th
 ### Chunk 6N Commit & Push
 - Commit message: `fix: remove batch OTT key spaces and show filter debug state`
 - Files in commit: 7 (justwatch_migration_worklog.md + 6 source files)
-- Commit hash: (see `git log -1` after commit)
-- Push status: (filled after push)
+- Commit hash: `07354fd` (full SHA: `07354fdab1ce24b89c3c5486bcfc1dc80a6f7a4f`)
+- Push status: PUSHED to `origin/Justwatch` (range `322e9bf..07354fd`) using the user-supplied PAT (one-shot explicit push URL — NOT written to `.git/config`).
