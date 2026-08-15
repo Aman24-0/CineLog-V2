@@ -1008,5 +1008,5 @@ The Watchlist Platform filter showed no provider options despite direct API test
 ### Chunk 6J Commit & Push
 - Commit message: `fix: correct Watchlist client provider extraction and key normalization`
 - Files in commit: 2 (justwatch_migration_worklog.md, src/features/watchlist/hooks/useWatchlistOttAvailability.ts)
-- Commit hash: <filled in after commit>
-- Push status: <filled in after push>
+- Commit hash: `089bee4` (full SHA: `089bee47edf8c9e3f847c7f86db7373e403a41f5`)
+- Push status: PUSHED to `origin/Justwatch` (range `76905ce..089bee4`) using the user-supplied PAT (one-shot explicit push URL — NOT written to `.git/config`).
