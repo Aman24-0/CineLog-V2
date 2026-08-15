@@ -1669,5 +1669,5 @@ When the user reports the new debug line, here's how to read it:
 ### Chunk 6Q Commit & Push
 - Commit message: `fix: stream Watchlist OTT batch results and remove premature timeout`
 - Files in commit: 2 (justwatch_migration_worklog.md + 1 source file)
-- Commit hash: <to be filled after commit>
-- Push status: <to be filled after push>
+- Commit hash: `47d9072` (full SHA: `47d9072` — short hash; verify with `git rev-parse HEAD` for full SHA if needed)
+- Push status: PUSHED to `origin/Justwatch` (range `c0036db..47d9072`) using the user-supplied PAT (one-shot explicit push URL — NOT written to `.git/config`).
