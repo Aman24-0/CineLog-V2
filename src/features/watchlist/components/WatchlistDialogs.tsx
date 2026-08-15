@@ -38,6 +38,12 @@ export interface WatchlistDialogsProps {
   debugRawKeys: Accessor<string>;
   /** CHUNK 6N Task 3 — number of items in the user's watchlist. */
   watchlistSize: Accessor<number>;
+  /** CHUNK 6O Task 1 — TEMPORARY debug accessor. Coarse-grained OTT
+   *  fetch state machine for the visible debug line. */
+  fetchState: Accessor<"idle" | "loading" | "success" | "error">;
+  /** CHUNK 6O Task 1 — TEMPORARY debug accessor. Human-readable error
+   *  message from the most recent OTT fetch attempt. */
+  fetchError: Accessor<string>;
   onClose: () => void;
   onClear: () => void;
 }
@@ -72,6 +78,8 @@ export default function WatchlistDialogs(props: WatchlistDialogsProps) {
           ottLoading={props.ottLoading()}
           debugRawKeys={props.debugRawKeys()}
           watchlistSize={props.watchlistSize()}
+          fetchState={props.fetchState()}
+          fetchError={props.fetchError()}
           onClose={props.onClose}
           onClear={props.onClear}
         />

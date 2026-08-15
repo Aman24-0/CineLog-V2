@@ -91,6 +91,18 @@ export interface VaultFiltersContentProps {
    *  would correctly produce an empty catalog). Will be removed
    *  alongside the other Chunk 6E-6M diagnostic logs. */
   watchlistSize: number;
+  /** CHUNK 6O Task 1 — TEMPORARY debug prop. Coarse-grained OTT fetch
+   *  state machine (`'idle' | 'loading' | 'success' | 'error'`).
+   *  Surfaced in the visible debug line so the user can tell whether
+   *  the fetch never started, is in flight, completed successfully, or
+   *  failed — without opening the browser console. Will be removed
+   *  alongside the other Chunk 6E-6N diagnostic logs. */
+  fetchState: "idle" | "loading" | "success" | "error";
+  /** CHUNK 6O Task 1 — TEMPORARY debug prop. Human-readable error
+   *  message from the most recent OTT fetch attempt. Empty string
+   *  unless `fetchState` is `'error'`. Will be removed alongside the
+   *  other Chunk 6E-6N diagnostic logs. */
+  fetchError: string;
   presets: Accessor<FilterPreset[]>;
   onSavePreset: (name: string) => Promise<void>;
   onDeletePreset: (id: string) => void;
@@ -299,7 +311,19 @@ export default function VaultFiltersContent(props: VaultFiltersContentProps) {
                 - first 3 raw batch-response keys (the EXACT shape of
                   the server's response keys, including any stray
                   whitespace that would cause a key-mismatch)
-              Will be removed alongside the other Chunk 6E-6M logs. */}
+              Will be removed alongside the other Chunk 6E-6M logs.
+              CHUNK 6O Task 4 — EXTENDED to also show:
+                - fetchState ('idle' | 'loading' | 'success' | 'error')
+                  so the user can tell whether the fetch never started,
+                  is in flight, completed, or failed. This is the key
+                  diagnostic that was missing in Chunk 6N — the user
+                  saw `loading=true` forever with no indication of
+                  whether the fetch was actually progressing, stuck in
+                  a retry loop, or had failed silently.
+                - fetchError (human-readable error message) so the user
+                  can see WHY the fetch failed (e.g. "all chunks
+                  returned empty", "runBatch threw: ...") without
+                  opening the console. */}
           <p
             style={{
               "font-size": "11px",
@@ -309,12 +333,19 @@ export default function VaultFiltersContent(props: VaultFiltersContentProps) {
               "border-radius": "6px",
               "margin-top": "0.25rem",
               "margin-left": "0.125rem",
+              "white-space": "pre-wrap",
               "word-break": "break-all",
-              "line-height": "1.4",
+              "line-height": "1.5",
               "font-family": "ui-monospace, SFMono-Regular, Menlo, monospace"
             }}
           >
-            DEBUG: watchlist={props.watchlistSize} loading={props.ottLoading ? "true" : "false"} catalog={props.uniquePlatforms.length} keys={props.debugRawKeys || "(none yet)"}
+            {`DEBUG:
+watchlist=${props.watchlistSize}
+state=${props.fetchState}
+loading=${props.ottLoading ? "true" : "false"}
+catalog=${props.uniquePlatforms.length}
+keys=${props.debugRawKeys || "(none yet)"}
+error=${props.fetchError || "none"}`}
           </p>
           {/* Tag — RE-ADDED in Phase 6.2 Task 1a.
               Shows the union of (tag vocabulary in localStorage) ∪ (tags

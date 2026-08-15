@@ -32,6 +32,12 @@ interface VaultFiltersProps {
    *  watchlist actually loaded (vs. an empty list, which would
    *  correctly produce an empty catalog). */
   watchlistSize: number;
+  /** CHUNK 6O Task 1 — TEMPORARY debug prop. Coarse-grained OTT fetch
+   *  state machine for the visible debug line. */
+  fetchState: "idle" | "loading" | "success" | "error";
+  /** CHUNK 6O Task 1 — TEMPORARY debug prop. Human-readable error
+   *  message from the most recent OTT fetch attempt. */
+  fetchError: string;
   onClose: () => void;
   onClear: () => void;
 }
@@ -145,6 +151,8 @@ export default function VaultFilters(props: VaultFiltersProps) {
             ottLoading={props.ottLoading}
             debugRawKeys={props.debugRawKeys}
             watchlistSize={props.watchlistSize}
+            fetchState={props.fetchState}
+            fetchError={props.fetchError}
             presets={presets}
             onSavePreset={(name) => savePreset(name, props.filters)}
             onDeletePreset={(id) => deletePreset(id)}

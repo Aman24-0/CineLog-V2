@@ -110,6 +110,22 @@ export interface UseVaultFilteringResult {
    * the other Chunk 6E-6M diagnostic logs.
    */
   debugRawKeys: Accessor<string>;
+  /**
+   * CHUNK 6O Task 1 — TEMPORARY debug accessor. Coarse-grained OTT
+   * fetch state machine (`'idle' | 'loading' | 'success' | 'error'`)
+   * for display in the Platform filter modal's debug line. Lets the
+   * user tell whether the fetch never started, is in flight,
+   * completed successfully, or failed — without opening the console.
+   * Will be removed alongside the other Chunk 6E-6N diagnostic logs.
+   */
+  fetchState: Accessor<"idle" | "loading" | "success" | "error">;
+  /**
+   * CHUNK 6O Task 1 — TEMPORARY debug accessor. Human-readable error
+   * message from the most recent OTT fetch attempt. Empty string
+   * unless `fetchState` is `'error'`. Will be removed alongside the
+   * other Chunk 6E-6N diagnostic logs.
+   */
+  fetchError: Accessor<string>;
   uniqueTags: Accessor<string[]>;
   /**
    * Union of the user's tag vocabulary (saved in localStorage) and the
@@ -233,7 +249,14 @@ export function useVaultFiltering(
   //
   // See `hooks/useWatchlistOttAvailability.ts` for the full contract.
   const ottAvailability = useWatchlistOttAvailability(args.watchlist);
-  const { enrichedItems, providerCatalog, loading: ottLoading, debugRawKeys } = ottAvailability;
+  const {
+    enrichedItems,
+    providerCatalog,
+    loading: ottLoading,
+    debugRawKeys,
+    fetchState,
+    fetchError
+  } = ottAvailability;
 
   // ── UNIQUE VALUES — single-pass Set accumulation (no intermediate arrays) ──
   // Previously: flatMap + map + new Set + spread + filter + sort created
@@ -423,6 +446,11 @@ export function useVaultFiltering(
     // debug line in VaultFiltersContent. Will be removed alongside
     // the other Chunk 6E-6M diagnostic logs.
     debugRawKeys,
+    // CHUNK 6O Task 1 — TEMPORARY debug accessors for the visible
+    // debug line in VaultFiltersContent. Will be removed alongside
+    // the other Chunk 6E-6N diagnostic logs.
+    fetchState,
+    fetchError,
     uniqueTags,
     uniqueTagsPlus,
     refreshTagVocab

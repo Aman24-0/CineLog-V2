@@ -74,7 +74,11 @@ export default function WatchlistView() {
     // CHUNK 6N Task 3 — TEMPORARY debug accessors for the visible
     // debug line in the Platform filter modal.
     ottLoading,
-    debugRawKeys
+    debugRawKeys,
+    // CHUNK 6O Task 1 — TEMPORARY debug accessors for the visible
+    // debug line in the Platform filter modal.
+    fetchState,
+    fetchError
   } = filtering;
 
   // Infinite scroll — bump display limit when user nears the bottom.
@@ -199,6 +203,8 @@ export default function WatchlistView() {
                 ottLoading={ottLoading()}
                 debugRawKeys={debugRawKeys()}
                 watchlistSize={watchlist().length}
+                fetchState={fetchState()}
+                fetchError={fetchError()}
                 presets={presets}
                 onSavePreset={(name) => savePreset(name, filters())}
                 onDeletePreset={(id) => deletePreset(id)}
@@ -295,6 +301,8 @@ export default function WatchlistView() {
         ottLoading={ottLoading}
         debugRawKeys={debugRawKeys}
         watchlistSize={() => watchlist().length}
+        fetchState={fetchState}
+        fetchError={fetchError}
         onClose={() => setShowFilter(false)}
         onClear={() => {
           clearFilters();

@@ -1297,3 +1297,105 @@ THE FIX (Chunk 6K Task 3): move extraction INTO `enrichedItems` at read time. Th
 - Files in commit: 7 (justwatch_migration_worklog.md + 6 source files)
 - Commit hash: `07354fd` (full SHA: `07354fdab1ce24b89c3c5486bcfc1dc80a6f7a4f`)
 - Push status: PUSHED to `origin/Justwatch` (range `322e9bf..07354fd`) using the user-supplied PAT (one-shot explicit push URL — NOT written to `.git/config`).
+
+## Chunk 6O — Visible OTT fetch state debug
+
+### Task 1: Add fetch state and error signals
+- Modified: `src/features/watchlist/hooks/useWatchlistOttAvailability.ts`
+- Status: COMPLETE
+- Added two new signals:
+  - `const [fetchState, setFetchState] = createSignal<'idle' | 'loading' | 'success' | 'error'>('idle')` — coarse-grained fetch state machine.
+  - `const [fetchError, setFetchError] = createSignal<string>('')` — human-readable error message.
+- Both exposed in `UseWatchlistOttAvailabilityResult` interface and the hook's return object.
+- These are STRICTER than the existing `loading: Accessor<boolean>` (in-flight flag) and `error: Accessor<boolean>` (boolean error flag): `fetchState` distinguishes between "never tried" (`'idle'`) and "tried and failed" (`'error'`), which is the missing diagnostic that caused the user to see `loading=true` forever in Chunk 6N with no indication of whether the fetch was progressing, stuck, or failed.
+
+### Task 2: Update every effect path
+- Modified: `src/features/watchlist/hooks/useWatchlistOttAvailability.ts`
+- Status: COMPLETE
+- Traced every code path from `setOttLoading(true)` to its terminal state. Found 7 distinct paths through the effect:
+  - **Path A: empty watchlist** (early return at the top of the effect). Sets `fetchState='idle'`, `fetchError=''`. No fetch attempted — legitimate state, not a failure.
+  - **Path B: fetchItems.length === 0** (all items had invalid `tmdbId`). Sets `fetchState='idle'`, `fetchError=''`. Data-quality issue, not a fetch failure.
+  - **Path C: in-memory cache hit** (within 10-min TTL). Sets `fetchState='success'`, `fetchError=''`. The cache is only written on prior successful fetches, so a hit is a success.
+  - **Path D: fetch starting** (after cache miss). Sets `fetchState='loading'`, `fetchError=''`. This is the only path that calls `setOttLoading(true)`.
+  - **Path E: cancelled** (the `on()` cleanup fired mid-fetch). Returns WITHOUT touching `fetchState`/`loading` — the new run owns those signals now, and writing here would race with the new run's `setFetchState('loading')`.
+  - **Path F: retry scheduled** (successCount === 0 AND attempt < MAX_RETRIES). Keeps `fetchState='loading'` (retry is still in flight) but sets `fetchError='all N chunk(s) returned empty — retry X/1 in 2000ms'` so the user can see WHY we're retrying.
+  - **Path G: terminal** (success OR error, no more retries). This is the ONLY path that calls `setLoading(false)` after a fetch. Sets `fetchState='success'` (with `fetchError=''`) when `successCount > 0`, OR `fetchState='error'` (with `fetchError='all N chunk(s) returned empty after M attempt(s) — successCount=0'`) when `successCount === 0`.
+  - **Path H (defensive): runBatch threw unexpectedly**. Wrapped `void runBatch()` in `.catch()` so that if anything inside `runBatch` throws (e.g. a TypeError in the merge loop, or `fetchChunksWithLimitedConcurrency` itself throwing despite its internal try/catch), we transition to `fetchState='error'` with `fetchError='runBatch threw: <message>'` instead of leaving `loading=true` forever (which is exactly the symptom the user reported: "DEBUG: loading=true catalog=0 keys=(none yet)" that never changed).
+- Verified: every path from `setOttLoading(true)` (Path D) reaches either `setLoading(false)` (Path G or Path H) OR deliberately defers to the next run (Path E). No path leaves `loading=true` forever.
+
+### Task 3: Populate debugRawKeys early
+- Modified: `src/features/watchlist/hooks/useWatchlistOttAvailability.ts`
+- Status: COMPLETE
+- The previous implementation (Chunk 6N) only called `setDebugRawKeys(JSON.stringify(collectedRawKeys.slice(0, 3)))` at the terminal Path G — AFTER the merge loop. If the merge loop threw, or the retry path (Path F) bailed, or anything between the fetch resolving and the terminal state failed, the debug UI would never see the raw keys.
+- Hoisted the `setDebugRawKeys` call to IMMEDIATELY after `fetchChunksWithLimitedConcurrency` resolves (after the cancellation check, before the merge loop). This guarantees the user sees the server's actual response keys as soon as the network round-trip completes — even if everything downstream fails.
+- The old `collectedRawKeys` collection + `setDebugRawKeys` call at Path G is left in place (it's harmless — it just re-sets the same value, which is a no-op for SolidJS reactivity since the JSON string is identical). Removed it would require more careful surgery; leaving it is safer and the spec says "If currently only set at the end, add setDebugRawKeys(firstRawKeysFromAnyChunk) immediately after the first successful fetch" — which is exactly what was done.
+
+### Task 4: Update visible debug UI
+- Modified: `src/features/watchlist/components/VaultFiltersContent.tsx` (+ prop wiring through `useVaultFiltering.ts`, `VaultFilters.tsx`, `WatchlistDialogs.tsx`, `WatchlistView.tsx`)
+- Status: COMPLETE
+- Added `fetchState: 'idle' | 'loading' | 'success' | 'error'` and `fetchError: string` to `VaultFiltersContentProps`.
+- Replaced the previous single-line debug `<p>` with a multi-line `<p>` (using `white-space: pre-wrap`) that shows:
+  ```
+  DEBUG:
+  watchlist=<size>
+  state=<fetchState>
+  loading=<true/false>
+  catalog=<catalogSize>
+  keys=<first 3 raw keys JSON or "(none yet)">
+  error=<fetchError or "none">
+  ```
+- Same orange (#ff8c00) styling as before, monospace font, `word-break: break-all` so long JSON keys don't overflow the drawer.
+- Prop chain wired through all 4 parent components:
+  - `useVaultFiltering` — added `fetchState` + `fetchError` to `UseVaultFilteringResult`, destructured from `useWatchlistOttAvailability`, re-exported.
+  - `VaultFilters` — added `fetchState` + `fetchError` to `VaultFiltersProps`, forwarded to `VaultFiltersContent`.
+  - `WatchlistDialogs` — added `fetchState` + `fetchError` to `WatchlistDialogsProps`, forwarded to `VaultFilters`.
+  - `WatchlistView` — destructured `fetchState` + `fetchError` from `useVaultFiltering`, passed to BOTH the inline desktop `VaultFiltersContent` AND the modal `WatchlistDialogs`.
+
+### Files Modified
+- `src/features/watchlist/hooks/useWatchlistOttAvailability.ts`:
+  - Added `fetchState` + `fetchError` signals + their types in `UseWatchlistOttAvailabilityResult`.
+  - Wired all 8 effect paths (A-H) to set `fetchState` + `fetchError` appropriately.
+  - Hoisted `setDebugRawKeys` to fire immediately after `fetchChunksWithLimitedConcurrency` resolves (before the merge loop).
+  - Wrapped `void runBatch()` in `.catch()` to handle unexpected throws.
+  - Added `fetchState` + `fetchError` to the hook's return object.
+- `src/features/watchlist/useVaultFiltering.ts`:
+  - Added `fetchState` + `fetchError` to `UseVaultFilteringResult`.
+  - Destructured both from `useWatchlistOttAvailability`.
+  - Added both to the return object.
+- `src/features/watchlist/components/VaultFiltersContent.tsx`:
+  - Added `fetchState` + `fetchError` to `VaultFiltersContentProps`.
+  - Replaced single-line debug `<p>` with multi-line `<p>` showing all 6 debug fields (watchlist / state / loading / catalog / keys / error).
+- `src/features/watchlist/components/VaultFilters.tsx`:
+  - Added `fetchState` + `fetchError` to `VaultFiltersProps`.
+  - Forwarded both to `VaultFiltersContent`.
+- `src/features/watchlist/components/WatchlistDialogs.tsx`:
+  - Added `fetchState` + `fetchError` to `WatchlistDialogsProps`.
+  - Forwarded both to `VaultFilters`.
+- `src/features/watchlist/WatchlistView.tsx`:
+  - Destructured `fetchState` + `fetchError` from `useVaultFiltering`.
+  - Passed both to inline `VaultFiltersContent` AND modal `WatchlistDialogs`.
+
+### Files NOT Modified (verified, no change needed)
+- `src/server/justwatch/*` — server-side code is correct (verified in Chunk 6N).
+- `src/routes/api/ott/batch-availability.ts` — route is correct.
+- `src/shared/types/justwatch.ts` + `src/shared/types/index.ts` — types are correct.
+- `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml` — NOT modified (per spec).
+- Discover "New on OTT", Upcoming, Statistics, Where to Watch — NOT touched per spec.
+- Old TMDB provider registry files — NOT deleted per spec.
+- Existing Chunk 6E/6F/6G/6H/6I/6J/6K/6M/6N temporary logs — NOT removed per spec.
+
+### Verification Results
+- TypeScript (`./node_modules/.bin/tsc --noEmit`): 0 errors in modified files. 2 pre-existing errors in OTHER files (`src/routes/movie/[id].tsx:306` and `src/routes/tv/[id].tsx:230` — `Object is possibly 'undefined'`). Verified pre-existing — NOT touched by this chunk.
+- ESLint (`./node_modules/.bin/eslint` on all 6 modified files): PASS, exit 0, 0 errors, 0 warnings.
+- Build (`./node_modules/.bin/vinxi build`): PASS — `✔ build done` / `✔ Nitro Server built` / `✔ You can deploy this build using npx vercel deploy --prebuilt`. Verified the bundled output (`WatchlistView-DlYZXCtX.js`) contains:
+  - The new multi-line debug template `DEBUG:` (1 match).
+  - `fetchState` references (3 matches).
+  - `fetchError` references (2 matches).
+  - The defensive error string `runBatch threw` (1 match).
+  - The retry message `all .* chunk(s) returned empty` (1 match).
+
+### Chunk 6O Commit & Push
+- Commit message: `fix: add visible Watchlist OTT fetch state and error debug`
+- Files in commit: 7 (justwatch_migration_worklog.md + 6 source files)
+- Commit hash: (see `git log -1` after commit)
+- Push status: (filled after push)

@@ -258,6 +258,41 @@ export interface UseWatchlistOttAvailabilityResult {
    * Chunk 6E-6M diagnostic logs.
    */
   debugRawKeys: Accessor<string>;
+  /**
+   * CHUNK 6O Task 1 — TEMPORARY debug accessor. Coarse-grained fetch
+   * state machine so the visible debug line in VaultFiltersContent can
+   * tell the user EXACTLY which phase the OTT batch fetch is in:
+   *
+   *   - `'idle'`    — no fetch has started yet (or watchlist is empty).
+   *   - `'loading'` — a batch fetch is in flight (network round-trip
+   *                   to /api/ott/batch-availability).
+   *   - `'success'` — the most recent fetch completed AND at least one
+   *                   chunk returned a non-empty result.
+   *   - `'error'`   — the most recent fetch completed with ZERO
+   *                   successful chunks (every chunk failed or returned
+   *                   empty). `fetchError` will contain the detail.
+   *
+   * This is a STRICTER signal than `loading` (which is just a boolean
+   * in-flight flag): `fetchState` distinguishes between "never tried"
+   * and "tried and failed", which is the missing diagnostic that
+   * caused the user to see `loading=true` forever in Chunk 6N.
+   *
+   * Will be removed alongside the other Chunk 6E-6N diagnostic logs.
+   */
+  fetchState: Accessor<"idle" | "loading" | "success" | "error">;
+  /**
+   * CHUNK 6O Task 1 — TEMPORARY debug accessor. Human-readable error
+   * message from the most recent fetch attempt. Empty string when
+   * `fetchState` is `'idle'`, `'loading'`, or `'success'`. Populated
+   * only when `fetchState` is `'error'`.
+   *
+   * Surfaced in the visible debug line so the user can see WHY the
+   * fetch failed (e.g. "all chunks returned empty", "network error",
+   * "response not ok: 500") without opening the browser console.
+   *
+   * Will be removed alongside the other Chunk 6E-6N diagnostic logs.
+   */
+  fetchError: Accessor<string>;
 }
 
 /**
@@ -616,6 +651,17 @@ export function useWatchlistOttAvailability(
   // Will be removed alongside the other Chunk 6E-6M diagnostic logs.
   const [debugRawKeys, setDebugRawKeys] = createSignal<string>("");
 
+  // CHUNK 6O Task 1 — TEMPORARY debug signals. Coarse-grained fetch
+  // state machine + human-readable error message. Together they let the
+  // visible debug line in VaultFiltersContent tell the user EXACTLY
+  // which phase the OTT batch fetch is in (idle / loading / success /
+  // error) and why it failed (if it did). Will be removed alongside
+  // the other Chunk 6E-6N diagnostic logs.
+  const [fetchState, setFetchState] = createSignal<
+    "idle" | "loading" | "success" | "error"
+  >("idle");
+  const [fetchError, setFetchError] = createSignal<string>("");
+
   // ── Trigger effect ────────────────────────────────────────────────
   // Fires when the watchlist signature OR the user's region changes
   // (Chunk 6D — region is now part of the dependency key so the batch
@@ -650,6 +696,11 @@ export function useWatchlistOttAvailability(
           setPackageMeta(new Map());
           setLoading(false);
           setError(false);
+          // CHUNK 6O Task 2 — Path A: empty watchlist. The fetch never
+          // starts, so we transition back to `'idle'` (NOT `'error'` —
+          // an empty watchlist is a legitimate state, not a failure).
+          setFetchState("idle");
+          setFetchError("");
           return;
         }
 
@@ -704,6 +755,13 @@ export function useWatchlistOttAvailability(
           setPackageMeta(new Map());
           setLoading(false);
           setError(false);
+          // CHUNK 6O Task 2 — Path B: watchlist had items but NONE had
+          // a valid `tmdbId` (all filtered out by the
+          // `Number.isFinite(tmdbId) && tmdbId > 0` guard above). This
+          // is a data-quality issue, not a fetch failure — we still
+          // transition to `'idle'` because no fetch was attempted.
+          setFetchState("idle");
+          setFetchError("");
           return;
         }
 
@@ -727,6 +785,14 @@ export function useWatchlistOttAvailability(
           setPackageMeta(cached.meta);
           setLoading(false);
           setError(false);
+          // CHUNK 6O Task 2 — Path C: in-memory cache hit. We bypassed
+          // the fetch entirely because a previous run within the last
+          // 10 minutes already populated the cache. This is a success
+          // state (the cached entry was only written on a prior
+          // successful fetch — see the cache-write guard at the bottom
+          // of runBatch which only caches when `successCount > 0`).
+          setFetchState("success");
+          setFetchError("");
           return;
         }
 
@@ -739,6 +805,14 @@ export function useWatchlistOttAvailability(
         let cancelled = false;
         setLoading(true);
         setError(false);
+        // CHUNK 6O Task 2 — Path D: fetch starting. We're about to
+        // fire off one or more batch requests to
+        // /api/ott/batch-availability. Transition to `'loading'` and
+        // clear any stale error from a previous run. The `runBatch`
+        // closure below is responsible for transitioning to either
+        // `'success'` or `'error'` when the fetch completes.
+        setFetchState("loading");
+        setFetchError("");
 
         // Chunk 6D: pass the user's Discover region as the `country`
         // field in the request body so the route uses the user's
@@ -765,7 +839,39 @@ export function useWatchlistOttAvailability(
             chunks,
             currentCountry
           );
-          if (cancelled) return;
+          if (cancelled) {
+            // CHUNK 6O Task 2 — Path E: cancelled. The `on()` cleanup
+            // fired (a new effect run started, or the component
+            // unmounted). The new run — if any — is responsible for
+            // setting its own fetchState/loading. We deliberately do
+            // NOT call `setFetchState` / `setLoading(false)` here
+            // because doing so would race with the new run's
+            // `setFetchState('loading')` / `setLoading(true)` and
+            // could transiently flip the UI back to idle/success while
+            // the new fetch is in flight. Just bail.
+            return;
+          }
+
+          // CHUNK 6O Task 3 — populate `debugRawKeys` IMMEDIATELY after
+          // the fetch resolves, BEFORE the merge loop. The previous
+          // implementation only set this at the terminal success/error
+          // path, which meant that if the merge loop threw or the retry
+          // path bailed, the debug UI would never see the raw keys.
+          // Setting it here guarantees the user sees the server's actual
+          // response keys as soon as the network round-trip completes —
+          // even if everything downstream fails. We collect the first 3
+          // raw keys across all chunks (same logic as the old
+          // `collectedRawKeys` loop below, but hoisted up).
+          {
+            const earlyKeys: string[] = [];
+            for (let i = 0; i < allResults.length && earlyKeys.length < 3; i++) {
+              const chunkRawKeys = allResults[i]?.rawKeys ?? [];
+              for (let k = 0; k < chunkRawKeys.length && earlyKeys.length < 3; k++) {
+                earlyKeys.push(chunkRawKeys[k]);
+              }
+            }
+            setDebugRawKeys(JSON.stringify(earlyKeys));
+          }
 
           // CHUNK 6K: store the RAW `JustWatchTitleOffers` in `merged`,
           // NOT pre-extracted `string[]`. Extraction moves to
@@ -871,6 +977,15 @@ export function useWatchlistOttAvailability(
           // forever" and "JustWatch is down — try once more in 2s".
           if (successCount === 0 && attempt < MAX_RETRIES) {
             attempt += 1;
+            // CHUNK 6O Task 2 — Path F: retry scheduled. We keep
+            // `loading=true` and `fetchState='loading'` (the retry is
+            // still in flight) but surface a human-readable message in
+            // `fetchError` so the debug UI can show WHY we're retrying.
+            // Without this, the user would see `state=loading` with no
+            // indication that the previous attempt failed.
+            setFetchError(
+              `all ${chunks.length} chunk(s) returned empty — retry ${attempt}/${MAX_RETRIES} in ${RETRY_DELAY_MS}ms`
+            );
             retryTimer = setTimeout(() => {
               if (!cancelled) void runBatch();
             }, RETRY_DELAY_MS);
@@ -910,6 +1025,25 @@ export function useWatchlistOttAvailability(
           // cause is transient).
           setError(successCount === 0);
           setLoading(false);
+          // CHUNK 6O Task 2 — Path G: terminal state (success OR error,
+          // no more retries). This is the ONLY path that reaches
+          // `setLoading(false)` after a fetch, so it MUST set
+          // `fetchState` to either `'success'` or `'error'` here. The
+          // branch is `successCount > 0` → success, else error. We
+          // also populate `fetchError` with a human-readable message
+          // in the error branch so the debug UI can show WHY the fetch
+          // failed (the most common cause is "all chunks returned
+          // empty" which usually means JustWatch is rate-limiting or
+          // the country has no offers for any watchlist title).
+          if (successCount > 0) {
+            setFetchState("success");
+            setFetchError("");
+          } else {
+            setFetchState("error");
+            setFetchError(
+              `all ${chunks.length} chunk(s) returned empty after ${attempt + 1} attempt(s) — successCount=0`
+            );
+          }
 
           // CHUNK 6I: write to in-memory cache ONLY on a non-retry
           // terminal state. We reach this branch when either (a) the
@@ -936,7 +1070,28 @@ export function useWatchlistOttAvailability(
           }
         };
 
-        void runBatch();
+        // CHUNK 6O Task 2 — wrap runBatch in a .catch() so that if
+        // anything inside throws unexpectedly (e.g. a TypeError in the
+        // merge loop, or `fetchChunksWithLimitedConcurrency` itself
+        // throwing despite its internal try/catch), we transition to
+        // the `'error'` state with a human-readable message instead of
+        // leaving `loading=true` forever (which is exactly the symptom
+        // the user reported in Chunk 6N: "DEBUG: loading=true catalog=0
+        // keys=(none yet)" that never changed).
+        void runBatch().catch((err: unknown) => {
+          if (cancelled) return;
+          console.warn(
+            "[useWatchlistOttAvailability] runBatch threw unexpectedly:",
+            err instanceof Error ? err.message : String(err)
+          );
+          setLoading(false);
+          setError(true);
+          setFetchState("error");
+          setFetchError(
+            "runBatch threw: " +
+              (err instanceof Error ? err.message : String(err))
+          );
+        });
 
         // SolidJS `on()` cleanup — runs before the next effect firing.
         // We don't have an async cancellation token for `fetch`, but
@@ -1196,6 +1351,11 @@ export function useWatchlistOttAvailability(
     // CHUNK 6N Task 3 — TEMPORARY debug accessor for the visible
     // debug line in VaultFiltersContent. Will be removed alongside
     // the other Chunk 6E-6M diagnostic logs.
-    debugRawKeys
+    debugRawKeys,
+    // CHUNK 6O Task 1 — TEMPORARY debug accessors for the visible
+    // debug line in VaultFiltersContent. Will be removed alongside
+    // the other Chunk 6E-6N diagnostic logs.
+    fetchState,
+    fetchError
   };
 }
