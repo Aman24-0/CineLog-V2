@@ -1548,3 +1548,126 @@ When the user reports the new debug line, here's how to read it:
 - Files in commit: 7 (justwatch_migration_worklog.md + 6 source files)
 - Commit hash: `b5ba64f` (full SHA: `b5ba64fabd33027f7be421149367bc4fda7e4093`)
 - Push status: PUSHED to `origin/Justwatch` (range `b8d1e50..b5ba64f`) using the user-supplied PAT (one-shot explicit push URL — NOT written to `.git/config`).
+
+## Chunk 6Q — Stream Watchlist OTT batch results partially
+### Task: Stream batch results into availabilityMap per chunk; replace 20s hard timeout with stall detector; treat empty catalog as success
+- Status: IN-PROGRESS
+- User-reported state: `DEBUG: watchlist=1046 state=error loading=false catalog=0 run=1 progress=27/42 keys=(none yet) error=timeout after 20000ms; progress=3/42`
+- Root cause confirmed by Chunk 6P debug: the 20s hard timeout fired at progress=27/42 — the batch was genuinely progressing but too slow for 1046 items / 42 chunks. The timeout killed it before `availabilityMap` was ever set, so `providerCatalog` stayed at 0.
+- Goal:
+  1. Stream wave results into `availabilityMap` as each wave resolves (instead of waiting for all 42 chunks). This makes `enrichedItems` + `providerCatalog` update reactively while the fetch is still running — the Platform filter appears as soon as the first wave with provider data lands.
+  2. Replace the 20s hard timeout with a stall detector that only fires if NO chunk has completed in 25s. A slow-but-progressing batch is allowed to continue.
+  3. Only set `state=error` when ALL chunks actually fail (HTTP error / network throw) or the stall detector fires. An empty catalog after a successful fetch is `state=success`.
+
+### Task 1: Change runBatch to update availabilityMap per chunk
+- Modified: `src/features/watchlist/hooks/useWatchlistOttAvailability.ts`
+- Status: COMPLETE
+- Added `onWaveDone?: (waveResults, done, total) => void` callback parameter to `fetchChunksWithLimitedConcurrency`. Called AFTER `onChunkDone` once per wave (not per chunk) with the wave's full result array.
+- Added `httpOk: boolean` field to each chunk result. `true` when `response.ok` + JSON parsed; `false` on `!response.ok` or catch. This lets the caller distinguish "chunk fetched OK but had zero results" (legitimate empty) from "chunk failed" (network error / non-OK).
+- Rewrote `runBatch` to use a LOCAL `workingMap` + `meta` (per spec: "Use a local `workingMap` inside `runBatch`, not a module-level map that persists stale data"). A retry creates a fresh `workingMap`/`meta`.
+- The `onWaveDone` callback:
+  - Iterates the wave's results, merging each chunk's `results` into `workingMap` by normalized key (lookup via `chunk` items, same as the old post-await merge loop).
+  - Runs `extractProvidersFromOffers(entry.offers, meta)` to populate display metadata.
+  - Calls `setAvailabilityMap(new Map(workingMap))` + `setPackageMeta(new Map(meta))` after each wave — `new Map(...)` creates a shallow copy so SolidJS sees a new reference and triggers the memo recompute. This makes `enrichedItems` + `providerCatalog` update reactively WHILE the fetch is still running.
+  - Commits `debugRawKeys` (first 3 raw keys) as soon as the first wave with keys resolves — tracked by `debugRawKeysCommitted` flag to avoid redundant writes.
+  - Bumps `lastProgressTime = Date.now()` (used by the stall detector, Task 2).
+- The `onChunkDone` callback also bumps `lastProgressTime` (per-chunk granularity for the stall detector).
+- After `await fetchChunksWithLimitedConcurrency(...)` resolves:
+  - `workingMap`/`meta` are already fully populated by the wave callbacks.
+  - `debugRawKeys` fallback: if no wave ever had raw keys, scans `allResults` post-await to commit keys (even if empty array).
+  - Final `setAvailabilityMap(new Map(workingMap))` + `setPackageMeta(new Map(meta))` — defensive, per spec "After all chunks complete, call `setAvailabilityMap` one final time with the complete map."
+- Replaced `successCount` (which counted chunks with non-empty results) with `httpOkCount`/`failedCount` (which count chunks by HTTP success). This is the key change that lets Task 4 treat an empty catalog as success.
+
+### Task 2: Replace 20s hard timeout with stall detector
+- Modified: `src/features/watchlist/hooks/useWatchlistOttAvailability.ts`
+- Status: COMPLETE
+- Removed the 20s `setTimeout` block from Chunk 6P (including `const timeoutMs = 20_000`, `const timeout = setTimeout(...)`, and all `clearTimeout(timeout)` calls in Path E, Path G, Path H, and cleanup).
+- Added `let lastProgressTime = Date.now();` in the effect scope (before `runBatch`). Updated by both `onChunkDone` and `onWaveDone` callbacks.
+- Added `const stallCheck = setInterval(...)` that runs every 5s:
+  - If `fetchState() === 'loading' && effectRunId() === runId` AND `Date.now() - lastProgressTime > 25_000`: sets `cancelled = true`, `setLoading(false)`, `setFetchState("error")`, `setFetchError('stalled after 25s with no chunk progress')`, `clearInterval(stallCheck)`.
+  - Else (fetchState not loading, or runId changed): `clearInterval(stallCheck)` (self-clearing on terminal state).
+- `clearInterval(stallCheck)` is called in EVERY terminal/cancel path:
+  - Path E (cancelled after fetch resolves) — clear, this run is done.
+  - Path G (terminal success/error, no more retries) — clear, the fetch completed without stalling.
+  - Path H (runBatch threw unexpectedly) — clear at the start of the `.catch()` handler.
+  - Cleanup function (effect re-fire or unmount) — clear, the new run has its own fresh stall detector.
+- Path F (retry scheduled) does NOT clear the stall interval — the stall detector covers ALL retries for this effect run. A progressing retry bumps `lastProgressTime` via its chunk callbacks, so it won't trip the stall.
+
+### Task 3: Do not set state=error if still loading
+- Modified: `src/features/watchlist/hooks/useWatchlistOttAvailability.ts`
+- Status: COMPLETE
+- Removed the Chunk 6P hard timeout path that set `state=error` while chunks were still progressing.
+- The ONLY paths that now set `setFetchState('error')`:
+  - Stall detector fires (Task 2) — `error='stalled after 25s with no chunk progress'`.
+  - Path G terminal with `allFailed === true` (every chunk's `httpOk === false`) — `error='all N chunk(s) failed after M attempt(s) — httpOkCount=0'`.
+  - Path H (runBatch threw) — `error='runBatch threw: <message>'`.
+- A slow-but-progressing batch NO LONGER flips to error — the stall detector only fires if NO chunk has completed in 25s.
+- A chunk that fetches HTTP 200 with zero results NO LONGER counts as failure — `httpOk: true` means it's a successful fetch, even if `results` is empty.
+
+### Task 4: Set state=success on full completion even with empty catalog
+- Modified: `src/features/watchlist/hooks/useWatchlistOttAvailability.ts`
+- Status: COMPLETE
+- Replaced the terminal branch logic:
+  - OLD: `if (successCount > 0)` → success, else error. Where `successCount` counted chunks with non-empty results, so a watchlist with zero JustWatch offers in this country was treated as error.
+  - NEW: `if (!allFailed)` → success, else error. Where `allFailed = failedCount === chunks.length` (every chunk's `httpOk === false`).
+- A successful fetch that produces an empty catalog (e.g. all titles have no JustWatch offers in the user's country) is now `state=success` with `error=none`, NOT `state=error`.
+- Cache write guard updated: `if (!allFailed)` instead of `if (successCount > 0)`. An empty `workingMap` IS cached when at least one chunk succeeded — that's a stable fact (no offers in this country), not a transient failure.
+
+### Task 5: Update visible debug UI
+- Modified: none (no change needed)
+- Status: COMPLETE (verified, no change needed)
+- The existing debug block in `VaultFiltersContent.tsx` (Chunk 6P Task 5) already shows all 8 fields: `watchlist`, `state`, `loading`, `catalog`, `run`, `progress`, `keys`, `error`.
+- With the new incremental merge:
+  - `progress=` bumps per wave (e.g. `3/42 → 6/42 → ... → 42/42`) — already wired.
+  - `catalog=` grows reactively as waves merge (was stuck at 0 before because `availabilityMap` was only set once at the end).
+  - `keys=` populates as soon as the first wave with data lands (was stuck at `(none yet)` before).
+  - `state=` stays at `loading` during the fetch, then flips to `success` (or `error` only if every chunk failed or the stall detector fires).
+- No prop changes needed — `effectRunId`/`chunkProgress`/`fetchState`/`fetchError`/`debugRawKeys` signals all still exist and are wired through `useVaultFiltering` → `WatchlistView` → `VaultFiltersContent` / `WatchlistDialogs` → `VaultFilters` → `VaultFiltersContent`.
+
+### Files Modified
+- `src/features/watchlist/hooks/useWatchlistOttAvailability.ts`:
+  - `fetchChunksWithLimitedConcurrency`: added `onWaveDone` callback parameter + `httpOk: boolean` field on each chunk result. All 3 return paths (success, `!response.ok`, catch) now include `httpOk`. Calls `onWaveDone(waveResults, done, total)` after the `onChunkDone` loop at the end of each wave.
+  - Effect body: removed the 20s `setTimeout` block; added `let lastProgressTime` + `const stallCheck = setInterval(...)` (5s interval, 25s stall threshold). Both `onChunkDone` and `onWaveDone` bump `lastProgressTime`.
+  - `runBatch`: rewrote to use local `workingMap`/`meta`/`httpOkCount`/`failedCount`/`debugRawKeysCommitted`. The `onWaveDone` callback merges wave results into `workingMap`/`meta` and calls `setAvailabilityMap(new Map(workingMap))` + `setPackageMeta(new Map(meta))` after each wave. Removed the post-await merge loop. Terminal branch now uses `allFailed = failedCount === chunks.length` instead of `successCount === 0`. Retry condition uses `failedCount === chunks.length`. Cache write guard uses `!allFailed`.
+  - Path E (cancelled): `clearInterval(stallCheck)` instead of `clearTimeout(timeout)`.
+  - Path G (terminal): `clearInterval(stallCheck)` instead of `clearTimeout(timeout)`.
+  - Path H (runBatch threw): `clearInterval(stallCheck)` instead of `clearTimeout(timeout)`.
+  - Cleanup function: `clearInterval(stallCheck)` instead of `clearTimeout(timeout)`.
+
+### Files NOT Modified (verified, no change needed)
+- `src/features/watchlist/useVaultFiltering.ts` — pass-through, no new signals added in 6Q.
+- `src/features/watchlist/components/VaultFiltersContent.tsx` — debug UI already shows all 8 fields.
+- `src/features/watchlist/components/VaultFilters.tsx` — no prop changes.
+- `src/features/watchlist/components/WatchlistDialogs.tsx` — no prop changes.
+- `src/features/watchlist/WatchlistView.tsx` — no prop changes.
+- `src/server/justwatch/*` — server-side code is correct.
+- `src/routes/api/ott/batch-availability.ts` — route is correct.
+- `src/shared/types/justwatch.ts` + `src/shared/types/index.ts` — types are correct.
+- `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml` — NOT modified (per spec).
+- Discover "New on OTT", Upcoming, Statistics, Where to Watch — NOT touched per spec.
+- Old TMDB provider registry files — NOT deleted per spec.
+- Existing Chunk 6E/6F/6G/6H/6I/6J/6K/6M/6N/6O/6P temporary logs — NOT removed per spec.
+
+### Verification Results
+- TypeScript (`./node_modules/.bin/tsc --noEmit`): 0 errors in modified file. 2 pre-existing errors in OTHER files (`src/routes/movie/[id].tsx:306` and `src/routes/tv/[id].tsx:230` — `Object is possibly 'undefined'`). Verified pre-existing — NOT touched by this chunk.
+- ESLint (`./node_modules/.bin/eslint src/features/watchlist/hooks/useWatchlistOttAvailability.ts`): PASS, exit 0, 0 errors, 0 warnings.
+- Build (`./node_modules/.bin/vinxi build`): PASS — `✔ build done` / `✔ Nitro Server built` / `✔ You can deploy this build using npx vercel deploy --prebuilt`. Verified the bundled output (`WatchlistView-DMsQmgNZ.js` in client build) contains:
+  - The new stall detector error string `stalled after 25s with no chunk progress` (1 match).
+  - `httpOk` property references (6 matches — the new field on chunk results).
+  - The visible debug template `DEBUG:` (1 match — debug UI unchanged).
+  - The OLD timeout string `timeout after 20000ms` is GONE from the bundle (0 matches — confirms the Chunk 6P timeout was fully removed).
+
+### Diagnostic Interpretation Guide (Chunk 6Q)
+When the user reports the new debug line, here's how to read it:
+- `state=loading run=1 progress=3/42 catalog=5 keys=["movie:123"] error=none` → batch is progressing. 3 of 42 chunks done, 5 providers already in the catalog, the Platform filter should already be visible with 5 options. This is the NEW working state — previously `catalog` stayed at 0 until ALL chunks finished.
+- `state=loading run=1 progress=0/42` stuck for >25s → the very FIRST wave of 3 chunks is hanging. The stall detector will fire at 25s and flip to `state=error error=stalled after 25s with no chunk progress`.
+- `state=loading run=1 progress=21/42` then stuck for >25s → a MID-BATCH wave hung. The first 7 waves (21 chunks) landed fine, but wave 8 (chunks 22-24) is stuck. Stall detector fires at 25s after the last chunk completed.
+- `state=success run=1 progress=42/42 catalog=0 error=none` → batch completed successfully, but no watchlist title has any JustWatch offer in this country. This is the Task 4 fix — previously this would have been `state=error error=all 42 chunk(s) returned empty`.
+- `state=error run=1 progress=42/42 error=all 42 chunk(s) failed after 1 attempt(s) — httpOkCount=0` → every single chunk fetch failed (network error or non-OK response across the board). This is a real error, not an empty catalog.
+- `state=error run=1 progress=K/42 error=stalled after 25s with no chunk progress` → the stall detector fired. `K` tells you how far the batch got before stalling. If `K` is 0, the first wave hung; if `K` is mid-batch, a later wave hung.
+
+### Chunk 6Q Commit & Push
+- Commit message: `fix: stream Watchlist OTT batch results and remove premature timeout`
+- Files in commit: 2 (justwatch_migration_worklog.md + 1 source file)
+- Commit hash: <to be filled after commit>
+- Push status: <to be filled after push>

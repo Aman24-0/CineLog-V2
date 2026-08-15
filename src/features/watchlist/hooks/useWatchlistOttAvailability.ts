@@ -459,6 +459,19 @@ function extractProvidersFromOffers(
  * chunks are landing (vs. the very first wave hanging, which would
  * mean a network-level stall or a JustWatch 5xx the route is slow to
  * time out). The callback is optional and is a no-op when omitted.
+ *
+ * CHUNK 6Q Task 1 — `onWaveDone` callback + `httpOk` field. After each
+ * WAVE resolves (a wave = up to MAX_CONCURRENT_CHUNKS chunks fired in
+ * parallel), the function calls `onWaveDone(waveResults, done, total)`
+ * with the wave's full result array so the caller can merge that wave's
+ * results into a working map and reactively update `availabilityMap` /
+ * `packageMeta` signals BEFORE the next wave starts. This is the key
+ * change that makes the Platform filter appear as soon as the first
+ * wave with provider data lands, instead of waiting for all 42 chunks
+ * to resolve. The `httpOk` field on each result lets the caller
+ * distinguish "chunk fetched OK but had zero results" (legitimate
+ * empty) from "chunk failed" (network error / non-OK response) — this
+ * distinction is what lets Task 4 treat an empty catalog as success.
  */
 async function fetchChunksWithLimitedConcurrency(
   chunks: Array<Array<{
@@ -468,9 +481,19 @@ async function fetchChunksWithLimitedConcurrency(
     releaseYear?: number | null;
   }>>,
   country: string,
-  onChunkDone?: (done: number, total: number) => void
-): Promise<Array<{ chunk: typeof chunks[number]; results: Record<string, JustWatchTitleOffers>; rawKeys: string[] }>> {
-  const out: Array<{ chunk: typeof chunks[number]; results: Record<string, JustWatchTitleOffers>; rawKeys: string[] }> = [];
+  onChunkDone?: (done: number, total: number) => void,
+  onWaveDone?: (
+    waveResults: Array<{
+      chunk: typeof chunks[number];
+      results: Record<string, JustWatchTitleOffers>;
+      rawKeys: string[];
+      httpOk: boolean;
+    }>,
+    done: number,
+    total: number
+  ) => void
+): Promise<Array<{ chunk: typeof chunks[number]; results: Record<string, JustWatchTitleOffers>; rawKeys: string[]; httpOk: boolean }>> {
+  const out: Array<{ chunk: typeof chunks[number]; results: Record<string, JustWatchTitleOffers>; rawKeys: string[]; httpOk: boolean }> = [];
   // CHUNK 6P Task 3 — running count of chunks that have resolved so
   // far (success or failure). Bumped by 1 inside the `waveResults.forEach`
   // loop below, then passed to `onChunkDone` so the caller can render
@@ -498,10 +521,15 @@ async function fetchChunksWithLimitedConcurrency(
             // 400 = invalid input (we shouldn't hit this since we
             // pre-validate). 5xx = server error. Either way, treat
             // the chunk as failed — its items get `[]` providers.
+            // CHUNK 6Q Task 1 — `httpOk: false` so the caller can
+            // distinguish a failed fetch from a successful fetch with
+            // zero results (the latter is a legitimate empty catalog,
+            // not an error per Task 4).
             return {
               chunk,
               results: {} as Record<string, JustWatchTitleOffers>,
-              rawKeys: []
+              rawKeys: [],
+              httpOk: false
             };
           }
           const data = (await response.json()) as {
@@ -633,16 +661,25 @@ async function fetchChunksWithLimitedConcurrency(
             // but the user needs to see what the server ACTUALLY
             // returned in order to diagnose why the normalized keys
             // still contain spaces (per the Chunk 6N root cause).
-            rawKeys: Object.keys(rawResults)
+            rawKeys: Object.keys(rawResults),
+            // CHUNK 6Q Task 1 — `httpOk: true` marks this chunk as
+            // successfully fetched (HTTP 200 + valid JSON). A chunk
+            // with `httpOk: true` but empty `results` is a legitimate
+            // "no JustWatch offers for these titles" — NOT a failure.
+            httpOk: true
           };
         } catch {
           // Network error / JSON parse error — return empty results
           // for this chunk. The effect sets `error=true` if EVERY
           // chunk failed (checked after Promise.all resolves).
+          // CHUNK 6Q Task 1 — `httpOk: false` so the caller can
+          // distinguish a thrown fetch from a successful fetch with
+          // zero results.
           return {
             chunk,
             results: {} as Record<string, JustWatchTitleOffers>,
-            rawKeys: []
+            rawKeys: [],
+            httpOk: false
           };
         }
       })
@@ -663,6 +700,16 @@ async function fetchChunksWithLimitedConcurrency(
       done += 1;
       if (onChunkDone) onChunkDone(done, total);
     }
+    // CHUNK 6Q Task 1 — notify the caller that this wave is fully
+    // resolved, passing the wave's result array so the caller can
+    // merge the wave's results into its working map and reactively
+    // update `availabilityMap` / `packageMeta` BEFORE the next wave
+    // starts. This is what makes the Platform filter appear as soon
+    // as the first wave with provider data lands — the caller does
+    // NOT wait for all 42 chunks to resolve before updating signals.
+    // Called AFTER `onChunkDone` so `done` reflects the cumulative
+    // count when the wave callback fires.
+    if (onWaveDone) onWaveDone(waveResults, done, total);
   }
 
   return out;
@@ -911,38 +958,52 @@ export function useWatchlistOttAvailability(
         setFetchState("loading");
         setFetchError("");
 
-        // CHUNK 6P Task 4 — 20-second hard timeout. If the fetch is
-        // still in flight after 20s (the user-reported symptom:
-        // `state=loading loading=true catalog=0 keys=(none yet)
-        // error=none` stays forever), flip the state to `error` with
-        // a `timeout after 20000ms; progress=…` message so the user
-        // can see EXACTLY how far the batch got before stalling.
+        // CHUNK 6Q Task 2 — Stall detector (replaces Chunk 6P's 20s hard
+        // timeout). The 20s hard timeout was too aggressive for a 1046-item
+        // / 42-chunk batch — the user-reported symptom was
+        // `progress=27/42 error=timeout after 20000ms; progress=3/42`,
+        // i.e. the batch was genuinely progressing (27 of 42 chunks done)
+        // but the timeout killed it before `availabilityMap` was ever set,
+        // so `providerCatalog` stayed at 0.
         //
-        // The `effectRunId() === runId` guard prevents a stale
-        // timeout from a previous run firing on a new run (which
-        // would have its own fresh `loading` state). The
-        // `fetchState() === 'loading'` guard prevents firing after
-        // the run already completed (Path G or Path H).
+        // The stall detector only fires if NO chunk has completed in 25s
+        // (checked every 5s). A slow-but-progressing batch is allowed to
+        // continue — the user sees `progress` bumping in the debug line,
+        // and the Platform filter appears as soon as the first wave with
+        // provider data lands (Task 1's incremental merge).
         //
-        // We ALSO set `cancelled = true` so that if the in-flight
-        // fetch eventually resolves LATER (after the timeout fired),
-        // the Path E `if (cancelled) return;` check bails out and
-        // does NOT override the timeout's error state with a stale
-        // success/error from the late-completing fetch. Without this,
-        // the user would briefly see `error=timeout…` then it would
-        // flip to `state=success` (or a different error) when the
-        // slow fetch finally landed — confusing.
-        const timeoutMs = 20_000;
-        const timeout = setTimeout(() => {
+        // `lastProgressTime` is updated by:
+        //   - the `onChunkDone` callback (per-chunk progress)
+        //   - the `onWaveDone` callback (per-wave merge)
+        // Both callbacks fire DURING the `await fetchChunksWithLimitedConcurrency`
+        // call inside `runBatch`, so `lastProgressTime` stays fresh as
+        // long as chunks are landing.
+        //
+        // The `effectRunId() === runId` guard prevents a stale interval
+        // from a previous run firing on a new run. The
+        // `fetchState() === 'loading'` guard prevents firing after the
+        // run already completed (Path G or Path H). On terminal paths
+        // (Path E, Path G, Path H, cleanup) we `clearInterval(stallCheck)`
+        // to avoid a dangling timer.
+        //
+        // Like the old timeout, we set `cancelled = true` on stall so
+        // that if the in-flight fetch eventually resolves LATER, the
+        // Path E `if (cancelled) return;` check bails out and does NOT
+        // override the stall's error state.
+        let lastProgressTime = Date.now();
+        const stallCheck = setInterval(() => {
           if (fetchState() === 'loading' && effectRunId() === runId) {
-            cancelled = true;
-            setLoading(false);
-            setFetchState("error");
-            setFetchError(
-              `timeout after ${timeoutMs}ms; progress=${chunkProgress()}`
-            );
+            if (Date.now() - lastProgressTime > 25_000) {
+              cancelled = true;
+              setLoading(false);
+              setFetchState("error");
+              setFetchError('stalled after 25s with no chunk progress');
+              clearInterval(stallCheck);
+            }
+          } else {
+            clearInterval(stallCheck);
           }
-        }, timeoutMs);
+        }, 5_000);
 
         // Chunk 6D: pass the user's Discover region as the `country`
         // field in the request body so the route uses the user's
@@ -972,172 +1033,206 @@ export function useWatchlistOttAvailability(
           // user can see whether ANY chunks are landing (vs. the very
           // first wave hanging). The callback fires once per chunk,
           // success or failure.
-          const allResults = await fetchChunksWithLimitedConcurrency(
-            chunks,
-            currentCountry,
-            (done, total) => setChunkProgress(`${done}/${total}`)
-          );
-          if (cancelled) {
-            // CHUNK 6O Task 2 — Path E: cancelled. The `on()` cleanup
-            // fired (a new effect run started, or the component
-            // unmounted) OR the 20s timeout (Task 4) fired and set
-            // `cancelled = true` to abandon this run. In either case
-            // the new run / the timeout callback is responsible for
-            // setting fetchState/loading. We deliberately do NOT call
-            // `setFetchState` / `setLoading(false)` here because doing
-            // so would race with the new run's
-            // `setFetchState('loading')` / `setLoading(true)` (or
-            // the timeout's `setFetchState('error')`) and could
-            // transiently flip the UI back to idle/success while the
-            // new fetch is in flight. Just bail. We DO clear the
-            // timeout though — this run is done, the timeout is no
-            // longer needed.
-            clearTimeout(timeout);
-            return;
-          }
-
-          // CHUNK 6O Task 3 — populate `debugRawKeys` IMMEDIATELY after
-          // the fetch resolves, BEFORE the merge loop. The previous
-          // implementation only set this at the terminal success/error
-          // path, which meant that if the merge loop threw or the retry
-          // path bailed, the debug UI would never see the raw keys.
-          // Setting it here guarantees the user sees the server's actual
-          // response keys as soon as the network round-trip completes —
-          // even if everything downstream fails. We collect the first 3
-          // raw keys across all chunks (same logic as the old
-          // `collectedRawKeys` loop below, but hoisted up).
-          {
-            const earlyKeys: string[] = [];
-            for (let i = 0; i < allResults.length && earlyKeys.length < 3; i++) {
-              const chunkRawKeys = allResults[i]?.rawKeys ?? [];
-              for (let k = 0; k < chunkRawKeys.length && earlyKeys.length < 3; k++) {
-                earlyKeys.push(chunkRawKeys[k]);
-              }
-            }
-            setDebugRawKeys(JSON.stringify(earlyKeys));
-          }
-
-          // CHUNK 6K: store the RAW `JustWatchTitleOffers` in `merged`,
-          // NOT pre-extracted `string[]`. Extraction moves to
-          // `enrichedItems` (read time) so there's no possibility of a
-          // storage/retrieval key mismatch. The `meta` map is still
-          // populated here (during extraction for the diagnostic log
-          // below) so the catalog memo can resolve `clearName`/`icon`
-          // without re-iterating offers.
-          const merged = new Map<string, JustWatchTitleOffers>();
+          //
+          // CHUNK 6Q Task 1 — also pass an `onWaveDone` callback that
+          // merges each wave's results into `workingMap`/`meta` and
+          // reactively updates `availabilityMap`/`packageMeta` BEFORE
+          // the next wave starts. This is the key change: previously
+          // the hook waited for ALL 42 chunks to resolve before
+          // setting `availabilityMap` once, which meant the Platform
+          // filter stayed empty for the entire (slow) batch duration.
+          // Now the filter appears as soon as the first wave with
+          // provider data lands.
+          //
+          // `workingMap`/`meta` are LOCALS to this `runBatch` call —
+          // per spec "Use a local `workingMap` inside `runBatch`, not
+          // a module-level map that persists stale data." A retry
+          // creates a fresh `workingMap`/`meta`.
+          const workingMap = new Map<string, JustWatchTitleOffers>();
           const meta = new Map<string, { clearName: string; icon?: string }>();
-          let successCount = 0;
+          let httpOkCount = 0;
+          let failedCount = 0;
           // CHUNK 6M Task 1 — Log 3 counter: log only the first 2 items
           // processed across ALL chunks. Logging every item would spam
           // the console; the first 2 are enough to spot a systematic key
           // mismatch (if item #1 is wrong, item #2 is almost certainly
           // wrong for the same reason).
           let mergeLogCount = 0;
-          // CHUNK 6N Task 3 — collect the FIRST 3 raw keys observed
-          // across ALL chunks for the visible debug UI. We don't need
-          // all keys — just enough to show the user what shape the
-          // server's response keys have (e.g. "movie: 1443961" with a
-          // space, or "t v:105248" with a space inside the mediaType).
-          const collectedRawKeys: string[] = [];
-          for (const { chunk, results, rawKeys } of allResults) {
-            if (Object.keys(results).length > 0) successCount++;
-            // Collect raw keys for the debug UI (only the first 3 we see).
-            for (let k = 0; k < rawKeys.length && collectedRawKeys.length < 3; k++) {
-              collectedRawKeys.push(rawKeys[k]);
-            }
-            for (const item of chunk) {
-              // Chunk 6H Task 2 — normalize the client-side lookup key
-              // so it matches the normalized server response keys
-              // returned by `fetchChunksWithLimitedConcurrency`. No-op
-              // when the client already produces clean keys (the normal
-              // case — `${item.mediaType}:${item.tmdbId}` has no
-              // internal whitespace).
-              const key = normalizeOttKey(`${item.mediaType}:${item.tmdbId}`);
-              const entry = results[key];
-              // CHUNK 6M Task 1 — Log 3: for the first 2 items only,
-              // dump the exact lookup inputs and outcomes. If
-              // `foundInResults` is `false` for items that the server
-              // DID return data for, the lookup key construction is
-              // wrong — this is the smoking gun for the empty catalog.
-              // TEMPORARY diagnostic; will be removed in a later cleanup chunk.
-              if (mergeLogCount < 2) {
-                mergeLogCount++;
-                console.log(
-                  "[OTT TRACE] merge item",
-                  JSON.stringify({
-                    itemMediaType: item.mediaType,
-                    itemTmdbId: item.tmdbId,
-                    typeofTmdbId: typeof item.tmdbId,
-                    lookupKey: key,
-                    foundInResults: !!entry,
-                    availableResultKeys: Object.keys(results || {}).slice(0, 5)
-                  })
-                );
+          // CHUNK 6Q Task 1 — track whether `debugRawKeys` has been
+          // committed yet. The wave callback commits the first 3 raw
+          // keys as soon as the first wave with keys resolves (so the
+          // user sees them while the batch is still running). The
+          // terminal path checks this flag and only does a fallback
+          // commit if no wave ever had keys.
+          let debugRawKeysCommitted = false;
+
+          const allResults = await fetchChunksWithLimitedConcurrency(
+            chunks,
+            currentCountry,
+            (done, total) => {
+              setChunkProgress(`${done}/${total}`);
+              // CHUNK 6Q Task 2 — bump `lastProgressTime` on every
+              // chunk completion so the stall detector knows the
+              // batch is still progressing.
+              lastProgressTime = Date.now();
+            },
+            (waveResults, _done, _total) => {
+              // CHUNK 6Q Task 1 — merge this wave's results into the
+              // working map. This runs synchronously inside
+              // `fetchChunksWithLimitedConcurrency` after each wave
+              // resolves, BEFORE the next wave starts.
+              for (let w = 0; w < waveResults.length; w++) {
+                const { chunk, results, rawKeys, httpOk } = waveResults[w];
+                if (httpOk) {
+                  httpOkCount++;
+                } else {
+                  failedCount++;
+                }
+                // Commit the first 3 raw keys we observe — only once.
+                // This makes the visible debug line show keys as soon
+                // as the first wave with data lands, instead of
+                // waiting for the full batch to complete.
+                if (!debugRawKeysCommitted && rawKeys.length > 0) {
+                  const first3 = rawKeys.slice(0, 3);
+                  if (first3.length > 0) {
+                    setDebugRawKeys(JSON.stringify(first3));
+                    debugRawKeysCommitted = true;
+                  }
+                }
+                for (let c = 0; c < chunk.length; c++) {
+                  const item = chunk[c];
+                  // Chunk 6H Task 2 — normalize the client-side lookup
+                  // key so it matches the normalized server response
+                  // keys returned by `fetchChunksWithLimitedConcurrency`.
+                  const key = normalizeOttKey(`${item.mediaType}:${item.tmdbId}`);
+                  const entry = results[key];
+                  // CHUNK 6M Task 1 — Log 3: for the first 2 items only,
+                  // dump the exact lookup inputs and outcomes. If
+                  // `foundInResults` is `false` for items that the server
+                  // DID return data for, the lookup key construction is
+                  // wrong — this is the smoking gun for the empty catalog.
+                  // TEMPORARY diagnostic; will be removed in a later cleanup chunk.
+                  if (mergeLogCount < 2) {
+                    mergeLogCount++;
+                    console.log(
+                      "[OTT TRACE] merge item",
+                      JSON.stringify({
+                        itemMediaType: item.mediaType,
+                        itemTmdbId: item.tmdbId,
+                        typeofTmdbId: typeof item.tmdbId,
+                        lookupKey: key,
+                        foundInResults: !!entry,
+                        availableResultKeys: Object.keys(results || {}).slice(0, 5)
+                      })
+                    );
+                  }
+                  if (entry) {
+                    workingMap.set(key, entry);
+                    // Populate display metadata by running the extractor
+                    // once on the stored offers. The extractor's primary
+                    // output (the `string[]` of provider ids) is discarded
+                    // here — only the side-effect on `meta` is used.
+                    extractProvidersFromOffers(entry.offers, meta);
+                  }
+                }
               }
-              if (entry) {
-                merged.set(key, entry);
-                // Populate display metadata by running the extractor
-                // once on the stored offers. The extractor's primary
-                // output (the `string[]` of provider ids) is discarded
-                // here — only the side-effect on `meta` is used. This
-                // is cheap (one pass over offers per title) and keeps
-                // `meta` in sync with what `enrichedItems` will
-                // eventually produce.
-                extractProvidersFromOffers(entry.offers, meta);
+              // CHUNK 6Q Task 1 — reactively update signals so
+              // `enrichedItems` + `providerCatalog` recompute while
+              // the fetch is still running. The Platform filter
+              // appears as soon as the first wave with provider data
+              // lands. `new Map(workingMap)` creates a shallow copy
+              // so SolidJS sees a new reference and triggers the
+              // memo recompute (SolidJS uses referential equality
+              // for signal values).
+              setAvailabilityMap(new Map(workingMap));
+              setPackageMeta(new Map(meta));
+              // CHUNK 6Q Task 2 — bump `lastProgressTime` on every
+              // wave completion so the stall detector knows the
+              // batch is still progressing.
+              lastProgressTime = Date.now();
+            }
+          );
+          if (cancelled) {
+            // CHUNK 6O Task 2 — Path E: cancelled. The `on()` cleanup
+            // fired (a new effect run started, or the component
+            // unmounted) OR the stall detector (Task 2) fired and set
+            // `cancelled = true` to abandon this run. In either case
+            // the new run / the stall callback is responsible for
+            // setting fetchState/loading. We deliberately do NOT call
+            // `setFetchState` / `setLoading(false)` here because doing
+            // so would race with the new run's
+            // `setFetchState('loading')` / `setLoading(true)` (or
+            // the stall's `setFetchState('error')`) and could
+            // transiently flip the UI back to idle/success while the
+            // new fetch is in flight. Just bail. We DO clear the
+            // stall interval though — this run is done, the interval
+            // is no longer needed.
+            clearInterval(stallCheck);
+            return;
+          }
+
+          // CHUNK 6Q Task 1 — `debugRawKeys` fallback. If no wave ever
+          // had raw keys (e.g. every chunk returned empty results OR
+          // every chunk failed), the wave callback never committed
+          // keys. Fall back to scanning `allResults` post-await so the
+          // debug UI shows something (even if it's an empty array).
+          if (!debugRawKeysCommitted) {
+            const fallbackKeys: string[] = [];
+            for (let i = 0; i < allResults.length && fallbackKeys.length < 3; i++) {
+              const chunkRawKeys = allResults[i]?.rawKeys ?? [];
+              for (let k = 0; k < chunkRawKeys.length && fallbackKeys.length < 3; k++) {
+                fallbackKeys.push(chunkRawKeys[k]);
               }
             }
+            setDebugRawKeys(JSON.stringify(fallbackKeys.slice(0, 3)));
           }
 
           // Chunk 6F Task 4 — diagnostic log. Logs the watchlist size,
-          // number of chunks fetched, number of successful chunks,
-          // merged provider-entries count, and unique provider count.
-          // Temporary; will be removed in a later cleanup chunk.
-          // Logs only counts (no PII / no titles).
+          // number of chunks fetched, number of HTTP-OK chunks,
+          // number of failed chunks, merged provider-entries count,
+          // and unique provider count. Temporary; will be removed in
+          // a later cleanup chunk. Logs only counts (no PII / no titles).
           console.log(
             "[useWatchlistOttAvailability] batch complete" +
               " watchlistItems=" + items.length +
               " fetchItems=" + fetchItems.length +
               " chunks=" + chunks.length +
-              " successCount=" + successCount +
-              " mergedEntries=" + merged.size +
+              " httpOk=" + httpOkCount +
+              " failed=" + failedCount +
+              " mergedEntries=" + workingMap.size +
               " uniqueProviders=" + meta.size +
               " country=" + currentCountry
           );
 
-          // CHUNK 6K Task 1 — log the availabilityMap size AFTER it's
-          // set, so we can verify the signal actually received the
-          // data. This runs inside `runBatch` right before
-          // `setAvailabilityMap(merged)`, using `merged.size` (the
-          // local we're about to commit). TEMPORARY; will be removed
-          // in a later cleanup chunk.
+          // CHUNK 6K Task 1 — log the availabilityMap size AFTER the
+          // wave callbacks have populated it. TEMPORARY; will be
+          // removed in a later cleanup chunk.
           console.log(
-            "[Watchlist OTT] availabilityMap size (pre-set)",
-            merged.size
+            "[Watchlist OTT] availabilityMap size (post-wave-merge)",
+            workingMap.size
           );
 
-          // Chunk 6E: if every chunk came back empty AND we still have
-          // retry budget, schedule a retry. This is the difference
-          // between "JustWatch is down/429 — hide Platform filter
-          // forever" and "JustWatch is down — try once more in 2s".
+          // CHUNK 6Q Task 3+4 — retry logic. Previously retried when
+          // `successCount === 0` (where successCount counted chunks
+          // with non-empty results). Now we retry only when EVERY
+          // chunk actually FAILED (httpOk === false) — a successful
+          // fetch with zero results is a legitimate empty catalog,
+          // not a transient failure worth retrying.
           //
-          // CHUNK 6P Task 4 — we do NOT clear the 20s `timeout` here.
-          // The 20s budget covers ALL retries for this effect run —
-          // if attempt 1 takes 15s and fails, the retry has only 5s
-          // left before the timeout fires. This is intentional: a
-          // retry that takes another 15s would push the total to 30s+,
-          // which is too long for the user to wait without feedback.
-          // The timeout will fire during the retry's fetch (if slow)
-          // or after the retry completes (if fast — Path G clears it).
-          if (successCount === 0 && attempt < MAX_RETRIES) {
+          // CHUNK 6Q Task 2 — we do NOT clear `stallCheck` here. The
+          // stall detector covers ALL retries for this effect run —
+          // if attempt 1 stalls, the retry should also be subject to
+          // the same stall detection. The stall detector's
+          // `lastProgressTime` is bumped by the retry's chunk
+          // callbacks, so a progressing retry won't trip the stall.
+          if (failedCount === chunks.length && attempt < MAX_RETRIES) {
             attempt += 1;
             // CHUNK 6O Task 2 — Path F: retry scheduled. We keep
             // `loading=true` and `fetchState='loading'` (the retry is
             // still in flight) but surface a human-readable message in
             // `fetchError` so the debug UI can show WHY we're retrying.
-            // Without this, the user would see `state=loading` with no
-            // indication that the previous attempt failed.
             setFetchError(
-              `all ${chunks.length} chunk(s) returned empty — retry ${attempt}/${MAX_RETRIES} in ${RETRY_DELAY_MS}ms`
+              `all ${chunks.length} chunk(s) failed — retry ${attempt}/${MAX_RETRIES} in ${RETRY_DELAY_MS}ms`
             );
             retryTimer = setTimeout(() => {
               if (!cancelled) void runBatch();
@@ -1145,87 +1240,69 @@ export function useWatchlistOttAvailability(
             return;
           }
 
-          setAvailabilityMap(merged);
-          // CHUNK 6P Task 4 — Path G (terminal success/error): clear
-          // the 20s timeout. The fetch completed within budget, so the
-          // timeout is no longer needed. If we don't clear it here, it
-          // would fire 20s after the effect started — but the
-          // `fetchState() === 'loading'` guard inside the timeout
-          // callback would prevent it from doing anything (fetchState
-          // is now 'success' or 'error'). Still, clearing is cleaner
-          // and avoids a dangling timer.
-          clearTimeout(timeout);
-          // CHUNK 6N Task 3 — commit the collected raw keys to the
-          // debug signal so the visible debug line in VaultFiltersContent
-          // can render them. JSON.stringify so the consumer doesn't have
-          // to worry about array → string coercion. We slice to 3 in
-          // case more were collected (defensive — the collection loop
-          // above already caps at 3, but a future code change might not).
-          setDebugRawKeys(JSON.stringify(collectedRawKeys.slice(0, 3)));
-          // CHUNK 6M Task 1 — Log 4: dump the `merged` map's size, first
-          // few keys, and the first value, IMMEDIATELY before committing
-          // it to the `availabilityMap` signal. This is the LAST chance
-          // to verify the map's contents before SolidJS's reactivity
-          // takes over. If `merged.size` is 0 here, the merge loop above
-          // never found a match — Log 3 will show why. If `merged.size`
-          // is >0 but the keys don't match what `enrichedItems` builds,
-          // Log 5 will show the mismatch.
-          // TEMPORARY diagnostic; will be removed in a later cleanup chunk.
+          // CHUNK 6Q Task 1 — final commit. `workingMap`/`meta` are
+          // already populated by the wave callbacks and the signals
+          // already reflect the latest state. Per spec: "After all
+          // chunks complete, call `setAvailabilityMap` one final time
+          // with the complete map." This is defensive — guarantees
+          // the signal reflects the complete map even if the last
+          // wave's callback raced with the await resolution.
+          setAvailabilityMap(new Map(workingMap));
+          setPackageMeta(new Map(meta));
+          // CHUNK 6Q Task 2 — Path G (terminal success/error): clear
+          // the stall detector. The fetch completed without stalling,
+          // so the interval is no longer needed.
+          clearInterval(stallCheck);
+          // CHUNK 6M Task 1 — Log 4: dump the `workingMap`'s size,
+          // first few keys, and the first value. TEMPORARY; will be
+          // removed in a later cleanup chunk.
           console.log(
-            "[OTT TRACE] availabilityMap before set",
+            "[OTT TRACE] availabilityMap before final set",
             JSON.stringify({
-              size: merged.size,
-              firstKeys: Array.from(merged.keys()).slice(0, 5),
-              firstValue: Array.from(merged.values())[0] ?? null
+              size: workingMap.size,
+              firstKeys: Array.from(workingMap.keys()).slice(0, 5),
+              firstValue: Array.from(workingMap.values())[0] ?? null
             })
           );
-          setPackageMeta(meta);
-          // If every chunk came back empty (network errors across
-          // the board), flag as error so the UI can show "All
-          // Platforms only" instead of "no providers" (which would
-          // hide the dropdown entirely — too aggressive when the
-          // cause is transient).
-          setError(successCount === 0);
+          // CHUNK 6Q Task 3+4 — terminal state. Only set error if
+          // EVERY chunk failed (failedCount === chunks.length). If at
+          // least one chunk succeeded (httpOk > 0), it's success —
+          // EVEN IF the resulting catalog is empty (some titles just
+          // have no JustWatch offers in this country). This is the
+          // Task 4 fix: "Do not mark error for empty provider catalog
+          // after successful fetch."
+          const allFailed = failedCount === chunks.length;
+          setError(allFailed);
           setLoading(false);
-          // CHUNK 6O Task 2 — Path G: terminal state (success OR error,
-          // no more retries). This is the ONLY path that reaches
-          // `setLoading(false)` after a fetch, so it MUST set
-          // `fetchState` to either `'success'` or `'error'` here. The
-          // branch is `successCount > 0` → success, else error. We
-          // also populate `fetchError` with a human-readable message
-          // in the error branch so the debug UI can show WHY the fetch
-          // failed (the most common cause is "all chunks returned
-          // empty" which usually means JustWatch is rate-limiting or
-          // the country has no offers for any watchlist title).
-          if (successCount > 0) {
+          if (!allFailed) {
             setFetchState("success");
             setFetchError("");
           } else {
             setFetchState("error");
             setFetchError(
-              `all ${chunks.length} chunk(s) returned empty after ${attempt + 1} attempt(s) — successCount=0`
+              `all ${chunks.length} chunk(s) failed after ${attempt + 1} attempt(s) — httpOkCount=0`
             );
           }
 
           // CHUNK 6I: write to in-memory cache ONLY on a non-retry
-          // terminal state. We reach this branch when either (a) the
-          // fetch had at least one successful chunk (successCount > 0),
-          // or (b) every chunk failed AND we've exhausted the retry
-          // budget (attempt >= MAX_RETRIES). Case (a) is the normal
-          // success path — cache the result so subsequent effect
-          // re-fires (caused by upstream signal churn) short-circuit
-          // into the cached state instead of re-hitting the server.
-          // Case (b) is a total failure — do NOT cache so the next
-          // effect run can retry from scratch.
+          // terminal state. We reach this branch when either (a) at
+          // least one chunk succeeded (httpOk > 0), or (b) every
+          // chunk failed AND we've exhausted the retry budget
+          // (attempt >= MAX_RETRIES). Case (a) is the normal success
+          // path — cache the result so subsequent effect re-fires
+          // (caused by upstream signal churn) short-circuit into the
+          // cached state instead of re-hitting the server. Case (b)
+          // is a total failure — do NOT cache so the next effect run
+          // can retry from scratch.
           //
-          // An empty `merged` map (watchlist has zero JustWatch offers
-          // in this country) IS cached when successCount > 0 — that's
-          // a stable fact, not a transient failure, and caching it
+          // An empty `workingMap` (watchlist has zero JustWatch offers
+          // in this country) IS cached when httpOk > 0 — that's a
+          // stable fact, not a transient failure, and caching it
           // prevents re-querying JustWatch for a watchlist that will
           // never have offers.
-          if (successCount > 0) {
+          if (!allFailed) {
             batchCache.set(sig, {
-              availability: merged,
+              availability: workingMap,
               meta,
               timestamp: Date.now()
             });
@@ -1241,11 +1318,11 @@ export function useWatchlistOttAvailability(
         // the user reported in Chunk 6N: "DEBUG: loading=true catalog=0
         // keys=(none yet)" that never changed).
         //
-        // CHUNK 6P Task 4 — Path H (runBatch threw): clear the 20s
-        // timeout. The run is over (with an error), the timeout is no
-        // longer needed.
+        // CHUNK 6Q Task 2 — Path H (runBatch threw): clear the stall
+        // detector. The run is over (with an error), the interval is
+        // no longer needed.
         void runBatch().catch((err: unknown) => {
-          clearTimeout(timeout);
+          clearInterval(stallCheck);
           if (cancelled) return;
           console.warn(
             "[useWatchlistOttAvailability] runBatch threw unexpectedly:",
@@ -1265,17 +1342,18 @@ export function useWatchlistOttAvailability(
         // the `cancelled` flag prevents stale state writes from a
         // previous run. Chunk 6E: also clear any pending retry timer.
         //
-        // CHUNK 6P Task 4 — also clear the 20s hard timeout. If the
+        // CHUNK 6Q Task 2 — also clear the stall detector. If the
         // effect re-fires (signature changed) or the component
-        // unmounts while the fetch is still in flight, the timeout
-        // from THIS run should NOT fire on the new run (the new run
-        // has its own fresh timeout). The `effectRunId() === runId`
-        // guard inside the timeout callback would prevent any state
-        // update, but clearing the timer avoids a dangling reference
-        // and is the spec-required cleanup path.
+        // unmounts while the fetch is still in flight, the stall
+        // interval from THIS run should NOT fire on the new run (the
+        // new run has its own fresh stall detector). The
+        // `effectRunId() === runId` guard inside the stall callback
+        // would prevent any state update, but clearing the interval
+        // avoids a dangling reference and is the spec-required
+        // cleanup path.
         return () => {
           cancelled = true;
-          clearTimeout(timeout);
+          clearInterval(stallCheck);
           if (retryTimer) {
             clearTimeout(retryTimer);
             retryTimer = null;
