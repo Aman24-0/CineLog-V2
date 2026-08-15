@@ -71,6 +71,26 @@ export interface VaultFiltersContentProps {
   uniqueTagsPlus: string[];
   /** Bump to force re-read of tag vocabulary from localStorage. */
   refreshTagVocab: () => void;
+  /** CHUNK 6N Task 3 — TEMPORARY debug prop. True while the JustWatch
+   *  batch-availability fetch is in flight. Surfaced in the visible
+   *  debug line below the Platform dropdown so the user can see the
+   *  fetch state without opening the browser console.
+   *  Will be removed alongside the other Chunk 6E-6M diagnostic logs. */
+  ottLoading: boolean;
+  /** CHUNK 6N Task 3 — TEMPORARY debug prop. First 3 raw batch-response
+   *  keys as a JSON string (e.g. `["movie:2668","t v:105248"]`). Empty
+   *  string before the first fetch completes. Surfaced in the visible
+   *  debug line below the Platform dropdown so the user can see the
+   *  EXACT shape of the server's response keys without opening the
+   *  browser console — this is what the Chunk 6N root cause is about.
+   *  Will be removed alongside the other Chunk 6E-6M diagnostic logs. */
+  debugRawKeys: string;
+  /** CHUNK 6N Task 3 — TEMPORARY debug prop. Number of items in the
+   *  user's watchlist. Surfaced in the visible debug line so the user
+   *  can verify the watchlist actually loaded (vs. an empty list, which
+   *  would correctly produce an empty catalog). Will be removed
+   *  alongside the other Chunk 6E-6M diagnostic logs. */
+  watchlistSize: number;
   presets: Accessor<FilterPreset[]>;
   onSavePreset: (name: string) => Promise<void>;
   onDeletePreset: (id: string) => void;
@@ -267,6 +287,35 @@ export default function VaultFiltersContent(props: VaultFiltersContentProps) {
               No platforms available
             </p>
           </Show>
+          {/* CHUNK 6N Task 3 — TEMPORARY visible debug line.
+              Rendered unconditionally (regardless of catalog state) so
+              the user can see the EXACT runtime state of the OTT fetch
+              without opening the browser DevTools console (which is
+              hard on a phone). Shows:
+                - watchlist size (verifies the watchlist actually loaded)
+                - OTT loading state (true while a fetch is in flight)
+                - provider catalog size (0 means no providers reached
+                  the dropdown — the bug we're chasing)
+                - first 3 raw batch-response keys (the EXACT shape of
+                  the server's response keys, including any stray
+                  whitespace that would cause a key-mismatch)
+              Will be removed alongside the other Chunk 6E-6M logs. */}
+          <p
+            style={{
+              "font-size": "11px",
+              "color": "#ff8c00",
+              "padding": "6px 8px",
+              "background": "rgba(255,140,0,0.06)",
+              "border-radius": "6px",
+              "margin-top": "0.25rem",
+              "margin-left": "0.125rem",
+              "word-break": "break-all",
+              "line-height": "1.4",
+              "font-family": "ui-monospace, SFMono-Regular, Menlo, monospace"
+            }}
+          >
+            DEBUG: watchlist={props.watchlistSize} loading={props.ottLoading ? "true" : "false"} catalog={props.uniquePlatforms.length} keys={props.debugRawKeys || "(none yet)"}
+          </p>
           {/* Tag — RE-ADDED in Phase 6.2 Task 1a.
               Shows the union of (tag vocabulary in localStorage) ∪ (tags
               currently in use on vault items). When the user picks a tag,

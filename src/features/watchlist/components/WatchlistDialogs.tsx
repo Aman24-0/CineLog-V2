@@ -29,6 +29,15 @@ export interface WatchlistDialogsProps {
   /** Bump to force `uniqueTagsPlus` to re-read localStorage after a
    *  tag definition add/remove. Phase 6.2 Task 1a. */
   refreshTagVocab: () => void;
+  /** CHUNK 6N Task 3 — TEMPORARY debug accessors for the visible
+   *  debug line in the Platform filter modal. Will be removed
+   *  alongside the other Chunk 6E-6M diagnostic logs. */
+  ottLoading: Accessor<boolean>;
+  /** CHUNK 6N Task 3 — first 3 raw batch-response keys as JSON
+   *  string. Empty string before the first fetch completes. */
+  debugRawKeys: Accessor<string>;
+  /** CHUNK 6N Task 3 — number of items in the user's watchlist. */
+  watchlistSize: Accessor<number>;
   onClose: () => void;
   onClear: () => void;
 }
@@ -60,6 +69,9 @@ export default function WatchlistDialogs(props: WatchlistDialogsProps) {
           uniqueTags={props.uniqueTags()}
           uniqueTagsPlus={props.uniqueTagsPlus()}
           refreshTagVocab={props.refreshTagVocab}
+          ottLoading={props.ottLoading()}
+          debugRawKeys={props.debugRawKeys()}
+          watchlistSize={props.watchlistSize()}
           onClose={props.onClose}
           onClear={props.onClear}
         />

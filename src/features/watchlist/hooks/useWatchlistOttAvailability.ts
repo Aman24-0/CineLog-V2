@@ -88,8 +88,34 @@ import { useDiscoverRegion } from "~/core/config/discoverRegion";
  *   - `enrichedItems` memo — normalizes the client-side lookup key
  *     `${it.media_type}:${tmdbId}` when reading from `availabilityMap`.
  */
+/**
+ * CHUNK 6N — Robust whitespace stripping. The previous version
+ * `value.replace(/\s+/g, "")` is correct for ASCII whitespace but
+ * DOES NOT match every Unicode whitespace character that JustWatch
+ * responses have been observed to embed in their object keys
+ * (e.g. zero-width space U+200B, non-breaking space U+00A0 IS matched
+ * by `\s`, but U+200B / U+200C / U+200D / U+FEFF are NOT).
+ *
+ * Observed runtime log (Chunk 6M):
+ *   raw keys:        ["movie:2668","t v:105248","movie: 1443961"]
+ *   normalized keys: ["movie:2668","t v:105248","movie: 1443961"]  ← SAME
+ *
+ * That identical output is only possible if the "space" between
+ * "t" and "v" is a character class that `\s` does not match. To
+ * kill the entire class of bugs, we now strip:
+ *   1. ASCII whitespace via `\s+` (space, tab, newline, CR, FF, VT)
+ *   2. Zero-width / BOM / thin-space / hair-space via explicit
+ *      Unicode code point ranges.
+ *
+ * The result is identical to the previous version when the input
+ * contains only ASCII whitespace (the normal case), but is now
+ * resilient to exotic Unicode whitespace as well.
+ */
 function normalizeOttKey(value: string): string {
-  return value.replace(/\s+/g, "");
+  if (!value) return "";
+  return value
+    .replace(/\s+/g, "")
+    .replace(/[\u200B-\u200D\uFEFF\u2028\u2029\u00A0\u202F\u205F\u3000]/g, "");
 }
 
 /** Max items per `/api/ott/batch-availability` request (enforced by the route). */
@@ -218,6 +244,20 @@ export interface UseWatchlistOttAvailabilityResult {
    *  empty in this state. The hook does NOT surface an error to the
    *  user — the Platform filter simply hides (per spec Task 6.2). */
   error: Accessor<boolean>;
+  /**
+   * CHUNK 6N Task 3 — TEMPORARY debug accessor. Returns the first 3
+   * raw batch-response keys (as a JSON string) observed during the
+   * most recent fetch. Empty string before the first fetch completes.
+   *
+   * Used by `VaultFiltersContent` to render a visible debug line in
+   * the Platform filter modal so the user can see the EXACT shape of
+   * the server's response keys without needing to open the browser
+   * DevTools console (which is hard on a phone).
+   *
+   * Will be removed in a later cleanup chunk alongside the other
+   * Chunk 6E-6M diagnostic logs.
+   */
+  debugRawKeys: Accessor<string>;
 }
 
 /**
@@ -354,8 +394,8 @@ async function fetchChunksWithLimitedConcurrency(
     releaseYear?: number | null;
   }>>,
   country: string
-): Promise<Array<{ chunk: typeof chunks[number]; results: Record<string, JustWatchTitleOffers> }>> {
-  const out: Array<{ chunk: typeof chunks[number]; results: Record<string, JustWatchTitleOffers> }> = [];
+): Promise<Array<{ chunk: typeof chunks[number]; results: Record<string, JustWatchTitleOffers>; rawKeys: string[] }>> {
+  const out: Array<{ chunk: typeof chunks[number]; results: Record<string, JustWatchTitleOffers>; rawKeys: string[] }> = [];
 
   for (let i = 0; i < chunks.length; i += MAX_CONCURRENT_CHUNKS) {
     const wave = chunks.slice(i, i + MAX_CONCURRENT_CHUNKS);
@@ -377,7 +417,11 @@ async function fetchChunksWithLimitedConcurrency(
             // 400 = invalid input (we shouldn't hit this since we
             // pre-validate). 5xx = server error. Either way, treat
             // the chunk as failed — its items get `[]` providers.
-            return { chunk, results: {} as Record<string, JustWatchTitleOffers> };
+            return {
+              chunk,
+              results: {} as Record<string, JustWatchTitleOffers>,
+              rawKeys: []
+            };
           }
           const data = (await response.json()) as {
             country?: string;
@@ -501,7 +545,14 @@ async function fetchChunksWithLimitedConcurrency(
           );
           return {
             chunk,
-            results: normalizedResults
+            results: normalizedResults,
+            // CHUNK 6N Task 3 — capture the RAW server response keys
+            // (un-normalized) so we can surface them in the visible
+            // debug UI. The catalog lookup uses `normalizedResults`,
+            // but the user needs to see what the server ACTUALLY
+            // returned in order to diagnose why the normalized keys
+            // still contain spaces (per the Chunk 6N root cause).
+            rawKeys: Object.keys(rawResults)
           };
         } catch {
           // Network error / JSON parse error — return empty results
@@ -509,7 +560,8 @@ async function fetchChunksWithLimitedConcurrency(
           // chunk failed (checked after Promise.all resolves).
           return {
             chunk,
-            results: {} as Record<string, JustWatchTitleOffers>
+            results: {} as Record<string, JustWatchTitleOffers>,
+            rawKeys: []
           };
         }
       })
@@ -556,6 +608,13 @@ export function useWatchlistOttAvailability(
 
   const [loading, setLoading] = createSignal(false);
   const [error, setError] = createSignal(false);
+
+  // CHUNK 6N Task 3 — TEMPORARY debug signal. Stores the first 3 raw
+  // batch-response keys (as a JSON string) from the most recent fetch.
+  // Read by `VaultFiltersContent` to render a visible debug line in the
+  // Platform filter modal. Empty string before the first fetch.
+  // Will be removed alongside the other Chunk 6E-6M diagnostic logs.
+  const [debugRawKeys, setDebugRawKeys] = createSignal<string>("");
 
   // ── Trigger effect ────────────────────────────────────────────────
   // Fires when the watchlist signature OR the user's region changes
@@ -724,8 +783,18 @@ export function useWatchlistOttAvailability(
           // mismatch (if item #1 is wrong, item #2 is almost certainly
           // wrong for the same reason).
           let mergeLogCount = 0;
-          for (const { chunk, results } of allResults) {
+          // CHUNK 6N Task 3 — collect the FIRST 3 raw keys observed
+          // across ALL chunks for the visible debug UI. We don't need
+          // all keys — just enough to show the user what shape the
+          // server's response keys have (e.g. "movie: 1443961" with a
+          // space, or "t v:105248" with a space inside the mediaType).
+          const collectedRawKeys: string[] = [];
+          for (const { chunk, results, rawKeys } of allResults) {
             if (Object.keys(results).length > 0) successCount++;
+            // Collect raw keys for the debug UI (only the first 3 we see).
+            for (let k = 0; k < rawKeys.length && collectedRawKeys.length < 3; k++) {
+              collectedRawKeys.push(rawKeys[k]);
+            }
             for (const item of chunk) {
               // Chunk 6H Task 2 — normalize the client-side lookup key
               // so it matches the normalized server response keys
@@ -809,6 +878,13 @@ export function useWatchlistOttAvailability(
           }
 
           setAvailabilityMap(merged);
+          // CHUNK 6N Task 3 — commit the collected raw keys to the
+          // debug signal so the visible debug line in VaultFiltersContent
+          // can render them. JSON.stringify so the consumer doesn't have
+          // to worry about array → string coercion. We slice to 3 in
+          // case more were collected (defensive — the collection loop
+          // above already caps at 3, but a future code change might not).
+          setDebugRawKeys(JSON.stringify(collectedRawKeys.slice(0, 3)));
           // CHUNK 6M Task 1 — Log 4: dump the `merged` map's size, first
           // few keys, and the first value, IMMEDIATELY before committing
           // it to the `availabilityMap` signal. This is the LAST chance
@@ -1116,6 +1192,10 @@ export function useWatchlistOttAvailability(
     enrichedItems,
     providerCatalog,
     loading,
-    error
+    error,
+    // CHUNK 6N Task 3 — TEMPORARY debug accessor for the visible
+    // debug line in VaultFiltersContent. Will be removed alongside
+    // the other Chunk 6E-6M diagnostic logs.
+    debugRawKeys
   };
 }

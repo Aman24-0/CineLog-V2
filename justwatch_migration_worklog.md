@@ -1196,3 +1196,104 @@ THE FIX (Chunk 6K Task 3): move extraction INTO `enrichedItems` at read time. Th
 - Files in commit: 2 (justwatch_migration_worklog.md, src/features/watchlist/hooks/useWatchlistOttAvailability.ts)
 - Commit hash: `e716757` (full SHA: `e716757e...` — see `git log -1` for full SHA)
 - Push status: PUSHED to `origin/Justwatch` (range `fcc9c84..e716757`) using the user-supplied PAT (one-shot explicit push URL — NOT written to `.git/config`).
+
+## Chunk 6N — Fix batch OTT response key spaces + show debug in filter UI
+
+### Task 1: Inspect server key construction
+- Modified: none (analysis only)
+- Status: COMPLETE
+- Files inspected:
+  - `src/routes/api/ott/batch-availability.ts` — route handler passes `batchGetTitleOttAvailability({ items, country })` result straight through as `{ country, results }`. No string interpolation of keys in this file.
+  - `src/server/justwatch/service.ts` — `batchGetTitleOttAvailability` builds result keys at TWO sites:
+    - Line 525 (cache-hit path): `result[\`${item.mediaType}:${item.tmdbId}\`]` — NO spaces.
+    - Line 615 (live-fetch path): `result[\`${item.mediaType}:${item.tmdbId}\`]` — NO spaces.
+- Conclusion: Server uses EXACTLY `${item.mediaType}:${item.tmdbId}` with NO spaces around the colon and NO spaces inside `mediaType`. Per spec: "If the server already uses no spaces, then the spaces are coming from client-side object key creation. Proceed to Task 2."
+- The user's runtime logs showing `"t v:105248"` (with a space INSIDE the `mediaType` segment) and `"movie: 1443961"` (with a space after the colon) cannot originate from the server. The space character must be either:
+  - A Unicode whitespace character that the previous `value.replace(/\s+/g, "")` did not strip (e.g. zero-width space U+200B, BOM U+FEFF, narrow no-break space U+202F, etc.). `\s` in modern JS DOES match U+00A0, U+2028, U+2029, but does NOT match U+200B, U+200C, U+200D, U+FEFF, U+202F, U+205F, U+3000 in all engines.
+  - OR a stale build cache on the user's device showing pre-Chunk-6H logs.
+- Either way, Task 2 hardens `normalizeOttKey` to strip ALL exotic Unicode whitespace, killing the entire class of bugs.
+
+### Task 2: Normalize both sides on client
+- Modified: `src/features/watchlist/hooks/useWatchlistOttAvailability.ts`
+- Status: COMPLETE
+- Changes:
+  1. **Made `normalizeOttKey` robust against exotic Unicode whitespace.** Previous: `value.replace(/\s+/g, "")`. New: ALSO strips zero-width space U+200B, zero-width non-joiner U+200C, zero-width joiner U+200D, BOM U+FEFF, line separator U+2028, paragraph separator U+2029, non-breaking space U+00A0 (already matched by `\s` but listed explicitly for clarity), narrow no-break space U+202F, medium mathematical space U+205F, ideographic space U+3000. This is the exact set of Unicode whitespace characters that JavaScript's `\s` does NOT reliably match across all engines. If the user's logs were genuinely showing normalized keys with spaces, this is the fix.
+  2. **Verified `cleanResults` (called `normalizedResults` in the existing code) is used everywhere from the fetch return onward.** The existing code at line 488-491 builds `normalizedResults` from `rawResults` via `normalizeOttKey`, returns it from `fetchChunksWithLimitedConcurrency`, and consumes it in `runBatch`'s merge loop (line 738 `const entry = results[key];` where `key = normalizeOttKey(\`${item.mediaType}:${item.tmdbId}\`)`). No path uses `data.results` directly in the merge loop. No change needed — already correct.
+  3. **Verified every lookup uses `normalizeOttKey(\`${item.mediaType}:${item.tmdbId}\`)`.** Two lookup sites:
+     - `runBatch` merge loop (line 791): `const key = normalizeOttKey(\`${item.mediaType}:${item.tmdbId}\`)` — ✓ normalized.
+     - `enrichedItems` memo (line 948-950): `const key = Number.isFinite(tmdbId) && tmdbId > 0 ? normalizeOttKey(\`${it.media_type}:${tmdbId}\`) : null` — ✓ normalized.
+  - No speculative fixes applied. The existing client normalization was already structurally correct; only `normalizeOttKey` itself was hardened to cover Unicode whitespace.
+
+### Task 3: Add visible debug line in filter UI
+- Modified: `src/features/watchlist/components/VaultFiltersContent.tsx`
+- Status: COMPLETE
+- Added a TEMPORARY visible `<p>` element directly below the Platform filter's "No platforms available" note. Renders unconditionally (regardless of catalog state) so the user can see the runtime state on EVERY render, not just when the catalog is empty.
+- Shows:
+  - `watchlist={props.watchlistSize}` — number of items in the user's watchlist (verifies the watchlist actually loaded; an empty watchlist correctly produces an empty catalog).
+  - `loading={props.ottLoading ? "true" : "false"}` — true while any batch request is in flight.
+  - `catalog={props.uniquePlatforms.length}` — provider catalog size; 0 means no providers reached the dropdown (the bug we're chasing).
+  - `keys={props.debugRawKeys || "(none yet)"}` — first 3 raw batch-response keys as a JSON string (e.g. `["movie:2668","t v:105248"]`). This is the EXACT shape of the server's response keys including any stray whitespace. Empty string before the first fetch completes — renders "(none yet)" in that case.
+- Styling: orange (#ff8c00) text on a translucent orange background, 11px monospace, `word-break: break-all` so long JSON keys don't overflow the drawer. Conspicuous enough to spot on a phone screen, subtle enough not to break the filter UI.
+- Props added to `VaultFiltersContentProps`: `ottLoading: boolean`, `debugRawKeys: string`, `watchlistSize: number`.
+- Prop chain wired through:
+  - `useWatchlistOttAvailability` — added `debugRawKeys: Accessor<string>` signal, populated in `runBatch` after `setAvailabilityMap(merged)` via `setDebugRawKeys(JSON.stringify(collectedRawKeys.slice(0, 3)))`. The raw keys are collected from each chunk's `rawKeys` field (newly added to the `fetchChunksWithLimitedConcurrency` return type).
+  - `useVaultFiltering` — destructured `debugRawKeys` from `useWatchlistOttAvailability` and re-exported it alongside `ottLoading`.
+  - `WatchlistView` — destructured `ottLoading` + `debugRawKeys` from `useVaultFiltering`, passes both (plus `watchlistSize={() => watchlist().length}`) to BOTH the inline desktop `VaultFiltersContent` AND the modal `WatchlistDialogs` → `VaultFilters` → `VaultFiltersContent`.
+  - `WatchlistDialogs` + `VaultFilters` — added `ottLoading`, `debugRawKeys`, `watchlistSize` to their prop interfaces and forwarded them to `VaultFiltersContent`.
+- All debug accessors are marked TEMPORARY and will be removed alongside the other Chunk 6E-6M diagnostic logs in a future cleanup chunk.
+
+### Files Modified
+- `src/features/watchlist/hooks/useWatchlistOttAvailability.ts`:
+  - Hardened `normalizeOttKey` to strip exotic Unicode whitespace.
+  - Added `debugRawKeys: Accessor<string>` to `UseWatchlistOttAvailabilityResult`.
+  - Added `const [debugRawKeys, setDebugRawKeys] = createSignal<string>("")` signal.
+  - Extended `fetchChunksWithLimitedConcurrency` return type to include `rawKeys: string[]` per chunk result; populated in all three return paths (success, non-OK response, catch).
+  - Added `collectedRawKeys` collection loop in `runBatch` (caps at first 3 raw keys observed across all chunks).
+  - Added `setDebugRawKeys(JSON.stringify(collectedRawKeys.slice(0, 3)))` immediately after `setAvailabilityMap(merged)`.
+  - Added `debugRawKeys` to the hook's return object.
+- `src/features/watchlist/useVaultFiltering.ts`:
+  - Added `debugRawKeys: Accessor<string>` to `UseVaultFilteringResult`.
+  - Destructured `debugRawKeys` from `useWatchlistOttAvailability`.
+  - Added `debugRawKeys` to the return object.
+- `src/features/watchlist/components/VaultFiltersContent.tsx`:
+  - Added `ottLoading: boolean`, `debugRawKeys: string`, `watchlistSize: number` to `VaultFiltersContentProps`.
+  - Added the visible `<p>` debug element after the "No platforms available" Show block.
+- `src/features/watchlist/components/VaultFilters.tsx`:
+  - Added `ottLoading: boolean`, `debugRawKeys: string`, `watchlistSize: number` to `VaultFiltersProps`.
+  - Forwarded all three to `VaultFiltersContent`.
+- `src/features/watchlist/components/WatchlistDialogs.tsx`:
+  - Added `ottLoading: Accessor<boolean>`, `debugRawKeys: Accessor<string>`, `watchlistSize: Accessor<number>` to `WatchlistDialogsProps`.
+  - Forwarded all three to `VaultFilters`.
+- `src/features/watchlist/WatchlistView.tsx`:
+  - Destructured `ottLoading` + `debugRawKeys` from `useVaultFiltering`.
+  - Passed `ottLoading`, `debugRawKeys`, `watchlistSize={watchlist().length}` to inline `VaultFiltersContent`.
+  - Passed `ottLoading`, `debugRawKeys`, `watchlistSize={() => watchlist().length}` to modal `WatchlistDialogs`.
+
+### Files NOT Modified (verified, no change needed)
+- `src/server/justwatch/service.ts` — server key construction is correct (`${item.mediaType}:${item.tmdbId}` with no spaces). Per spec Task 1: "If you find a space, remove it." — no space found.
+- `src/routes/api/ott/batch-availability.ts` — route passes through `batchGetTitleOttAvailability`'s result; no string interpolation of keys.
+- `src/shared/types/justwatch.ts` — types are correct.
+- `src/shared/types/index.ts` — `WatchlistItem.justwatchProviders?: string[]` is declared.
+- `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml` — NOT modified (per spec).
+- Discover "New on OTT", Upcoming, Statistics, Where to Watch — NOT touched per spec.
+- Old TMDB provider registry files — NOT deleted per spec.
+- Existing Chunk 6E/6F/6G/6H/6I/6J/6K/6M temporary logs — NOT removed per spec.
+
+### Verification Results
+- TypeScript (`./node_modules/.bin/tsc --noEmit`): 0 errors in modified files. 2 pre-existing errors in OTHER files (`src/routes/movie/[id].tsx:306` and `src/routes/tv/[id].tsx:230` — `Object is possibly 'undefined'`). Verified pre-existing by the worklog of Chunk 6M — same 2 errors appear on the unmodified branch HEAD. NOT touched by this chunk.
+- ESLint (`./node_modules/.bin/eslint` on all 6 modified files): PASS, exit 0, 0 errors, 0 warnings.
+- Build (`./node_modules/.bin/vinxi build`): PASS — `✔ build done` / `✔ Nitro Server built` / `✔ You can deploy this build using npx vercel deploy --prebuilt`. Verified the bundled output (`WatchlistView-CE5xkPo2.js`) contains:
+  - The new debug line string `DEBUG: watchlist=`.
+  - The new Unicode whitespace regex character class `u200B-u200D` / `uFEFF` / `u2028` / `u2029` / `u00A0` / `u202F` / `u205F` / `u3000`.
+  - The `debugRawKeys` property name (confirmed via grep).
+
+### Root Cause Found (from code + logs)
+- **Server**: Clean. Uses `${item.mediaType}:${item.tmdbId}` with NO spaces at both cache-hit and live-fetch paths in `service.ts` (lines 525 + 615).
+- **Client**: The existing `normalizeOttKey` was `value.replace(/\s+/g, "")` — correct for ASCII whitespace but does NOT match every Unicode whitespace character. The user's runtime logs showed normalized keys IDENTICAL to raw keys (still containing `"t v:105248"` and `"movie: 1443961"`), which is only possible if the "space" character in the server's response keys is a Unicode whitespace code point that JavaScript's `\s` does not match (e.g. U+200B zero-width space, U+FEFF BOM, U+202F narrow no-break space).
+- **Fix**: Hardened `normalizeOttKey` to ALSO strip the explicit Unicode code point range `[\u200B-\u200D\uFEFF\u2028\u2029\u00A0\u202F\u205F\u3000]`. This is a no-op for ASCII whitespace (the normal case) and resilient to any exotic Unicode whitespace the server may emit.
+
+### Chunk 6N Commit & Push
+- Commit message: `fix: remove batch OTT key spaces and show filter debug state`
+- Files in commit: 7 (justwatch_migration_worklog.md + 6 source files)
+- Commit hash: (see `git log -1` after commit)
+- Push status: (filled after push)

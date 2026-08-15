@@ -70,7 +70,11 @@ export default function WatchlistView() {
     uniquePlatforms,
     uniqueTags,
     uniqueTagsPlus,
-    refreshTagVocab
+    refreshTagVocab,
+    // CHUNK 6N Task 3 — TEMPORARY debug accessors for the visible
+    // debug line in the Platform filter modal.
+    ottLoading,
+    debugRawKeys
   } = filtering;
 
   // Infinite scroll — bump display limit when user nears the bottom.
@@ -192,6 +196,9 @@ export default function WatchlistView() {
                 uniqueTags={uniqueTags()}
                 uniqueTagsPlus={uniqueTagsPlus()}
                 refreshTagVocab={refreshTagVocab}
+                ottLoading={ottLoading()}
+                debugRawKeys={debugRawKeys()}
+                watchlistSize={watchlist().length}
                 presets={presets}
                 onSavePreset={(name) => savePreset(name, filters())}
                 onDeletePreset={(id) => deletePreset(id)}
@@ -285,6 +292,9 @@ export default function WatchlistView() {
         uniqueTags={uniqueTags}
         uniqueTagsPlus={uniqueTagsPlus}
         refreshTagVocab={refreshTagVocab}
+        ottLoading={ottLoading}
+        debugRawKeys={debugRawKeys}
+        watchlistSize={() => watchlist().length}
         onClose={() => setShowFilter(false)}
         onClear={() => {
           clearFilters();

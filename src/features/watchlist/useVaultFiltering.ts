@@ -102,6 +102,14 @@ export interface UseVaultFilteringResult {
    * arrives).
    */
   ottLoading: Accessor<boolean>;
+  /**
+   * CHUNK 6N Task 3 — TEMPORARY debug accessor. Returns the first 3
+   * raw batch-response keys (as a JSON string) from the most recent
+   * OTT fetch, for display in the Platform filter modal's debug line.
+   * Empty string before the first fetch. Will be removed alongside
+   * the other Chunk 6E-6M diagnostic logs.
+   */
+  debugRawKeys: Accessor<string>;
   uniqueTags: Accessor<string[]>;
   /**
    * Union of the user's tag vocabulary (saved in localStorage) and the
@@ -225,7 +233,7 @@ export function useVaultFiltering(
   //
   // See `hooks/useWatchlistOttAvailability.ts` for the full contract.
   const ottAvailability = useWatchlistOttAvailability(args.watchlist);
-  const { enrichedItems, providerCatalog, loading: ottLoading } = ottAvailability;
+  const { enrichedItems, providerCatalog, loading: ottLoading, debugRawKeys } = ottAvailability;
 
   // ── UNIQUE VALUES — single-pass Set accumulation (no intermediate arrays) ──
   // Previously: flatMap + map + new Set + spread + filter + sort created
@@ -411,6 +419,10 @@ export function useVaultFiltering(
     uniqueGenres,
     uniquePlatforms,
     ottLoading,
+    // CHUNK 6N Task 3 — TEMPORARY debug accessor for the visible
+    // debug line in VaultFiltersContent. Will be removed alongside
+    // the other Chunk 6E-6M diagnostic logs.
+    debugRawKeys,
     uniqueTags,
     uniqueTagsPlus,
     refreshTagVocab

@@ -20,6 +20,18 @@ interface VaultFiltersProps {
   uniqueTagsPlus: string[];
   /** Bump to force re-read of tag vocabulary from localStorage. */
   refreshTagVocab: () => void;
+  /** CHUNK 6N Task 3 — TEMPORARY debug accessors for the visible
+   *  debug line in the Platform filter modal. Will be removed
+   *  alongside the other Chunk 6E-6M diagnostic logs. */
+  ottLoading: boolean;
+  /** CHUNK 6N Task 3 — first 3 raw batch-response keys as JSON
+   *  string. Empty string before the first fetch completes. */
+  debugRawKeys: string;
+  /** CHUNK 6N Task 3 — number of items in the user's watchlist.
+   *  Surfaced in the visible debug line so the user can verify the
+   *  watchlist actually loaded (vs. an empty list, which would
+   *  correctly produce an empty catalog). */
+  watchlistSize: number;
   onClose: () => void;
   onClear: () => void;
 }
@@ -130,6 +142,9 @@ export default function VaultFilters(props: VaultFiltersProps) {
             uniqueTags={props.uniqueTags}
             uniqueTagsPlus={props.uniqueTagsPlus}
             refreshTagVocab={props.refreshTagVocab}
+            ottLoading={props.ottLoading}
+            debugRawKeys={props.debugRawKeys}
+            watchlistSize={props.watchlistSize}
             presets={presets}
             onSavePreset={(name) => savePreset(name, props.filters)}
             onDeletePreset={(id) => deletePreset(id)}
