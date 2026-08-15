@@ -1110,5 +1110,5 @@ THE FIX (Chunk 6K Task 3): move extraction INTO `enrichedItems` at read time. Th
 ### Chunk 6K Commit & Push
 - Commit message: `fix: connect Watchlist OTT extraction to Platform filter options`
 - Files in commit: 3 (justwatch_migration_worklog.md, src/features/watchlist/hooks/useWatchlistOttAvailability.ts, src/features/watchlist/components/VaultFiltersContent.tsx)
-- Commit hash: <filled in after commit>
-- Push status: <filled in after push>
+- Commit hash: `c9ed06b` (full SHA: `c9ed06bbe40dd0078c365859e77729d71b2e1a3d`)
+- Push status: PUSHED to `origin/Justwatch` (range `10655f2..c9ed06b`) using the user-supplied PAT (one-shot explicit push URL — NOT written to `.git/config`).
