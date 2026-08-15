@@ -243,7 +243,13 @@ export default function VaultFiltersContent(props: VaultFiltersContentProps) {
             opts={[
               { l: "All Platforms", v: "all" },
               ...props.uniquePlatforms.map((p) => ({
-                l: p.clearName,
+                // CHUNK 6K Task 5 — defensive: prefer clearName, fall
+                // back to technicalName. The providerCatalog memo
+                // already guarantees clearName is non-empty (falls
+                // back to technicalName when packageMeta is missing),
+                // but this `||` makes the contract explicit and
+                // protects against any future regression.
+                l: p.clearName || p.technicalName,
                 v: p.technicalName
               }))
             ]}

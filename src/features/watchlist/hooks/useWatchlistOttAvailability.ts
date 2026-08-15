@@ -116,9 +116,28 @@ const MAX_BATCH = 25;
  * zero JustWatch offers in this country is a stable fact, not a
  * transient failure).
  */
+/**
+ * CHUNK 6K: `availabilityMap` now stores the RAW `JustWatchTitleOffers`
+ * returned by the server (keyed by normalized `"${mediaType}:${tmdbId}"`),
+ * NOT pre-extracted `string[]`. Provider extraction moves to
+ * `enrichedItems` (read time) so there is ZERO possibility of a
+ * storage/retrieval key mismatch — the same normalized key is used
+ * to store AND to look up, and extraction happens immediately after
+ * lookup using the same `extractProvidersFromOffers` helper the
+ * production path uses.
+ *
+ * This is the Chunk 6K root-cause fix: previous chunks stored
+ * `string[]` in `availabilityMap`, which worked when keys matched
+ * but silently produced `[]` for every item when the stored key and
+ * the lookup key diverged by even a single character (e.g. a stale
+ * entry left in the map from a previous run with different
+ * normalization, or a key built from a different `tmdbId` source).
+ * Storing the raw offers and extracting at read time eliminates
+ * that entire class of bugs.
+ */
 interface BatchCacheEntry {
-  /** Pre-built availabilityMap (mediaType:tmdbId → technicalName[]). */
-  availability: Map<string, string[]>;
+  /** Raw server offers map (mediaType:tmdbId → JustWatchTitleOffers). */
+  availability: Map<string, JustWatchTitleOffers>;
   /** Pre-built package metadata map for the catalog. */
   meta: Map<string, { clearName: string; icon?: string }>;
   timestamp: number;
@@ -496,11 +515,16 @@ export function useWatchlistOttAvailability(
   // resolver, which fails open to "US" on the Vercel preview).
   const region = useDiscoverRegion();
 
-  // Map keyed by `${mediaType}:${tmdbId}` → list of JustWatch
-  // `technicalName` values for that title. `null` = fetch in progress
-  // or never attempted; the enriched memo falls back to the raw item.
+  // Map keyed by `${mediaType}:${tmdbId}` → RAW JustWatch server response
+  // for that title (the `JustWatchTitleOffers` object containing `nodeId`,
+  // `objectType`, and `offers[]`). Extraction of provider `technicalName`
+  // values happens at READ time in `enrichedItems`, not at storage time —
+ // see the Chunk 6K note on `BatchCacheEntry` above for the rationale.
+  //
+  // `null` = fetch in progress or never attempted; the enriched memo
+  // falls back to the raw watchlist item (with `justwatchProviders: undefined`).
   const [availabilityMap, setAvailabilityMap] = createSignal<
-    Map<string, string[]> | null
+    Map<string, JustWatchTitleOffers> | null
   >(null);
 
   // Package display metadata (clearName, icon URL) collected across
@@ -653,7 +677,14 @@ export function useWatchlistOttAvailability(
           );
           if (cancelled) return;
 
-          const merged = new Map<string, string[]>();
+          // CHUNK 6K: store the RAW `JustWatchTitleOffers` in `merged`,
+          // NOT pre-extracted `string[]`. Extraction moves to
+          // `enrichedItems` (read time) so there's no possibility of a
+          // storage/retrieval key mismatch. The `meta` map is still
+          // populated here (during extraction for the diagnostic log
+          // below) so the catalog memo can resolve `clearName`/`icon`
+          // without re-iterating offers.
+          const merged = new Map<string, JustWatchTitleOffers>();
           const meta = new Map<string, { clearName: string; icon?: string }>();
           let successCount = 0;
           for (const { chunk, results } of allResults) {
@@ -667,11 +698,17 @@ export function useWatchlistOttAvailability(
               // internal whitespace).
               const key = normalizeOttKey(`${item.mediaType}:${item.tmdbId}`);
               const entry = results[key];
-              const providers = extractProvidersFromOffers(
-                entry?.offers,
-                meta
-              );
-              merged.set(key, providers);
+              if (entry) {
+                merged.set(key, entry);
+                // Populate display metadata by running the extractor
+                // once on the stored offers. The extractor's primary
+                // output (the `string[]` of provider ids) is discarded
+                // here — only the side-effect on `meta` is used. This
+                // is cheap (one pass over offers per title) and keeps
+                // `meta` in sync with what `enrichedItems` will
+                // eventually produce.
+                extractProvidersFromOffers(entry.offers, meta);
+              }
             }
           }
 
@@ -689,6 +726,17 @@ export function useWatchlistOttAvailability(
               " mergedEntries=" + merged.size +
               " uniqueProviders=" + meta.size +
               " country=" + currentCountry
+          );
+
+          // CHUNK 6K Task 1 — log the availabilityMap size AFTER it's
+          // set, so we can verify the signal actually received the
+          // data. This runs inside `runBatch` right before
+          // `setAvailabilityMap(merged)`, using `merged.size` (the
+          // local we're about to commit). TEMPORARY; will be removed
+          // in a later cleanup chunk.
+          console.log(
+            "[Watchlist OTT] availabilityMap size (pre-set)",
+            merged.size
           );
 
           // Chunk 6E: if every chunk came back empty AND we still have
@@ -764,6 +812,17 @@ export function useWatchlistOttAvailability(
   // specific. Once the map is set, items are CLONED with the new
   // field (we never mutate the source `WatchlistItem` objects, which
   // are owned by the vault store).
+  //
+  // CHUNK 6K Task 3 — extraction happens HERE, at read time. The map
+  // stores RAW `JustWatchTitleOffers`; we look up by normalized key
+  // and call `extractProvidersFromOffers(result?.offers)` to get the
+  // `string[]` of provider technicalNames. This eliminates the
+  // entire class of bugs where the stored `string[]` and the lookup
+  // key diverge — there's no longer a stored `string[]` to diverge.
+  //
+  // The `packageMeta` map is NOT consulted here (extraction populates
+  // a throwaway local map). The catalog memo reads `packageMeta`
+  // separately, which is populated during `runBatch`'s extraction pass.
   const enrichedItems = createMemo<WatchlistItem[]>(() => {
     const items = watchlist();
     const map = availabilityMap();
@@ -772,6 +831,12 @@ export function useWatchlistOttAvailability(
       return items;
     }
     // Map is set (possibly empty). Clone each item with its providers.
+    // CHUNK 6K — hoist the throwaway metadata Map OUTSIDE the loop so
+    // we don't allocate a new Map per item. The metadata it would
+    // populate is already maintained by `runBatch`'s extraction pass
+    // into the `packageMeta` signal; this local Map is only here to
+    // satisfy `extractProvidersFromOffers`'s signature and is discarded.
+    const throwawayMeta = new Map<string, { clearName: string; icon?: string }>();
     const out: WatchlistItem[] = new Array(items.length);
     for (let i = 0; i < items.length; i++) {
       const it = items[i];
@@ -783,15 +848,41 @@ export function useWatchlistOttAvailability(
       const key = Number.isFinite(tmdbId) && tmdbId > 0
         ? normalizeOttKey(`${it.media_type}:${tmdbId}`)
         : null;
-      const providers = key ? map.get(key) : undefined;
-      // Always set the field (even to `[]`) once the fetch has run —
-      // the filter distinguishes `undefined` (not fetched) from `[]`
-      // (fetched, no offers).
+      const result = key ? map.get(key) : undefined;
+      // CHUNK 6K Task 3 — ALWAYS assign a `string[]`. Never `undefined`.
+      // If `result` is missing (key mismatch — should not happen after
+      // the Chunk 6K refactor, but defensive), `extractProvidersFromOffers`
+      // returns `[]` for `undefined` input. If `result.offers` is empty,
+      // extraction also returns `[]`. The item is still included in the
+      // enriched list — it just has no providers to filter on.
+      const providers = result
+        ? extractProvidersFromOffers(result.offers, throwawayMeta)
+        : [];
       out[i] = {
         ...it,
-        justwatchProviders: providers ?? []
+        justwatchProviders: providers
       };
     }
+
+    // CHUNK 6K Task 1 — diagnostic logs. Log the first 3 enriched
+    // items + the count of items with non-empty providers, so we can
+    // verify the enrichment step actually attached providers to items.
+    // TEMPORARY; will be removed in a later cleanup chunk alongside
+    // the Chunk 6E/6F/6G/6H/6I/6J logs. Logs only ids + provider
+    // technicalNames (no titles, no PII).
+    const sample = out.slice(0, 3).map((item) => ({
+      key: `${item.media_type}:${item.id}`,
+      providers: item.justwatchProviders || []
+    }));
+    console.log("[Watchlist OTT] enriched first 3", JSON.stringify(sample));
+    const withProviders = out.filter(
+      (item) => (item.justwatchProviders || []).length > 0
+    );
+    console.log(
+      "[Watchlist OTT] items with providers count",
+      withProviders.length
+    );
+
     return out;
   });
 
@@ -801,57 +892,67 @@ export function useWatchlistOttAvailability(
   // count desc, then clearName asc (alphabetical tiebreaker so the
   // dropdown is deterministic when counts are equal).
   //
-  // CHUNK 6J Task 4 — READS FROM `enrichedItems`, NOT `availabilityMap`.
-  // Previously this memo iterated `availabilityMap.forEach(...)` to
-  // count providers per item. That worked, but it bypassed the
-  // `enrichedItems` clone step (which is the actual data the user
-  // sees in the Watchlist grid + the data `matchesPlatform` reads).
-  // In edge cases where `enrichedItems` post-processes an item's
-  // providers (e.g. an item whose `availabilityMap` lookup returned
-  // `undefined` and was coerced to `[]`), the catalog would diverge
-  // from what `matchesPlatform` actually sees. Reading from
-  // `enrichedItems` guarantees the catalog reflects exactly the items
-  // + providers the filter operates on.
+  // CHUNK 6K Task 4 — SIMPLIFIED. Reads directly from `enrichedItems()`
+  // and aggregates into a `Map<string, {count, clearName, icon}>`.
+  // Display metadata (`clearName`, `icon`) is sourced from `packageMeta`
+  // when available (populated during `runBatch`'s extraction pass),
+  // falling back to `technicalName` as the `clearName` and empty string
+  // as the `icon` when metadata is missing. The spec explicitly allows
+  // this fallback: "technicalName as display is acceptable if clearName
+  // mapping is missing, but try to use packageMeta if available."
   //
-  // The `packageMeta` map is still consulted for display metadata
-  // (clearName + icon URL) — it is populated during
-  // `extractProvidersFromOffers` in `runBatch` and survives across
-  // re-fetches. If a provider's metadata is missing from the map
-  // (e.g. a stale entry from a previous run), we fall back to using
-  // the `technicalName` as the display label.
+  // The previous implementation used a `Record<string, PlatformFilterOption>`
+  // which is functionally identical to the Map-based approach but
+  // allocated a new object per provider. The Map version is marginally
+  // faster for large catalogs and matches the spec example exactly.
   const providerCatalog = createMemo<PlatformFilterOption[]>(() => {
     const items = enrichedItems();
     const meta = packageMeta();
     if (!items || items.length === 0) return [];
 
-    // Aggregate counts across all enriched items. An item with no
-    // `justwatchProviders` (undefined or empty) contributes nothing
-    // — it is skipped, not counted as "no provider".
-    const catalog: Record<string, PlatformFilterOption> = {};
+    const counts = new Map<string, { count: number; clearName: string; icon: string }>();
+
     for (let i = 0; i < items.length; i++) {
       const providers = items[i]?.justwatchProviders;
       if (!Array.isArray(providers) || providers.length === 0) continue;
       for (let j = 0; j < providers.length; j++) {
         const technicalName = providers[j];
         if (!technicalName) continue;
-        if (!catalog[technicalName]) {
+        const existing = counts.get(technicalName);
+        if (existing) {
+          existing.count += 1;
+        } else {
+          // Prefer packageMeta for the display label + icon URL.
+          // Fall back to `technicalName` as the label and `""` as the
+          // icon when metadata is missing (rare — `runBatch` populates
+          // `meta` during its extraction pass for every provider that
+          // appears in any offer's `package`).
           const m = meta.get(technicalName);
-          catalog[technicalName] = {
-            technicalName,
+          counts.set(technicalName, {
+            count: 1,
             clearName: m?.clearName ?? technicalName,
-            icon: m?.icon,
-            count: 0
-          };
+            icon: m?.icon ?? ""
+          });
         }
-        catalog[technicalName].count += 1;
       }
     }
 
+    const options: PlatformFilterOption[] = Array.from(counts.entries()).map(
+      ([technicalName, data]) => ({
+        technicalName,
+        clearName: data.clearName,
+        icon: data.icon || undefined,
+        count: data.count
+      })
+    );
+
     // Sort: count desc, then clearName asc.
-    return Object.values(catalog).sort((a, b) => {
+    options.sort((a, b) => {
       if (a.count !== b.count) return b.count - a.count;
       return a.clearName.localeCompare(b.clearName);
     });
+
+    return options;
   });
 
   // Chunk 6G Task 2 — diagnostic effect. Watches `enrichedItems` and

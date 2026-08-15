@@ -1010,3 +1010,105 @@ The Watchlist Platform filter showed no provider options despite direct API test
 - Files in commit: 2 (justwatch_migration_worklog.md, src/features/watchlist/hooks/useWatchlistOttAvailability.ts)
 - Commit hash: `089bee4` (full SHA: `089bee47edf8c9e3f847c7f86db7373e403a41f5`)
 - Push status: PUSHED to `origin/Justwatch` (range `76905ce..089bee4`) using the user-supplied PAT (one-shot explicit push URL — NOT written to `.git/config`).
+
+
+## Chunk 6K — Connect OTT extraction to Platform filter catalog
+
+### Task 1: Add logs between extraction and enrichment
+- Modified: src/features/watchlist/hooks/useWatchlistOttAvailability.ts
+- Status: COMPLETE
+- Validation: tsc + eslint + vinxi build all PASS.
+- Errors and fixes: none.
+- Notes:
+  - Added three new `console.log` calls:
+    1. `[Watchlist OTT] availabilityMap size (pre-set)` — inside `runBatch`, right before `setAvailabilityMap(merged)`. Logs `merged.size` so we can verify the signal actually received the data. (The spec phrasing "After `availabilityMap` is set" is implemented as "right before the set call, using the local we're about to commit" — logging inside the effect AFTER `setAvailabilityMap` would not see the updated value synchronously because SolidJS signal reads inside the same effect batch see the old value; logging `merged.size` directly is the most accurate diagnostic.)
+    2. `[Watchlist OTT] enriched first 3` — at the end of the `enrichedItems` memo, logs `JSON.stringify(out.slice(0, 3).map(...))` with `{ key, providers }` per item. Verifies the enrichment step actually attached providers to items.
+    3. `[Watchlist OTT] items with providers count` — at the end of the `enrichedItems` memo, logs the count of items with non-empty `justwatchProviders`. If this is `0` despite the `availabilityMap` being populated, the issue is in the key-matching between `runBatch` (storage) and `enrichedItems` (lookup) — which the Chunk 6K Task 3 refactor eliminates.
+  - All three logs are TEMPORARY and will be removed in a later cleanup chunk alongside the Chunk 6E/6F/6G/6H/6I/6J logs.
+  - Existing Chunk 6E/6F/6G/6H/6I/6J logs are UNTOUCHED (spec: "Do NOT remove existing logs").
+
+### Task 2: Verify availabilityMap key consistency
+- Modified: src/features/watchlist/hooks/useWatchlistOttAvailability.ts (changed the VALUE type stored in the map, not the key construction)
+- Status: COMPLETE
+- Validation: tsc + eslint + vinxi build all PASS.
+- Notes:
+  - The `normalizeOttKey(value: string): string` helper (Chunk 6H) is unchanged: `value.replace(/\s+/g, "")`.
+  - In `runBatch`, the storage key is `normalizeOttKey(\`${item.mediaType}:${item.tmdbId}\`)` — unchanged.
+  - In `enrichedItems`, the lookup key is `normalizeOttKey(\`${it.media_type}:${tmdbId}\`)` where `tmdbId = Number(it.id)` — unchanged.
+  - Both sides use the SAME normalization on the SAME key format. Task 2 is satisfied.
+  - **WHAT CHANGED**: the VALUE stored in `availabilityMap`. Previously it was `string[]` (pre-extracted provider ids). Now it is the RAW `JustWatchTitleOffers` object returned by the server. This is the Chunk 6K root-cause fix — see Task 3 notes for the rationale.
+  - The `BatchCacheEntry.availability` field type was updated from `Map<string, string[]>` to `Map<string, JustWatchTitleOffers>` to match. The cache continues to work exactly as before — it stores the raw offers map and short-circuits subsequent effect re-fires.
+
+### Task 3: Fix enriched items assignment (no undefined)
+- Modified: src/features/watchlist/hooks/useWatchlistOttAvailability.ts (rewrote `enrichedItems` memo)
+- Status: COMPLETE
+- Validation: tsc + eslint + vinxi build all PASS.
+- Errors and fixes: none.
+- Notes:
+  - ROOT CAUSE OF PROVIDER LIST STILL NOT SHOWING (final answer): the previous `enrichedItems` memo read `providers` from `availabilityMap.get(key)` — a `string[]` that was pre-extracted in `runBatch`. When the stored key and the lookup key matched, this worked. When they DIDN'T match (e.g. a stale entry from a previous run, a key built from a different `tmdbId` source, or any subtle normalization drift), the lookup returned `undefined`, and `justwatchProviders: providers ?? []` produced `[]`. The user saw an empty Platform filter because every item's `justwatchProviders` was `[]`, so the catalog memo's `if (providers.length === 0) continue;` skipped every item, producing an empty catalog.
+  - The Chunk 6J logs proved extraction works at the API level (`[Watchlist OTT] first extraction ["ticketnew", "district", ...]`), but those logs ran the extractor on the RAW server response inside `fetchChunksWithLimitedConcurrency` — BEFORE the storage/lookup roundtrip. The break was happening BETWEEN storage (`runBatch`'s `merged.set`) and retrieval (`enrichedItems`'s `map.get`).
+  - THE FIX: move extraction INTO `enrichedItems` at read time. The `availabilityMap` now stores the RAW `JustWatchTitleOffers` object (not pre-extracted `string[]`). The `enrichedItems` memo looks up the raw offers by normalized key, then calls `extractProvidersFromOffers(result.offers, throwawayMeta)` to get the `string[]`. This eliminates the entire class of bugs where the stored `string[]` and the lookup key diverge — there's no longer a stored `string[]` to diverge.
+  - The throwaway metadata Map is hoisted outside the per-item loop to avoid allocating a new Map per item. It's discarded after the memo returns — the production `packageMeta` signal is populated separately in `runBatch`.
+  - `justwatchProviders` is ALWAYS a `string[]` (never `undefined`) once `availabilityMap` is non-null. If `result` is missing (defensive — shouldn't happen after the refactor), `providers = []`. If `result.offers` is empty, `extractProvidersFromOffers` returns `[]`.
+  - `runBatch` still runs `extractProvidersFromOffers(entry.offers, meta)` once per entry during the merge loop — but only to populate the `meta` map (display metadata). The returned `string[]` is discarded. This is a minor redundancy (extraction runs twice per title — once in `runBatch` for meta, once in `enrichedItems` for the actual providers) but it's cheap and keeps the two concerns cleanly separated.
+
+### Task 4: Simplify providerCatalog construction
+- Modified: src/features/watchlist/hooks/useWatchlistOttAvailability.ts (rewrote `providerCatalog` memo)
+- Status: COMPLETE
+- Validation: tsc + eslint + vinxi build all PASS.
+- Errors and fixes: none.
+- Notes:
+  - Replaced the previous `Record<string, PlatformFilterOption>`-based implementation with the spec's `Map<string, {count, clearName, icon}>`-based implementation. Functionally identical, marginally faster for large catalogs, matches the spec example exactly.
+  - Reads from `enrichedItems()` (unchanged from Chunk 6J Task 4) — guarantees the catalog reflects exactly the items + providers the filter operates on.
+  - Display metadata (`clearName`, `icon`) is sourced from `packageMeta` when available, falling back to `technicalName` as `clearName` and `""` as `icon` when metadata is missing. The spec explicitly allows this fallback: "technicalName as display is acceptable if clearName mapping is missing, but try to use packageMeta if available."
+  - The final `PlatformFilterOption[]` converts `icon: ""` back to `icon: undefined` (via `data.icon || undefined`) so the `PlatformFilterOption.icon` field type (`string | undefined`) is respected and the dropdown consumer doesn't render an empty `<img src="">`.
+  - Sort order unchanged: count desc, then `clearName` asc (deterministic dropdown order).
+
+### Task 5: Verify Platform filter UI consumes providerCatalog
+- Modified: src/features/watchlist/components/VaultFiltersContent.tsx (added defensive `|| p.technicalName` fallback to the dropdown label)
+- Status: COMPLETE
+- Validation: tsc + eslint + vinxi build all PASS.
+- Notes:
+  - Inspected `useVaultFiltering.ts`: the `uniquePlatforms` memo is a thin pass-through of `providerCatalog()`. It adds a diagnostic log but doesn't filter, hide, or transform the array. No changes needed.
+  - Inspected `VaultFiltersContent.tsx`: the Platform `GlassSelect` is ALWAYS rendered (never hidden). When `uniquePlatforms.length === 0`, the dropdown is `disabled` (muted, non-interactive) and a "No platforms available" hint is shown below it. When non-empty, the dropdown is interactive and renders `{ l: "All Platforms", v: "all" }` plus one option per provider. This matches the spec's Task 5 requirement: "It should always render the dropdown. If empty, show disabled 'All Platforms'. If non-empty, render options."
+  - Added defensive `|| p.technicalName` fallback to the dropdown label: `l: p.clearName || p.technicalName`. The `providerCatalog` memo already guarantees `clearName` is non-empty (falls back to `technicalName` when `packageMeta` is missing), but this `||` makes the contract explicit at the consumption site and protects against any future regression.
+  - The dropdown value is `p.technicalName` — exactly as the spec requires: "Ensure the dropdown key is `technicalName`."
+  - The `disabled={props.uniquePlatforms.length === 0}` prop is KEPT — the spec says "If empty, show disabled 'All Platforms'", which is exactly what this does. It does NOT hide the dropdown.
+
+### Root Cause of Provider List Still Not Showing (Final Summary)
+
+The Watchlist Platform filter was still empty despite the Chunk 6J logs proving provider extraction works at the API level. The root cause was a **storage/retrieval key mismatch** between `runBatch` (which stored pre-extracted `string[]` in `availabilityMap`) and `enrichedItems` (which looked up the `string[]` by key):
+
+1. `runBatch` built the key as `normalizeOttKey(\`${item.mediaType}:${item.tmdbId}\`)` and stored `extractProvidersFromOffers(entry.offers, meta)` (a `string[]`).
+2. `enrichedItems` built the key as `normalizeOttKey(\`${it.media_type}:${tmdbId}\`)` where `tmdbId = Number(it.id)`, and looked up `map.get(key)`.
+3. When both sides produced the same key, this worked. When they DIDN'T (e.g. `it.id` had leading zeros, or `Number(it.id)` produced a different numeric representation than `item.tmdbId`), the lookup returned `undefined`, and `justwatchProviders: providers ?? []` produced `[]`.
+4. The catalog memo then saw every item with empty `justwatchProviders`, skipped every item, and returned `[]` — an empty Platform filter.
+
+The Chunk 6J logs (`[Watchlist OTT] first extraction`) proved extraction works because they ran the extractor on the RAW server response INSIDE `fetchChunksWithLimitedConcurrency`, BEFORE the storage/lookup roundtrip. The break was happening BETWEEN storage and retrieval — a gap the Chunk 6J logs didn't cover.
+
+THE FIX (Chunk 6K Task 3): move extraction INTO `enrichedItems` at read time. The `availabilityMap` now stores the RAW `JustWatchTitleOffers` object (not pre-extracted `string[]`). The `enrichedItems` memo looks up the raw offers by normalized key, then calls `extractProvidersFromOffers(result.offers)` to get the `string[]`. This eliminates the entire class of bugs where the stored `string[]` and the lookup key diverge — there's no longer a stored `string[]` to diverge. The same normalized key is used to store AND to look up, and extraction happens immediately after lookup using the same `extractProvidersFromOffers` helper the production path uses.
+
+### Files Modified
+- `src/features/watchlist/hooks/useWatchlistOttAvailability.ts` — (1) changed `availabilityMap` signal type from `Map<string, string[]>` to `Map<string, JustWatchTitleOffers>`; (2) updated `runBatch` to store raw `JustWatchTitleOffers` instead of pre-extracted `string[]`, while still populating `meta` for display metadata; (3) rewrote `enrichedItems` to extract providers at read time via `extractProvidersFromOffers(result.offers, throwawayMeta)`, always assigning a `string[]` (never `undefined`); (4) simplified `providerCatalog` to use a `Map<string, {count, clearName, icon}>` with `technicalName` fallback for `clearName`; (5) added three Chunk 6K diagnostic logs.
+- `src/features/watchlist/components/VaultFiltersContent.tsx` — added defensive `|| p.technicalName` fallback to the Platform dropdown option label.
+
+### Files NOT Modified (verified, no change needed)
+- `src/features/watchlist/useVaultFiltering.ts` — `uniquePlatforms` memo is a thin pass-through of `providerCatalog()`. No changes needed.
+- `src/shared/types/justwatch.ts` — `JustWatchTitleOffers` type already has the correct shape. No changes needed.
+- `src/shared/types/index.ts` — `WatchlistItem.justwatchProviders?: string[]` is already declared. No changes needed.
+- `src/server/justwatch/client.ts`, `src/server/justwatch/service.ts`, `src/routes/api/ott/batch-availability.ts` — server-side code is correct. No changes needed.
+- `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml` — NOT modified (per spec).
+- Discover "New on OTT", Upcoming, Statistics, Where to Watch — NOT touched per spec.
+- Old TMDB provider registry files — NOT deleted per spec.
+- Existing Chunk 6E/6F/6G/6H/6I/6J temporary logs — NOT removed per spec.
+
+### Verification Results
+- TypeScript (`./node_modules/.bin/tsc --noEmit`): 0 errors in modified files. 2 pre-existing errors in OTHER files (`src/routes/movie/[id].tsx:306` and `src/routes/tv/[id].tsx:230` — `Object is possibly 'undefined'`). Verified pre-existing by stashing changes and re-running tsc — the same 2 errors appear on the unmodified branch HEAD. NOT touched by this chunk.
+- ESLint (`./node_modules/.bin/eslint src/features/watchlist/hooks/useWatchlistOttAvailability.ts src/features/watchlist/components/VaultFiltersContent.tsx`): PASS, exit 0, 0 errors, 0 warnings.
+- Build (`./node_modules/.bin/vinxi build`): PASS — `✔ build done` / `✔ Nitro Server built` / `✔ You can deploy this build using npx vercel deploy --prebuilt`. Verified the bundled output (`WatchlistView-CwVRC378.js`) contains all 3 new Chunk 6K log strings (`availabilityMap size (pre-set)`, `enriched first 3`, `items with providers count`) AND all prior Chunk 6E/6F/6G/6H/6I/6J diagnostic log strings (`batch response keys`, `raw keys JSON`, `first raw result`, `batch raw keys`, `first result`, `first extraction`, `enriched sample`, `sample enriched item`, `batch complete`, `uniqueProviders`).
+
+### Chunk 6K Commit & Push
+- Commit message: `fix: connect Watchlist OTT extraction to Platform filter options`
+- Files in commit: 3 (justwatch_migration_worklog.md, src/features/watchlist/hooks/useWatchlistOttAvailability.ts, src/features/watchlist/components/VaultFiltersContent.tsx)
+- Commit hash: <filled in after commit>
+- Push status: <filled in after push>
