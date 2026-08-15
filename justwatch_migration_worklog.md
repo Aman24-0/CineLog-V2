@@ -1542,3 +1542,9 @@ When the user reports the new debug line, here's how to read it:
 - `state=loading run=1 → run=2 → run=3 → ...` (runId keeps climbing) → the effect is restarting in a loop. Each new run resets `progress=0/N`. This points to an upstream signal churn issue (the `signature` memo is re-computing on every parent re-render because `args.watchlist()` returns a fresh array reference). The in-memory cache (Chunk 6I) should prevent re-fetches, but if the cache TTL expired or the signature includes a volatile component, this is the failure mode.
 - `state=error error=timeout after 20000ms; progress=K/42` → the 20s hard timeout fired. `K` tells you how far the batch got before stalling.
 - `state=success run=1 progress=42/42 catalog=15` → everything worked. 42 chunks resolved, 15 unique providers landed in the catalog.
+
+### Chunk 6P Commit & Push
+- Commit message: `fix: add watchlist OTT fetch progress and timeout visibility`
+- Files in commit: 7 (justwatch_migration_worklog.md + 6 source files)
+- Commit hash: `b5ba64f` (full SHA: `b5ba64fabd33027f7be421149367bc4fda7e4093`)
+- Push status: PUSHED to `origin/Justwatch` (range `b8d1e50..b5ba64f`) using the user-supplied PAT (one-shot explicit push URL — NOT written to `.git/config`).
