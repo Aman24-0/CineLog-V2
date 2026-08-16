@@ -52,6 +52,12 @@ export interface WatchlistDialogsProps {
    *  progress string updated as each chunk in the OTT batch resolves.
    *  For the visible debug line. */
   chunkProgress: Accessor<string>;
+  /** CHUNK 6R Task 5 — TEMPORARY debug accessor. Indicates WHERE the
+   *  Platform filter's data is coming from: `'local'` (localStorage
+   *  cache), `'live'` (network fetch), `'mixed'` (both, during
+   *  fetch), or `'none'` (no data available). For the visible debug
+   *  line. */
+  cacheSource: Accessor<"local" | "live" | "mixed" | "none">;
   onClose: () => void;
   onClear: () => void;
 }
@@ -90,6 +96,7 @@ export default function WatchlistDialogs(props: WatchlistDialogsProps) {
           fetchError={props.fetchError()}
           effectRunId={props.effectRunId()}
           chunkProgress={props.chunkProgress()}
+          cacheSource={props.cacheSource()}
           onClose={props.onClose}
           onClear={props.onClear}
         />

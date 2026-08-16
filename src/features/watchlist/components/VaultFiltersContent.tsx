@@ -119,6 +119,13 @@ export interface VaultFiltersContentProps {
    *  landing (vs. the very first wave hanging). Will be removed
    *  alongside the other Chunk 6E-6O diagnostic logs. */
   chunkProgress: string;
+  /** CHUNK 6R Task 5 — TEMPORARY debug prop. Indicates WHERE the
+   *  Platform filter's data is coming from: `'local'` (localStorage
+   *  cache), `'live'` (network fetch), `'mixed'` (both, during
+   *  fetch), or `'none'` (no data available). Surfaced in the
+   *  visible debug line as `cache=...`. Will be removed alongside
+   *  the other Chunk 6E-6P diagnostic logs. */
+  cacheSource: "local" | "live" | "mixed" | "none";
   presets: Accessor<FilterPreset[]>;
   onSavePreset: (name: string) => Promise<void>;
   onDeletePreset: (id: string) => void;
@@ -375,6 +382,7 @@ catalog=${props.uniquePlatforms.length}
 run=${props.effectRunId}
 progress=${props.chunkProgress || "(none yet)"}
 keys=${props.debugRawKeys || "(none yet)"}
+cache=${props.cacheSource}
 error=${props.fetchError || "none"}`}
           </p>
           {/* Tag — RE-ADDED in Phase 6.2 Task 1a.

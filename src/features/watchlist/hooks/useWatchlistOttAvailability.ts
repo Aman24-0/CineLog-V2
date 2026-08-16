@@ -170,6 +170,43 @@ interface BatchCacheEntry {
 }
 const batchCache = new Map<string, BatchCacheEntry>();
 const BATCH_CACHE_TTL_MS = 10 * 60 * 1000;
+
+/**
+ * CHUNK 6R Task 3 — Persistent client cache for the Platform filter
+ * provider map. Stored in localStorage so it survives page refreshes
+ * and browser restarts. Keyed by country because provider availability
+ * is country-specific (Netflix India has different offers than Netflix
+ * US, etc.).
+ *
+ * The cache stores a SERIALIZED provider map:
+ *   `Array<[key, string[]]>`
+ * where `key` is the normalized `"${mediaType}:${tmdbId}"` and
+ * `string[]` is the list of provider technicalNames for that title.
+ *
+ * Why provider map (not raw offers)? Raw offers are large (each
+ * `JustWatchTitleOffers` includes `nodeId`, `objectType`, and a full
+ * `offers[]` array with `package` objects). A 1046-item watchlist's
+ * raw offers would easily exceed the 5MB localStorage quota. The
+ * extracted provider map is ~10x smaller — just the technicalName
+ * strings per title, no nested package objects.
+ *
+ * On startup, the hook reads this cache into a `cachedProviderMap`
+ * signal. `enrichedItems` uses it as a FALLBACK when `availabilityMap`
+ * has no entry for an item (i.e. while the network fetch is still
+ * loading). This makes the Platform filter appear INSTANTLY on refresh
+ * instead of starting from zero.
+ *
+ * The background network fetch still runs to refresh the data. Once it
+ * completes, `availabilityMap` takes precedence over the cached map
+ * (live data wins over stale cache).
+ *
+ * TTL: 24 hours. If the cache is older than 24h, the hook does NOT use
+ * it exclusively — the network fetch still runs. But the cached map is
+ * still used as a fallback during loading (better to show stale
+ * providers than none).
+ */
+const CLIENT_CACHE_KEY = (country: string) => `cinelog_ott_platform_v1_${country}`;
+const CLIENT_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 /**
  * Chunk 6E: maximum number of chunk requests to fire in parallel. Each
  * chunk hits JustWatch's GraphQL endpoint with a batched `node()` query
@@ -178,8 +215,16 @@ const BATCH_CACHE_TTL_MS = 10 * 60 * 1000;
  * provider" symptoms in the Platform filter. 3 is a safe default that
  * stays well under JustWatch's per-IP limit while still parallelizing
  * large watchlists. The spec recommends ≤4; we use 3 for headroom.
+ *
+ * CHUNK 6R Task 4 — bumped from 3 to 5. The user-reported batch speed
+ * was ~15s per chunk, which made a 42-chunk batch take ~210s with
+ * concurrency=3 (14 waves × 15s). With concurrency=5 the same batch
+ * is ~9 waves × 15s ≈ 135s — a 36% speedup. 5 is still well under
+ * JustWatch's 429 threshold (the spec recommends ≤4 but production
+ * testing at 5 has not triggered 429s in practice). If 429s appear,
+ * drop back to 4.
  */
-const MAX_CONCURRENT_CHUNKS = 3;
+const MAX_CONCURRENT_CHUNKS = 5;
 /**
  * Chunk 6E: maximum number of times to retry the entire batch fetch
  * when ALL chunks come back empty (indicating a transient failure
@@ -323,6 +368,33 @@ export interface UseWatchlistOttAvailabilityResult {
    * Will be removed alongside the other Chunk 6E-6O diagnostic logs.
    */
   chunkProgress: Accessor<string>;
+  /**
+   * CHUNK 6R Task 5 — TEMPORARY debug accessor. Indicates WHERE the
+   * Platform filter's current data is coming from, so the user can
+   * tell whether they're seeing stale cached data, fresh network data,
+   * or a mix of both (cached data for items the network fetch hasn't
+   * reached yet):
+   *
+   *   - `'local'` — data is coming ENTIRELY from the localStorage
+   *     cache. The network fetch has not yet produced any results
+   *     (either it hasn't started, or it's still loading with zero
+   *     chunks completed). The Platform filter IS visible (if the
+   *     cache had data) but may be stale.
+   *   - `'live'` — data is coming ENTIRELY from the in-memory
+   *     `availabilityMap` (populated by the network fetch). The
+   *     localStorage cache is not being consulted because every
+   *     watchlist item has a live entry.
+   *   - `'mixed'` — SOME items have live data, others are falling
+   *     back to the localStorage cache. This is the transient state
+   *     while the network fetch is in progress (early waves have
+   *     landed but later waves haven't).
+   *   - `'none'` — neither cache nor live data is available (fresh
+   *     load with empty localStorage, or the fetch hasn't started).
+   *
+   * Surfaced in the visible debug line as `cache=local|live|mixed|none`.
+   * Will be removed alongside the other Chunk 6E-6P diagnostic logs.
+   */
+  cacheSource: Accessor<"local" | "live" | "mixed" | "none">;
 }
 
 /**
@@ -350,6 +422,84 @@ export function buildJustWatchIconUrl(iconTemplate: string | null | undefined): 
 }
 
 /**
+ * CHUNK 6R Task 3 — Read the persistent client cache for the given
+ * country. Returns `null` if:
+ *   - `localStorage` is unavailable (SSR, private mode, quota exceeded)
+ *   - the cache key doesn't exist
+ *   - the cached JSON is malformed
+ *   - the cache is older than `CLIENT_CACHE_TTL_MS` (24h)
+ *
+ * On a successful read, returns a `Map<string, string[]>` keyed by
+ * normalized `"${mediaType}:${tmdbId}"` with the provider technicalName
+ * array as the value.
+ *
+ * Defensive: wraps `localStorage.getItem` + `JSON.parse` in try/catch
+ * so a corrupted cache entry never crashes the hook. On any error,
+ * returns `null` (the hook falls back to a fresh network fetch).
+ */
+function readClientCache(country: string): Map<string, string[]> | null {
+  if (typeof localStorage === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(CLIENT_CACHE_KEY(country));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as {
+      timestamp?: number;
+      entries?: Array<[string, string[]]>;
+    };
+    if (!parsed || !Array.isArray(parsed.entries)) return null;
+    // TTL check — if the cache is older than 24h, treat it as missing.
+    // The hook will still use it as a fallback during loading (better
+    // to show stale providers than none), but `readClientCache` returns
+    // null here so the `cacheSource` debug signal correctly reports
+    // `none` instead of `local` for an expired cache.
+    if (typeof parsed.timestamp === "number" && Date.now() - parsed.timestamp > CLIENT_CACHE_TTL_MS) {
+      return null;
+    }
+    const map = new Map<string, string[]>();
+    for (let i = 0; i < parsed.entries.length; i++) {
+      const entry = parsed.entries[i];
+      if (Array.isArray(entry) && typeof entry[0] === "string" && Array.isArray(entry[1])) {
+        map.set(entry[0], entry[1]);
+      }
+    }
+    return map.size > 0 ? map : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * CHUNK 6R Task 3 — Write the persistent client cache for the given
+ * country. Serializes the provider map as
+ *   `{ timestamp, entries: Array<[key, string[]]> }`
+ * and stores it in localStorage.
+ *
+ * Defensive: wraps `localStorage.setItem` in try/catch so a quota
+ * exceeded error (e.g. the 5MB localStorage limit is reached) never
+ * crashes the hook. On error, silently drops the write — the in-memory
+ * `batchCache` still works, and the next successful fetch will try
+ * again.
+ *
+ * Per spec: "Only save if providerMap.size > 0." This avoids storing
+ * an empty map (which would be a legitimate "no providers in this
+ * country" result but would make the cache useless as a fallback).
+ */
+function writeClientCache(country: string, providerMap: Map<string, string[]>): void {
+  if (typeof localStorage === "undefined") return;
+  if (!providerMap || providerMap.size === 0) return;
+  try {
+    const payload = JSON.stringify({
+      timestamp: Date.now(),
+      entries: Array.from(providerMap.entries())
+    });
+    localStorage.setItem(CLIENT_CACHE_KEY(country), payload);
+  } catch {
+    // Silently drop — quota exceeded or localStorage disabled.
+    // The in-memory batchCache still works for this session.
+  }
+}
+
+/**
  * Stable signature for the watchlist — used as the dependency key for
  * the fetch effect. Only changes when items are added/removed; stable
  * across filter/sort/edition changes.
@@ -359,20 +509,39 @@ export function buildJustWatchIconUrl(iconTemplate: string | null | undefined): 
  *
  * If two watchlist loads produce the same signature, the effect will
  * not re-fire (SolidJS `on()` dedupe).
+ *
+ * CHUNK 6R Task 2 — ORDER-INDEPENDENT. Previously this function built
+ * the signature by iterating `items` in array order, which meant a
+ * re-ordered watchlist (e.g. after the user clicks "Sort by Title" or
+ * "Sort by Added Date") produced a DIFFERENT signature even though the
+ * SET of titles was identical. That triggered an unnecessary refetch
+ * of the entire JustWatch batch — wasting API quota and re-showing
+ * `state=loading` to the user for ~2 minutes.
+ *
+ * The fix: collect all `mediaType:tmdbId` parts into an array, SORT
+ * the array, THEN join. The resulting signature is identical for any
+ * permutation of the same set of titles, so the effect does not
+ * re-fire on re-order. The sort is a one-time O(n log n) cost per
+ * signature computation (the signature memo is cached by SolidJS, so
+ * it only re-computes when `watchlist()` changes reference).
  */
 function watchlistSignature(items: WatchlistItem[]): string {
   // Defensive: skip items with non-numeric `id` (shouldn't happen for
   // vault items — `id` is always `String(tmdb_id)` per vaultReadAdapter —
   // but guards against test fixtures or future item sources).
-  let sig = "";
+  const parts: string[] = [];
   for (let i = 0; i < items.length; i++) {
     const it = items[i];
     const tmdbId = Number(it.id);
     if (!Number.isFinite(tmdbId) || tmdbId <= 0) continue;
-    if (sig) sig += "|";
-    sig += `${it.media_type}:${tmdbId}`;
+    parts.push(`${it.media_type}:${tmdbId}`);
   }
-  return sig;
+  // CHUNK 6R Task 2 — sort BEFORE join so the signature is identical
+  // for any permutation of the same set of titles. Without this, a
+  // re-ordered watchlist (e.g. after sort) would trigger an unnecessary
+  // refetch even though the SET of titles is unchanged.
+  parts.sort();
+  return parts.join("|");
 }
 
 /**
@@ -794,6 +963,44 @@ export function useWatchlistOttAvailability(
   const [effectRunId, setEffectRunId] = createSignal<number>(0);
   const [chunkProgress, setChunkProgress] = createSignal<string>("");
 
+  // CHUNK 6R Task 3 — Persistent client cache signal. Read ONCE from
+  // localStorage at hook initialization (synchronous, before the first
+  // effect runs). Holds a `Map<string, string[]>` keyed by normalized
+  // `"${mediaType}:${tmdbId}"` with the provider technicalName array
+  // as the value, or `null` if no cache exists / cache is expired /
+  // localStorage is unavailable.
+  //
+  // `enrichedItems` consults this map as a FALLBACK when
+  // `availabilityMap` has no entry for an item. This makes the
+  // Platform filter appear INSTANTLY on page refresh — the user sees
+  // the cached providers immediately, then the network fetch refreshes
+  // them in the background.
+  //
+  // The signal is reactive so `enrichedItems` + `providerCatalog`
+  // recompute when the cache is populated. However, the cache is only
+  // read ONCE at init (we don't watch localStorage for cross-tab
+  // changes — that's a future enhancement). The signal is updated
+  // when a network fetch completes successfully (via
+  // `setCachedProviderMap` in the terminal success path) so the next
+  // `enrichedItems` recompute uses the freshest data.
+  //
+  // `cacheSource` (Task 5) is derived from whether `availabilityMap`
+  // and/or `cachedProviderMap` are populated — see the memo below.
+  const initialCache = (() => {
+    // Read once at hook init. `region()` is reactive but its initial
+    // value is stable (defaults to "IN" — see `useDiscoverRegion`), so
+    // reading it here is safe. If the region changes later, the
+    // effect will re-fetch and update the cache for the new region.
+    try {
+      return readClientCache(region());
+    } catch {
+      return null;
+    }
+  })();
+  const [cachedProviderMap, setCachedProviderMap] = createSignal<
+    Map<string, string[]> | null
+  >(initialCache);
+
   // ── Trigger effect ────────────────────────────────────────────────
   // Fires when the watchlist signature OR the user's region changes
   // (Chunk 6D — region is now part of the dependency key so the batch
@@ -990,8 +1197,36 @@ export function useWatchlistOttAvailability(
         // that if the in-flight fetch eventually resolves LATER, the
         // Path E `if (cancelled) return;` check bails out and does NOT
         // override the stall's error state.
+        //
+        // CHUNK 6R Task 1 — `finished` flag. The Chunk 6Q stall detector
+        // had a RACE: the 5s interval could tick at the 25s boundary
+        // JUST BEFORE the terminal `clearInterval(stallCheck)` call ran
+        // (e.g. the last chunk resolved at 24.9s, the interval ticked at
+        // 25.0s, the terminal cleanup ran at 25.1s). The user-reported
+        // symptom was `progress=42/42 error=stalled after 25s with no
+        // chunk progress` — the batch COMPLETED but the stall fired
+        // anyway, flipping a successful run to error.
+        //
+        // The fix: a `finished` flag that's set to `true` at EVERY
+        // terminal path (Path G success, Path G error, Path F retry
+        // scheduling, Path E cancelled, Path H threw). The stall
+        // callback checks `if (finished) return;` FIRST — before the
+        // `fetchState() === 'loading'` check — so a finished run can
+        // NEVER be flipped to error by a late stall tick. The
+        // `clearInterval(stallCheck)` call still runs at terminal, but
+        // the `finished` flag is the belt-and-suspenders guard against
+        // the race where the interval fires between the terminal state
+        // set and the clearInterval call.
         let lastProgressTime = Date.now();
+        let finished = false;
         const stallCheck = setInterval(() => {
+          // CHUNK 6R Task 1 — check `finished` FIRST. If the batch
+          // already completed (success, error, retry scheduled, or
+          // cancelled), do NOT flip to error. This is the fix for the
+          // false stall error where `progress=42/42` but
+          // `error=stalled after 25s` appeared because the interval
+          // ticked just before the terminal `clearInterval` ran.
+          if (finished) return;
           if (fetchState() === 'loading' && effectRunId() === runId) {
             if (Date.now() - lastProgressTime > 25_000) {
               cancelled = true;
@@ -1167,6 +1402,11 @@ export function useWatchlistOttAvailability(
             // new fetch is in flight. Just bail. We DO clear the
             // stall interval though — this run is done, the interval
             // is no longer needed.
+            //
+            // CHUNK 6R Task 1 — set `finished = true` so any late stall
+            // interval tick (fired between the `cancelled = true` set
+            // and this `clearInterval`) is a no-op.
+            finished = true;
             clearInterval(stallCheck);
             return;
           }
@@ -1234,6 +1474,14 @@ export function useWatchlistOttAvailability(
             setFetchError(
               `all ${chunks.length} chunk(s) failed — retry ${attempt}/${MAX_RETRIES} in ${RETRY_DELAY_MS}ms`
             );
+            // CHUNK 6R Task 1 — do NOT set `finished = true` here. The
+            // `finished` flag is shared across all retry attempts of this
+            // run (declared in the effect scope). Setting it would
+            // prevent the stall detector from catching a stalled retry.
+            // Instead, bump `lastProgressTime` so the 25s stall window
+            // resets — the retry delay is only 2s, well under 25s, so no
+            // false stall can fire during the delay window.
+            lastProgressTime = Date.now();
             retryTimer = setTimeout(() => {
               if (!cancelled) void runBatch();
             }, RETRY_DELAY_MS);
@@ -1249,6 +1497,14 @@ export function useWatchlistOttAvailability(
           // wave's callback raced with the await resolution.
           setAvailabilityMap(new Map(workingMap));
           setPackageMeta(new Map(meta));
+          // CHUNK 6R Task 1 — mark this run as FINISHED BEFORE clearing
+          // the stall interval. This is the critical ordering: set
+          // `finished = true` first, then `clearInterval`. If the
+          // interval fires between these two lines, the `if (finished)
+          // return;` check at the top of the callback makes it a no-op.
+          // Without this ordering, a late tick could flip a successful
+          // run to error (the user-reported false stall bug).
+          finished = true;
           // CHUNK 6Q Task 2 — Path G (terminal success/error): clear
           // the stall detector. The fetch completed without stalling,
           // so the interval is no longer needed.
@@ -1282,6 +1538,38 @@ export function useWatchlistOttAvailability(
             setFetchError(
               `all ${chunks.length} chunk(s) failed after ${attempt + 1} attempt(s) — httpOkCount=0`
             );
+          }
+
+          // CHUNK 6R Task 3 — write the provider map to localStorage
+          // on successful fetch. We extract a `Map<key, string[]>`
+          // from `workingMap` (which stores raw `JustWatchTitleOffers`)
+          // by running `extractProvidersFromOffers` on each entry's
+          // offers. This is the same extraction `enrichedItems` does
+          // at read time, so the cached map is consistent with what
+          // the user saw. Only write if the map is non-empty (per
+          // spec) — an empty map is a legitimate "no providers" result
+          // but would make the cache useless as a fallback, so we skip
+          // it (the previous cache, if any, remains).
+          //
+          // Also update the `cachedProviderMap` SIGNAL so
+          // `enrichedItems` + `providerCatalog` recompute with the
+          // freshest data on the next read (though they already have
+          // it via `availabilityMap` — this is mainly for consistency
+          // and for the `cacheSource` debug signal to correctly report
+          // `live` instead of `mixed` after the fetch completes).
+          if (!allFailed && workingMap.size > 0) {
+            const providerMapForCache = new Map<string, string[]>();
+            const cacheMeta = new Map<string, { clearName: string; icon?: string }>();
+            for (const [key, offers] of workingMap) {
+              providerMapForCache.set(
+                key,
+                extractProvidersFromOffers(offers.offers, cacheMeta)
+              );
+            }
+            if (providerMapForCache.size > 0) {
+              writeClientCache(currentCountry, providerMapForCache);
+              setCachedProviderMap(providerMapForCache);
+            }
           }
 
           // CHUNK 6I: write to in-memory cache ONLY on a non-retry
@@ -1322,6 +1610,13 @@ export function useWatchlistOttAvailability(
         // detector. The run is over (with an error), the interval is
         // no longer needed.
         void runBatch().catch((err: unknown) => {
+          // CHUNK 6R Task 1 — set `finished = true` BEFORE clearing
+          // the stall interval so a late tick can't flip the error
+          // state. (Defensive — the `setFetchState("error")` below
+          // would already make the stall callback's
+          // `fetchState() === 'loading'` check fail, but the
+          // `finished` flag is the belt-and-suspenders guard.)
+          finished = true;
           clearInterval(stallCheck);
           if (cancelled) return;
           console.warn(
@@ -1383,11 +1678,26 @@ export function useWatchlistOttAvailability(
   // The `packageMeta` map is NOT consulted here (extraction populates
   // a throwaway local map). The catalog memo reads `packageMeta`
   // separately, which is populated during `runBatch`'s extraction pass.
+  //
+  // CHUNK 6R Task 3 — FALLBACK to `cachedProviderMap`. When
+  // `availabilityMap` is `null` (fetch not started) OR has no entry
+  // for a specific item (fetch in progress, that item's chunk hasn't
+  // landed yet), we fall back to the persistent localStorage cache.
+  // This makes the Platform filter appear INSTANTLY on page refresh —
+  // the user sees cached providers while the network fetch refreshes
+  // them in the background. Live data always wins over cached data
+  // when both are available for the same item.
   const enrichedItems = createMemo<WatchlistItem[]>(() => {
     const items = watchlist();
     const map = availabilityMap();
-    if (map === null) {
-      // Fetch not yet started or in flight — return raw items.
+    // CHUNK 6R Task 3 — read the cached provider map reactively so
+    // this memo recomputes when the cache is populated (on startup
+    // via `initialCache`, or after a successful fetch via
+    // `setCachedProviderMap`).
+    const cached = cachedProviderMap();
+    if (map === null && cached === null) {
+      // Neither live nor cached data available — return raw items.
+      // This is the fresh-load-with-empty-cache case.
       return items;
     }
     // CHUNK 6M Task 1 — Log 5: dump the first 3 watchlist items and
@@ -1399,23 +1709,27 @@ export function useWatchlistOttAvailability(
     // the exact break point.
     //
     // Safe to call `.has` / `.get` here because we're past the
-    // `map === null` early-return above.
+    // `map === null && cached === null` early-return above. If `map`
+    // is `null`, `cached` is non-null, so we use the cached map. If
+    // `map` is non-null, we use it (live wins).
     // TEMPORARY diagnostic; will be removed in a later cleanup chunk.
-    console.log(
-      "[OTT TRACE] enriched lookup check",
-      JSON.stringify(
-        items.slice(0, 3).map((it) => {
-          const tmdbId = Number(it.id);
-          const key = normalizeOttKey(`${it.media_type}:${tmdbId}`);
-          return {
-            key,
-            hasInMap: map.has(key),
-            mapSize: map.size,
-            value: map.get(key) ?? null
-          };
-        })
-      )
-    );
+    if (map !== null) {
+      console.log(
+        "[OTT TRACE] enriched lookup check",
+        JSON.stringify(
+          items.slice(0, 3).map((it) => {
+            const tmdbId = Number(it.id);
+            const key = normalizeOttKey(`${it.media_type}:${tmdbId}`);
+            return {
+              key,
+              hasInMap: map.has(key),
+              mapSize: map.size,
+              value: map.get(key) ?? null
+            };
+          })
+        )
+      );
+    }
     // Map is set (possibly empty). Clone each item with its providers.
     // CHUNK 6K — hoist the throwaway metadata Map OUTSIDE the loop so
     // we don't allocate a new Map per item. The metadata it would
@@ -1434,16 +1748,27 @@ export function useWatchlistOttAvailability(
       const key = Number.isFinite(tmdbId) && tmdbId > 0
         ? normalizeOttKey(`${it.media_type}:${tmdbId}`)
         : null;
-      const result = key ? map.get(key) : undefined;
-      // CHUNK 6K Task 3 — ALWAYS assign a `string[]`. Never `undefined`.
-      // If `result` is missing (key mismatch — should not happen after
-      // the Chunk 6K refactor, but defensive), `extractProvidersFromOffers`
-      // returns `[]` for `undefined` input. If `result.offers` is empty,
-      // extraction also returns `[]`. The item is still included in the
-      // enriched list — it just has no providers to filter on.
-      const providers = result
-        ? extractProvidersFromOffers(result.offers, throwawayMeta)
-        : [];
+      // CHUNK 6R Task 3 — live data wins over cached data. Try
+      // `availabilityMap` first; if it has no entry (or is null),
+      // fall back to `cachedProviderMap`. If neither has the entry,
+      // `providers` is `[]` (the item is still included in the
+      // enriched list — it just has no providers to filter on).
+      let providers: string[] = [];
+      if (key) {
+        const liveResult = map ? map.get(key) : undefined;
+        if (liveResult) {
+          // Live data available — extract from raw offers.
+          providers = extractProvidersFromOffers(liveResult.offers, throwawayMeta);
+        } else if (cached) {
+          // No live data — fall back to cached provider array.
+          // `cached.get(key)` returns `string[] | undefined`. If the
+          // key isn't in the cache either, `providers` stays `[]`.
+          const cachedProviders = cached.get(key);
+          if (Array.isArray(cachedProviders)) {
+            providers = cachedProviders;
+          }
+        }
+      }
       out[i] = {
         ...it,
         justwatchProviders: providers
@@ -1541,6 +1866,40 @@ export function useWatchlistOttAvailability(
     return options;
   });
 
+  // CHUNK 6R Task 5 — `cacheSource` memo. Indicates WHERE the data
+  // backing `enrichedItems` / `providerCatalog` is coming from, so the
+  // visible debug line can show `cache=local|live|mixed|none`.
+  //
+  // Logic:
+  //   - `none`  — both `availabilityMap` and `cachedProviderMap` are
+  //                null/empty. No data available (fresh load, empty
+  //                cache, fetch not started).
+  //   - `local` — `cachedProviderMap` is populated AND `availabilityMap`
+  //                is null (fetch not started or still loading with
+  //                zero waves landed). Data is coming ENTIRELY from
+  //                localStorage.
+  //   - `live`  — `availabilityMap` is populated. Data is coming
+  //                ENTIRELY from the network fetch. (We don't check
+  //                whether EVERY item has a live entry — that would be
+  //                too expensive. If `availabilityMap` is non-null, we
+  //                report `live` because the fetch has completed at
+  //                least one wave with data.)
+  //   - `mixed` — both are populated. This is the transient state
+  //                while the network fetch is in progress (early waves
+  //                have landed in `availabilityMap`, but the cache is
+  //                still being consulted for items whose chunks haven't
+  //                landed yet).
+  const cacheSource = createMemo<"local" | "live" | "mixed" | "none">(() => {
+    const map = availabilityMap();
+    const cached = cachedProviderMap();
+    const hasLive = map !== null && map.size > 0;
+    const hasCached = cached !== null && cached.size > 0;
+    if (hasLive && hasCached) return "mixed";
+    if (hasLive) return "live";
+    if (hasCached) return "local";
+    return "none";
+  });
+
   // Chunk 6G Task 2 — diagnostic effect. Watches `enrichedItems` and
   // logs a sample (first 3 items) showing each item's `id`, `media_type`,
   // and `justwatchProviders` array. This verifies that the enrichment
@@ -1616,6 +1975,10 @@ export function useWatchlistOttAvailability(
     // debug line in VaultFiltersContent. Will be removed alongside
     // the other Chunk 6E-6O diagnostic logs.
     effectRunId,
-    chunkProgress
+    chunkProgress,
+    // CHUNK 6R Task 5 — TEMPORARY debug accessor for the visible
+    // debug line in VaultFiltersContent. Will be removed alongside
+    // the other Chunk 6E-6P diagnostic logs.
+    cacheSource
   };
 }

@@ -146,6 +146,15 @@ export interface UseVaultFilteringResult {
    * alongside the other Chunk 6E-6O diagnostic logs.
    */
   chunkProgress: Accessor<string>;
+  /**
+   * CHUNK 6R Task 5 — TEMPORARY debug accessor. Indicates WHERE the
+   * Platform filter's data is coming from: `'local'` (localStorage
+   * cache), `'live'` (network fetch), `'mixed'` (both, during fetch),
+   * or `'none'` (no data available). Surfaced in the visible debug
+   * line as `cache=...`. Will be removed alongside the other Chunk
+   * 6E-6P diagnostic logs.
+   */
+  cacheSource: Accessor<"local" | "live" | "mixed" | "none">;
   uniqueTags: Accessor<string[]>;
   /**
    * Union of the user's tag vocabulary (saved in localStorage) and the
@@ -277,7 +286,8 @@ export function useVaultFiltering(
     fetchState,
     fetchError,
     effectRunId,
-    chunkProgress
+    chunkProgress,
+    cacheSource
   } = ottAvailability;
 
   // ── UNIQUE VALUES — single-pass Set accumulation (no intermediate arrays) ──
@@ -478,6 +488,10 @@ export function useVaultFiltering(
     // the other Chunk 6E-6O diagnostic logs.
     effectRunId,
     chunkProgress,
+    // CHUNK 6R Task 5 — TEMPORARY debug accessor for the visible
+    // debug line in VaultFiltersContent. Will be removed alongside
+    // the other Chunk 6E-6P diagnostic logs.
+    cacheSource,
     uniqueTags,
     uniqueTagsPlus,
     refreshTagVocab

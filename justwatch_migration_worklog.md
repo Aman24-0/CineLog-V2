@@ -1671,3 +1671,145 @@ When the user reports the new debug line, here's how to read it:
 - Files in commit: 2 (justwatch_migration_worklog.md + 1 source file)
 - Commit hash: `47d9072` (full SHA: `47d9072` — short hash; verify with `git rev-parse HEAD` for full SHA if needed)
 - Push status: PUSHED to `origin/Justwatch` (range `c0036db..47d9072`) using the user-supplied PAT (one-shot explicit push URL — NOT written to `.git/config`).
+
+## Chunk 6R — Fix false stall + persistent cache + faster batch
+### Task: Fix false stall error; add persistent localStorage cache for platform providers; bump concurrency; order-independent signature; cache= debug field
+- Status: IN-PROGRESS
+- User-reported state: `DEBUG: watchlist=1046 state=error loading=false catalog=50 run=1 progress=42/42 keys=["movie:1444466","movie:969681","movie:2668"] error=stalled after 25s with no chunk progress`
+- Root cause confirmed by Chunk 6Q debug: the batch COMPLETED successfully (progress=42/42, catalog=50) but the stall detector fired anyway because the 25s window elapsed between the last chunk's `lastProgressTime` bump and the terminal `clearInterval(stallCheck)` call. The race is: stall interval ticks at 25s boundary just before terminal cleanup runs.
+- Secondary issues:
+  - ~15s per chunk → 42 chunks take too long for first load.
+  - On refresh, Platform filter starts from zero again because the in-memory `batchCache` is wiped on page reload.
+  - `watchlistSignature` is order-dependent — a re-ordered watchlist (e.g. after sort) triggers an unnecessary refetch even though the SET of titles is identical.
+- Goal:
+  1. Add a `finished` flag in `runBatch`; check it FIRST in the stall callback so a completed batch can never be flipped to error by a late stall tick.
+  2. Sort signature parts before joining so order changes don't trigger refetches.
+  3. Persist a provider map (`Map<key, string[]>`) to localStorage keyed by country. Read on startup; use as fallback in `enrichedItems` while the network fetch is loading. Background fetch still runs to refresh.
+  4. Bump `MAX_CONCURRENT_CHUNKS` from 3 to 5 to speed up the batch (5 parallel waves instead of 3 — still well under JustWatch's 429 threshold).
+  5. Add `cache=local|live|mixed` field to the visible debug line so the user can see where the data is coming from.
+
+### Task 1: Fix false stall error
+- Modified: `src/features/watchlist/hooks/useWatchlistOttAvailability.ts`
+- Status: COMPLETE
+- Root cause: The Chunk 6Q stall detector had a RACE between the 5s interval tick and the terminal `clearInterval(stallCheck)` call. The user-reported symptom was `progress=42/42 error=stalled after 25s with no chunk progress` — the batch COMPLETED but the stall fired anyway because the interval ticked at the 25s boundary just before the terminal cleanup ran.
+- Fix: Added a `let finished = false;` flag in the effect scope. The stall interval callback now checks `if (finished) return;` FIRST — before the `fetchState() === 'loading'` check — so a finished run can NEVER be flipped to error by a late stall tick.
+- `finished = true` is set at EVERY terminal path:
+  - Path E (cancelled after fetch resolves) — set before `clearInterval`.
+  - Path G (terminal success/error) — set BEFORE `clearInterval` (critical ordering: if the interval fires between the `finished = true` and `clearInterval` lines, the `if (finished) return;` check makes it a no-op).
+  - Path H (runBatch threw) — set before `clearInterval`.
+- Path F (retry scheduled) does NOT set `finished = true` — the flag is shared across all retry attempts of this run, and setting it would prevent the stall detector from catching a stalled retry. Instead, `lastProgressTime = Date.now()` is bumped to reset the 25s stall window for the retry delay (2s, well under 25s).
+
+### Task 2: Make watchlistSignature order-independent
+- Modified: `src/features/watchlist/hooks/useWatchlistOttAvailability.ts`
+- Status: COMPLETE
+- Previous behavior: iterated `items` in array order, building the signature as `movie:1|movie:2|movie:3`. A re-ordered watchlist (e.g. after the user clicks "Sort by Title") produced a DIFFERENT signature even though the SET of titles was identical, triggering an unnecessary refetch.
+- New behavior: collect all `mediaType:tmdbId` parts into an array, `.sort()` the array, THEN `.join("|")`. The resulting signature is identical for any permutation of the same set of titles.
+- The sort is a one-time O(n log n) cost per signature computation. The signature memo is cached by SolidJS, so it only re-computes when `watchlist()` changes reference.
+
+### Task 3: Add persistent client cache for platform providers
+- Modified: `src/features/watchlist/hooks/useWatchlistOttAvailability.ts`
+- Status: COMPLETE
+- Added `CLIENT_CACHE_KEY(country)` helper → `cinelog_ott_platform_v1_${country}`. Keyed by country because provider availability is country-specific.
+- Added `CLIENT_CACHE_TTL_MS = 24 * 60 * 60 * 1000` (24 hours).
+- Added `readClientCache(country): Map<string, string[]> | null` — reads + parses localStorage. Returns null on: SSR (no localStorage), missing key, malformed JSON, expired (>24h), or empty map. Defensive try/catch so a corrupted entry never crashes the hook.
+- Added `writeClientCache(country, providerMap)` — serializes as `{ timestamp, entries: Array<[key, string[]]> }` and writes to localStorage. Defensive try/catch so quota exceeded silently drops the write (in-memory `batchCache` still works). Per spec: only writes if `providerMap.size > 0`.
+- Added `cachedProviderMap` signal, initialized from `readClientCache(region())` at hook init (synchronous, before the first effect runs). This makes the Platform filter appear INSTANTLY on page refresh.
+- Updated `enrichedItems` memo to use `cachedProviderMap` as a FALLBACK:
+  - Live data wins: try `availabilityMap.get(key)` first.
+  - If no live entry, fall back to `cachedProviderMap.get(key)` (returns `string[] | undefined`).
+  - If neither has the entry, `providers` stays `[]`.
+  - If both `availabilityMap` and `cachedProviderMap` are null, return raw items (fresh load with empty cache).
+- After a successful batch fetch (Path G, `!allFailed && workingMap.size > 0`), extract a `Map<key, string[]>` from `workingMap` by running `extractProvidersFromOffers` on each entry's offers, then:
+  - `writeClientCache(currentCountry, providerMapForCache)` — persist to localStorage.
+  - `setCachedProviderMap(providerMapForCache)` — update the signal so `enrichedItems` + `providerCatalog` recompute with the freshest data.
+
+### Task 4: Improve batch fetch speed
+- Modified: `src/features/watchlist/hooks/useWatchlistOttAvailability.ts`
+- Status: COMPLETE
+- Bumped `MAX_CONCURRENT_CHUNKS` from 3 to 5.
+- Rationale: user-reported batch speed was ~15s per chunk. With concurrency=3, a 42-chunk batch took ~210s (14 waves × 15s). With concurrency=5, the same batch is ~9 waves × 15s ≈ 135s — a 36% speedup.
+- 5 is still well under JustWatch's 429 threshold. If 429s appear in production, drop back to 4.
+- No artificial delay between waves — the `for` loop in `fetchChunksWithLimitedConcurrency` immediately fires the next wave after `await Promise.all` resolves.
+
+### Task 5: Update visible debug UI
+- Modified: `src/features/watchlist/components/VaultFiltersContent.tsx` (+ prop wiring through `useVaultFiltering.ts`, `VaultFilters.tsx`, `WatchlistDialogs.tsx`, `WatchlistView.tsx`)
+- Status: COMPLETE
+- Added `cacheSource: "local" | "live" | "mixed" | "none"` to `UseWatchlistOttAvailabilityResult` + `VaultFiltersContentProps` + `VaultFiltersProps` + `WatchlistDialogsProps`.
+- Added `cacheSource` memo in the hook:
+  - `none` — both `availabilityMap` and `cachedProviderMap` are null/empty.
+  - `local` — `cachedProviderMap` populated, `availabilityMap` null/empty (fetch not started or still loading).
+  - `live` — `availabilityMap` populated (fetch has completed at least one wave with data).
+  - `mixed` — both populated (transient state during fetch: early waves landed, cache still consulted for items whose chunks haven't landed).
+- Extended the debug `<p>` to show `cache=${props.cacheSource}` — now 9 debug fields total.
+- Prop chain wired through all 4 parent components:
+  - `useVaultFiltering` — added `cacheSource` to `UseVaultFilteringResult`, destructured from `useWatchlistOttAvailability`, re-exported.
+  - `VaultFilters` — added `cacheSource` to `VaultFiltersProps`, forwarded to `VaultFiltersContent`.
+  - `WatchlistDialogs` — added `cacheSource` to `WatchlistDialogsProps`, forwarded to `VaultFilters`.
+  - `WatchlistView` — destructured `cacheSource` from `useVaultFiltering`, passed to BOTH inline desktop `VaultFiltersContent` AND modal `WatchlistDialogs`.
+
+### Files Modified
+- `src/features/watchlist/hooks/useWatchlistOttAvailability.ts`:
+  - `MAX_CONCURRENT_CHUNKS`: 3 → 5 (Task 4).
+  - Added `CLIENT_CACHE_KEY` + `CLIENT_CACHE_TTL_MS` constants (Task 3).
+  - Added `readClientCache` + `writeClientCache` helper functions (Task 3).
+  - `watchlistSignature`: collect parts in array, `.sort()`, then `.join("|")` (Task 2).
+  - Added `cacheSource` to `UseWatchlistOttAvailabilityResult` interface (Task 5).
+  - Added `cachedProviderMap` signal (initialized from `readClientCache(region())` at hook init) + `setCachedProviderMap` (Task 3).
+  - Stall detector: added `let finished = false;` flag; check `if (finished) return;` FIRST in the interval callback (Task 1).
+  - Path E (cancelled): `finished = true` before `clearInterval` (Task 1).
+  - Path F (retry): bump `lastProgressTime` (NOT `finished`) so stall detector still catches stalled retries (Task 1).
+  - Path G (terminal): `finished = true` BEFORE `clearInterval` (critical ordering) (Task 1). After terminal state, extract provider map from `workingMap` and `writeClientCache` + `setCachedProviderMap` (Task 3).
+  - Path H (catch): `finished = true` before `clearInterval` (Task 1).
+  - `enrichedItems` memo: fall back to `cachedProviderMap` when `availabilityMap` has no entry (Task 3).
+  - Added `cacheSource` memo (Task 5).
+  - Added `cacheSource` to hook return.
+- `src/features/watchlist/useVaultFiltering.ts`:
+  - Added `cacheSource` to `UseVaultFilteringResult`.
+  - Destructured `cacheSource` from `useWatchlistOttAvailability`.
+  - Added `cacheSource` to return object.
+- `src/features/watchlist/components/VaultFiltersContent.tsx`:
+  - Added `cacheSource` to `VaultFiltersContentProps`.
+  - Extended debug `<p>` to show `cache=${props.cacheSource}` (9 fields total).
+- `src/features/watchlist/components/VaultFilters.tsx`:
+  - Added `cacheSource` to `VaultFiltersProps`.
+  - Forwarded `cacheSource` to `VaultFiltersContent`.
+- `src/features/watchlist/components/WatchlistDialogs.tsx`:
+  - Added `cacheSource` to `WatchlistDialogsProps`.
+  - Forwarded `cacheSource` to `VaultFilters`.
+- `src/features/watchlist/WatchlistView.tsx`:
+  - Destructured `cacheSource` from `useVaultFiltering`.
+  - Passed `cacheSource` to BOTH inline `VaultFiltersContent` AND modal `WatchlistDialogs`.
+
+### Files NOT Modified (verified, no change needed)
+- `src/server/justwatch/*` — server-side code is correct.
+- `src/routes/api/ott/batch-availability.ts` — route is correct.
+- `src/shared/types/justwatch.ts` + `src/shared/types/index.ts` — types are correct.
+- `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml` — NOT modified (per spec).
+- Discover "New on OTT", Upcoming, Statistics, Where to Watch — NOT touched per spec.
+- Old TMDB provider registry files — NOT deleted per spec.
+- Existing Chunk 6E/6F/6G/6H/6I/6J/6K/6M/6N/6O/6P/6Q temporary logs — NOT removed per spec.
+
+### Verification Results
+- TypeScript (`./node_modules/.bin/tsc --noEmit`): 0 errors in modified files. Pre-existing errors in OTHER files (ImportMetaEnv `PROD`/`DEV`/`MODE`/`VITE_APP_VERSION` gaps + 2 `Object is possibly 'undefined'` in `src/routes/movie/[id].tsx:306` and `src/routes/tv/[id].tsx:230`). Verified pre-existing — NOT touched by this chunk.
+- ESLint (`./node_modules/.bin/eslint` on all 6 modified files): PASS, exit 0, 0 errors, 0 warnings.
+- Build (`./node_modules/.bin/vinxi build`): PASS — `✔ build done` / `✔ Nitro Server built` / `✔ You can deploy this build using npx vercel deploy --prebuilt`. Verified the bundled output (`WatchlistView-BY6FWtHv.js` in client build) contains:
+  - `cinelog_ott_platform_v1` (1 match) — the localStorage cache key prefix (Task 3).
+  - `stalled after 25s` (1 match) — the stall detector error string (Task 1).
+  - `finished` (1 match) — the finished flag (Task 1).
+  - `cacheSource` (9 matches) — the new memo + prop chain (Task 5).
+  - `cache=` (1 match) — the debug UI field (Task 5).
+  - `.sort(),l.join` (1 match) — the order-independent signature pattern (Task 2, minified).
+
+### Diagnostic Interpretation Guide (Chunk 6R)
+When the user reports the new debug line, here's how to read it:
+- `cache=local state=loading catalog=50` → Platform filter is showing 50 providers from localStorage cache while the network fetch is in progress. This is the INSTANT-ON-REFRESH behavior — previously `catalog` stayed at 0 until the fetch completed.
+- `cache=mixed state=loading progress=15/42 catalog=52` → some chunks have landed (live data for ~15 chunks worth of items), cache still filling gaps for the rest. `catalog` may bump as live data overrides cached data.
+- `cache=live state=success progress=42/42 catalog=50` → fetch completed, all data is live. The cache is still populated (for next refresh) but `enrichedItems` is reading from `availabilityMap`.
+- `cache=none state=loading progress=0/42 catalog=0` → fresh load with empty localStorage. No cached data to fall back on. This is the slow path — user waits for the first wave.
+- `state=success progress=42/42 catalog=50 error=none` → the false stall bug is FIXED. Previously this would have been `state=error error=stalled after 25s` if the batch took >25s.
+
+### Chunk 6R Commit & Push
+- Commit message: `fix: persist watchlist OTT platform cache and speed up batch loading`
+- Files in commit: 7 (justwatch_migration_worklog.md + 6 source files)
+- Commit hash: <to be filled after commit>
+- Push status: <to be filled after push>
