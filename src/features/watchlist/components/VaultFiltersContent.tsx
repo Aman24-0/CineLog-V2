@@ -1,5 +1,5 @@
 // src/features/watchlist/components/VaultFiltersContent.tsx
-import { For, Show, createSignal, batch, type Accessor } from "solid-js";
+import { For, Show, createSignal, createEffect, batch, type Accessor } from "solid-js";
 import Icon from "~/shared/ui/Icon";
 import {
   RangeFilter,
@@ -11,6 +11,7 @@ import type { VaultFilters as FilterType } from "~/shared/types";
 import type { FilterPreset } from "~/shared/types";
 import { useVault } from "../useVault";
 import { addTagDefinition, removeTagDefinition } from "../tagStore";
+import type { PlatformFilterOption } from "../hooks/useWatchlistOttAvailability";
 
 /**
  * VaultFiltersContent — the scrollable body of the filter drawer.
@@ -19,11 +20,22 @@ import { addTagDefinition, removeTagDefinition } from "../tagStore";
  *   - REMOVED Status filter (now handled by header status chips).
  *   - Type + Region converted from <select> dropdowns to horizontal
  *     selectable chip rows (FilterChips component).
- *   - Platform filter uses the dynamic TMDB provider list from
- *     streamingProviders preference (passed via uniquePlatforms).
+ *   - Platform filter uses the JustWatch provider catalog derived
+ *     from the user's watchlist availability in their profile country
+ *     (passed via `uniquePlatforms: PlatformFilterOption[]`).
  *   - Metric inputs (IMDb, RT, Year, Runtime) use dark-theme polished
  *     numeric inputs (.filter-range-input class) instead of plain white
  *     text inputs.
+ *
+ * Chunk 6F Task 1 — ALWAYS-VISIBLE PLATFORM FILTER:
+ *   The Platform dropdown was previously HIDDEN when `uniquePlatforms`
+ *   was empty (loading / error / no offers). This caused the filter to
+ *   "disappear" from the user's perspective, leading to confusion
+ *   ("where did the Platform filter go?"). The dropdown is now ALWAYS
+ *   rendered — when the catalog is empty it appears in a disabled,
+ *   muted state with "All Platforms" as the only option and an
+ *   optional muted note ("No platforms available"). This makes it
+ *   clear to the user that the filter exists but has no data yet.
  *
  * v2.6.2 (Phase 6.2 Task 1a):
  *   - RE-ADDED Tags filter (was removed in v2 redesign because the
@@ -44,13 +56,76 @@ export interface VaultFiltersContentProps {
   filters: FilterType;
   setFilters: (v: FilterType) => void;
   uniqueGenres: string[];
-  uniquePlatforms: string[];
+  /** Platform filter options derived from JustWatch availability of
+   *  the watchlist items in the user's country. Empty while the
+   *  batch-availability fetch is in flight, on error, or when no
+   *  watchlist item has any JustWatch offer — in all three cases the
+   *  Platform dropdown is now RENDERED IN A DISABLED STATE (Chunk 6F
+   *  Task 1) rather than hidden, so the user can see the filter
+   *  exists. The dropdown becomes interactive as soon as the catalog
+   *  populates. */
+  uniquePlatforms: PlatformFilterOption[];
   uniqueTags: string[];
   /** Union of tag vocabulary + tags in use. Drives the Tag filter dropdown
    *  and the Manage Tags list. Phase 6.2 Task 1a. */
   uniqueTagsPlus: string[];
   /** Bump to force re-read of tag vocabulary from localStorage. */
   refreshTagVocab: () => void;
+  /** CHUNK 6N Task 3 — TEMPORARY debug prop. True while the JustWatch
+   *  batch-availability fetch is in flight. Surfaced in the visible
+   *  debug line below the Platform dropdown so the user can see the
+   *  fetch state without opening the browser console.
+   *  Will be removed alongside the other Chunk 6E-6M diagnostic logs. */
+  ottLoading: boolean;
+  /** CHUNK 6N Task 3 — TEMPORARY debug prop. First 3 raw batch-response
+   *  keys as a JSON string (e.g. `["movie:2668","t v:105248"]`). Empty
+   *  string before the first fetch completes. Surfaced in the visible
+   *  debug line below the Platform dropdown so the user can see the
+   *  EXACT shape of the server's response keys without opening the
+   *  browser console — this is what the Chunk 6N root cause is about.
+   *  Will be removed alongside the other Chunk 6E-6M diagnostic logs. */
+  debugRawKeys: string;
+  /** CHUNK 6N Task 3 — TEMPORARY debug prop. Number of items in the
+   *  user's watchlist. Surfaced in the visible debug line so the user
+   *  can verify the watchlist actually loaded (vs. an empty list, which
+   *  would correctly produce an empty catalog). Will be removed
+   *  alongside the other Chunk 6E-6M diagnostic logs. */
+  watchlistSize: number;
+  /** CHUNK 6O Task 1 — TEMPORARY debug prop. Coarse-grained OTT fetch
+   *  state machine (`'idle' | 'loading' | 'success' | 'error'`).
+   *  Surfaced in the visible debug line so the user can tell whether
+   *  the fetch never started, is in flight, completed successfully, or
+   *  failed — without opening the browser console. Will be removed
+   *  alongside the other Chunk 6E-6N diagnostic logs. */
+  fetchState: "idle" | "loading" | "success" | "error";
+  /** CHUNK 6O Task 1 — TEMPORARY debug prop. Human-readable error
+   *  message from the most recent OTT fetch attempt. Empty string
+   *  unless `fetchState` is `'error'`. Will be removed alongside the
+   *  other Chunk 6E-6N diagnostic logs. */
+  fetchError: string;
+  /** CHUNK 6P Task 1 — TEMPORARY debug prop. Monotonic counter that
+   *  bumps every time the OTT fetch effect actually starts a fetch
+   *  (cache-miss path). Surfaced in the visible debug line so the
+   *  user can distinguish "stuck on a single run" (runId stable,
+   *  state=loading, progress=0/N forever) from "restarting in a
+   *  loop" (runId keeps climbing while state=loading). Will be
+   *  removed alongside the other Chunk 6E-6O diagnostic logs. */
+  effectRunId: number;
+  /** CHUNK 6P Task 1 — TEMPORARY debug prop. `${done}/${total}`
+   *  progress string updated as each chunk in the OTT batch
+   *  resolves. Stays at `0/${total}` until the first wave of
+   *  MAX_CONCURRENT_CHUNKS requests completes. Surfaced in the
+   *  visible debug line so the user can see whether ANY chunks are
+   *  landing (vs. the very first wave hanging). Will be removed
+   *  alongside the other Chunk 6E-6O diagnostic logs. */
+  chunkProgress: string;
+  /** CHUNK 6R Task 5 — TEMPORARY debug prop. Indicates WHERE the
+   *  Platform filter's data is coming from: `'local'` (localStorage
+   *  cache), `'live'` (network fetch), `'mixed'` (both, during
+   *  fetch), or `'none'` (no data available). Surfaced in the
+   *  visible debug line as `cache=...`. Will be removed alongside
+   *  the other Chunk 6E-6P diagnostic logs. */
+  cacheSource: "local" | "live" | "mixed" | "none";
   presets: Accessor<FilterPreset[]>;
   onSavePreset: (name: string) => Promise<void>;
   onDeletePreset: (id: string) => void;
@@ -61,6 +136,20 @@ export default function VaultFiltersContent(props: VaultFiltersContentProps) {
   const [newTagName, setNewTagName] = createSignal("");
   const [pendingDeleteTag, setPendingDeleteTag] = createSignal<string | null>(null);
   const vault = useVault();
+
+  // Chunk 6F Task 4 — temporary diagnostic log to help diagnose why
+  // the Platform filter catalog might be empty. Tracks the unique
+  // platforms count and the current platform filter value. Will be
+  // removed in a later cleanup chunk alongside the OTT server logs
+  // added in Chunk 6E. Logs only counts (no PII / no titles).
+  createEffect(() => {
+    console.log(
+      "[VaultFiltersContent] uniquePlatforms count=" +
+        props.uniquePlatforms.length +
+        " platformFilter=" +
+        props.filters.platform
+    );
+  });
 
   /** Batched setFilters — wraps each filter update in batch() so the
       filtered memo re-computes ONCE instead of triggering cascading
@@ -177,18 +266,125 @@ export default function VaultFiltersContent(props: VaultFiltersContentProps) {
               ...props.uniqueGenres.map((g) => ({ l: g, v: g }))
             ]}
           />
-          {/* Platform — custom dark-glass dropdown populated from the user's
-              vault platformsList data (uniquePlatforms from useVaultFiltering).
-              Same GlassSelect pattern as Genre above. */}
+          {/* Platform — JustWatch provider catalog (Chunk 6).
+              Each option's value is the JustWatch `technicalName` (what
+              `matchesPlatform` compares against `m.justwatchProviders`);
+              the label is the human-readable `clearName`.
+
+              Chunk 6F Task 1 — ALWAYS VISIBLE (was previously hidden
+              when the catalog was empty). The dropdown now renders in
+              ALL states:
+                1. Catalog populated → normal interactive dropdown with
+                   "All Platforms" + provider options.
+                2. Catalog empty (loading / fetch error / no offers in
+                   country) → DISABLED dropdown showing only "All
+                   Platforms" + a muted "No platforms available" note.
+              This makes it clear to the user that the filter EXISTS —
+              previously they reported "Platform filter is missing"
+              because the dropdown was simply hidden whenever the
+              JustWatch fetch hadn't yet returned usable data.
+
+              If a Platform filter was already active when the catalog
+              becomes empty (e.g. user removed all watchlist items),
+              the filter value remains "all" or resets via the user's
+              own clear action — we do NOT forcibly reset it here
+              because the catalog may be transiently empty during a
+              refetch and we don't want to wipe the user's selection. */}
           <GlassSelect
             label="Platform"
             val={props.filters.platform}
             set={(v) => batchedSet({ platform: v })}
+            disabled={props.uniquePlatforms.length === 0}
             opts={[
               { l: "All Platforms", v: "all" },
-              ...props.uniquePlatforms.map((p) => ({ l: p, v: p }))
+              ...props.uniquePlatforms.map((p) => ({
+                // CHUNK 6K Task 5 — defensive: prefer clearName, fall
+                // back to technicalName. The providerCatalog memo
+                // already guarantees clearName is non-empty (falls
+                // back to technicalName when packageMeta is missing),
+                // but this `||` makes the contract explicit and
+                // protects against any future regression.
+                l: p.clearName || p.technicalName,
+                v: p.technicalName
+              }))
             ]}
           />
+          <Show when={props.uniquePlatforms.length === 0}>
+            <p
+              class="type-body-soft"
+              style={{
+                "font-size": "0.625rem",
+                "margin-top": "-0.25rem",
+                "margin-left": "0.125rem",
+                opacity: "0.7"
+              }}
+            >
+              No platforms available
+            </p>
+          </Show>
+          {/* CHUNK 6N Task 3 — TEMPORARY visible debug line.
+              Rendered unconditionally (regardless of catalog state) so
+              the user can see the EXACT runtime state of the OTT fetch
+              without opening the browser DevTools console (which is
+              hard on a phone). Shows:
+                - watchlist size (verifies the watchlist actually loaded)
+                - OTT loading state (true while a fetch is in flight)
+                - provider catalog size (0 means no providers reached
+                  the dropdown — the bug we're chasing)
+                - first 3 raw batch-response keys (the EXACT shape of
+                  the server's response keys, including any stray
+                  whitespace that would cause a key-mismatch)
+              Will be removed alongside the other Chunk 6E-6M logs.
+              CHUNK 6O Task 4 — EXTENDED to also show:
+                - fetchState ('idle' | 'loading' | 'success' | 'error')
+                  so the user can tell whether the fetch never started,
+                  is in flight, completed, or failed. This is the key
+                  diagnostic that was missing in Chunk 6N — the user
+                  saw `loading=true` forever with no indication of
+                  whether the fetch was actually progressing, stuck in
+                  a retry loop, or had failed silently.
+                - fetchError (human-readable error message) so the user
+                  can see WHY the fetch failed (e.g. "all chunks
+                  returned empty", "runBatch threw: ...") without
+                  opening the console.
+              CHUNK 6P Task 5 — EXTENDED to also show:
+                - effectRunId (monotonic counter) so the user can tell
+                  whether the effect is stuck on a single run (runId
+                  stable, state=loading forever) or restarting in a
+                  loop (runId keeps climbing while state=loading).
+                - chunkProgress (`${done}/${total}`) so the user can
+                  see whether ANY chunks are landing (vs. the very
+                  first wave hanging — progress stays at 0/N).
+                - The 20s hard timeout (Task 4) will also flip state
+                  to `error` with `timeout after 20000ms; progress=…`
+                  if the fetch hangs, which will surface in the
+                  `error=` field. */}
+          <p
+            style={{
+              "font-size": "11px",
+              "color": "#ff8c00",
+              "padding": "6px 8px",
+              "background": "rgba(255,140,0,0.06)",
+              "border-radius": "6px",
+              "margin-top": "0.25rem",
+              "margin-left": "0.125rem",
+              "white-space": "pre-wrap",
+              "word-break": "break-all",
+              "line-height": "1.5",
+              "font-family": "ui-monospace, SFMono-Regular, Menlo, monospace"
+            }}
+          >
+            {`DEBUG:
+watchlist=${props.watchlistSize}
+state=${props.fetchState}
+loading=${props.ottLoading ? "true" : "false"}
+catalog=${props.uniquePlatforms.length}
+run=${props.effectRunId}
+progress=${props.chunkProgress || "(none yet)"}
+keys=${props.debugRawKeys || "(none yet)"}
+cache=${props.cacheSource}
+error=${props.fetchError || "none"}`}
+          </p>
           {/* Tag — RE-ADDED in Phase 6.2 Task 1a.
               Shows the union of (tag vocabulary in localStorage) ∪ (tags
               currently in use on vault items). When the user picks a tag,

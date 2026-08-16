@@ -7,7 +7,7 @@ import type {
   SortField,
   SortDirection
 } from "~/shared/types";
-import { resolvePlatformDisplayName } from "./platformDisplayNames";
+import type { PlatformFilterOption } from "./hooks/useWatchlistOttAvailability";
 
 /**
  * vaultFilterUtils — pure filtering + sorting helpers used by
@@ -384,53 +384,41 @@ function matchesRegion(m: WatchlistItem, region: string): boolean {
 }
 
 /**
- * Platform filter — matches if the platform string is found in ANY of
- * the platform-carrying fields on the item:
- *   - `platformsList` (legacy array)
- *   - `providers` (TMDB watch-provider field)
- *   - `watchProgress.server` (single-string fallback)
+ * Platform filter — matches if the JustWatch provider `technicalName`
+ * selected by the user (`f.platform`) is present in the item's
+ * `justwatchProviders` array (populated by `useWatchlistOttAvailability`
+ * from the `/api/ott/batch-availability` response).
  *
- * DISPLAY NAME RESOLUTION (v3):
- *   Because `uniquePlatforms` (in useVaultFiltering.ts) resolves raw IDs
- *   to canonical display names ("8" → "Netflix"), the filter VALUE
- *   (`f.platform`) is always a display name. This function mirrors that
- *   resolution on each item's stored platform strings BEFORE comparing,
- *   so a stored provider ID "8" correctly matches a filter value of
- *   "Netflix". Without this, the dropdown would show "Netflix" but the
- *   filter would return zero matches.
+ * Chunk 6 migration notes:
+ *   - Previously this function checked THREE legacy fields per item:
+ *     `platformsList`, `providers`, and `watchProgress.server`. Each
+ *     was passed through `resolvePlatformDisplayName` to canonicalize
+ *     raw TMDB IDs / lowercase slugs to display names, then compared
+ *     against the filter value (also a display name).
+ *   - That approach was inconsistent (TMDB IDs differ from JustWatch
+ *     `technicalName`s, and the legacy fields were sparsely populated).
+ *   - Now the function reads a single field — `m.justwatchProviders` —
+ *     which contains JustWatch `package.technicalName` values. The
+ *     filter value `f.platform` is also a `technicalName` (set by the
+ *     Platform dropdown in VaultFiltersContent).
+ *   - Items with `justwatchProviders === undefined` (fetch not yet
+ *     completed) or `[]` (fetched, no offers) are EXCLUDED when a
+ *     specific platform is selected. Under "All Platforms"
+ *     (`f.platform === "all"`) no filtering occurs — `filterByAdvanced`
+ *     short-circuits before calling this function.
  *
- * This mirrors the `uniquePlatforms` extraction in useVaultFiltering.ts
- * so the dropdown options and the filter predicate stay in sync.
+ * Backward-compat: if `m.justwatchProviders` is undefined AND the item
+ * still carries legacy platform strings, we DO NOT fall back to the
+ * old three-source check. The spec is explicit: "Remove or ignore the
+ * old three-source accumulation." Old presets saved with a display-name
+ * `platform` value (e.g. `"Netflix"`) will simply match nothing — the
+ * user must re-select a platform from the new dropdown.
  */
 function matchesPlatform(m: WatchlistItem, platform: string): boolean {
-  // Resolve the filter value once (it should already be a display name,
-  // but resolve defensively in case a preset saved a raw ID).
-  const targetName = resolvePlatformDisplayName(platform) || platform;
-
-  if (Array.isArray(m.platformsList)) {
-    for (const p of m.platformsList) {
-      if (typeof p === "string" && p.trim()) {
-        if (resolvePlatformDisplayName(p) === targetName) return true;
-        // Also allow direct string equality as a fallback (covers names
-        // not in our canonical table).
-        if (p.trim() === platform) return true;
-      }
-    }
-  }
-  if (Array.isArray(m.providers)) {
-    for (const p of m.providers) {
-      if (typeof p === "string" && p.trim()) {
-        if (resolvePlatformDisplayName(p) === targetName) return true;
-        if (p.trim() === platform) return true;
-      }
-    }
-  }
-  const server = m.watchProgress?.server;
-  if (typeof server === "string" && server.trim()) {
-    if (resolvePlatformDisplayName(server) === targetName) return true;
-    if (server.trim() === platform) return true;
-  }
-  return false;
+  if (!platform) return false;
+  const providers = m.justwatchProviders;
+  if (!Array.isArray(providers) || providers.length === 0) return false;
+  return providers.includes(platform);
 }
 
 /** Apply the numeric range filters (IMDb / RT / year / runtime). */
@@ -586,20 +574,38 @@ export function sortItems(
   });
 }
 
-/** Compute the active filter chips for display in the header. */
+/** Compute the active filter chips for display in the header.
+ *
+ *  `platformCatalog` is the JustWatch provider catalog (from
+ *  `useWatchlistOttAvailability`). When provided, the Platform chip's
+ *  label is resolved from the catalog by matching `f.platform` (a
+ *  JustWatch `technicalName`) to its `clearName`. When not provided
+ *  (legacy callers), the raw `f.platform` string is shown as-is.
+ */
 export function computeChips(
-  f: VaultFilters
+  f: VaultFilters,
+  platformCatalog?: PlatformFilterOption[]
 ): { label: string; key: string }[] {
   const out: { label: string; key: string }[] = [];
   if (f.type !== "all")
     out.push({ label: f.type === "movie" ? "Movies" : "Series", key: "type" });
   if (f.region !== "all") out.push({ label: f.region, key: "region" });
   if (f.genre !== "all") out.push({ label: f.genre, key: "genre" });
-  // Resolve platform to its display name so the chip shows "Netflix"
-  // instead of a raw ID like "8" (covers presets saved with raw IDs).
+  // Resolve the platform technicalName → clearName for the chip label.
+  // The catalog lookup is O(n) but n is typically <20 providers, and
+  // this only runs when a platform filter is active (rare). If the
+  // catalog is missing or the technicalName isn't found (e.g. an old
+  // preset saved with a display-name value), fall back to the raw
+  // `f.platform` string so the chip still renders SOMETHING.
   if (f.platform !== "all") {
-    const display = resolvePlatformDisplayName(f.platform) || f.platform;
-    out.push({ label: display, key: "platform" });
+    let label = f.platform;
+    if (Array.isArray(platformCatalog)) {
+      const match = platformCatalog.find(
+        (p) => p.technicalName === f.platform
+      );
+      if (match) label = match.clearName;
+    }
+    out.push({ label, key: "platform" });
   }
   if (f.tag !== "all") out.push({ label: f.tag, key: "tag" });
   if (f.imdbMin) out.push({ label: `IMDb > ${f.imdbMin}`, key: "imdbMin" });

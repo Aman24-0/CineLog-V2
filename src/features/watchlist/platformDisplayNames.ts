@@ -2,7 +2,28 @@
 //
 // Platform display-name resolution for the Watchlist Platform filter.
 //
-// WHY THIS EXISTS:
+// ──────────────────────────────────────────────────────────────────────
+// CHUNK 6 (JustWatch OTT Migration) — DEPRECATION NOTICE
+// ──────────────────────────────────────────────────────────────────────
+// The Platform filter NO LONGER uses this module. The filter now derives
+// its options from JustWatch availability data (see
+// `hooks/useWatchlistOttAvailability.ts`) and matches against
+// `WatchlistItem.justwatchProviders` (JustWatch `technicalName` values).
+// The JustWatch `package.clearName` is the new display name source.
+//
+// This file is KEPT (not deleted) per the Chunk 6 spec ("Do not delete
+// the file. Just update/override the relevant functions."). As of this
+// chunk, `resolvePlatformDisplayName` has NO live consumers — it was
+// the Platform filter's old display-name resolver, and the filter now
+// uses `resolvePlatformClearNameFromCatalog` instead. The function is
+// kept for one more chunk in case other call sites need to be migrated
+// piecemeal, and will be removed in a later cleanup chunk.
+//
+// The function below is marked `@deprecated` so future chunks know it's
+// safe to remove.
+// ──────────────────────────────────────────────────────────────────────
+//
+// WHY THIS EXISTS (HISTORICAL):
 //   The Platform filter dropdown (FilterControls.tsx) was rendering raw
 //   string IDs (e.g. "8", "9") instead of human-readable names ("Netflix",
 //   "Prime Video"). This happened because:
@@ -28,8 +49,47 @@ import {
   canonicalForTmdbId,
   displayNameFor
 } from "~/features/discover/components/ottProviderRegistry";
+import type { PlatformFilterOption } from "./hooks/useWatchlistOttAvailability";
 
 /**
+ * Resolve a JustWatch `technicalName` (the value stored in
+ * `VaultFilters.platform` after Chunk 6) to its human-readable
+ * `clearName` by looking it up in the JustWatch provider catalog.
+ *
+ * This is the new display-name resolver used by `computeChips` in
+ * `vaultFilterUtils.ts`. It replaces the old `resolvePlatformDisplayName`
+ * for Platform-filter purposes (the old function is still exported below
+ * for the Statistics page).
+ *
+ * @param technicalName The JustWatch `package.technicalName` to resolve
+ *        (e.g. `"apple.tv.plus"`, `"netflix"`).
+ * @param catalog The JustWatch provider catalog from
+ *        `useWatchlistOttAvailability`. When `undefined` or empty, the
+ *        function returns the raw `technicalName` (so callers always get
+ *        a non-empty string for display).
+ * @returns The `clearName` if found, else the raw `technicalName`.
+ */
+export function resolvePlatformClearNameFromCatalog(
+  technicalName: string,
+  catalog: PlatformFilterOption[] | undefined
+): string {
+  if (!technicalName) return "";
+  if (!Array.isArray(catalog) || catalog.length === 0) return technicalName;
+  for (let i = 0; i < catalog.length; i++) {
+    if (catalog[i].technicalName === technicalName) {
+      return catalog[i].clearName;
+    }
+  }
+  return technicalName;
+}
+
+/**
+ * @deprecated Since Chunk 6 of the JustWatch OTT migration. The Platform
+ *   filter now uses `resolvePlatformClearNameFromCatalog` (above) with
+ *   JustWatch `technicalName`/`clearName` data. This function has NO live
+ *   consumers as of this chunk — it is kept for one more chunk as a
+ *   safety net and will be removed in a later cleanup.
+ *
  * Normalize a single raw platform string to a human-readable display name.
  *
  * Resolution order:

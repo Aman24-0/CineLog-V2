@@ -70,7 +70,22 @@ export default function WatchlistView() {
     uniquePlatforms,
     uniqueTags,
     uniqueTagsPlus,
-    refreshTagVocab
+    refreshTagVocab,
+    // CHUNK 6N Task 3 — TEMPORARY debug accessors for the visible
+    // debug line in the Platform filter modal.
+    ottLoading,
+    debugRawKeys,
+    // CHUNK 6O Task 1 — TEMPORARY debug accessors for the visible
+    // debug line in the Platform filter modal.
+    fetchState,
+    fetchError,
+    // CHUNK 6P Task 1 — TEMPORARY debug accessors for the visible
+    // debug line in the Platform filter modal.
+    effectRunId,
+    chunkProgress,
+    // CHUNK 6R Task 5 — TEMPORARY debug accessor for the visible
+    // debug line in the Platform filter modal.
+    cacheSource
   } = filtering;
 
   // Infinite scroll — bump display limit when user nears the bottom.
@@ -192,6 +207,14 @@ export default function WatchlistView() {
                 uniqueTags={uniqueTags()}
                 uniqueTagsPlus={uniqueTagsPlus()}
                 refreshTagVocab={refreshTagVocab}
+                ottLoading={ottLoading()}
+                debugRawKeys={debugRawKeys()}
+                watchlistSize={watchlist().length}
+                fetchState={fetchState()}
+                fetchError={fetchError()}
+                effectRunId={effectRunId()}
+                chunkProgress={chunkProgress()}
+                cacheSource={cacheSource()}
                 presets={presets}
                 onSavePreset={(name) => savePreset(name, filters())}
                 onDeletePreset={(id) => deletePreset(id)}
@@ -285,6 +308,14 @@ export default function WatchlistView() {
         uniqueTags={uniqueTags}
         uniqueTagsPlus={uniqueTagsPlus}
         refreshTagVocab={refreshTagVocab}
+        ottLoading={ottLoading}
+        debugRawKeys={debugRawKeys}
+        watchlistSize={() => watchlist().length}
+        fetchState={fetchState}
+        fetchError={fetchError}
+        effectRunId={effectRunId}
+        chunkProgress={chunkProgress}
+        cacheSource={cacheSource}
         onClose={() => setShowFilter(false)}
         onClear={() => {
           clearFilters();

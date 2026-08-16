@@ -3328,3 +3328,266 @@
   transform: translateX(2px);
 }
 
+/* ============================================================
+   Stage 5 Chunk 5 — JustWatch "Where to Watch" rows
+   Chunk 6F Task 2 — COMPACT REDESIGN
+   ============================================================
+   Compact one-row-per-provider layout:
+     [logo] [badges] [Watch Now] [More Info]
+   The provider name is no longer rendered as visible text —
+   the logo carries `title`/`aria-label`/`alt` for accessibility
+   and hover info. Badges are tiny chips, buttons are small and
+   inline. The whole row stays on a single line on wide screens
+   and wraps cleanly on narrow viewports.
+
+   Uses existing CSS variables (--glass-bg, --hairline-2, --p,
+   --text-soft, --text-dim, --space-*, --radius-*, --dur-fast,
+   --ease-out) so it adapts to the user's theme.
+   ============================================================ */
+
+.wheretowatch-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: 0;
+  contain: content;
+}
+
+/* Chunk 6G — simplified row layout:
+   [ large provider logo ]                    [ Watch Now ]
+   - Single horizontal flex row, NO wrap on desktop (logo + button
+     fit comfortably even on narrow viewports).
+   - `justify-content: space-between` pushes the Watch Now button
+     to the right edge and the logo to the left edge.
+   - Spacious vertical padding (var(--space-2)) for a clean, modern
+     feel — no longer cramped like the Chunk 6F compact layout. */
+.wheretowatch-row {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--glass-bg);
+  border: 1px solid var(--hairline-2);
+  transition:
+    border-color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out);
+}
+
+.wheretowatch-row:hover {
+  border-color: var(--p);
+  background: rgba(74, 222, 128, 0.04);
+}
+
+/* Chunk 6F Task 2 — `.wheretowatch-row-main` is no longer rendered
+   in the JSX (the logo + meta are direct children of `.wheretowatch-row`
+   for a flatter, more compact DOM). The rule is kept for backwards
+   compatibility in case any other code path still renders the old
+   structure; it remains a no-op when unused. */
+.wheretowatch-row-main {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  flex: 1 1 160px;
+}
+
+/* Chunk 6G — large provider logo on the left of the row.
+   - Height: 40px (desktop) / 36px (mobile, see media query below).
+   - Width: auto — preserves the provider's natural aspect ratio
+     (most JustWatch logos are square or near-square).
+   - object-fit: contain so the logo isn't stretched.
+   - Subtle dark background + small radius so logos with transparent
+     or white backgrounds remain visible against the dark glass row. */
+.wheretowatch-row-logo {
+  height: 40px;
+  width: auto;
+  min-width: 40px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: rgba(8, 8, 13, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.wheretowatch-row-logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.wheretowatch-row-logo-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+  background: rgba(8, 8, 13, 0.3);
+}
+
+/* Chunk 6G — `.wheretowatch-row-meta` is no longer rendered in the
+   JSX (the badges + availability date were removed in Chunk 6G).
+   Rule kept for backwards compat; harmless when unused. */
+.wheretowatch-row-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+/* Chunk 6F Task 2 — `.wheretowatch-row-name` is no longer rendered
+   (provider name is conveyed via the logo's title/aria-label/alt).
+   Rule kept for backwards compat; harmless when unused. */
+.wheretowatch-row-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary, currentColor);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Chunk 6G — `.wheretowatch-row-date` is no longer rendered in the
+   JSX (the "Available <date>" label was removed in Chunk 6G).
+   Rule kept for backwards compat; harmless when unused. */
+.wheretowatch-row-date {
+  font-size: 0.625rem;
+  color: var(--p);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* Chunk 6G — `.wheretowatch-row-actions` is no longer rendered in
+   the JSX (the single Watch Now button is now a direct child of
+   `.wheretowatch-row`, aligned to the right via space-between).
+   Rule kept for backwards compat; harmless when unused. */
+.wheretowatch-row-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  flex: 0 0 auto;
+}
+
+/* Chunk 6G — `.wheretowatch-badges` is no longer rendered in the JSX
+   (all badges were removed in Chunk 6G). Rule kept for backwards
+   compat; harmless when unused. */
+.wheretowatch-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* Chunk 6G — `.wheretowatch-badge` is no longer rendered in the JSX
+   (all badges were removed in Chunk 6G). Rules kept for backwards
+   compat; harmless when unused. */
+.wheretowatch-badge {
+  font-size: 0.5625rem;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 999px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  border: 1px solid var(--hairline-2);
+  color: var(--text-soft);
+  background: rgba(255, 255, 255, 0.02);
+  white-space: nowrap;
+}
+
+.wheretowatch-badge[data-monetization="FLATRATE"] {
+  color: var(--p);
+  border-color: rgba(74, 222, 128, 0.35);
+  background: rgba(74, 222, 128, 0.08);
+}
+
+.wheretowatch-badge[data-monetization="FAST"] {
+  color: var(--text-soft);
+  border-color: var(--hairline-2);
+}
+
+.wheretowatch-badge[data-monetization="RENT"],
+.wheretowatch-badge[data-monetization="BUY"] {
+  color: var(--text-soft);
+  border-color: var(--hairline-2);
+}
+
+/* Chunk 6F Task 2 — `.wheretowatch-buttons` wrapper is no longer
+   rendered in the JSX (buttons are direct children of
+   `.wheretowatch-row-actions`). Rule kept for backwards compat. */
+.wheretowatch-buttons {
+  display: flex;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+}
+
+/* Chunk 6G — single compact "Watch Now" button on the right of the
+   row. Slightly larger padding than Chunk 6F (6px 14px vs 4px 10px)
+   for a more spacious, modern feel that matches the larger 40px logo.
+   Still easily tappable (~28px tap target with the 0.75rem line-height). */
+.wheretowatch-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+  border: 1px solid transparent;
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
+}
+
+.wheretowatch-btn-primary {
+  background: var(--p);
+  color: #0a0a0f;
+  border-color: var(--p);
+}
+
+.wheretowatch-btn-primary:hover {
+  opacity: 0.9;
+}
+
+/* Chunk 6G — `.wheretowatch-btn-secondary` is no longer rendered in
+   the JSX (the "More Info" button was removed in Chunk 6G). Rule
+   kept for backwards compat; harmless when unused. */
+.wheretowatch-btn-secondary {
+  background: transparent;
+  color: var(--text-soft);
+  border-color: var(--hairline-2);
+}
+
+.wheretowatch-btn-secondary:hover {
+  color: var(--p);
+  border-color: var(--p);
+  background: rgba(74, 222, 128, 0.04);
+}
+
+/* Narrow screens: keep the row horizontal — logo shrinks slightly
+   (40px → 36px) and the gap tightens (var(--space-3) → var(--space-2))
+   so the logo + button still fit on one line at 320px viewport width.
+   The row only wraps if the viewport is EXTREMELY narrow (< 280px),
+   which is below any realistic phone width. */
+@media (max-width: 540px) {
+  .wheretowatch-row {
+    gap: var(--space-2);
+    padding: var(--space-2);
+  }
+  .wheretowatch-row-logo {
+    height: 36px;
+    min-width: 36px;
+  }
+}
+
+

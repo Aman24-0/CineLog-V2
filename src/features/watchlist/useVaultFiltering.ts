@@ -19,7 +19,7 @@ import {
   countActiveFilters,
   hasAdvancedFiltersActive
 } from "./vaultFilterUtils";
-import { resolvePlatformDisplayName } from "./platformDisplayNames";
+import { useWatchlistOttAvailability, type PlatformFilterOption } from "./hooks/useWatchlistOttAvailability";
 import { readTagDefinitions } from "./tagStore";
 
 /**
@@ -83,7 +83,78 @@ export interface UseVaultFilteringResult {
   clearFilter: (key: string) => void;
   clearFilters: () => void;
   uniqueGenres: Accessor<string[]>;
-  uniquePlatforms: Accessor<string[]>;
+  /**
+   * Platform filter options derived from actual JustWatch availability
+   * of the watchlist items in the user's country. Each option carries
+   * a stable `technicalName` (the filter value), a human-readable
+   * `clearName`, an optional `icon` URL, and a `count` of how many
+   * watchlist items carry this provider.
+   *
+   * Empty while the batch-availability fetch is in flight, on error,
+   * or when no watchlist item has any JustWatch offer. The Platform
+   * dropdown hides when this is empty (per Chunk 6 Task 6 spec).
+   */
+  uniquePlatforms: Accessor<PlatformFilterOption[]>;
+  /**
+   * True while the JustWatch batch-availability fetch is in flight.
+   * Exposed so the Platform filter UI can show a loading state if
+   * desired (the default is to simply hide the dropdown until data
+   * arrives).
+   */
+  ottLoading: Accessor<boolean>;
+  /**
+   * CHUNK 6N Task 3 — TEMPORARY debug accessor. Returns the first 3
+   * raw batch-response keys (as a JSON string) from the most recent
+   * OTT fetch, for display in the Platform filter modal's debug line.
+   * Empty string before the first fetch. Will be removed alongside
+   * the other Chunk 6E-6M diagnostic logs.
+   */
+  debugRawKeys: Accessor<string>;
+  /**
+   * CHUNK 6O Task 1 — TEMPORARY debug accessor. Coarse-grained OTT
+   * fetch state machine (`'idle' | 'loading' | 'success' | 'error'`)
+   * for display in the Platform filter modal's debug line. Lets the
+   * user tell whether the fetch never started, is in flight,
+   * completed successfully, or failed — without opening the console.
+   * Will be removed alongside the other Chunk 6E-6N diagnostic logs.
+   */
+  fetchState: Accessor<"idle" | "loading" | "success" | "error">;
+  /**
+   * CHUNK 6O Task 1 — TEMPORARY debug accessor. Human-readable error
+   * message from the most recent OTT fetch attempt. Empty string
+   * unless `fetchState` is `'error'`. Will be removed alongside the
+   * other Chunk 6E-6N diagnostic logs.
+   */
+  fetchError: Accessor<string>;
+  /**
+   * CHUNK 6P Task 1 — TEMPORARY debug accessor. Monotonic counter
+   * that bumps every time the OTT fetch effect actually starts a
+   * fetch (cache-miss path). Surfaced in the visible debug line so
+   * the user can distinguish "stuck on a single run" (runId stable,
+   * state=loading, progress=0/N forever) from "restarting in a loop"
+   * (runId keeps climbing while state=loading). Will be removed
+   * alongside the other Chunk 6E-6O diagnostic logs.
+   */
+  effectRunId: Accessor<number>;
+  /**
+   * CHUNK 6P Task 1 — TEMPORARY debug accessor. `${done}/${total}`
+   * progress string updated as each chunk in the OTT batch resolves.
+   * Stays at `0/${total}` until the first wave of
+   * MAX_CONCURRENT_CHUNKS requests completes. Surfaced in the
+   * visible debug line so the user can see whether ANY chunks are
+   * landing (vs. the very first wave hanging). Will be removed
+   * alongside the other Chunk 6E-6O diagnostic logs.
+   */
+  chunkProgress: Accessor<string>;
+  /**
+   * CHUNK 6R Task 5 — TEMPORARY debug accessor. Indicates WHERE the
+   * Platform filter's data is coming from: `'local'` (localStorage
+   * cache), `'live'` (network fetch), `'mixed'` (both, during fetch),
+   * or `'none'` (no data available). Surfaced in the visible debug
+   * line as `cache=...`. Will be removed alongside the other Chunk
+   * 6E-6P diagnostic logs.
+   */
+  cacheSource: Accessor<"local" | "live" | "mixed" | "none">;
   uniqueTags: Accessor<string[]>;
   /**
    * Union of the user's tag vocabulary (saved in localStorage) and the
@@ -198,6 +269,27 @@ export function useVaultFiltering(
     prevViewMode = mode;
   });
 
+  // ── JUSTWATCH OTT AVAILABILITY (Chunk 6) ───────────────────────────
+  // Enriches every watchlist item with `justwatchProviders: string[]`
+  // (JustWatch `package.technicalName` values) via a single batched
+  // POST /api/ott/batch-availability call (split into 25-item chunks
+  // if the watchlist is larger). The Platform filter dropdown options
+  // and the `matchesPlatform` predicate both consume this enrichment.
+  //
+  // See `hooks/useWatchlistOttAvailability.ts` for the full contract.
+  const ottAvailability = useWatchlistOttAvailability(args.watchlist);
+  const {
+    enrichedItems,
+    providerCatalog,
+    loading: ottLoading,
+    debugRawKeys,
+    fetchState,
+    fetchError,
+    effectRunId,
+    chunkProgress,
+    cacheSource
+  } = ottAvailability;
+
   // ── UNIQUE VALUES — single-pass Set accumulation (no intermediate arrays) ──
   // Previously: flatMap + map + new Set + spread + filter + sort created
   // 5 intermediate arrays per memo run. Now we use Set.add() in a single
@@ -218,62 +310,47 @@ export function useVaultFiltering(
     }
     return [...set].sort();
   });
-  const uniquePlatforms = createMemo(() => {
-    // Single-pass Set accumulation across ALL possible platform sources.
-    // Previously this only checked `platformsList`, which left the Platform
-    // dropdown empty for users whose items store the platform under
-    // `watchProgress.server` or `providers` (TMDB watch-provider field).
-    // Now we check every known field per item, filter out null/empty/
-    // whitespace, trim, and dedupe via the Set.
-    //
-    // DISPLAY NAME RESOLUTION (v3):
-    //   Raw strings from `providers` (TMDB numeric IDs as strings like "8")
-    //   and `watchProgress.server` (lowercase slugs like "netflix") are
-    //   passed through `resolvePlatformDisplayName()` so the dropdown
-    //   renders "Netflix", "Prime Video", etc. instead of "8" or "netflix".
-    //   This keeps the dropdown options human-readable AND ensures the
-    //   filter predicate (matchesPlatform) compares against the same
-    //   canonical name.
-    const set = new Set<string>();
-    const list = args.watchlist();
-    for (let i = 0; i < list.length; i++) {
-      const item = list[i];
+  // uniquePlatforms — now derived from the JustWatch provider catalog
+  // built by `useWatchlistOttAvailability`. The catalog is already
+  // deduped + sorted (count desc, clearName asc) by the hook, so this
+  // memo is a thin pass-through that exists to keep the public hook
+  // API stable (`uniquePlatforms` was already part of the result
+  // interface before Chunk 6).
+  //
+  // The returned `PlatformFilterOption[]` carries:
+  //   - `technicalName` (the filter value stored in `filters.platform`)
+  //   - `clearName`     (the label rendered in the dropdown)
+  //   - `icon`          (optional JustWatch CDN URL for the logo)
+  //   - `count`         (number of watchlist items with this provider)
+  //
+  // Empty array while loading, on error, or when no items have any
+  // JustWatch offer. The dropdown consumer renders a DISABLED state
+  // when this is empty (Chunk 6F Task 1 — previously it was hidden).
+  const uniquePlatforms = createMemo<PlatformFilterOption[]>(() => {
+    const catalog = providerCatalog();
+    // Chunk 6F Task 4 — diagnostic log. Tracks the watchlist size,
+    // the OTT loading state, the OTT error state (read indirectly
+    // via the catalog being empty even when not loading), and the
+    // unique provider count. Temporary; will be removed in a later
+    // cleanup chunk alongside the OTT server logs from Chunk 6E.
+    // Logs only counts (no PII / no titles).
+    console.log(
+      "[useVaultFiltering] uniquePlatforms memo" +
+        " watchlistSize=" + args.watchlist().length +
+        " ottLoading=" + ottLoading() +
+        " providerCatalogSize=" + catalog.length
+    );
+    return catalog;
+  });
 
-      // Source 1: platformsList (legacy array of provider names — usually
-      // already human-readable, but we normalize for consistency).
-      const pl = item.platformsList;
-      if (pl && Array.isArray(pl)) {
-        for (let j = 0; j < pl.length; j++) {
-          const p = pl[j];
-          if (p && typeof p === "string" && p.trim()) {
-            const resolved = resolvePlatformDisplayName(p);
-            if (resolved) set.add(resolved);
-          }
-        }
-      }
-
-      // Source 2: providers (TMDB watch-provider field — may contain
-      // numeric IDs as strings, e.g. "8" for Netflix).
-      const prov = item.providers;
-      if (prov && Array.isArray(prov)) {
-        for (let j = 0; j < prov.length; j++) {
-          const p = prov[j];
-          if (p && typeof p === "string" && p.trim()) {
-            const resolved = resolvePlatformDisplayName(p);
-            if (resolved) set.add(resolved);
-          }
-        }
-      }
-
-      // Source 3: watchProgress.server (some items store the streaming
-      // platform here — may be a raw ID, a lowercase slug, or a name).
-      const server = item.watchProgress?.server;
-      if (server && typeof server === "string" && server.trim()) {
-        const resolved = resolvePlatformDisplayName(server);
-        if (resolved) set.add(resolved);
-      }
-    }
-    return [...set].sort();
+  // Chunk 6G Task 2 — diagnostic effect. Logs the actual
+  // `uniquePlatforms()` array (not just the count) so we can verify
+  // each option carries `technicalName`, `clearName`, and `count`.
+  // Watches `uniquePlatforms` reactively so it re-logs whenever the
+  // catalog updates (initial empty → populated after OTT fetch).
+  // Temporary; will be removed in a later cleanup chunk.
+  createEffect(() => {
+    console.log("[Watchlist OTT] uniquePlatforms", uniquePlatforms());
   });
   const uniqueTags = createMemo(() => {
     const set = new Set<string>();
@@ -324,7 +401,13 @@ export function useVaultFiltering(
   });
 
   const filtered = createMemo(() => {
-    let f = args.watchlist();
+    // Use the JustWatch-enriched items so `matchesPlatform` can read
+    // `m.justwatchProviders`. Until the OTT fetch completes, the
+    // enriched list equals the raw watchlist (with `justwatchProviders`
+    // undefined), so the Platform filter simply matches nothing while
+    // loading — but every other filter (status, type, genre, tag, sort)
+    // works normally. The user sees their watchlist immediately.
+    let f = enrichedItems();
     if (search()) f = f.filter((m) => matchSearch(m, search()));
 
     const effectiveStatus =
@@ -343,7 +426,15 @@ export function useVaultFiltering(
       search().length > 0 || hasAdvancedFilters() || activeStatusTab() !== "all"
   );
   const activeFilterCount = createMemo(() => countActiveFilters(filters()));
-  const chips = createMemo(() => computeChips(filters()));
+  // chips — pass the JustWatch provider catalog so the Platform chip
+  // can resolve the technicalName stored in `filters.platform` to a
+  // human-readable `clearName` (e.g. "apple.tv.plus" → "Apple TV+").
+  // When the catalog is empty (loading / error / no offers), the chip
+  // falls back to showing the raw technicalName (rare — the user can
+  // only pick a platform when the catalog is non-empty).
+  const chips = createMemo(() =>
+    computeChips(filters(), providerCatalog())
+  );
 
   const clearFilter = (key: string) => {
     setFilters((prev) => ({
@@ -382,6 +473,25 @@ export function useVaultFiltering(
     clearFilters,
     uniqueGenres,
     uniquePlatforms,
+    ottLoading,
+    // CHUNK 6N Task 3 — TEMPORARY debug accessor for the visible
+    // debug line in VaultFiltersContent. Will be removed alongside
+    // the other Chunk 6E-6M diagnostic logs.
+    debugRawKeys,
+    // CHUNK 6O Task 1 — TEMPORARY debug accessors for the visible
+    // debug line in VaultFiltersContent. Will be removed alongside
+    // the other Chunk 6E-6N diagnostic logs.
+    fetchState,
+    fetchError,
+    // CHUNK 6P Task 1 — TEMPORARY debug accessors for the visible
+    // debug line in VaultFiltersContent. Will be removed alongside
+    // the other Chunk 6E-6O diagnostic logs.
+    effectRunId,
+    chunkProgress,
+    // CHUNK 6R Task 5 — TEMPORARY debug accessor for the visible
+    // debug line in VaultFiltersContent. Will be removed alongside
+    // the other Chunk 6E-6P diagnostic logs.
+    cacheSource,
     uniqueTags,
     uniqueTagsPlus,
     refreshTagVocab

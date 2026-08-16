@@ -102,9 +102,19 @@ import {
 // through `prefs_json` so a user's OTT subscriptions travel across
 // devices. Without this, a user who selected Netflix+Prime on their
 // laptop would see an empty OTT filter on their phone.
+//
+// Stage 5 Chunk 4: streamingProviders now stores JustWatch
+// `technicalName` strings (e.g. "netflix", "amazonprimevideo"). The
+// legacy TMDB IDs (pure-numeric strings like "8", "119") are cleared
+// on read in streamingProviders.ts. We ALSO need to filter them out
+// here when applying a server snapshot — otherwise a server prefs_json
+// written before the migration would re-populate the signal with
+// legacy TMDB IDs, and the next debounced push would write them back
+// to the server, undoing the local clear.
 import {
   streamingProviders,
-  setStreamingProviders
+  setStreamingProviders,
+  isLegacyProviderId
 } from "./streamingProviders";
 import {
   defaultDiscoverTab,
@@ -282,7 +292,24 @@ function applySnapshot(snap: PreferencesSnapshot): void {
     setContentRatingCap(snap.contentRatingCap);
   }
   if (Array.isArray(snap.streamingProviders)) {
-    setStreamingProviders(snap.streamingProviders);
+    // Stage 5 Chunk 4: filter out legacy TMDB IDs (pure-numeric
+    // strings) from the server snapshot before applying. The server
+    // prefs_json may still contain legacy values from before the
+    // migration; applying them as-is would re-populate the signal
+    // with TMDB IDs, and the next debounced push would write them
+    // back to the server — undoing the local clear performed in
+    // streamingProviders.ts readProviderSet().
+    //
+    // We filter rather than fully clearing here because a server
+    // snapshot that ALREADY contains JustWatch technicalNames (post-
+    // migration) should be respected — only the legacy subset is
+    // dropped. The next push will overwrite the server with the
+    // filtered array, cleaning the server-side state over time.
+    const cleaned = snap.streamingProviders.filter(
+      (v): v is string =>
+        typeof v === "string" && !isLegacyProviderId(v)
+    );
+    setStreamingProviders(cleaned);
   }
   if (snap.defaultDiscoverTab) setDefaultDiscoverTab(snap.defaultDiscoverTab);
   if (snap.ratingScale) setRatingScale(snap.ratingScale);

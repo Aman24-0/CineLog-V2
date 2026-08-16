@@ -122,6 +122,13 @@ export const GlassSelect: Component<{
   val: string;
   set: (v: string) => void;
   opts: FilterOption[];
+  /** When true, the trigger button is disabled (muted, non-interactive)
+   *  and the dropdown menu cannot be opened. Used by the Platform filter
+   *  when the JustWatch provider catalog is empty (no offers in country,
+   *  fetch in flight, or fetch failed) — the dropdown remains VISIBLE
+   *  but visually muted so the user knows the filter exists but has no
+   *  options yet. Chunk 6F Task 1. */
+  disabled?: boolean;
 }> = (props) => {
   // Dropdown open/close state. SolidJS signal — reactivity-safe.
   const [isOpen, setIsOpen] = createSignal(false);
@@ -171,15 +178,32 @@ export const GlassSelect: Component<{
           menuRef on this div covers both the trigger button and the
           menu for click-outside detection. */}
       <div class="relative w-full" ref={menuRef}>
-        {/* TRIGGER — styled to match SortControl. NOT absolute. */}
+        {/* TRIGGER — styled to match SortControl. NOT absolute.
+            Chunk 6F Task 1: when `disabled` is true the button gets the
+            `disabled` attribute + a muted style so it's clearly
+            non-interactive; the menu never opens in that state. */}
         <button
           type="button"
           class="flex w-full items-center justify-between rounded-xl border bg-[var(--glass-bg)] px-3 py-2.5 text-[var(--text)]"
-          style={{ "border-color": "var(--hairline)" }}
-          onClick={() => setIsOpen(!isOpen())}
+          style={{
+            "border-color": "var(--hairline)",
+            ...(props.disabled
+              ? {
+                  opacity: "0.55",
+                  cursor: "not-allowed"
+                }
+              : {})
+          }}
+          disabled={props.disabled}
+          onClick={() => {
+            if (props.disabled) return;
+            setIsOpen(!isOpen());
+          }}
           aria-haspopup="listbox"
           aria-expanded={isOpen()}
-          aria-label={`${props.label} — currently ${currentLabel()}`}
+          aria-label={`${props.label} — currently ${currentLabel()}${
+            props.disabled ? " (no options available)" : ""
+          }`}
         >
           <span class="truncate text-sm font-medium">{currentLabel()}</span>
           <span

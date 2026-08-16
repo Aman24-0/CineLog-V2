@@ -31,7 +31,7 @@
 
 import type { Accessor, Setter, JSX } from "solid-js";
 import type { User } from "~/shared/types";
-import type { TmdbProvider } from "~/core/preferences";
+import type { JustWatchProviderItem } from "~/core/preferences";
 
 // ────────────────────────────────────────────────────────────────────
 // Section metadata — used by the sidebar + search filter
@@ -137,9 +137,9 @@ export interface SettingsState {
   handleReextractDynamic: () => Promise<void>;
 
   // ── Content state ───────────────────────────────────────────────
-  providers: Accessor<TmdbProvider[]>;
+  providers: Accessor<JustWatchProviderItem[]>;
   providersLoading: Accessor<boolean>;
-  handleToggleProvider: (provider: TmdbProvider) => void;
+  handleToggleProvider: (provider: JustWatchProviderItem) => void;
 
   // ── Notifications state ─────────────────────────────────────────
   pushPermission: Accessor<NotificationPermission | "unsupported">;

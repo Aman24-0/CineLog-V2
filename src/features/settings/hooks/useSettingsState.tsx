@@ -70,7 +70,7 @@ import {
   updateNotifPref,
   applyAccentToDocument,
   clearAccentFromDocument,
-  type TmdbProvider,
+  type JustWatchProviderItem,
   type NotificationPrefs
 } from "~/core/preferences";
 
@@ -79,11 +79,6 @@ import {
   COUNTRIES,
   countryLabel
 } from "~/shared/data/countryLanguages";
-import {
-  getWatchProviderList,
-  getWatchProviderListTv
-} from "~/core/tmdb/discover";
-import { mergeAndSortProviders } from "~/core/preferences";
 import { tmdbImage, fetchTmdbMetadata } from "~/core/tmdb/tmdb";
 import { extractDominantColor } from "~/shared/utils/colorExtractor";
 
@@ -198,7 +193,7 @@ export function useSettingsState(): SettingsState {
   const [bannerUrl, setBannerUrl] = createSignal<string | null>(null);
 
   // ── Content state ────────────────────────────────────────────────
-  const [providers, setProviders] = createSignal<TmdbProvider[]>([]);
+  const [providers, setProviders] = createSignal<JustWatchProviderItem[]>([]);
   const [providersLoading, setProvidersLoading] = createSignal(true);
 
   // ── Notifications state ──────────────────────────────────────────
@@ -507,16 +502,44 @@ export function useSettingsState(): SettingsState {
     }
   }
 
-  async function loadProviders(reg: string) {
+  async function loadProviders(_reg: string) {
     setProvidersLoading(true);
     try {
-      const [movieRes, tvRes] = await Promise.allSettled([
-        getWatchProviderList(reg),
-        getWatchProviderListTv(reg)
-      ]);
-      const movieRows = movieRes.status === "fulfilled" ? movieRes.value : [];
-      const tvRows = tvRes.status === "fulfilled" ? tvRes.value : [];
-      setProviders(mergeAndSortProviders(movieRows, tvRows));
+      // Stage 5 Chunk 4: providers now come from the JustWatch-backed
+      // /api/ott/providers route instead of TMDB's
+      // /watch/providers/{movie,tv} endpoints.
+      //
+      // Stage 5 Chunk 6D: pass the client-known region as a `region`
+      // query param so the server uses the user's profile country
+      // directly instead of trying to re-resolve it from the Supabase
+      // session (which fails open to "US" on the Vercel preview when
+      // the session cookie isn't forwarded to the serverless function).
+      // The `region()` signal here is the SAME source of truth as the
+      // server-side `profiles.country` column — it's kept in sync via
+      // `setDiscoverRegion()` whenever `handleSaveCountry` runs.
+      //
+      // The route returns { country, providers: JustWatchPackage[] }.
+      // JustWatchPackage and JustWatchProviderItem have identical
+      // shapes, so the cast is a no-op at runtime.
+      const reg = region();
+      const url =
+        reg && /^[A-Za-z]{2}$/.test(reg)
+          ? `/api/ott/providers?region=${encodeURIComponent(reg.toUpperCase())}`
+          : "/api/ott/providers";
+      const res = await fetch(url, { method: "GET" });
+      if (!res.ok) {
+        console.warn(
+          "[settings] /api/ott/providers returned HTTP",
+          res.status
+        );
+        setProviders([]);
+        return;
+      }
+      const body = (await res.json()) as {
+        country?: string;
+        providers?: JustWatchProviderItem[];
+      };
+      setProviders(Array.isArray(body.providers) ? body.providers : []);
     } catch (err) {
       console.warn("[settings] Failed to load providers:", err);
       setProviders([]);
@@ -912,8 +935,12 @@ export function useSettingsState(): SettingsState {
 
   // ── Content: streaming providers ────────────────────────────────
 
-  const handleToggleProvider = (provider: TmdbProvider) => {
-    toggleStreamingProvider(provider.id);
+  const handleToggleProvider = (provider: JustWatchProviderItem) => {
+    // The Settings UI passes the full JustWatchProviderItem, but the
+    // preference signal stores only the technicalName (the stable
+    // JustWatch provider identifier). toggleStreamingProvider adds
+    // the technicalName if absent, removes it if present.
+    toggleStreamingProvider(provider.technicalName);
   };
 
   // ── Derived display values ──────────────────────────────────────
