@@ -345,7 +345,7 @@ export async function callGroq(
   model?: string
 ): Promise<string> {
   // ── Resolve model from config if not explicitly provided ────
-  const resolvedModel = model ?? (await checkAiSettings()).defaultModel || DEFAULT_GROQ_MODEL;
+  const resolvedModel = model ?? ((await checkAiSettings()).defaultModel || DEFAULT_GROQ_MODEL);
 
   // ── Input validation ──────────────────────────────────────────
   if (!isServer) {
