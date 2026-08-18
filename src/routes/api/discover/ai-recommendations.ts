@@ -141,7 +141,7 @@ const NUM_TOP_GENRES = 6;
 /** How many hidden gems to ask Groq for (1 per top genre). */
 const NUM_RECOMMENDATIONS = 6;
 
-const GROQ_MODEL = "llama-3.3-70b-versatile";
+const GROQ_MODEL = "openai/gpt-oss-120b";
 
 // ─── Rating scale helpers (Phase 15 QA Bug #1) ───────────────────
 //

@@ -58,8 +58,8 @@ const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 
 /**
  * Default Groq model. Groq's free tier currently supports several
- * models; `llama-3.3-70b-versatile` is the most capable general-purpose
- * model available on the free tier at time of writing (Feb 2026).
+ * models; `openai/gpt-oss-120b` is the most capable general-purpose
+ * model available on the free tier at time of writing (Aug 2026).
  *
  * The model is overridable per-call via the `model` parameter on
  * callGroq() — this default just keeps call sites simple.
@@ -67,7 +67,7 @@ const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
  * If Groq deprecates this model, callers can pass a different model
  * string without touching this file.
  */
-const DEFAULT_GROQ_MODEL = "llama-3.3-70b-versatile";
+const DEFAULT_GROQ_MODEL = "openai/gpt-oss-120b";
 
 /** Hard timeout for Groq API calls. Groq is fast (typically <2s for
  *  short prompts) but we cap at 30s to prevent a slow upstream from
@@ -265,7 +265,7 @@ export async function checkAiSettings(): Promise<AiSettings> {
  * @param userPrompt    The user's message / query.
  *                      Must be a non-empty string.
  * @param model         Optional Groq model id. Defaults to
- *                      `llama-3.3-70b-versatile`. Override per-call
+ *                      `openai/gpt-oss-120b`. Override per-call
  *                      if a feature needs a different model (e.g.
  *                      a smaller/faster model for short autocomplete).
  *

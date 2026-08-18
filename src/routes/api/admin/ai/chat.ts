@@ -216,7 +216,7 @@ async function gatherSystemContext(): Promise<SystemContext> {
  *
  * The system context is serialized as a compact JSON block so the LLM
  * can reference exact numbers. We keep it short to stay within the
- * Groq free-tier context window (8K tokens for llama-3.3-70b-versatile).
+ * Groq free-tier context window (8K tokens for openai/gpt-oss-120b).
  */
 function buildSystemPrompt(ctx: SystemContext): string {
   return [
@@ -320,7 +320,7 @@ export async function POST(event: APIEvent): Promise<Response> {
   //    empty response) — we catch and map to a 503 with a friendly
   //    hint so the UI can show it in the chat bubble.
   const systemPrompt = buildSystemPrompt(ctx);
-  const model = "llama-3.3-70b-versatile";
+  const model = "openai/gpt-oss-120b";
 
   let reply: string;
   try {
