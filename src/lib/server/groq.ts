@@ -657,7 +657,7 @@ export async function resolveAiModel(opts: {
         model: candidate.model,
         available: true,
         ...(!isFirstChoice && {
-          fallbackUsed: `Used ${candidate.model} (${candidate.reason}) because primary choice was unavailable."
+          fallbackUsed: `Used ${candidate.model} (${candidate.reason}) because primary choice was unavailable.`
         })
       };
     }
