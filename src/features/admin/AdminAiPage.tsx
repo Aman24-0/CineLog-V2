@@ -81,6 +81,15 @@ interface AiSettings {
   fallbackModel: string;
 }
 
+/** Models availability info from the server. */
+interface ModelsAvailability {
+  groqAvailable: string[];
+  cilogEnabled: string[];
+  defaultModel: string;
+  fallbackModel: string;
+  unavailableInGroq: string[];
+}
+
 /** Response shape from GET /api/admin/settings, narrowed to just the
  *  ai_settings key. The actual response contains all settings keys;
  *  we only read the one we care about. */
@@ -134,6 +143,8 @@ const AdminAiPage: Component = () => {
   // so the admin can't double-click and the UI shows feedback.
   const [saving, setSaving] = createSignal<Record<string, boolean>>({});
   const [toast, setToast] = createSignal<ToastState | null>(null);
+  // Model availability info from the Groq API.
+  const [availability, setAvailability] = createSignal<ModelsAvailability | null>(null);
 
   const showToast = (text: string, type: "success" | "error") => {
     setToast({ text, type });
@@ -172,7 +183,19 @@ const AdminAiPage: Component = () => {
     }
   };
 
-  onMount(fetchSettings);
+  onMount(async () => {
+    await fetchSettings();
+    // Fetch model availability (best-effort — non-blocking).
+    try {
+      const resp = await fetch("/api/admin/ai/models", { credentials: "include" });
+      if (resp.ok) {
+        const data = await resp.json() as ModelsAvailability;
+        setAvailability(data);
+      }
+    } catch {
+      // Best-effort — availability warnings just won't show.
+    }
+  });
 
   // ─── Persist a single flag change ───────────────────────────────
   //
@@ -293,6 +316,12 @@ const AdminAiPage: Component = () => {
     const prev = settings();
     if (!prev.enabledModels.includes(model)) {
       showToast("Enable the model first before setting it as default", "error");
+      return;
+    }
+    // Prevent setting an unavailable model as default.
+    const groq = availability()?.groqAvailable;
+    if (groq && groq.length > 0 && !groq.includes(model)) {
+      showToast(`Cannot set ${MODEL_LABELS[model] ?? model} as default — it is not available in the Groq project`, "error");
       return;
     }
     const next: AiSettings = { ...prev, defaultModel: model };
@@ -665,6 +694,51 @@ const AdminAiPage: Component = () => {
             </div>
           </div>
 
+          {/* Availability warnings */}
+          <Show when={availability()?.unavailableInGroq?.length ?? 0 > 0}>
+            <div
+              role="alert"
+              style={{
+                margin: "var(--sp-3) 0 0 0",
+                padding: "var(--sp-3)",
+                "border-radius": "var(--radius-md)",
+                border: "1px solid #f59e0b",
+                background: "rgba(245, 158, 11, 0.08)",
+                "font-size": "0.8125rem",
+                color: "#f59e0b",
+                "line-height": "1.5"
+              }}
+            >
+              <strong>⚠️ Model availability issue:</strong> The following
+              model(s) are enabled in CineLog but not available in your
+              Groq project: {availability()!.unavailableInGroq.join(", ")}.
+              They will be skipped automatically. Update your Groq project
+              settings or disable them below.
+            </div>
+          </Show>
+          <Show when={
+            availability() &&
+            !availability()!.groqAvailable.includes(settings().defaultModel) &&
+            availability()!.groqAvailable.length > 0
+          }>
+            <div
+              role="alert"
+              style={{
+                margin: "var(--sp-3) 0 0 0",
+                padding: "var(--sp-3)",
+                "border-radius": "var(--radius-md)",
+                border: "1px solid #ef4444",
+                background: "rgba(239, 68, 68, 0.08)",
+                "font-size": "0.8125rem",
+                color: "#ef4444",
+                "line-height": "1.5"
+              }}
+            >
+              <strong>⚠️ Default model unavailable:</strong> {settings().defaultModel} is
+              not available in the Groq project. Select another available model as default.
+            </div>
+          </Show>
+
           {/* Default Model selector */}
           <div
             style={{
@@ -792,6 +866,12 @@ const AdminAiPage: Component = () => {
                   {(m) => {
                     const isEnabled = () =>
                       settings().enabledModels.includes(m);
+                    const isAvailableInGroq = () => {
+                      const groq = availability()?.groqAvailable;
+                      // If we couldn't fetch, assume available.
+                      if (!groq || groq.length === 0) return true;
+                      return groq.includes(m);
+                    };
                     return (
                       <div
                         style={{
@@ -799,7 +879,7 @@ const AdminAiPage: Component = () => {
                           "align-items": "center",
                           "justify-content": "space-between",
                           padding: "var(--sp-2) var(--sp-3)",
-                          border: "1px solid var(--hairline)",
+                          border: `1px solid ${isAvailableInGroq() ? "var(--hairline)" : "#f59e0b"}`,
                           "border-radius": "var(--radius-md)",
                           background: isEnabled()
                             ? "rgba(0, 217, 163, 0.05)"
@@ -811,11 +891,19 @@ const AdminAiPage: Component = () => {
                             style={{
                               "font-size": "0.875rem",
                               "font-weight": "500",
-                              color: "var(--text)"
+                              color: isAvailableInGroq() ? "var(--text)" : "#f59e0b"
                             }}
                           >
                             {MODEL_LABELS[m] ?? m}
                           </span>
+                          <Show when={!isAvailableInGroq()}>
+                            <GlassBadge
+                              intent="warning"
+                              label="UNAVAILABLE"
+                              size="compact"
+                              style={{ "margin-left": "var(--sp-2)" }}
+                            />
+                          </Show>
                           <Show when={m === settings().defaultModel}>
                             <GlassBadge
                               intent="success"

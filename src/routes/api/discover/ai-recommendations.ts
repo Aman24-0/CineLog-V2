@@ -706,7 +706,7 @@ export async function GET(event: APIEvent): Promise<Response> {
 
   let groqReply: string;
   try {
-    const model = await getAiModel();
+    const model = await getAiModel(undefined, "userRecommendations");
     groqReply = await callGroq(systemPrompt, userPrompt, model);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

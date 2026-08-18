@@ -99,21 +99,48 @@ export interface AiSettings {
 
   // ── AI Model Configuration ──────────────────────────────────
   /** The default Groq model used by all AI features unless
-   *  overridden. Must be one of the models in `availableModels`. */
+   *  overridden by featureModels or a per-request override. */
   defaultModel: string;
-  /** List of Groq models the admin has enabled for CineLog.\   *  Models not in this list are blocked even if Groq allows them. */
+  /** List of Groq models the admin has enabled for CineLog.
+   *  Models not in this list are blocked even if Groq allows them. */
   enabledModels: string[];
   /** Fallback model used when the defaultModel fails or is
    *  unavailable. Falls back to the first enabledModel if unset. */
   fallbackModel: string;
+  /** Per-feature model overrides. Allows specific AI features to
+   *  use a different model than the global default. Missing entries
+   *  fall back to `defaultModel`. */
+  featureModels?: FeatureModelOverrides;
 }
 
-/** All known Groq models. The admin can enable/disable any of these.\   *  New models should be added here when Groq adds them. */
+/** All known Groq models. The admin can enable/disable any of these.
+ *  New models should be added here when Groq adds them. */
 export const KNOWN_GROQ_MODELS = [
   "openai/gpt-oss-120b",
   "openai/gpt-oss-20b",
   "qwen/qwen3.6-27b"
 ] as const;
+
+/** Per-feature model overrides. If a feature has an entry here,
+ *  it uses that model instead of the global default. Missing entries
+ *  fall back to `defaultModel`. This allows future feature-specific
+ *  model tuning without another architectural rewrite. */
+export interface FeatureModelOverrides {
+  userRecommendations?: string;
+  adminAssistant?: string;
+}
+
+/** Result of resolving a model for an AI request. */
+export interface ModelResolution {
+  /** The model id to use for the Groq API call. */
+  model: string;
+  /** Whether the resolved model was verified as available in Groq. */
+  available: boolean;
+  /** If the requested model was unavailable, which fallback was used. */
+  fallbackUsed?: string;
+  /** If no model could be resolved, the reason why. */
+  error?: string;
+}
 
 /** Safe defaults used when the row is missing or malformed. Mirrors
  *  the seed migration — all OFF. AI must be explicitly opted-in. */
@@ -123,7 +150,8 @@ export const DEFAULT_AI_SETTINGS: AiSettings = {
   adminAssistantEnabled: false,
   defaultModel: "openai/gpt-oss-120b",
   enabledModels: ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.6-27b"],
-  fallbackModel: "openai/gpt-oss-120b"
+  fallbackModel: "openai/gpt-oss-120b",
+  featureModels: {}
 };
 
 /** A single chat message in the OpenAI-compatible format. */
@@ -253,7 +281,10 @@ export async function checkAiSettings(): Promise<AiSettings> {
       adminAssistantEnabled: asBool(v.adminAssistantEnabled),
       defaultModel: asString(v.defaultModel, DEFAULT_AI_SETTINGS.defaultModel),
       enabledModels: asStringArray(v.enabledModels, DEFAULT_AI_SETTINGS.enabledModels),
-      fallbackModel: asString(v.fallbackModel, DEFAULT_AI_SETTINGS.fallbackModel)
+      fallbackModel: asString(v.fallbackModel, DEFAULT_AI_SETTINGS.fallbackModel),
+      featureModels: typeof v.featureModels === "object" && v.featureModels !== null
+        ? v.featureModels as FeatureModelOverrides
+        : {}
     };
   } catch (err) {
     // createAdminClient() throws if env vars are missing — in that
@@ -430,45 +461,241 @@ export async function callGroq(
   return content;
 }
 
-// ─── Convenience: getAiModel ────────────────────────────────────
+// ─── Groq Model Availability ─────────────────────────────────────
+
+/** Cache for Groq's available models list. Avoids hitting the API
+ *  on every single AI request. TTL: 10 minutes. */
+let cachedAvailableModels: string[] | null = null;
+let availableModelsCacheExpiry = 0;
+const MODEL_CACHE_TTL_MS = 10 * 60 * 1000;
 
 /**
- * Get the configured model for a specific AI feature.
+ * Fetch the list of models available to the configured Groq API key.
  *
- * Reads ai_settings from app_config and returns the appropriate model:
- *   - If `requestedModel` is provided and is in `enabledModels`, use it.
- *   - Otherwise, use `defaultModel`.
- *   - If defaultModel is not in enabledModels, fall back to `fallbackModel`.
- *   - If all else fails, return the hardcoded DEFAULT_GROQ_MODEL.
+ * Calls GET https://api.groq.com/openai/v1/models and returns the
+ * model ids. Results are cached for 10 minutes to avoid hitting the
+ * API on every AI request.
  *
- * This ensures no hard-coded model IDs are needed in individual routes.
- *
- * @param requestedModel  Optional override (e.g. admin assistant user pick).
- *                        Must be in the enabledModels list to be used.
+ * Returns null if the API call fails (network error, missing key,
+ * etc.) — callers should treat null as "cannot determine availability"
+ * and proceed with the configured model.
  */
-export async function getAiModel(
-  requestedModel?: string
-): Promise<string> {
+export async function fetchGroqAvailableModels(): Promise<string[] | null> {
+  // Return cache if fresh.
+  if (cachedAvailableModels && Date.now() < availableModelsCacheExpiry) {
+    return cachedAvailableModels;
+  }
+
+  let apiKey: string;
+  try {
+    apiKey = readGroqApiKey();
+  } catch {
+    return null;
+  }
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10_000);
+
+    const resp = await fetch(
+      "https://api.groq.com/openai/v1/models",
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          Accept: "application/json"
+        },
+        signal: controller.signal
+      }
+    );
+    clearTimeout(timeoutId);
+
+    if (!resp.ok) {
+      console.warn(
+        `[groq] fetchGroqAvailableModels: HTTP ${resp.status} — ` +
+        `model availability check failed. Proceeding without validation.`
+      );
+      return null;
+    }
+
+    const data = await resp.json() as {
+      data?: Array<{ id?: string }>;
+    };
+
+    if (!Array.isArray(data.data)) {
+      return null;
+    }
+
+    const ids = data.data
+      .map((m) => m.id)
+      .filter((id): id is string => typeof id === "string" && id.length > 0);
+
+    cachedAvailableModels = ids;
+    availableModelsCacheExpiry = Date.now() + MODEL_CACHE_TTL_MS;
+    return ids;
+  } catch (err) {
+    console.warn(
+      "[groq] fetchGroqAvailableModels: request failed:",
+      err instanceof Error ? err.message : err
+    );
+    return null;
+  }
+}
+
+// ─── Convenience: resolveAiModel ────────────────────────────────
+
+/**
+ * Centralized model resolution for all AI features.
+ *
+ * Resolution order:
+ *   1. Feature-specific model override (from featureModels config)
+ *   2. Explicitly requested model (admin assistant per-request pick)
+ *   3. Global defaultModel
+ *   4. Global fallbackModel
+ *   5. First enabled model
+ *   6. Hardcoded DEFAULT_GROQ_MODEL
+ *
+ * At each step, the model must be:
+ *   - In the enabledModels list (CineLog admin allows it)
+ *   - Available in the Groq project (verified via API, if possible)
+ *
+ * If the resolved model fails availability validation, the next
+ * candidate in the chain is tried. If NO model can be resolved,
+ * returns an error result instead of throwing.
+ *
+ * @param opts.feature        Which AI feature is requesting a model.
+ * @param opts.requestedModel Explicit model override (admin assistant).
+ */
+export async function resolveAiModel(opts: {
+  feature?: "userRecommendations" | "adminAssistant";
+  requestedModel?: string;
+} = {}): Promise<ModelResolution> {
   const settings = await checkAiSettings();
   const enabled = settings.enabledModels;
 
-  // If a specific model was requested and it's enabled, use it.
-  if (requestedModel && enabled.includes(requestedModel)) {
-    return requestedModel;
+  if (enabled.length === 0) {
+    return {
+      model: "",
+      available: false,
+      error: "No models are enabled. Enable at least one model in /admin/ai."
+    };
   }
 
-  // Use the default if it's enabled.
-  if (settings.defaultModel && enabled.includes(settings.defaultModel)) {
-    return settings.defaultModel;
+  // Fetch Groq's actual available models (cached, best-effort).
+  const groqModels = await fetchGroqAvailableModels();
+
+  /** Check if a model passes both gates: enabled in CineLog AND
+   *  available in Groq (if we can determine Groq availability). */
+  const isUsable = (modelId: string): boolean => {
+    if (!enabled.includes(modelId)) return false;
+    // If we couldn't fetch Groq's model list, assume available.
+    if (!groqModels) return true;
+    return groqModels.includes(modelId);
+  };
+
+  // Build the candidate list in resolution order.
+  const candidates: Array<{ model: string; reason: string }> = [];
+
+  // 1. Feature-specific override
+  if (opts.feature && settings.featureModels?.[opts.feature]) {
+    candidates.push({
+      model: settings.featureModels[opts.feature]!,
+      reason: `feature override (${opts.feature})`
+    });
   }
 
-  // Fallback model.
-  if (settings.fallbackModel && enabled.includes(settings.fallbackModel)) {
-    return settings.fallbackModel;
+  // 2. Explicitly requested model
+  if (opts.requestedModel) {
+    candidates.push({
+      model: opts.requestedModel,
+      reason: "explicitly requested"
+    });
   }
 
-  // Ultimate fallback — first enabled model, or hardcoded default.
-  return enabled[0] ?? DEFAULT_GROQ_MODEL;
+  // 3. Global default
+  if (settings.defaultModel) {
+    candidates.push({
+      model: settings.defaultModel,
+      reason: "default model"
+    });
+  }
+
+  // 4. Global fallback
+  if (settings.fallbackModel && settings.fallbackModel !== settings.defaultModel) {
+    candidates.push({
+      model: settings.fallbackModel,
+      reason: "fallback model"
+    });
+  }
+
+  // 5. All other enabled models (in order)
+  for (const m of enabled) {
+    if (
+      m !== settings.defaultModel &&
+      m !== settings.fallbackModel &&
+      m !== opts.requestedModel &&
+      m !== settings.featureModels?.[opts.feature ?? ""]
+    ) {
+      candidates.push({ model: m, reason: "enabled model" });
+    }
+  }
+
+  // 6. Hardcoded ultimate fallback
+  if (!candidates.some((c) => c.model === DEFAULT_GROQ_MODEL)) {
+    candidates.push({
+      model: DEFAULT_GROQ_MODEL,
+      reason: "hardcoded fallback"
+    });
+  }
+
+  // Try each candidate.
+  for (const candidate of candidates) {
+    if (isUsable(candidate.model)) {
+      const isFirstChoice =
+        candidates[0]?.model === candidate.model;
+      return {
+        model: candidate.model,
+        available: true,
+        ...(!isFirstChoice && {
+          fallbackUsed: `Used ${candidate.model} (${candidate.reason}) because primary choice was unavailable."
+        })
+      };
+    }
+  }
+
+  // No usable model found.
+  return {
+    model: "",
+    available: false,
+    error:
+      "No usable AI model available. The configured models may be " +
+      "disabled in CineLog or unavailable in the Groq project. " +
+      "Check /admin/ai for model configuration."
+  };
+}
+
+// ─── Convenience: getAiModel ────────────────────────────────────
+
+/**
+ * Simplified model resolution — returns just the model id string.
+ *
+ * Wraps resolveAiModel() for callers that don't need the full
+ * ModelResolution metadata. Throws if no model can be resolved.
+ *
+ * @param requestedModel  Optional override (e.g. admin assistant user pick).
+ * @param feature         Optional feature name for feature-specific overrides.
+ */
+export async function getAiModel(
+  requestedModel?: string,
+  feature?: "userRecommendations" | "adminAssistant"
+): Promise<string> {
+  const result = await resolveAiModel({ feature, requestedModel });
+  if (!result.available || !result.model) {
+    throw new Error(
+      result.error ?? "No usable AI model available. Check /admin/ai."
+    );
+  }
+  return result.model;
 }
 
 // ─── Convenience: isAiFeatureEnabled ─────────────────────────────

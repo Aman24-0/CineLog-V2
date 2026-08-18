@@ -327,7 +327,7 @@ export async function POST(event: APIEvent): Promise<Response> {
   const requestedModel = typeof body.model === "string" && body.model.trim().length > 0
     ? body.model.trim()
     : undefined;
-  const model = await getAiModel(requestedModel);
+  const model = await getAiModel(requestedModel, "adminAssistant");
 
   let reply: string;
   try {

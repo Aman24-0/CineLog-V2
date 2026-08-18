@@ -229,7 +229,8 @@ const DEFAULTS: AllSettings = {
     adminAssistantEnabled: false,
     defaultModel: "openai/gpt-oss-120b",
     enabledModels: ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.6-27b"],
-    fallbackModel: "openai/gpt-oss-120b"
+    fallbackModel: "openai/gpt-oss-120b",
+    featureModels: {}
   }
 };
 
@@ -515,7 +516,10 @@ function validateAiSettings(input: unknown): AiSettings {
       "openai/gpt-oss-20b",
       "qwen/qwen3.6-27b"
     ]),
-    fallbackModel: asString(obj.fallbackModel, "openai/gpt-oss-120b")
+    fallbackModel: asString(obj.fallbackModel, "openai/gpt-oss-120b"),
+    featureModels: typeof obj.featureModels === "object" && obj.featureModels !== null
+      ? obj.featureModels as Record<string, string>
+      : {}
   };
 }
 
