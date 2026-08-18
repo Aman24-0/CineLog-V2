@@ -66,7 +66,8 @@ import { getSupabaseAccessTokenFromRequest } from "~/lib/supabase/admin/sessionC
 import { saveExtendedPreference } from "~/lib/supabase/repositories/settings";
 import {
   callGroq,
-  isAiFeatureEnabled
+  isAiFeatureEnabled,
+  getAiModel
 } from "~/lib/server/groq";
 import { fetchTmdbMetadata } from "~/core/tmdb/tmdb";
 import { normalizeGenres } from "~/shared/utils/genres";
@@ -141,7 +142,7 @@ const NUM_TOP_GENRES = 6;
 /** How many hidden gems to ask Groq for (1 per top genre). */
 const NUM_RECOMMENDATIONS = 6;
 
-const GROQ_MODEL = "openai/gpt-oss-120b";
+
 
 // ─── Rating scale helpers (Phase 15 QA Bug #1) ───────────────────
 //
@@ -705,7 +706,8 @@ export async function GET(event: APIEvent): Promise<Response> {
 
   let groqReply: string;
   try {
-    groqReply = await callGroq(systemPrompt, userPrompt, GROQ_MODEL);
+    const model = await getAiModel();
+    groqReply = await callGroq(systemPrompt, userPrompt, model);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[api/discover/ai-recommendations] Groq call failed:", msg);

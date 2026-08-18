@@ -107,6 +107,11 @@ const AdminAiAssistantPage: Component = () => {
   const [input, setInput] = createSignal("");
   const [sending, setSending] = createSignal(false);
   const [featureDisabled, setFeatureDisabled] = createSignal(false);
+  // Model selection: "" = use server default, otherwise a specific model id.
+  const [selectedModel, setSelectedModel] = createSignal("");
+  // Available models fetched from AI settings.
+  const [availableModels, setAvailableModels] = createSignal<string[]>([]);
+  const [defaultModel, setDefaultModel] = createSignal("");
   let scrollContainer: HTMLDivElement | undefined;
 
   // Generate a unique id for each message (crypto.randomUUID is
@@ -129,6 +134,27 @@ const AdminAiAssistantPage: Component = () => {
     }
   });
 
+  // ─── Fetch available models on mount ────────────────────────────
+  onMount(async () => {
+    try {
+      const resp = await fetch("/api/admin/settings", { credentials: "include" });
+      if (resp.ok) {
+        const data = await resp.json();
+        const ai = data.settings?.ai_settings?.value;
+        if (ai) {
+          setAvailableModels(
+            Array.isArray(ai.enabledModels) ? ai.enabledModels : []
+          );
+          setDefaultModel(
+            typeof ai.defaultModel === "string" ? ai.defaultModel : ""
+          );
+        }
+      }
+    } catch {
+      // Best-effort — model selector just stays empty.
+    }
+  });
+
   // ─── Send a message ─────────────────────────────────────────────
   const sendMessage = async (text: string) => {
     const trimmed = text.trim();
@@ -145,12 +171,18 @@ const AdminAiAssistantPage: Component = () => {
     setInput("");
     setSending(true);
 
+    const body: Record<string, string> = { message: trimmed };
+    // Only send model override if user explicitly selected one.
+    if (selectedModel()) {
+      body.model = selectedModel();
+    }
+
     try {
       const resp = await fetch("/api/admin/ai/chat", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: trimmed })
+        body: JSON.stringify(body)
       });
 
       const body = await resp.json().catch(() => ({}));
@@ -280,7 +312,7 @@ const AdminAiAssistantPage: Component = () => {
           <p>
             Ask questions about your CineLog instance — user counts,
             recent activity, system health. Powered by Groq
-            (llama-3.3-70b-versatile). The assistant has live read-only
+            configured via /admin/ai). The assistant has live read-only
             access to aggregate system state; it cannot see any user's
             private vault or ratings.
           </p>
@@ -515,6 +547,34 @@ const AdminAiAssistantPage: Component = () => {
             "align-items": "center"
           }}
         >
+          {/* Model selector — only shown when multiple models are available */}
+          <Show when={availableModels().length > 1}>
+            <select
+              value={selectedModel()}
+              onChange={(e) => setSelectedModel(e.currentTarget.value)}
+              disabled={featureDisabled() || sending()}
+              aria-label="Select AI model"
+              style={{
+                padding: "var(--sp-2) var(--sp-2)",
+                "border-radius": "var(--radius-md)",
+                border: "1px solid var(--hairline)",
+                background: "var(--glass-bg)",
+                color: "var(--text)",
+                "font-size": "0.75rem",
+                "min-width": "100px",
+                "flex-shrink": "0"
+              }}
+            >
+              <option value="">Default</option>
+              <For each={availableModels()}>
+                {(m) => (
+                  <option value={m}>
+                    {m.split("/")[1] ?? m}
+                  </option>
+                )}
+              </For>
+            </select>
+          </Show>
           <div style={{ flex: "1 1 auto" }}>
             <GlassInput
               placeholder={
@@ -559,7 +619,11 @@ const AdminAiAssistantPage: Component = () => {
             "flex-wrap": "wrap"
           }}
         >
-          <GlassBadge intent="info" label="Groq · llama-3.3-70b" size="compact" />
+          <GlassBadge
+        intent="info"
+        label={`Groq · ${selectedModel() || defaultModel() || "default"}`}
+        size="compact"
+      />
           <span
             style={{
               "font-size": "0.8125rem",

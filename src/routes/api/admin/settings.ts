@@ -226,7 +226,10 @@ const DEFAULTS: AllSettings = {
   ai_settings: {
     masterEnabled: false,
     userRecommendationsEnabled: false,
-    adminAssistantEnabled: false
+    adminAssistantEnabled: false,
+    defaultModel: "openai/gpt-oss-120b",
+    enabledModels: ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.6-27b"],
+    fallbackModel: "openai/gpt-oss-120b"
   }
 };
 
@@ -489,10 +492,30 @@ function validateAiSettings(input: unknown): AiSettings {
   const obj = input as Record<string, unknown>;
   const asBool = (v: unknown): boolean =>
     typeof v === "boolean" ? v : false;
+
+  // Known model IDs — accept any non-empty string for forward
+  // compatibility (new models may be added to Groq at any time).
+  const asString = (v: unknown, fallback: string): string =>
+    typeof v === "string" && v.trim().length > 0 ? v.trim() : fallback;
+  const asStringArray = (v: unknown, fallback: string[]): string[] => {
+    if (!Array.isArray(v)) return fallback;
+    const filtered = v.filter((item): item is string =>
+      typeof item === "string" && item.trim().length > 0
+    );
+    return filtered.length > 0 ? filtered : fallback;
+  };
+
   return {
     masterEnabled: asBool(obj.masterEnabled),
     userRecommendationsEnabled: asBool(obj.userRecommendationsEnabled),
-    adminAssistantEnabled: asBool(obj.adminAssistantEnabled)
+    adminAssistantEnabled: asBool(obj.adminAssistantEnabled),
+    defaultModel: asString(obj.defaultModel, "openai/gpt-oss-120b"),
+    enabledModels: asStringArray(obj.enabledModels, [
+      "openai/gpt-oss-120b",
+      "openai/gpt-oss-20b",
+      "qwen/qwen3.6-27b"
+    ]),
+    fallbackModel: asString(obj.fallbackModel, "openai/gpt-oss-120b")
   };
 }
 

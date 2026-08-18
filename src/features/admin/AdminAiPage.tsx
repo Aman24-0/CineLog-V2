@@ -58,6 +58,7 @@
 import {
   createSignal,
   Show,
+  For,
   onMount,
   type Component
 } from "solid-js";
@@ -75,6 +76,9 @@ interface AiSettings {
   masterEnabled: boolean;
   userRecommendationsEnabled: boolean;
   adminAssistantEnabled: boolean;
+  defaultModel: string;
+  enabledModels: string[];
+  fallbackModel: string;
 }
 
 /** Response shape from GET /api/admin/settings, narrowed to just the
@@ -99,7 +103,24 @@ interface ToastState {
 const DEFAULTS: AiSettings = {
   masterEnabled: false,
   userRecommendationsEnabled: false,
-  adminAssistantEnabled: false
+  adminAssistantEnabled: false,
+  defaultModel: "openai/gpt-oss-120b",
+  enabledModels: ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.6-27b"],
+  fallbackModel: "openai/gpt-oss-120b"
+};
+
+/** All known Groq models — shown as toggle options. */
+const KNOWN_MODELS = [
+  "openai/gpt-oss-120b",
+  "openai/gpt-oss-20b",
+  "qwen/qwen3.6-27b"
+];
+
+/** Friendly display names for models. */
+const MODEL_LABELS: Record<string, string> = {
+  "openai/gpt-oss-120b": "GPT-OSS 120B",
+  "openai/gpt-oss-20b": "GPT-OSS 20B",
+  "qwen/qwen3.6-27b": "Qwen 3.6 27B"
 };
 
 // ─── Component ──────────────────────────────────────────────────────
@@ -137,7 +158,10 @@ const AdminAiPage: Component = () => {
       setSettings({
         masterEnabled: !!ai.masterEnabled,
         userRecommendationsEnabled: !!ai.userRecommendationsEnabled,
-        adminAssistantEnabled: !!ai.adminAssistantEnabled
+        adminAssistantEnabled: !!ai.adminAssistantEnabled,
+        defaultModel: typeof ai.defaultModel === "string" ? ai.defaultModel : DEFAULTS.defaultModel,
+        enabledModels: Array.isArray(ai.enabledModels) ? ai.enabledModels : DEFAULTS.enabledModels,
+        fallbackModel: typeof ai.fallbackModel === "string" ? ai.fallbackModel : DEFAULTS.fallbackModel
       });
       setUpdatedAt(data.settings?.ai_settings?.updated_at ?? null);
       setError(null);
@@ -261,6 +285,71 @@ const AdminAiPage: Component = () => {
         }`,
         "success"
       );
+  };
+
+  // ─── Model configuration handlers ─────────────────────────────
+
+  const changeDefaultModel = async (model: string) => {
+    const prev = settings();
+    if (!prev.enabledModels.includes(model)) {
+      showToast("Enable the model first before setting it as default", "error");
+      return;
+    }
+    const next: AiSettings = { ...prev, defaultModel: model };
+    setSettings(next);
+    setSaving({ ...saving(), modelConfig: true });
+    const ok = await persistSettings(next, "modelConfig");
+    if (!ok) setSettings(prev);
+    else showToast(`Default model set to ${MODEL_LABELS[model] ?? model}`, "success");
+    setSaving({ ...saving(), modelConfig: false });
+  };
+
+  const changeFallbackModel = async (model: string) => {
+    const prev = settings();
+    if (!prev.enabledModels.includes(model)) {
+      showToast("Enable the model first before setting it as fallback", "error");
+      return;
+    }
+    const next: AiSettings = { ...prev, fallbackModel: model };
+    setSettings(next);
+    setSaving({ ...saving(), modelConfig: true });
+    const ok = await persistSettings(next, "modelConfig");
+    if (!ok) setSettings(prev);
+    else showToast(`Fallback model set to ${MODEL_LABELS[model] ?? model}`, "success");
+    setSaving({ ...saving(), modelConfig: false });
+  };
+
+  const toggleModel = async (model: string) => {
+    const prev = settings();
+    const isEnabled = prev.enabledModels.includes(model);
+
+    // Prevent disabling the last enabled model.
+    if (isEnabled && prev.enabledModels.length <= 1) {
+      showToast("At least one model must be enabled", "error");
+      return;
+    }
+
+    // Prevent disabling the default or fallback model.
+    if (isEnabled && (model === prev.defaultModel || model === prev.fallbackModel)) {
+      showToast(`Cannot disable the ${model === prev.defaultModel ? "default" : "fallback"} model. Change it first.`, "error");
+      return;
+    }
+
+    const newEnabled = isEnabled
+      ? prev.enabledModels.filter((m) => m !== model)
+      : [...prev.enabledModels, model];
+
+    const next: AiSettings = { ...prev, enabledModels: newEnabled };
+    setSettings(next);
+    setSaving({ ...saving(), modelConfig: true });
+    const ok = await persistSettings(next, "modelConfig");
+    if (!ok) setSettings(prev);
+    else
+      showToast(
+        `${MODEL_LABELS[model] ?? model} ${isEnabled ? "disabled" : "enabled"}`,
+        "success"
+      );
+    setSaving({ ...saving(), modelConfig: false });
   };
 
   // ─── Render ─────────────────────────────────────────────────────
@@ -526,6 +615,259 @@ const AdminAiPage: Component = () => {
                 "font-size": "0.75rem",
                 color: "var(--text-muted)",
                 margin: "var(--sp-2) 0 0 0",
+                "font-style": "italic"
+              }}
+            >
+              Disabled because the Master AI Switch is OFF.
+            </p>
+          </Show>
+        </GlassCard>
+
+        {/* ─── AI Model Configuration ─────────────────────────── */}
+        <GlassCard
+          class="admin-config-card"
+          padding="default"
+          style={{ opacity: masterOn() ? "1" : "0.55" }}
+        >
+          <div class="admin-flag-row">
+            <div class="admin-flag-icon">
+              <span
+                class="material-symbols-outlined"
+                style={{
+                  "font-size": "1.5rem",
+                  color: masterOn()
+                    ? "var(--accent, #00d9a3)"
+                    : "var(--text-muted)"
+                }}
+                aria-hidden="true"
+              >
+                tune
+              </span>
+            </div>
+            <div class="admin-flag-body">
+              <div class="admin-flag-name">
+                <h4>AI Model Configuration</h4>
+                <Show when={saving().modelConfig}>
+                  <span
+                    style={{
+                      "font-size": "0.75rem",
+                      color: "var(--text-muted)"
+                    }}
+                  >
+                    Saving…
+                  </span>
+                </Show>
+              </div>
+              <p class="admin-flag-desc">
+                Configure which Groq models CineLog can use and set
+                the default model for AI features.
+              </p>
+            </div>
+          </div>
+
+          {/* Default Model selector */}
+          <div
+            style={{
+              margin: "var(--sp-4) 0 0 0",
+              display: "flex",
+              "flex-direction": "column",
+              gap: "var(--sp-3)"
+            }}
+          >
+            <div>
+              <label
+                style={{
+                  "font-size": "0.8125rem",
+                  "font-weight": "600",
+                  color: "var(--text-secondary)",
+                  "margin-bottom": "var(--sp-1)",
+                  display: "block"
+                }}
+              >
+                Default Model
+              </label>
+              <select
+                class="admin-model-select"
+                disabled={!masterOn() || saving().modelConfig}
+                value={settings().defaultModel}
+                onChange={(e) => changeDefaultModel(e.currentTarget.value)}
+                style={{
+                  width: "100%",
+                  padding: "var(--sp-2) var(--sp-3)",
+                  "border-radius": "var(--radius-md)",
+                  border: "1px solid var(--hairline)",
+                  background: "var(--glass-bg)",
+                  color: "var(--text)",
+                  "font-size": "0.875rem"
+                }}
+              >
+                <For each={settings().enabledModels}>
+                  {(m) => (
+                    <option value={m}>
+                      {MODEL_LABELS[m] ?? m}
+                    </option>
+                  )}
+                </For>
+              </select>
+              <p
+                style={{
+                  "font-size": "0.75rem",
+                  color: "var(--text-muted)",
+                  margin: "var(--sp-1) 0 0 0"
+                }}
+              >
+                Used by User Recommendations and as the default for
+                Admin Assistant. Must be an enabled model.
+              </p>
+            </div>
+
+            {/* Fallback Model selector */}
+            <div>
+              <label
+                style={{
+                  "font-size": "0.8125rem",
+                  "font-weight": "600",
+                  color: "var(--text-secondary)",
+                  "margin-bottom": "var(--sp-1)",
+                  display: "block"
+                }}
+              >
+                Fallback Model
+              </label>
+              <select
+                class="admin-model-select"
+                disabled={!masterOn() || saving().modelConfig}
+                value={settings().fallbackModel}
+                onChange={(e) => changeFallbackModel(e.currentTarget.value)}
+                style={{
+                  width: "100%",
+                  padding: "var(--sp-2) var(--sp-3)",
+                  "border-radius": "var(--radius-md)",
+                  border: "1px solid var(--hairline)",
+                  background: "var(--glass-bg)",
+                  color: "var(--text)",
+                  "font-size": "0.875rem"
+                }}
+              >
+                <For each={settings().enabledModels}>
+                  {(m) => (
+                    <option value={m}>
+                      {MODEL_LABELS[m] ?? m}
+                    </option>
+                  )}
+                </For>
+              </select>
+              <p
+                style={{
+                  "font-size": "0.75rem",
+                  color: "var(--text-muted)",
+                  margin: "var(--sp-1) 0 0 0"
+                }}
+              >
+                Used when the default model fails or is unavailable.
+              </p>
+            </div>
+
+            {/* Enabled Models toggles */}
+            <div>
+              <label
+                style={{
+                  "font-size": "0.8125rem",
+                  "font-weight": "600",
+                  color: "var(--text-secondary)",
+                  "margin-bottom": "var(--sp-2)",
+                  display: "block"
+                }}
+              >
+                Enabled Models
+              </label>
+              <div
+                style={{
+                  display: "flex",
+                  "flex-direction": "column",
+                  gap: "var(--sp-2)"
+                }}
+              >
+                <For each={KNOWN_MODELS}>
+                  {(m) => {
+                    const isEnabled = () =>
+                      settings().enabledModels.includes(m);
+                    return (
+                      <div
+                        style={{
+                          display: "flex",
+                          "align-items": "center",
+                          "justify-content": "space-between",
+                          padding: "var(--sp-2) var(--sp-3)",
+                          border: "1px solid var(--hairline)",
+                          "border-radius": "var(--radius-md)",
+                          background: isEnabled()
+                            ? "rgba(0, 217, 163, 0.05)"
+                            : "var(--glass-bg)"
+                        }}
+                      >
+                        <div>
+                          <span
+                            style={{
+                              "font-size": "0.875rem",
+                              "font-weight": "500",
+                              color: "var(--text)"
+                            }}
+                          >
+                            {MODEL_LABELS[m] ?? m}
+                          </span>
+                          <Show when={m === settings().defaultModel}>
+                            <GlassBadge
+                              intent="success"
+                              label="DEFAULT"
+                              size="compact"
+                              style={{ "margin-left": "var(--sp-2)" }}
+                            />
+                          </Show>
+                          <Show when={m === settings().fallbackModel && m !== settings().defaultModel}>
+                            <GlassBadge
+                              intent="default"
+                              label="FALLBACK"
+                              size="compact"
+                              style={{ "margin-left": "var(--sp-2)" }}
+                            />
+                          </Show>
+                        </div>
+                        <button
+                          class="admin-config-toggle"
+                          role="switch"
+                          aria-checked={isEnabled()}
+                          aria-label={`Toggle ${MODEL_LABELS[m] ?? m}`}
+                          disabled={!masterOn() || saving().modelConfig}
+                          onClick={() => toggleModel(m)}
+                        >
+                          <span class="toggle-knob" />
+                        </button>
+                      </div>
+                    );
+                  }}
+                </For>
+              </div>
+              <p
+                style={{
+                  "font-size": "0.75rem",
+                  color: "var(--text-muted)",
+                  margin: "var(--sp-2) 0 0 0"
+                }}
+              >
+                Disable models you don't want CineLog to use, even if
+                Groq allows them. The default and fallback models must
+                be enabled.
+              </p>
+            </div>
+          </div>
+
+          <Show when={!masterOn()}>
+            <p
+              style={{
+                "font-size": "0.75rem",
+                color: "var(--text-muted)",
+                margin: "var(--sp-3) 0 0 0",
                 "font-style": "italic"
               }}
             >

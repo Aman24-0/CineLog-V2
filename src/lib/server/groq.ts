@@ -57,15 +57,10 @@ import { createAdminClient } from "~/lib/supabase/admin/adminClient";
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 
 /**
- * Default Groq model. Groq's free tier currently supports several
- * models; `openai/gpt-oss-120b` is the most capable general-purpose
- * model available on the free tier at time of writing (Aug 2026).
- *
- * The model is overridable per-call via the `model` parameter on
- * callGroq() — this default just keeps call sites simple.
- *
- * If Groq deprecates this model, callers can pass a different model
- * string without touching this file.
+ * Ultimate fallback model — only used if the ai_settings config is
+ * completely missing or has no valid models. In normal operation,
+ * the model is resolved dynamically via getAiModel() which reads
+ * from app_config.ai_settings.
  */
 const DEFAULT_GROQ_MODEL = "openai/gpt-oss-120b";
 
@@ -101,14 +96,34 @@ export interface AiSettings {
   /** Gates the AI chat assistant inside the admin panel. This flag
    *  is NEVER exposed to the public status route — admin-only. */
   adminAssistantEnabled: boolean;
+
+  // ── AI Model Configuration ──────────────────────────────────
+  /** The default Groq model used by all AI features unless
+   *  overridden. Must be one of the models in `availableModels`. */
+  defaultModel: string;
+  /** List of Groq models the admin has enabled for CineLog.\   *  Models not in this list are blocked even if Groq allows them. */
+  enabledModels: string[];
+  /** Fallback model used when the defaultModel fails or is
+   *  unavailable. Falls back to the first enabledModel if unset. */
+  fallbackModel: string;
 }
+
+/** All known Groq models. The admin can enable/disable any of these.\   *  New models should be added here when Groq adds them. */
+export const KNOWN_GROQ_MODELS = [
+  "openai/gpt-oss-120b",
+  "openai/gpt-oss-20b",
+  "qwen/qwen3.6-27b"
+] as const;
 
 /** Safe defaults used when the row is missing or malformed. Mirrors
  *  the seed migration — all OFF. AI must be explicitly opted-in. */
 export const DEFAULT_AI_SETTINGS: AiSettings = {
   masterEnabled: false,
   userRecommendationsEnabled: false,
-  adminAssistantEnabled: false
+  adminAssistantEnabled: false,
+  defaultModel: "openai/gpt-oss-120b",
+  enabledModels: ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.6-27b"],
+  fallbackModel: "openai/gpt-oss-120b"
 };
 
 /** A single chat message in the OpenAI-compatible format. */
@@ -222,11 +237,23 @@ export async function checkAiSettings(): Promise<AiSettings> {
     const v = data.value as Record<string, unknown>;
     const asBool = (val: unknown): boolean =>
       typeof val === "boolean" ? val : false;
+    const asString = (val: unknown, fallback: string): string =>
+      typeof val === "string" && val.trim().length > 0 ? val.trim() : fallback;
+    const asStringArray = (val: unknown, fallback: string[]): string[] => {
+      if (!Array.isArray(val)) return fallback;
+      const filtered = val.filter((item): item is string =>
+        typeof item === "string" && item.trim().length > 0
+      );
+      return filtered.length > 0 ? filtered : fallback;
+    };
 
     return {
       masterEnabled: asBool(v.masterEnabled),
       userRecommendationsEnabled: asBool(v.userRecommendationsEnabled),
-      adminAssistantEnabled: asBool(v.adminAssistantEnabled)
+      adminAssistantEnabled: asBool(v.adminAssistantEnabled),
+      defaultModel: asString(v.defaultModel, DEFAULT_AI_SETTINGS.defaultModel),
+      enabledModels: asStringArray(v.enabledModels, DEFAULT_AI_SETTINGS.enabledModels),
+      fallbackModel: asString(v.fallbackModel, DEFAULT_AI_SETTINGS.fallbackModel)
     };
   } catch (err) {
     // createAdminClient() throws if env vars are missing — in that
@@ -265,9 +292,9 @@ export async function checkAiSettings(): Promise<AiSettings> {
  * @param userPrompt    The user's message / query.
  *                      Must be a non-empty string.
  * @param model         Optional Groq model id. Defaults to
- *                      `openai/gpt-oss-120b`. Override per-call
- *                      if a feature needs a different model (e.g.
- *                      a smaller/faster model for short autocomplete).
+ *                      the configured defaultModel from ai_settings.
+ *                      Override per-call if a feature needs a different
+ *                      model (e.g. admin assistant with user-selected model).
  *
  * @returns The assistant's reply as a string. Never null — throws
  *          if the response has no choices or empty content.
@@ -284,8 +311,11 @@ export async function checkAiSettings(): Promise<AiSettings> {
 export async function callGroq(
   systemPrompt: string,
   userPrompt: string,
-  model: string = DEFAULT_GROQ_MODEL
+  model?: string
 ): Promise<string> {
+  // ── Resolve model from config if not explicitly provided ────
+  const resolvedModel = model ?? (await checkAiSettings()).defaultModel || DEFAULT_GROQ_MODEL;
+
   // ── Input validation ──────────────────────────────────────────
   if (!isServer) {
     throw new Error(
@@ -299,7 +329,7 @@ export async function callGroq(
   if (typeof userPrompt !== "string" || userPrompt.trim().length === 0) {
     throw new Error("[groq] callGroq: userPrompt must be a non-empty string.");
   }
-  if (typeof model !== "string" || model.trim().length === 0) {
+  if (typeof resolvedModel !== "string" || resolvedModel.trim().length === 0) {
     throw new Error("[groq] callGroq: model must be a non-empty string.");
   }
 
@@ -313,7 +343,7 @@ export async function callGroq(
   ];
 
   const body = JSON.stringify({
-    model,
+    model: resolvedModel,
     messages,
     // Temperature controls randomness. 0.7 is a sensible default for
     // general-purpose chat — creative enough for recommendations,
@@ -398,6 +428,47 @@ export async function callGroq(
   }
 
   return content;
+}
+
+// ─── Convenience: getAiModel ────────────────────────────────────
+
+/**
+ * Get the configured model for a specific AI feature.
+ *
+ * Reads ai_settings from app_config and returns the appropriate model:
+ *   - If `requestedModel` is provided and is in `enabledModels`, use it.
+ *   - Otherwise, use `defaultModel`.
+ *   - If defaultModel is not in enabledModels, fall back to `fallbackModel`.
+ *   - If all else fails, return the hardcoded DEFAULT_GROQ_MODEL.
+ *
+ * This ensures no hard-coded model IDs are needed in individual routes.
+ *
+ * @param requestedModel  Optional override (e.g. admin assistant user pick).
+ *                        Must be in the enabledModels list to be used.
+ */
+export async function getAiModel(
+  requestedModel?: string
+): Promise<string> {
+  const settings = await checkAiSettings();
+  const enabled = settings.enabledModels;
+
+  // If a specific model was requested and it's enabled, use it.
+  if (requestedModel && enabled.includes(requestedModel)) {
+    return requestedModel;
+  }
+
+  // Use the default if it's enabled.
+  if (settings.defaultModel && enabled.includes(settings.defaultModel)) {
+    return settings.defaultModel;
+  }
+
+  // Fallback model.
+  if (settings.fallbackModel && enabled.includes(settings.fallbackModel)) {
+    return settings.fallbackModel;
+  }
+
+  // Ultimate fallback — first enabled model, or hardcoded default.
+  return enabled[0] ?? DEFAULT_GROQ_MODEL;
 }
 
 // ─── Convenience: isAiFeatureEnabled ─────────────────────────────

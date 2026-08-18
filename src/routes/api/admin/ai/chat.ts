@@ -51,7 +51,8 @@ import { logAdminAction } from "~/lib/supabase/admin/auditLog";
 import { enforceAdminMutationRateLimit } from "~/lib/server/adminRateLimit";
 import {
   callGroq,
-  isAiFeatureEnabled
+  isAiFeatureEnabled,
+  getAiModel
 } from "~/lib/server/groq";
 
 type APIEvent = AdminAPIEvent;
@@ -60,6 +61,8 @@ type APIEvent = AdminAPIEvent;
 
 interface ChatRequestBody {
   message?: unknown;
+  /** Optional model override — must be in the enabledModels list. */
+  model?: unknown;
 }
 
 interface ChatResponse {
@@ -216,7 +219,7 @@ async function gatherSystemContext(): Promise<SystemContext> {
  *
  * The system context is serialized as a compact JSON block so the LLM
  * can reference exact numbers. We keep it short to stay within the
- * Groq free-tier context window (8K tokens for openai/gpt-oss-120b).
+ * Groq free-tier context window (varies by model).
  */
 function buildSystemPrompt(ctx: SystemContext): string {
   return [
@@ -320,7 +323,11 @@ export async function POST(event: APIEvent): Promise<Response> {
   //    empty response) — we catch and map to a 503 with a friendly
   //    hint so the UI can show it in the chat bubble.
   const systemPrompt = buildSystemPrompt(ctx);
-  const model = "openai/gpt-oss-120b";
+  // Resolve model: admin can pick from enabled models, or use the configured default.
+  const requestedModel = typeof body.model === "string" && body.model.trim().length > 0
+    ? body.model.trim()
+    : undefined;
+  const model = await getAiModel(requestedModel);
 
   let reply: string;
   try {
