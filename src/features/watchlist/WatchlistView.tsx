@@ -2,9 +2,10 @@
 import { createSignal, onMount, onCleanup, Show, batch, createEffect } from "solid-js";
 import { useModalState } from "~/shared/hooks/useModalState";
 import { useAuthModal } from "~/shared/hooks/useAuthModal";
+import { useOnlineStatus } from "~/shared/hooks/useOnlineStatus";
 import PageContainer from "~/shared/ui/PageContainer";
 import ScrollToTop from "~/shared/ui/ScrollToTop";
-import { RefreshingIndicator } from "~/shared/ui/states";
+import { OfflineState, RefreshingIndicator } from "~/shared/ui/states";
 import { useVault } from "./useVault";
 import { useVaultSections } from "./useVaultSections";
 import { useVaultFiltering } from "./useVaultFiltering";
@@ -34,6 +35,7 @@ import LoadingSkeleton from "./components/LoadingSkeleton";
 export default function WatchlistView() {
   const { openTitle } = useModalState();
   const { openAuthModal } = useAuthModal();
+  const { isOffline } = useOnlineStatus();
   const { watchlist, loading, isGuest, error, presets, savePreset, deletePreset } = useVault();
 
   // Track whether the vault has completed its initial load at least once.
@@ -160,6 +162,9 @@ export default function WatchlistView() {
   return (
     <PageContainer width="wide" paddingBottom="var(--sp-12)">
       <ScrollToTop />
+      <Show when={isOffline()}>
+        <OfflineState variant="banner" hasCachedData />
+      </Show>
 
       <div class="vault-desktop-layout">
         {/* Phase 10 Chunk 2 — Desktop-only advanced-filters sidebar.

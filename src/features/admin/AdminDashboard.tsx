@@ -51,6 +51,7 @@ import {
   type Component,
   For
 } from "solid-js";
+import { useOnlineStatus } from "~/shared/hooks/useOnlineStatus";
 import { GlassCard } from "~/shared/ui/glass/GlassCard";
 import { GlassStatCard } from "~/shared/ui/glass/GlassStatCard";
 import { GlassButton } from "~/shared/ui/glass/GlassButton";
@@ -59,7 +60,7 @@ import { GlassLoadingState } from "~/shared/ui/glass/GlassLoadingState";
 import { GlassEmptyState } from "~/shared/ui/glass/GlassEmptyState";
 import { DonutChart } from "~/features/stats/components/SvgChart";
 import AuditTrailWidget from "~/features/admin/components/AuditTrailWidget";
-import { ErrorState, RefreshingIndicator } from "~/shared/ui/states";
+import { ErrorState, ServerErrorState, OfflineState, RefreshingIndicator } from "~/shared/ui/states";
 
 // ─── Types ─────────────────────────────────────────────────────
 
@@ -313,9 +314,14 @@ const RecentUserSignups: Component = () => {
 // ─── AdminDashboard ────────────────────────────────────────────
 
 const AdminDashboard: Component = () => {
+  const { isOffline } = useOnlineStatus();
   const [stats, setStats] = createSignal<AdminStats | null>(null);
   const [loading, setLoading] = createSignal(true);
   const [error, setError] = createSignal<string | null>(null);
+  /** HTTP status code captured alongside the error message (if the
+   *  error was an HTTP response). Used to select ServerErrorState vs
+   *  generic ErrorState. */
+  const [errorStatus, setErrorStatus] = createSignal<number | null>(null);
   const [lastUpdated, setLastUpdated] = createSignal<Date | null>(null);
 
   // Service health state (Phase 9 Chunk 2)
@@ -348,15 +354,19 @@ const AdminDashboard: Component = () => {
           window.location.href = "/admin/login";
           return;
         }
+        setErrorStatus(resp.status);
         throw new Error(`HTTP ${resp.status}`);
       }
       const data = (await resp.json()) as AdminStats;
       setStats(data);
       setLastUpdated(new Date());
       setError(null);
+      setErrorStatus(null);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Unknown error";
       setError(msg);
+      // errorStatus may already be set from the !resp.ok branch above.
+      // If the catch was from a network error (no status), leave errorStatus null.
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -492,6 +502,11 @@ const AdminDashboard: Component = () => {
 
   return (
     <div class="flex flex-col gap-6">
+      {/* ─── Offline banner ─────────────────────────────────── */}
+      <Show when={isOffline()}>
+        <OfflineState variant="banner" hasCachedData />
+      </Show>
+
       {/* ─── Header ─────────────────────────────────────────── */}
       <div class="flex flex-wrap items-center justify-between gap-3">
         <div>
@@ -532,15 +547,31 @@ const AdminDashboard: Component = () => {
 
       {/* ─── Error state ───────────────────────────────────── */}
       <Show when={error()}>
-        <ErrorState
-          title="Failed to load dashboard stats"
-          message={error()!}
-          variant="section"
-          onRetry={() => {
-            setLoading(true);
-            void fetchStats();
-          }}
-        />
+        <Show
+          when={errorStatus() !== null && (errorStatus() ?? 0) >= 500}
+          fallback={
+            <ErrorState
+              title="Failed to load dashboard stats"
+              message={error()!}
+              variant="section"
+              onRetry={() => {
+                setLoading(true);
+                setErrorStatus(null);
+                void fetchStats();
+              }}
+            />
+          }
+        >
+          <ServerErrorState
+            status={errorStatus() ?? 500}
+            message={error()!}
+            onRetry={() => {
+              setLoading(true);
+              setErrorStatus(null);
+              void fetchStats();
+            }}
+          />
+        </Show>
       </Show>
 
       {/* ─── Service Health Strip (Phase 9 Chunk 2 — live data) ───

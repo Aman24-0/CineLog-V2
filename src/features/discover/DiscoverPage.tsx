@@ -90,8 +90,10 @@ import {
 import { useNavigate, useSearchParams } from "@solidjs/router";
 import { useUserLibrary } from "~/shared/hooks/useUserLibrary";
 import { useAuth } from "~/shared/hooks/useAuth";
+import { useOnlineStatus } from "~/shared/hooks/useOnlineStatus";
 import PageContainer from "~/shared/ui/PageContainer";
 import ScrollToTop from "~/shared/ui/ScrollToTop";
+import { OfflineState } from "~/shared/ui/states";
 import { useDiscoverTaste } from "./hooks/useDiscoverTaste";
 import { useSpotlight } from "./hooks/useSpotlight";
 // Phase 14 — Ambient Cinematic UI: reactive palette extraction for
@@ -140,6 +142,7 @@ import { GlassEmptyState } from "~/shared/ui/glass";
 export default function DiscoverPage() {
   const { watchlist, isGuest } = useUserLibrary();
   const { user, authReady } = useAuth();
+  const { isOffline } = useOnlineStatus();
   const { profile: taste } = useDiscoverTaste({ watchlist, isGuest });
 
   // Read URL search params so deep links like `/discover?genre=Sci-Fi`
@@ -496,6 +499,9 @@ export default function DiscoverPage() {
   return (
     <PageContainer width="narrow" paddingBottom="var(--sp-12)">
       <ScrollToTop />
+      <Show when={isOffline()}>
+        <OfflineState variant="banner" hasCachedData />
+      </Show>
       <div class="ambient-glow" aria-hidden="true" />
 
       <Show when={!isLoading()} fallback={<DiscoverSkeleton />}>

@@ -150,6 +150,10 @@ interface AiSettings {
   masterEnabled: boolean;
   userRecommendationsEnabled: boolean;
   adminAssistantEnabled: boolean;
+  defaultModel: string;
+  enabledModels: string[];
+  fallbackModel: string;
+  featureModels: Record<string, string>;
 }
 
 interface AllSettings {

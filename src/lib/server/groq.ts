@@ -634,7 +634,7 @@ export async function resolveAiModel(opts: {
       m !== settings.defaultModel &&
       m !== settings.fallbackModel &&
       m !== opts.requestedModel &&
-      m !== settings.featureModels?.[opts.feature ?? ""]
+      m !== (opts.feature ? settings.featureModels?.[opts.feature] : undefined)
     ) {
       candidates.push({ model: m, reason: "enabled model" });
     }

@@ -229,7 +229,7 @@ export default function TvDeepLinkRoute() {
             image: ogImage() || undefined,
             datePublished: meta()!.first_air_date ?? undefined,
             genre: meta()!.genres?.length ? meta()!.genres : undefined,
-            ...(meta()!.vote_average != null && meta()!.vote_count > 0
+            ...(meta()!.vote_average != null && (meta()!.vote_count ?? 0) > 0
               ? {
                   aggregateRating: {
                     "@type": "AggregateRating",

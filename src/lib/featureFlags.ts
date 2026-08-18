@@ -49,6 +49,11 @@ const [flags, setFlags] = createSignal<Record<string, boolean>>({
 });
 const [ready, setReady] = createSignal<boolean>(false);
 
+/** Reactive error signal — set when the feature-flags fetch fails.
+ *  Consumers can read this to show an error banner or retry UI
+ *  instead of silently falling back to defaults. */
+const [fetchError, setFetchError] = createSignal<string | null>(null);
+
 // ─── Auto-fetch on client load ────────────────────────────────────
 
 if (!isServer) {
@@ -63,8 +68,9 @@ if (!isServer) {
         setFlags({ ...DEFAULT_FEATURE_FLAGS, ...body.flags });
       }
     })
-    .catch(() => {
-      // Silently fall back to defaults — the app should still work
+    .catch((err) => {
+      setFetchError(err instanceof Error ? err.message : "Feature flags fetch failed");
+      // Fall back to defaults — the app should still work
     })
     .finally(() => setReady(true));
 }
@@ -80,6 +86,10 @@ export interface FeatureFlagsHook {
   isEnabled: (name: string) => boolean;
   /** Force a re-fetch of the flags (e.g., after an admin change). */
   refresh: () => Promise<void>;
+  /** Reactive error signal — non-null when the last fetch failed. */
+  fetchError: () => string | null;
+  /** Clear the fetch error (e.g. after the user dismisses a banner). */
+  clearError: () => void;
 }
 
 export function useFeatureFlags(): FeatureFlagsHook {
@@ -99,9 +109,11 @@ export function useFeatureFlags(): FeatureFlagsHook {
         if (body?.flags) {
           setFlags({ ...DEFAULT_FEATURE_FLAGS, ...body.flags });
         }
-      } catch {
-        // ignore
+      } catch (err) {
+        setFetchError(err instanceof Error ? err.message : "Feature flags refresh failed");
       }
-    }
+    },
+    fetchError,
+    clearError: () => setFetchError(null)
   };
 }

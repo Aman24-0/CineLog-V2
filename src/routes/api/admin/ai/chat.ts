@@ -281,8 +281,9 @@ export async function POST(event: APIEvent): Promise<Response> {
 
   // 4. Parse + validate the request body
   let userMessage: string;
+  let body: ChatRequestBody;
   try {
-    const body = (await event.request.json().catch(() => ({}))) as ChatRequestBody;
+    body = (await event.request.json().catch(() => ({}))) as ChatRequestBody;
     if (typeof body.message !== "string" || body.message.trim().length === 0) {
       return jsonResponse(
         { error: "Request body must include a non-empty 'message' string." } satisfies ErrorResponse,
@@ -383,10 +384,10 @@ export async function POST(event: APIEvent): Promise<Response> {
   }
 
   // 8. Return the reply
-  const body: ChatResponse = {
+  const responseBody: ChatResponse = {
     reply,
     model,
     generatedAt: new Date().toISOString()
   };
-  return jsonResponse(body, 200);
+  return jsonResponse(responseBody, 200);
 }

@@ -206,7 +206,8 @@ export async function listStaleEntries(
   let supabase;
   try {
     supabase = getServiceClient();
-  } catch {
+  } catch (err) {
+    console.error("[audio-language/cache] listStaleEntries failed — service client may be misconfigured:", err);
     return [];
   }
 

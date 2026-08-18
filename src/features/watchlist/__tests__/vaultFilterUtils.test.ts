@@ -130,6 +130,7 @@ describe("filterByAdvanced", () => {
       region: "Indian",
       genresList: ["Drama"],
       platformsList: ["Netflix"],
+      justwatchProviders: ["Netflix"],
       tag: "fav"
     }),
     makeTVSeries({
@@ -138,6 +139,7 @@ describe("filterByAdvanced", () => {
       region: "International",
       genresList: ["Sci-Fi"],
       platformsList: ["Prime"],
+      justwatchProviders: ["Prime"],
       tag: "watchlist"
     })
   ];

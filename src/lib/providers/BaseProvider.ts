@@ -25,10 +25,38 @@
 //   call providerRegistry.X() and the registry decides who handles it.
 //   Adding a new provider = implement the interface + register it.
 
+import { createSignal } from "solid-js";
 import type { TMDBTitle } from "~/shared/types";
 import type { AniListMedia } from "~/lib/anilist";
 
 // ─── Types ──────────────────────────────────────────────────────────
+
+/** Structured error info emitted by ProviderRegistry on provider failures. */
+export interface ProviderError {
+  /** Which registry method failed (e.g. "getTrending", "search"). */
+  method: string;
+  /** The provider that was being used when the error occurred. */
+  providerId: string;
+  /** The raw error thrown by the provider. */
+  error: unknown;
+  /** Monotonic timestamp (Date.now()) when the error was captured. */
+  timestamp: number;
+}
+
+/** Module-level reactive signal for the last provider error.
+ *  Consumers (e.g. UI error banners) can read this to detect failures
+ *  instead of relying solely on empty return values. */
+const [lastError, setLastError] = createSignal<ProviderError | null>(null);
+
+/** Read the last provider error (reactive accessor). */
+export function getProviderError(): ProviderError | null {
+  return lastError();
+}
+
+/** Clear the last provider error (e.g. after the user dismisses a banner). */
+export function clearProviderError(): void {
+  setLastError(null);
+}
 
 export type MediaType = "movie" | "tv" | "anime" | "manga" | "person";
 
@@ -180,6 +208,7 @@ export class ProviderRegistry {
       return await provider.getTrending(opts);
     } catch (err) {
       console.warn(`[ProviderRegistry] getTrending via ${provider.id} failed:`, err);
+      setLastError({ method: "getTrending", providerId: provider.id, error: err, timestamp: Date.now() });
       return [];
     }
   }
@@ -191,6 +220,7 @@ export class ProviderRegistry {
       return await provider.getSeasonal(opts);
     } catch (err) {
       console.warn(`[ProviderRegistry] getSeasonal via ${provider.id} failed:`, err);
+      setLastError({ method: "getSeasonal", providerId: provider.id, error: err, timestamp: Date.now() });
       return [];
     }
   }
@@ -203,6 +233,7 @@ export class ProviderRegistry {
       return await provider.getUpcoming(opts);
     } catch (err) {
       console.warn(`[ProviderRegistry] getUpcoming via ${provider.id} failed:`, err);
+      setLastError({ method: "getUpcoming", providerId: provider.id, error: err, timestamp: Date.now() });
       return [];
     }
   }
@@ -215,6 +246,7 @@ export class ProviderRegistry {
       return await provider.getTopRated(opts);
     } catch (err) {
       console.warn(`[ProviderRegistry] getTopRated via ${provider.id} failed:`, err);
+      setLastError({ method: "getTopRated", providerId: provider.id, error: err, timestamp: Date.now() });
       return [];
     }
   }
@@ -227,6 +259,7 @@ export class ProviderRegistry {
       return await provider.search(opts);
     } catch (err) {
       console.warn(`[ProviderRegistry] search via ${provider.id} failed:`, err);
+      setLastError({ method: "search", providerId: provider.id, error: err, timestamp: Date.now() });
       return [];
     }
   }
@@ -238,6 +271,7 @@ export class ProviderRegistry {
       return await provider.getRecommendations(opts);
     } catch (err) {
       console.warn(`[ProviderRegistry] getRecommendations via ${provider.id} failed:`, err);
+      setLastError({ method: "getRecommendations", providerId: provider.id, error: err, timestamp: Date.now() });
       return [];
     }
   }
@@ -249,6 +283,7 @@ export class ProviderRegistry {
       return await provider.getDetails(ref);
     } catch (err) {
       console.warn(`[ProviderRegistry] getDetails via ${provider.id} failed:`, err);
+      setLastError({ method: "getDetails", providerId: provider.id, error: err, timestamp: Date.now() });
       return null;
     }
   }

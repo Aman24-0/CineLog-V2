@@ -133,7 +133,8 @@ async function fetchTmdbExternalIds(
     const res = await fetchWithTimeout(endpoint, 8000);
     if (!res.ok) return null;
     return (await res.json()) as TmdbExternalIds;
-  } catch {
+  } catch (err) {
+    console.error("[audio-language/resolver] fetchTmdbExternalIds failed:", err);
     return null;
   }
 }

@@ -43,3 +43,6 @@ export { AuthGate } from "./AuthGate";
 
 export { ImageWithFallback } from "./ImageWithFallback";
 export type { ImageWithFallbackProps } from "./ImageWithFallback";
+
+export { ConflictState } from "./ConflictState";
+export type { ConflictStateProps } from "./ConflictState";

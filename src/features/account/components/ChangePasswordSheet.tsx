@@ -20,7 +20,9 @@ import { Show, createSignal, createMemo, For, type Component } from "solid-js";
 import AccountSheet from "./AccountSheet";
 import { changePassword, sendPasswordResetEmail } from "../accountActions";
 import { useAuth } from "~/shared/hooks/useAuth";
+import { useFormField } from "~/shared/hooks/useFormField";
 import { MutationButton, type MutationStatus } from "~/shared/ui/states";
+import { ValidationMessage } from "~/shared/ui/ValidationMessage";
 
 interface ChangePasswordSheetProps {
   open: boolean;
@@ -44,9 +46,37 @@ function passwordStrength(pw: string): {
 
 const ChangePasswordSheet: Component<ChangePasswordSheetProps> = (props) => {
   const { user } = useAuth();
-  const [currentPw, setCurrentPw] = createSignal("");
-  const [newPw, setNewPw] = createSignal("");
-  const [confirmPw, setConfirmPw] = createSignal("");
+
+  // Field-level validation via useFormField (validate on blur, not on every keystroke)
+  const currentPwField = useFormField({
+    initialValue: "",
+    validate: (v: string) => v.length === 0 ? "Current password is required." : null,
+  });
+  const newPwField = useFormField({
+    initialValue: "",
+    validate: (v: string) => {
+      if (v.length === 0) return "New password is required.";
+      if (v.length < 8) return "Must be at least 8 characters.";
+      return null;
+    },
+  });
+  const confirmPwField = useFormField({
+    initialValue: "",
+    validate: (v: string) => {
+      if (v.length === 0) return "Please confirm your new password.";
+      if (v !== newPwField.value()) return "Passwords don't match.";
+      return null;
+    },
+  });
+
+  // Keep shorthand accessors for backward compatibility with existing template
+  const currentPw = currentPwField.value;
+  const setCurrentPw = currentPwField.setValue;
+  const newPw = newPwField.value;
+  const setNewPw = newPwField.setValue;
+  const confirmPw = confirmPwField.value;
+  const setConfirmPw = confirmPwField.setValue;
+
   const [showCurrent, setShowCurrent] = createSignal(false);
   const [showNew, setShowNew] = createSignal(false);
   const [showConfirm, setShowConfirm] = createSignal(false);
@@ -74,7 +104,13 @@ const ChangePasswordSheet: Component<ChangePasswordSheetProps> = (props) => {
   });
 
   const handleSubmit = async () => {
-    if (!canSubmit()) return;
+    // Validate all fields on submit attempt
+    const fieldsValid = [
+      mode() === "change" ? currentPwField.validate() : true,
+      newPwField.validate(),
+      confirmPwField.validate(),
+    ].every(Boolean);
+    if (!fieldsValid || !canSubmit()) return;
     setMutationStatus("submitting");
     setBusy(true);
     const result = await changePassword(
@@ -100,9 +136,9 @@ const ChangePasswordSheet: Component<ChangePasswordSheetProps> = (props) => {
   };
 
   const handleClose = () => {
-    setCurrentPw("");
-    setNewPw("");
-    setConfirmPw("");
+    currentPwField.reset();
+    newPwField.reset();
+    confirmPwField.reset();
     setShowCurrent(false);
     setShowNew(false);
     setShowConfirm(false);
@@ -189,6 +225,7 @@ const ChangePasswordSheet: Component<ChangePasswordSheetProps> = (props) => {
                 type={showCurrent() ? "text" : "password"}
                 value={currentPw()}
                 onInput={(e) => setCurrentPw(e.currentTarget.value)}
+                onBlur={() => currentPwField.touch()}
                 placeholder="Enter current password"
                 autocomplete="current-password"
                 spellcheck={false}
@@ -211,6 +248,7 @@ const ChangePasswordSheet: Component<ChangePasswordSheetProps> = (props) => {
                 </span>
               </button>
             </div>
+            <ValidationMessage error={currentPwField.error()} />
             <Show when={resetSent()}>
               <p class="account-sheet-hint account-sheet-hint-success">
                 <span
@@ -264,6 +302,7 @@ const ChangePasswordSheet: Component<ChangePasswordSheetProps> = (props) => {
               type={showNew() ? "text" : "password"}
               value={newPw()}
               onInput={(e) => setNewPw(e.currentTarget.value)}
+              onBlur={() => newPwField.touch()}
               placeholder="At least 8 characters"
               autocomplete="new-password"
               spellcheck={false}
@@ -286,6 +325,7 @@ const ChangePasswordSheet: Component<ChangePasswordSheetProps> = (props) => {
               </span>
             </button>
           </div>
+          <ValidationMessage error={newPwField.error()} />
           {/* Strength meter */}
           <Show when={newPw().length > 0}>
             <div class="account-sheet-strength">
@@ -326,6 +366,7 @@ const ChangePasswordSheet: Component<ChangePasswordSheetProps> = (props) => {
               type={showConfirm() ? "text" : "password"}
               value={confirmPw()}
               onInput={(e) => setConfirmPw(e.currentTarget.value)}
+              onBlur={() => confirmPwField.touch()}
               placeholder="Re-enter new password"
               autocomplete="new-password"
               spellcheck={false}
@@ -348,7 +389,8 @@ const ChangePasswordSheet: Component<ChangePasswordSheetProps> = (props) => {
               </span>
             </button>
           </div>
-          <Show when={confirmPw().length > 0 && !passwordsMatch()}>
+          <ValidationMessage error={confirmPwField.error()} />
+          <Show when={confirmPw().length > 0 && !passwordsMatch() && confirmPwField.isUntouched()}>
             <p class="account-sheet-hint account-sheet-hint-warn">
               <span
                 class="material-symbols-outlined"

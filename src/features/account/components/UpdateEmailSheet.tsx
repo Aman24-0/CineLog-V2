@@ -21,7 +21,9 @@ import { Show, createSignal, createMemo, type Component } from "solid-js";
 import AccountSheet from "./AccountSheet";
 import { updateEmail } from "../accountActions";
 import { useAuth } from "~/shared/hooks/useAuth";
+import { useFormField } from "~/shared/hooks/useFormField";
 import { MutationButton, type MutationStatus } from "~/shared/ui/states";
+import { ValidationMessage } from "~/shared/ui/ValidationMessage";
 
 interface UpdateEmailSheetProps {
   open: boolean;
@@ -30,7 +32,23 @@ interface UpdateEmailSheetProps {
 
 const UpdateEmailSheet: Component<UpdateEmailSheetProps> = (props) => {
   const { user } = useAuth();
-  const [newEmail, setNewEmail] = createSignal("");
+
+  // Field-level validation via useFormField (validate on blur, not on every keystroke)
+  const emailField = useFormField({
+    initialValue: "",
+    validate: (v: string) => {
+      const trimmed = v.trim().toLowerCase();
+      if (trimmed.length === 0) return "Email is required.";
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) return "Enter a valid email address.";
+      if (trimmed === (user()?.email ?? "").toLowerCase()) return "New email must differ from current email.";
+      return null;
+    },
+  });
+
+  // Keep shorthand accessors
+  const newEmail = emailField.value;
+  const setNewEmail = emailField.setValue;
+
   const [busy, setBusy] = createSignal(false);
   const [done, setDone] = createSignal(false);
   const [mutationStatus, setMutationStatus] = createSignal<MutationStatus>("idle");
@@ -47,7 +65,8 @@ const UpdateEmailSheet: Component<UpdateEmailSheetProps> = (props) => {
   const canSubmit = () => isValid() && !busy();
 
   const handleSubmit = async () => {
-    if (!canSubmit()) return;
+    // Validate on submit attempt
+    if (!emailField.validate() || !canSubmit()) return;
     setMutationStatus("submitting");
     setBusy(true);
     const result = await updateEmail(newEmail());
@@ -61,7 +80,7 @@ const UpdateEmailSheet: Component<UpdateEmailSheetProps> = (props) => {
   };
 
   const handleClose = () => {
-    setNewEmail("");
+    emailField.reset();
     setDone(false);
     setBusy(false);
     setMutationStatus("idle");
@@ -147,6 +166,7 @@ const UpdateEmailSheet: Component<UpdateEmailSheetProps> = (props) => {
             type="email"
             value={newEmail()}
             onInput={(e) => setNewEmail(e.currentTarget.value)}
+            onBlur={() => emailField.touch()}
             onKeyDown={(e) => {
               if (e.key === "Enter" && canSubmit()) void handleSubmit();
             }}
@@ -156,18 +176,7 @@ const UpdateEmailSheet: Component<UpdateEmailSheetProps> = (props) => {
             class="account-sheet-input"
             aria-label="New email address"
           />
-          <Show when={newEmail() && !isValid()}>
-            <p class="account-sheet-hint account-sheet-hint-warn">
-              <span
-                class="material-symbols-outlined"
-                style={{ "font-size": "12px" }}
-                aria-hidden="true"
-              >
-                info
-              </span>
-              Enter a valid email different from your current one.
-            </p>
-          </Show>
+          <ValidationMessage error={emailField.error()} />
         </div>
 
         {/* Actions */}
