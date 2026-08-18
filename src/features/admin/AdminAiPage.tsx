@@ -113,7 +113,7 @@ const DEFAULTS: AiSettings = {
   masterEnabled: false,
   userRecommendationsEnabled: false,
   adminAssistantEnabled: false,
-  defaultModel: "openai/gpt-oss-120b",
+  defaultModel: "openai/gpt-oss-20b",
   enabledModels: ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.6-27b"],
   fallbackModel: "openai/gpt-oss-120b"
 };

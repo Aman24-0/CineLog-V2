@@ -336,17 +336,25 @@ export async function POST(event: APIEvent): Promise<Response> {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[ai/chat] Groq call failed:", msg);
 
-    // Detect rate-limit-style errors so we can give a more helpful hint.
+    // Distinguish error types for better UX.
     const isRateLimit =
       msg.includes("429") || msg.toLowerCase().includes("rate limit");
+    const isModelUnavailable =
+      msg.includes("No usable AI model") ||
+      msg.includes("model") && msg.toLowerCase().includes("unavailable");
+
     return jsonResponse(
       {
-        error: isRateLimit
-          ? "Groq rate limit hit — the free tier is exhausted."
-          : "The AI assistant is unavailable right now.",
-        hint: isRateLimit
-          ? "Wait a minute and try again, or disable + re-enable the feature at /admin/ai."
-          : "Check that GROQ_API_KEY is set and the Groq service is reachable."
+        error: isModelUnavailable
+          ? "No AI model is currently available."
+          : isRateLimit
+            ? "Groq rate limit hit — the free tier is exhausted."
+            : "The AI assistant is unavailable right now.",
+        hint: isModelUnavailable
+          ? "Check model availability at /admin/ai and ensure at least one model is enabled and available."
+          : isRateLimit
+            ? "Wait a minute and try again."
+            : "Check that GROQ_API_KEY is set and the Groq service is reachable."
       } satisfies ErrorResponse,
       503
     );

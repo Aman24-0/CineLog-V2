@@ -227,7 +227,7 @@ const DEFAULTS: AllSettings = {
     masterEnabled: false,
     userRecommendationsEnabled: false,
     adminAssistantEnabled: false,
-    defaultModel: "openai/gpt-oss-120b",
+    defaultModel: "openai/gpt-oss-20b",
     enabledModels: ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.6-27b"],
     fallbackModel: "openai/gpt-oss-120b",
     featureModels: {}
@@ -510,7 +510,7 @@ function validateAiSettings(input: unknown): AiSettings {
     masterEnabled: asBool(obj.masterEnabled),
     userRecommendationsEnabled: asBool(obj.userRecommendationsEnabled),
     adminAssistantEnabled: asBool(obj.adminAssistantEnabled),
-    defaultModel: asString(obj.defaultModel, "openai/gpt-oss-120b"),
+    defaultModel: asString(obj.defaultModel, "openai/gpt-oss-20b"),
     enabledModels: asStringArray(obj.enabledModels, [
       "openai/gpt-oss-120b",
       "openai/gpt-oss-20b",

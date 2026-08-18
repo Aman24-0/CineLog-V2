@@ -62,7 +62,7 @@ const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
  * the model is resolved dynamically via getAiModel() which reads
  * from app_config.ai_settings.
  */
-const DEFAULT_GROQ_MODEL = "openai/gpt-oss-120b";
+const DEFAULT_GROQ_MODEL = "openai/gpt-oss-20b";
 
 /** Hard timeout for Groq API calls. Groq is fast (typically <2s for
  *  short prompts) but we cap at 30s to prevent a slow upstream from
@@ -148,7 +148,7 @@ export const DEFAULT_AI_SETTINGS: AiSettings = {
   masterEnabled: false,
   userRecommendationsEnabled: false,
   adminAssistantEnabled: false,
-  defaultModel: "openai/gpt-oss-120b",
+  defaultModel: "openai/gpt-oss-20b",
   enabledModels: ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.6-27b"],
   fallbackModel: "openai/gpt-oss-120b",
   featureModels: {}

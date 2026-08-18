@@ -711,16 +711,26 @@ export async function GET(event: APIEvent): Promise<Response> {
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[api/discover/ai-recommendations] Groq call failed:", msg);
+
+    // Distinguish error types for better UX and debugging.
     const isRateLimit =
       msg.includes("429") || msg.toLowerCase().includes("rate limit");
+    const isModelUnavailable =
+      msg.includes("No usable AI model") ||
+      msg.includes("model") && msg.toLowerCase().includes("unavailable");
+
     return jsonResponse(
       {
-        error: isRateLimit
-          ? "Groq rate limit hit — the free tier is exhausted."
-          : "The recommendation engine is unavailable right now.",
-        hint: isRateLimit
-          ? "Try again in a few minutes. Your cache will refresh on the next successful call."
-          : "If this persists, an admin can disable + re-enable the feature at /admin/ai."
+        error: isModelUnavailable
+          ? "No AI model is currently available."
+          : isRateLimit
+            ? "Groq rate limit hit — the free tier is exhausted."
+            : "The recommendation engine is unavailable right now.",
+        hint: isModelUnavailable
+          ? "An admin needs to configure available AI models at /admin/ai."
+          : isRateLimit
+            ? "Try again in a few minutes. Your cache will refresh on the next successful call."
+            : "If this persists, an admin can check model availability at /admin/ai."
       } satisfies ErrorResponse,
       503
     );
