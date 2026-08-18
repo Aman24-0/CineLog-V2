@@ -8,8 +8,7 @@ import {
   setInFlight,
   cachedFetch,
   clearCache,
-  TMDB_TTL,
-  OMDb_TTL
+  TMDB_TTL
 } from "../apiCache";
 
 describe("buildCacheKey", () => {
@@ -236,9 +235,7 @@ describe("TTL constants", () => {
     expect(TMDB_TTL).toBe(10 * 60 * 1000);
   });
 
-  it("OMDb_TTL is 24 hours", () => {
-    expect(OMDb_TTL).toBe(24 * 60 * 60 * 1000);
-  });
+
 });
 
 describe("clearCache", () => {

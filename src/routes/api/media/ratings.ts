@@ -31,7 +31,7 @@
  *      Metacritic (and more) into a single response. We don't need to
  *      hit three separate APIs.
  *   3. Vote counts — MDBList returns both the score AND the vote count
- *      for each service, which OMDb doesn't provide consistently. This
+ *      for each service, which the legacy API didn't provide consistently. This
  *      lets us render "8.0 (11K)" instead of just "8.0".
  *   4. CDN caching — long-term Cache-Control headers let Vercel's CDN
  *      cache responses for 24h (ratings change slowly), reducing

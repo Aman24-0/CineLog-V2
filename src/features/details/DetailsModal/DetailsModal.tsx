@@ -77,7 +77,7 @@ export default function DetailsModal() {
   const { selectedItem, closeTitle } = useModalState();
   const { watchlist } = useVault();
   const library = useUserLibrary();
-  const { tmdb, omdb, loading, error, retry } = useDetails(selectedItem);
+  const { tmdb, loading, error, retry } = useDetails(selectedItem);
   // AniList enrichment (Phase 4). The hook is self-gating — it returns
   // null for non-anime titles and respects the admin anime_settings
   // toggles. AnimeSections renders nothing when anilist is null.
@@ -413,7 +413,6 @@ export default function DetailsModal() {
                       <DetailsRatings
                         baseItem={baseItem}
                         details={tmdb}
-                        omdb={omdb}
                         vaultItem={vaultItem}
                       />
 
@@ -451,7 +450,6 @@ export default function DetailsModal() {
                       <DetailsMetadata
                         baseItem={baseItem}
                         details={tmdb}
-                        omdb={omdb}
                         vaultItem={vaultItem}
                         anilist={animeEnrichment.anilist}
                         isAnime={animeEnrichment.isAnime}

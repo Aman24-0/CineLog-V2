@@ -16,16 +16,16 @@ import type { WatchlistItem } from "~/shared/types";
  * `compact` for density).
  *
  * MDBList SYNC: The `overrideImdbRating` prop, when provided, replaces
- * the WatchlistItem's OMDb imdbRating with the lazy-loaded MDBList
+ * the WatchlistItem's imdbRating with the lazy-loaded MDBList
  * IMDb score so the card badge matches the Details modal. When null
- * (still loading or unavailable), falls back to the OMDb rating.
+ * (still loading or unavailable), falls back to the legacy rating.
  */
 export interface MovieCardRatingsProps {
   movie: WatchlistItem;
   /**
    * Optional override for the IMDb rating chip. When provided (non-null
    * string), replaces movie.imdbRating with the MDBList IMDb score.
-   * When null, falls back to movie.imdbRating (OMDb).
+   * When null, falls back to movie.imdbRating.
    */
   overrideImdbRating?: string | null;
 }

@@ -314,7 +314,7 @@ const MovieCard: Component<MovieCardProps> = (props) => {
 
   // LAZY IMDb RATING — uses IntersectionObserver so the fetch only
   // fires when this card scrolls into view. Falls back to the
-  // WatchlistItem's OMDb imdbRating (or tmdbRating) while loading or
+  // WatchlistItem's imdbRating (or tmdbRating) while loading or
   // if MDBList returns null. This keeps card badges consistent with
   // the MDBList rating shown in the Details modal.
   let cardRef: HTMLDivElement | undefined;
@@ -324,7 +324,7 @@ const MovieCard: Component<MovieCardProps> = (props) => {
     () => cardRef
   );
   // The effective IMDb rating: MDBList score when available, then
-  // OMDb imdbRating, then tmdbRating as last resort.
+  // imdbRating, then tmdbRating as last resort.
   const effectiveImdbRating = () =>
     lazyImdbRating() ??
     props.movie.imdbRating ??
@@ -575,7 +575,7 @@ const MovieCard: Component<MovieCardProps> = (props) => {
 
           {/* Compact variant: show year + IMDb rating inline OR episode
               progress for TV shows with status "Watching".
-              Uses the lazy MDBList IMDb score (falls back to OMDb/TMDB
+              Uses the lazy MDBList IMDb score (falls back to TMDB
               while loading) so the badge matches the Details modal. */}
           <Show when={variant() === "compact"}>
             <Show

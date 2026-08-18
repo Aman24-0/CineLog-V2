@@ -29,8 +29,7 @@ interface ImportMetaEnv {
   // ── App ─────────────────────────────────────────────────────────
   readonly VITE_APP_BASE_URL: string | undefined;
 
-  // ── OMDB (alt. movie data) ─────────────────────────────────────
-  readonly VITE_OMDB_API_KEY: string | undefined;
+
 
   // ── Trakt ──────────────────────────────────────────────────────
   readonly VITE_TRAKT_CLIENT_ID: string | undefined;

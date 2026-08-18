@@ -1,12 +1,12 @@
 // src/shared/ui/SafeImage.tsx
-import { Show, createSignal, type Component, type JSX } from "solid-js";
+import { Show, createSignal, createEffect, type Component, type JSX } from "solid-js";
 
 /**
  * SafeImage — defensive <img> wrapper with built-in load-error fallback.
  *
  * Why this exists
  * ---------------
- * TMDB / OMDb image URLs can fail at runtime even when the path is
+ * TMDB image URLs can fail at runtime even when the path is
  * present: CDN hiccups, expired tokens, regional blocks, or a path
  * that exists in the API payload but has no corresponding asset on the
  * image CDN. Without an `onError` handler the browser renders a broken
@@ -60,6 +60,12 @@ export interface SafeImageProps {
 
 const SafeImage: Component<SafeImageProps> = (props) => {
   const [errored, setErrored] = createSignal(false);
+
+  // Reset error state when src changes so a new image URL gets a fresh attempt.
+  createEffect(() => {
+    props.src; // track dependency
+    setErrored(false);
+  });
 
   const showFallback = () => !props.src || errored();
 

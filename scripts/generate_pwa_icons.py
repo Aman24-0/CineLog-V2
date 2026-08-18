@@ -7,9 +7,9 @@ placeholder icons (dark background + purple "C" monogram) so the PWA
 manifest doesn't 404 when browsers request the icons.
 
 These are intentionally minimal — replace with proper designed icons
-before public launch. The colors match the app's theme tokens:
+before public launch. The colors match the app's default theme (cinematic):
   background: #0f0f0f (var(--bg))
-  accent:     #7c3aed (var(--p))
+  accent:     #e8b74a (cinematic gold)
 """
 from PIL import Image, ImageDraw, ImageFont
 import os
@@ -18,7 +18,7 @@ OUT_DIR = os.path.join(os.path.dirname(__file__), "..", "public")
 OUT_DIR = os.path.abspath(OUT_DIR)
 
 BG = (15, 15, 15, 255)       # #0f0f0f
-ACCENT = (124, 58, 237, 255) # #7c3aed
+ACCENT = (232, 183, 74, 255) # #e8b74a (cinematic gold)
 WHITE = (255, 255, 255, 255)
 
 def make_icon(size: int, path: str):

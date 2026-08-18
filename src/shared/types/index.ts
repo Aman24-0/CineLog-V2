@@ -496,18 +496,7 @@ export interface TMDBCollection {
   parts: TMDBCollectionPart[];
 }
 
-export interface OMDbRatings {
-  imdb?: string;
-  rt?: string;
-  // Extra fields available from OMDb for richer metadata
-  director?: string;
-  actors?: string;
-  writer?: string;
-  plot?: string;
-  rated?: string;
-  year?: string;
-  runtime?: string;
-}
+
 
 /* ============================================================
    TMDB CREDITS / PERSON — Cast & Crew + Person filmography

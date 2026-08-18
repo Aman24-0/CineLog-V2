@@ -14,13 +14,12 @@ import { Show } from "solid-js";
 import type { Accessor } from "solid-js";
 import MetadataGrid from "~/features/details/components/MetadataGrid";
 import DetailSection from "~/features/details/components/DetailSection";
-import type { WatchlistItem, TMDBDetails, OMDbRatings } from "~/shared/types";
+import type { WatchlistItem, TMDBDetails } from "~/shared/types";
 import type { AniListMedia } from "~/lib/anilist";
 
 export interface DetailsMetadataProps {
   baseItem: Accessor<WatchlistItem | null>;
   details: Accessor<TMDBDetails | null>;
-  omdb: Accessor<OMDbRatings | null>;
   vaultItem: Accessor<WatchlistItem | null>;
   /** AniList data — null for non-anime titles. */
   anilist?: Accessor<AniListMedia | null>;
@@ -35,7 +34,6 @@ export default function DetailsMetadata(props: DetailsMetadataProps) {
         <MetadataGrid
           baseItem={props.baseItem()}
           details={props.details()}
-          omdb={props.omdb()}
           vaultItem={props.vaultItem()}
           anilist={props.anilist?.()}
           isAnime={props.isAnime?.() ?? false}

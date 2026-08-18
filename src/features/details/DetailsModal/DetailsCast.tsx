@@ -115,14 +115,14 @@ interface MergedCrewMember {
  *   aggregate_credits).
  *
  * Data source:
- *   Previously this component read OMDbRatings (text-only actor names).
+ *   Previously this component read legacy actor name text lists.
  *   Now it reads TMDBDetails.credits — populated by fetchTmdbDetails
  *   via append_to_response=videos,credits. The credits payload has
  *   structured cast/crew arrays with profile_path (TMDB image URL).
  *
  * Fallback:
  *   If credits are missing (older cached payload), falls back to the
- *   OMDb text list so we don't lose the section entirely.
+ *   legacy text list so we don't lose the section entirely.
  */
 export interface DetailsCastProps {
   details: Accessor<TMDBDetails | null>;

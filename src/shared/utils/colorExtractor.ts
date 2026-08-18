@@ -136,7 +136,13 @@ export async function extractDominantColor(imageUrl: string): Promise<string> {
       return FALLBACK_COLOR;
     }
 
-    return findVibrantColor(imageData.data);
+    const result = findVibrantColor(imageData.data);
+
+    // Release canvas pixel buffer to avoid memory leaks in long sessions.
+    canvas.width = 0;
+    canvas.height = 0;
+
+    return result;
   } catch (err) {
     console.warn(
       "[colorExtractor] Failed to extract dominant color:",
@@ -558,7 +564,13 @@ export async function extractPalette(
       return Array.from({ length: target }, () => FALLBACK_COLOR);
     }
 
-    return findVibrantPalette(imageData.data, target);
+    const result = findVibrantPalette(imageData.data, target);
+
+    // Release canvas pixel buffer to avoid memory leaks.
+    canvas.width = 0;
+    canvas.height = 0;
+
+    return result;
   } catch (err) {
     console.warn(
       "[colorExtractor.extractPalette] Failed to extract palette:",

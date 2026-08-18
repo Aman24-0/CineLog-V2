@@ -2,7 +2,7 @@
 import { For, Show, createMemo, createSignal } from "solid-js";
 import { useDiscoverRegion } from "~/core/config/discoverRegion";
 import { formatDateLong } from "~/shared/utils/format";
-import type { WatchlistItem, TMDBDetails, OMDbRatings } from "~/shared/types";
+import type { WatchlistItem, TMDBDetails } from "~/shared/types";
 import type { AniListMedia } from "~/lib/anilist";
 import AudioLanguageModal from "./AudioLanguageModal";
 
@@ -10,7 +10,6 @@ interface MetadataGridProps {
   /** TMDB identity — always present */
   baseItem: WatchlistItem | null;
   details: TMDBDetails | null;
-  omdb: OMDbRatings | null;
   /**
    * User-owned vault item — null when the title is NOT in the vault.
    * The "Your Status" cell only renders when this is present.
@@ -241,7 +240,7 @@ export default function MetadataGrid(props: MetadataGridProps) {
   const cells = createMemo<MetaCell[]>(() => {
     const d = props.details;
     const b = props.baseItem;
-    const o = props.omdb;
+
     const al = props.anilist;
     const isAnime = props.isAnime ?? false;
     const list: MetaCell[] = [];
@@ -378,11 +377,9 @@ export default function MetadataGrid(props: MetadataGridProps) {
       }
     }
 
-    // Certification / Age Rating (OMDb for non-anime, AniList for anime)
+    // Certification / Age Rating (AniList for anime)
     if (isAnime && al?.isAdult != null) {
       list.push({ label: "Age Rating", value: al.isAdult ? "18+" : "PG" });
-    } else if (o?.rated && o.rated !== "N/A") {
-      list.push({ label: "Rated", value: o.rated });
     }
 
     // Source Material (AniList) — only for anime.

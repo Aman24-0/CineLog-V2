@@ -107,7 +107,7 @@ const ResetConfirmSheet: Component<ResetConfirmSheetProps> = (props) => {
         collections.refreshUniversePrefs(uid)
       ]);
 
-      // 2. Clear the TMDB/OMDb API response cache so any stale
+      // 2. Clear the TMDB API response cache so any stale
       //    "in vault" badges or recommendation caches are dropped.
       clearApiCache();
 

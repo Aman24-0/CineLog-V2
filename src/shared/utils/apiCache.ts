@@ -1,14 +1,13 @@
 /**
  * CineLog V2 — API Cache (Memory + In-Flight Dedup)
  * ---------------------------------------------------------------------
- * Lightweight in-memory cache for TMDB and OMDb API responses.
+ * Lightweight in-memory cache for TMDB API responses.
  * Prevents duplicate network requests within the TTL window and
  * deduplicates concurrent in-flight requests (multiple components
  * requesting the same data share a single Promise).
  *
  * TTL:
  *   TMDB: 10 minutes (600,000 ms)
- *   OMDb: 24 hours (86,400,000 ms)
  *
  * No persistence — cache is per-session (cleared on page reload).
  * SSR-safe: the cache is module-level and only populated on the client.
@@ -28,7 +27,6 @@ interface CacheEntry<T> {
 // ---------------------------------------------------------------------------
 
 export const TMDB_TTL = 10 * 60 * 1000; // 10 minutes
-export const OMDb_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
 // ---------------------------------------------------------------------------
 // Cache storage

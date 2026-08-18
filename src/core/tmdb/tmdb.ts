@@ -380,7 +380,7 @@ export const fetchTmdbDetails = async (
   // append_to_response=videos,credits — fetches trailers AND cast/crew
   // in one request. The credits payload populates TMDBDetails.credits,
   // which the DetailsCast component reads to render cast & crew with
-  // images (replacing the text-only OMDb actors list).
+  // images (replacing the text-only legacy actors list).
   //
   // v2.4: include_video_language=en,null — also include videos with no
   // language tag (covers most international trailers that aren't tagged
