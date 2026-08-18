@@ -7,7 +7,7 @@
 // Replaces bare <img> tags throughout the app for consistent image handling.
 // For existing SafeImage users, this is a drop-in upgrade.
 
-import { Component, JSX, Show, createSignal, createEffect, splitProps, mergeProps } from "solid-js";
+import { Component, JSX, Show, createSignal, createEffect, mergeProps } from "solid-js";
 import { GlassSkeleton } from "~/shared/ui/glass";
 
 export interface ImageWithFallbackProps {
@@ -49,28 +49,24 @@ const defaultProps: Required<
 
 const ImageWithFallback: Component<ImageWithFallbackProps> = (rawProps) => {
   const props = mergeProps(defaultProps, rawProps);
-  const [local, rest] = splitProps(props, [
-    "src", "alt", "class", "style", "fallback", "loadingSkeleton",
-    "placeholderIcon", "onLoad", "onError", "loading", "decoding", "width", "height"
-  ]);
-
   const [state, setState] = createSignal<"loading" | "loaded" | "error">("loading");
 
   // Reset state when src changes
   createEffect(() => {
-    local.src; // track
-    setState(local.src ? "loading" : "error");
+    const src = rawProps.src;
+    void src; // track dependency
+    setState(src ? "loading" : "error");
   });
 
   const defaultFallback = () => (
     <div
-      class={`relative flex items-center justify-center overflow-hidden ${local.class || ""}`}
+      class={`relative flex items-center justify-center overflow-hidden ${props.class || ""}`}
       style={{
-        ...(typeof local.style === "object" ? local.style : {}),
-        ...(local.width ? { width: `${local.width}px` } : {}),
-        ...(local.height ? { height: `${local.height}px` } : {})
+        ...(typeof props.style === "object" ? props.style : {}),
+        ...(props.width ? { width: `${props.width}px` } : {}),
+        ...(props.height ? { height: `${props.height}px` } : {})
       }}
-      aria-label={local.alt || "Image unavailable"}
+      aria-label={props.alt || "Image unavailable"}
       role="img"
     >
       <span
@@ -78,7 +74,7 @@ const ImageWithFallback: Component<ImageWithFallbackProps> = (rawProps) => {
         style={{ "font-variation-settings": "'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 48" }}
         aria-hidden="true"
       >
-        {local.placeholderIcon}
+        {props.placeholderIcon}
       </span>
     </div>
   );
@@ -86,11 +82,11 @@ const ImageWithFallback: Component<ImageWithFallbackProps> = (rawProps) => {
   const defaultLoadingSkeleton = () => (
     <GlassSkeleton
       variant="block"
-      class={local.class}
+      class={props.class}
       style={{
-        ...(typeof local.style === "object" ? local.style : {}),
-        ...(local.width ? { width: `${local.width}px` } : {}),
-        ...(local.height ? { height: `${local.height}px` } : {})
+        ...(typeof props.style === "object" ? props.style : {}),
+        ...(props.width ? { width: `${props.width}px` } : {}),
+        ...(props.height ? { height: `${props.height}px` } : {})
       }}
     />
   );
@@ -101,28 +97,28 @@ const ImageWithFallback: Component<ImageWithFallbackProps> = (rawProps) => {
       fallback={
         <Show
           when={state() === "loading"}
-          fallback={local.fallback ?? defaultFallback()}
+          fallback={props.fallback ?? defaultFallback()}
         >
-          {local.loadingSkeleton ?? defaultLoadingSkeleton()}
+          {props.loadingSkeleton ?? defaultLoadingSkeleton()}
         </Show>
       }
     >
       <img
-        src={local.src}
-        alt={local.alt ?? ""}
-        class={local.class}
-        style={local.style}
-        loading={local.loading}
-        decoding={local.decoding}
-        width={local.width}
-        height={local.height}
+        src={props.src}
+        alt={props.alt ?? ""}
+        class={props.class}
+        style={props.style}
+        loading={props.loading}
+        decoding={props.decoding}
+        width={props.width}
+        height={props.height}
         onLoad={() => {
           setState("loaded");
-          local.onLoad?.();
+          props.onLoad?.();
         }}
         onError={() => {
           setState("error");
-          local.onError?.();
+          props.onError?.();
         }}
       />
     </Show>

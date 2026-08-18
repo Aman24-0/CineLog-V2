@@ -14,7 +14,7 @@
 //     errorLabel="Couldn't save"
 //   />
 
-import { Component, JSX, Show, createEffect, onCleanup, splitProps, mergeProps } from "solid-js";
+import { Component, JSX, Show, splitProps, mergeProps } from "solid-js";
 
 export type MutationStatus = "idle" | "submitting" | "success" | "error";
 

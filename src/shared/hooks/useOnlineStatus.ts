@@ -8,7 +8,7 @@
 //   const { isOnline } = useOnlineStatus();
 //   <Show when={isOnline()} fallback={<OfflineState />}>
 
-import { createSignal, onMount, onCleanup } from "solid-js";
+import { createSignal, onMount } from "solid-js";
 
 const [isOnline, setIsOnline] = createSignal(
   typeof navigator !== "undefined" ? navigator.onLine : true

@@ -9,7 +9,7 @@
 //     <ProtectedContent />
 //   </AuthGate>
 
-import { Component, JSX, Show, createMemo } from "solid-js";
+import { Component, JSX, Show } from "solid-js";
 import { useAuth } from "~/shared/hooks/useAuth";
 import { GlassEmptyState, GlassButton } from "~/shared/ui/glass";
 import { GlassLoadingState } from "~/shared/ui/glass";

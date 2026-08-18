@@ -1,8 +1,7 @@
 // src/shared/ui/states/__tests__/MutationButton.test.tsx
 import { describe, it, expect } from "vitest";
-import { createRoot } from "solid-js";
 import { render } from "@solidjs/testing-library";
-import { MutationButton, type MutationStatus } from "../MutationButton";
+import { MutationButton } from "../MutationButton";
 
 describe("MutationButton", () => {
   it("renders idle label by default", () => {

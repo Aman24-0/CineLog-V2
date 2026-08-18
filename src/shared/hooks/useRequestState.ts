@@ -27,7 +27,7 @@
 //   <Show when={req.hasError()}><ErrorState onRetry={fetchMovies} /></Show>
 //   <Show when={req.hasData()}><MovieList data={req.data()!} /></Show>
 
-import { createSignal, createMemo } from "solid-js";
+import { createSignal } from "solid-js";
 
 export type RequestPhase =
   | "idle"       // Not started
@@ -93,7 +93,7 @@ export function useRequestState<T>(): UseRequestStateReturn<T> {
   function start() {
     if (data() !== null) {
       setPhase("refreshing");
-      setPreviousData(data());
+      setPreviousData(() => data() as T);
     } else {
       setPhase("loading");
     }
@@ -101,7 +101,7 @@ export function useRequestState<T>(): UseRequestStateReturn<T> {
   }
 
   function success(newData: T) {
-    setData(newData);
+    setData(() => newData);
     setPreviousData(null);
     setPhase("success");
     setError(null);
@@ -154,7 +154,7 @@ export function useRequestState<T>(): UseRequestStateReturn<T> {
   const hasError = () => phase() === "error";
   const hasTimeout = () => phase() === "timeout";
   const hasData = () => data() !== null && (phase() === "success" || phase() === "refreshing");
-  const isEmpty = () => isSuccess() && Array.isArray(data()) && data()!.length === 0;
+  const isEmpty = () => isSuccess() && Array.isArray(data()) && (data() as unknown[]).length === 0;
 
   // Error type helpers
   const isOffline = () => hasError() && error()?.isOffline === true;

@@ -3,7 +3,7 @@
 // Resource not found state — for when a specific movie, show,
 // collection, or user no longer exists or the URL is invalid.
 
-import { Component, JSX, Show, splitProps, mergeProps } from "solid-js";
+import { Component, JSX, splitProps, mergeProps } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 
 export interface NotFoundStateProps extends JSX.HTMLAttributes<HTMLDivElement> {

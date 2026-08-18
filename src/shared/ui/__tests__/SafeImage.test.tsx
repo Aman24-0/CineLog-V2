@@ -76,10 +76,15 @@ describe("SafeImage", () => {
     expect(onErrorSpy).toHaveBeenCalledTimes(1);
   });
 
-  it("renders null fallback when no fallback prop is provided and src is empty", () => {
+  it("renders default glass-icon fallback when no fallback prop is provided and src is empty", () => {
     const { container } = render(() => <SafeImage src="" alt="" />);
     expect(container.querySelector("img")).toBeNull();
-    expect(container.querySelector("div")).toBeNull();
+    // SafeImage now has a default fallback with broken_image icon instead of rendering null
+    const fallbackDiv = container.querySelector("div");
+    expect(fallbackDiv).not.toBeNull();
+    const icon = container.querySelector(".material-symbols-outlined");
+    expect(icon).not.toBeNull();
+    expect(icon?.textContent).toBe("broken_image");
   });
 
   it("passes through loading and decoding attributes", () => {

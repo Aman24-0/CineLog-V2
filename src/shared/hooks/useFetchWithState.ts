@@ -142,16 +142,16 @@ export function useFetchWithState<T = unknown>(
 
       req.success(data);
       return data;
-    } catch (err: any) {
+    } catch (err: unknown) {
       clearTimeout(timeoutId);
 
       // Don't update state if the request was aborted (superseded by a new one)
-      if (err?.name === "AbortError") {
+      if (err instanceof DOMException && err.name === "AbortError") {
         return null;
       }
 
       // Determine status from error
-      const status = err?.status || err?.cause?.status;
+      const status = (err as { status?: number; cause?: { status?: number } })?.status || (err as { cause?: { status?: number } })?.cause?.status;
       req.fail(err instanceof Error ? err : new Error(String(err)), status);
       return null;
     }
