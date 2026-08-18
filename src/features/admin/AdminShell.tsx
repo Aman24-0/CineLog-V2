@@ -55,12 +55,15 @@ import {
   For,
   onMount,
   onCleanup,
+  createEffect,
   createSignal,
   type Component
 } from "solid-js";
 import { useNavigate, useLocation, A } from "@solidjs/router";
 import { useAdminAuth } from "./hooks/useAdminAuth";
 import { GlassButton } from "~/shared/ui/glass/GlassButton";
+import { GlassLoadingState } from "~/shared/ui/glass/GlassLoadingState";
+import { PermissionDenied } from "~/shared/ui/states";
 // Phase 14 Chunk 5 — Admin Ambient Glass Migration.
 // The admin panel now mounts the same AmbientBackground component
 // the consumer app uses, so the sidebar + topbar + content area all
@@ -296,6 +299,10 @@ const AdminShell: ParentComponent = (props) => {
       .join(" / ");
   });
 
+  // Track whether we were ever admin so we can detect session expiration.
+  const [wasAdmin, setWasAdmin] = createSignal(false);
+  const [sessionExpired, setSessionExpired] = createSignal(false);
+
   // Session gate — redirect to login if not authenticated
   //
   // PHASE 15 QA BUG #4: the previous version only checked at 0ms,
@@ -322,6 +329,19 @@ const AdminShell: ParentComponent = (props) => {
     setTimeout(checkAuth, 100);
     setTimeout(checkAuth, 500);
     setTimeout(checkAuth, 5500);
+  });
+
+  // Detect session expiration: if we were previously admin and the
+  // session drops (e.g. cookie expired, server restarted), show a
+  // session-expired state instead of silently redirecting. This
+  // prevents the admin from losing work in an open tab.
+  createEffect(() => {
+    if (auth.isAdmin()) {
+      setWasAdmin(true);
+      setSessionExpired(false);
+    } else if (wasAdmin() && auth.adminReady()) {
+      setSessionExpired(true);
+    }
   });
 
   const handleLogout = async () => {
@@ -369,33 +389,54 @@ const AdminShell: ParentComponent = (props) => {
         <Show
           when={auth.adminReady()}
           fallback={
-            <div class="flex min-h-screen items-center justify-center text-text-muted" style={{ background: "var(--void-ambient)" }}>
-              <div class="text-center">
-                <span
-                  class="material-symbols-outlined mx-auto mb-3 block text-4xl"
-                  style={{
-                    animation: "softPulse 1.2s ease-in-out infinite"
-                  }}
-                  aria-hidden="true"
-                >
-                  progress_activity
-                </span>
-                <div class="text-sm">Verifying admin session…</div>
-              </div>
+            <div
+              class="flex min-h-screen items-center justify-center"
+              style={{ background: "var(--void-ambient)" }}
+            >
+              <GlassLoadingState
+                size="default"
+                message="Verifying admin session…"
+              />
             </div>
           }
         >
-          <div class="flex min-h-screen items-center justify-center text-text-muted" style={{ background: "var(--void-ambient)" }}>
-            <div class="text-center">
+          <Show
+            when={sessionExpired()}
+            fallback={
+              <PermissionDenied
+                message="You need to be signed in as an admin to access this panel."
+                showHome={false}
+              />
+            }
+          >
+            <div
+              class="flex min-h-screen flex-col items-center justify-center gap-4 text-center"
+              style={{ background: "var(--void-ambient)" }}
+              role="alert"
+              aria-live="assertive"
+            >
               <span
-                class="material-symbols-outlined mx-auto mb-3 block text-4xl"
+                class="material-symbols-outlined text-4xl text-amber-400"
                 aria-hidden="true"
               >
-                lock
+                timer_off
               </span>
-              <div class="mb-4 text-sm">Redirecting to login…</div>
+              <h3 class="font-heading text-lg font-bold text-text-strong">
+                Admin session expired
+              </h3>
+              <p class="max-w-[320px] text-sm text-text-soft">
+                Your admin session has expired. Please sign in again to continue.
+              </p>
+              <GlassButton
+                variant="primary"
+                size="default"
+                icon="login"
+                onClick={() => navigate("/admin/login", { replace: true })}
+              >
+                Sign in again
+              </GlassButton>
             </div>
-          </div>
+          </Show>
         </Show>
       }
     >

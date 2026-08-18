@@ -12,7 +12,12 @@ import { Skeleton } from "~/shared/ui/primitives";
  */
 export default function DetailsSkeleton() {
   return (
-    <div class="cinematic-modal modal-sheet-enter">
+    <div
+      class="cinematic-modal modal-sheet-enter"
+      role="status"
+      aria-busy="true"
+      aria-label="Loading content details"
+    >
       <div class="cinematic-scroll">
         {/* Cinematic hero skeleton */}
         <div class="cinematic-hero">

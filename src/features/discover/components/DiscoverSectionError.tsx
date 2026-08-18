@@ -2,14 +2,17 @@
 //
 // DiscoverSectionError — fallback rendered when a Discover section's
 // data fetch rejects. Logs the error to the console once per render
-// and shows a DiscoverEmptyState with a retry hint.
+// and shows a shared ErrorState component with an optional retry.
 
 import { createEffect } from "solid-js";
-import DiscoverEmptyState from "./DiscoverEmptyState";
+import { ErrorState } from "~/shared/ui/states";
 
 interface DiscoverSectionErrorProps {
   label: string;
   error: Error;
+  /** Optional retry callback — when provided, the ErrorState shows a
+   *  retry button so the user can recover without a full page reload. */
+  onRetry?: () => void;
 }
 
 export function DiscoverSectionError(props: DiscoverSectionErrorProps) {
@@ -33,10 +36,13 @@ export function DiscoverSectionError(props: DiscoverSectionErrorProps) {
         </span>
         {props.label}
       </div>
-      <DiscoverEmptyState
+      <ErrorState
         icon="error"
-        message={`Couldn't load ${props.label}.`}
-        hint="Check your connection and try again."
+        title={`Couldn't load ${props.label}`}
+        message="Check your connection and try again."
+        variant="section"
+        retryable={!!props.onRetry}
+        onRetry={props.onRetry}
       />
     </section>
   );

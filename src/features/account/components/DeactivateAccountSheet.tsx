@@ -47,6 +47,7 @@ import { useVault } from "~/features/watchlist/useVault";
 import { useCollections } from "~/features/collections/hooks/useCollections";
 import { clearCache as clearApiCache } from "~/shared/utils/apiCache";
 import { getBrowserSession } from "~/lib/supabase/session";
+import { MutationButton } from "~/shared/ui/states";
 
 type Mode = "deactivate" | "delete";
 type Phase = "confirm" | "working" | "done";
@@ -398,22 +399,17 @@ const DeactivateAccountSheet: Component<DeactivateAccountSheetProps> = (
                   >
                     Cancel
                   </button>
-                  <button
-                    type="button"
-                    class="btn-danger focus-ring flex-1"
+                  <MutationButton
+                    status={errorMsg() ? "error" : "idle"}
                     onClick={() => void handleConfirm()}
+                    idleLabel={props.mode === "delete" ? "Delete Account" : "Deactivate"}
+                    errorLabel="Failed — retry?"
+                    variant="danger"
+                    icon={props.mode === "delete" ? "delete_forever" : "block"}
                     disabled={!canConfirm()}
-                    aria-label={title()}
-                  >
-                    <span
-                      class="material-symbols-outlined"
-                      style={{ "font-size": "14px" }}
-                      aria-hidden="true"
-                    >
-                      {props.mode === "delete" ? "delete_forever" : "block"}
-                    </span>
-                    {props.mode === "delete" ? "Delete Account" : "Deactivate"}
-                  </button>
+                    class="flex-1"
+                    successResetMs={0}
+                  />
                 </div>
               </div>
             </Show>

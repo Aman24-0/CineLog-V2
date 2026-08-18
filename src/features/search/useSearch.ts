@@ -103,12 +103,37 @@ export function useSearch(args: UseSearchArgs) {
     if (debounceTimer) clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => setDebouncedQuery(q), 250);
   });
+
+  // ── Race-condition protection ──────────────────────────────────────
+  // When the user types quickly, multiple search requests can be in
+  // flight at the same time. Without protection, a slow response for
+  // query "a" can arrive AFTER the fast response for "ab" and overwrite
+  // the correct results. We use TWO guards:
+  //
+  //   1. requestId — a monotonically increasing counter. Each new search
+  //      increments it. When a response arrives, we only update state
+  //      if the requestId still matches the one that was current when
+  //      the search was initiated. Stale responses are silently dropped.
+  //
+  //   2. AbortController — marks the in-flight request as cancelled
+  //      when a new search starts. The signal.aborted flag is checked
+  //      before committing results to state, so stale responses are
+  //      silently dropped even if the underlying HTTP request already
+  //      completed.
+  let searchRequestId = 0;
+  let searchAbortController: AbortController | null = null;
+
   // Cleanup: cancel pending debounce on unmount to prevent calling
   // setDebouncedQuery on a dead reactive root (SolidJS warning).
+  // Also abort any in-flight search request.
   onCleanup(() => {
     if (debounceTimer) {
       clearTimeout(debounceTimer);
       debounceTimer = null;
+    }
+    if (searchAbortController) {
+      searchAbortController.abort();
+      searchAbortController = null;
     }
   });
 
@@ -129,8 +154,23 @@ export function useSearch(args: UseSearchArgs) {
       setError(null);
       setAnimeResults([]);
       setAnimeLoading(false);
+      // Abort any in-flight request for the previous query
+      if (searchAbortController) {
+        searchAbortController.abort();
+        searchAbortController = null;
+      }
       return;
     }
+
+    // ── Race guard: increment request ID + abort previous ──────────
+    const thisRequestId = ++searchRequestId;
+    if (searchAbortController) {
+      searchAbortController.abort();
+    }
+    const abortController = new AbortController();
+    searchAbortController = abortController;
+    const signal = abortController.signal;
+
     setLoading(true);
     setError(null);
     // Reset anime fallback state — will be re-populated if the query
@@ -155,14 +195,18 @@ export function useSearch(args: UseSearchArgs) {
       setAnimeLoading(true);
       animePromise = searchAnimeFallback(q, 10)
         .then((titles) => {
+          if (signal.aborted) return [];
           setAnimeResults(titles);
           return titles;
         })
-        .catch(() => {
+        .catch((err) => {
+          if (signal.aborted) return [];
           setAnimeResults([]);
           return [];
         })
-        .finally(() => setAnimeLoading(false));
+        .finally(() => {
+          if (!signal.aborted) setAnimeLoading(false);
+        });
     }
 
     // Phase 6.2 Task 4b — fire searchPeople IN PARALLEL with searchMulti.
@@ -174,6 +218,11 @@ export function useSearch(args: UseSearchArgs) {
 
     Promise.all([searchMulti(q), peoplePromise])
       .then(([items, peopleRaw]) => {
+        // ── Stale-response guard ───────────────────────────────────
+        // If a newer search has been initiated since this one started,
+        // this response is stale — silently discard it.
+        if (signal.aborted || thisRequestId !== searchRequestId) return;
+
         const movies = items.filter((t) => t.media_type === "movie");
         const series = items.filter((t) => t.media_type === "tv");
 
@@ -207,6 +256,8 @@ export function useSearch(args: UseSearchArgs) {
         };
 
         const finalize = (animeTitles: TMDBTitle[]) => {
+          // Double-check the guard before committing results to state.
+          if (signal.aborted || thisRequestId !== searchRequestId) return;
           const merged = mergeAnime(animeTitles);
           const totalCount = merged.movies.length + merged.series.length;
           setResults({
@@ -227,11 +278,20 @@ export function useSearch(args: UseSearchArgs) {
         }
       })
       .catch((err) => {
+        // AbortError is expected when a new search supersedes this one.
+        if (signal.aborted) return;
+        // Stale-response guard
+        if (thisRequestId !== searchRequestId) return;
         console.error("Search failed:", err);
         setError("Search failed. Please try again.");
         setResults(emptyResults());
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        // Only clear loading if this is still the active request.
+        if (thisRequestId === searchRequestId) {
+          setLoading(false);
+        }
+      });
   });
 
   /* ---- GENRE BROWSE ---- */

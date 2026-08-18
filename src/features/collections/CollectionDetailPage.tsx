@@ -11,6 +11,7 @@ import { isServer } from "solid-js/web";
 import { useParams, useNavigate } from "@solidjs/router";
 import PageContainer from "~/shared/ui/PageContainer";
 import ScrollToTop from "~/shared/ui/ScrollToTop";
+import { NotFoundState } from "~/shared/ui/states";
 import { useVault } from "~/features/watchlist/useVault";
 import { createVaultItemInSupabase } from "~/features/watchlist/vaultAdapter";
 import { getCurrentUid } from "~/shared/hooks/useAuth";
@@ -759,9 +760,17 @@ export default function CollectionDetailPage() {
       <ScrollToTop />
       <div class="ambient-glow" aria-hidden="true" />
 
-      {/* Loading state — always renders during SSR + initial client load */}
+      {/* Loading state — always renders during SSR + initial client load.
+          Includes a11y attributes for screen readers. */}
       <Show when={loading()}>
-        <div class="page-enter" style={{ padding: "var(--sp-12) var(--sp-5)" }}>
+        <div
+          class="page-enter"
+          style={{ padding: "var(--sp-12) var(--sp-5)" }}
+          role="status"
+          aria-live="polite"
+          aria-busy="true"
+          aria-label="Loading collection"
+        >
           {/* Simple skeleton — the hero loads fast so we don't need
               a fancy multi-shape placeholder. */}
           <div
@@ -772,6 +781,7 @@ export default function CollectionDetailPage() {
               "border-radius": "var(--radius-md)",
               "margin-bottom": "var(--sp-4)"
             }}
+            aria-hidden="true"
           />
           <div
             class="skeleton-base"
@@ -780,40 +790,26 @@ export default function CollectionDetailPage() {
               height: "1.5rem",
               margin: "0 auto var(--sp-2)"
             }}
+            aria-hidden="true"
           />
           <div
             class="skeleton-base"
             style={{ width: "40%", height: "1rem", margin: "0 auto" }}
+            aria-hidden="true"
           />
         </div>
       </Show>
 
-      {/* Not found state */}
+      {/* Not found state — uses the shared NotFoundState component
+          for consistent UX and a11y across the app. */}
       <Show when={!loading() && notFound()}>
-        <div class="page-enter">
-          <button
-            type="button"
-            class="collections-back-btn"
-            onClick={() => navigate("/collections")}
-            aria-label="Back to Collections"
-          >
-            <span
-              class="material-symbols-outlined"
-              style={{ "font-size": "18px" }}
-              aria-hidden="true"
-            >
-              arrow_back
-            </span>
-          </button>
-          <div class="collections-detail-empty">
-            <p class="type-body-soft" style={{ "text-align": "center" }}>
-              Collection not found.
-            </p>
-            <button class="btn-ghost" onClick={() => navigate("/collections")}>
-              Back to Collections
-            </button>
-          </div>
-        </div>
+        <NotFoundState
+          resourceType="Collection"
+          message="This collection may have been deleted or is no longer available."
+          backHref="/collections"
+          backLabel="Back to Collections"
+          variant="page"
+        />
       </Show>
 
       {/* Loaded state */}

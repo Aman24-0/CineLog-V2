@@ -44,12 +44,8 @@ import { For, Show, type Component } from "solid-js";
 import { Title } from "@solidjs/meta";
 import PageContainer from "~/shared/ui/PageContainer";
 import ScrollToTop from "~/shared/ui/ScrollToTop";
-// Phase 14 Chunk 5 fix — use GlassButton for the Export/Import actions
-// so they adapt to the active accent color (var(--p)) via the standard
-// variant system instead of the previous hardcoded #f5c518 yellow.
-// • Export  → variant="primary"  (filled accent, main action)
-// • Import  → variant="ghost"    (transparent w/ accent text, secondary)
-import { GlassButton } from "~/shared/ui/glass";
+import { GlassButton, GlassSkeleton } from "~/shared/ui/glass";
+import { ErrorState } from "~/shared/ui/states";
 
 // Account sheets (email/password changes, deactivate, sign-out).
 // These render at the page root so they overlay correctly — they're
@@ -106,6 +102,46 @@ const SettingsPage: Component = () => {
       <Title>CineLog — Settings</Title>
       <PageContainer width="narrow" paddingTop="0" paddingBottom="var(--sp-12)">
         <ScrollToTop />
+
+        {/* Loading state — skeleton while initial profile/auth data loads */}
+        <Show when={s.settingsLoading()}>
+          <div class="sec-page sec-fade-in" aria-busy="true" aria-live="polite">
+            <div class="sec-header">
+              <GlassSkeleton class="h-4 w-16 rounded" />
+              <GlassSkeleton class="h-6 w-32 rounded mt-2" />
+              <GlassSkeleton class="h-4 w-64 rounded mt-2" />
+            </div>
+            <div class="settings-skeleton-grid" style={{ display: "grid", "grid-template-columns": "1fr", gap: "var(--sp-4)", "margin-top": "var(--sp-6)" }}>
+              <For each={Array.from({ length: 6 })}>
+                {() => (
+                  <div style={{ display: "flex", gap: "var(--sp-3)", "align-items": "center" }}>
+                    <GlassSkeleton class="h-10 w-10 rounded-lg" />
+                    <div style={{ flex: "1" }}>
+                      <GlassSkeleton class="h-4 w-40 rounded" />
+                      <GlassSkeleton class="h-3 w-56 rounded mt-1" />
+                    </div>
+                  </div>
+                )}
+              </For>
+            </div>
+          </div>
+        </Show>
+
+        {/* Error state — initial load failed */}
+        <Show when={!s.settingsLoading() && s.settingsError()}>
+          <div class="sec-page sec-fade-in">
+            <ErrorState
+              icon="cloud_off"
+              title="Couldn't load settings"
+              message="We couldn't fetch your profile and preferences. Please try again."
+              variant="page"
+              onRetry={() => void s.retryLoad()}
+            />
+          </div>
+        </Show>
+
+        {/* Main content — only show once initial load is done */}
+        <Show when={!s.settingsLoading() && !s.settingsError()}>
         <div class="sec-page sec-fade-in">
           {/* Header */}
           <div class="sec-header">
@@ -264,6 +300,7 @@ const SettingsPage: Component = () => {
             </div>
           </div>
         </div>
+        </Show>
       </PageContainer>
 
       {/* Sheets — rendered at the page root so they overlay correctly.

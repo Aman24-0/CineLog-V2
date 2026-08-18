@@ -29,6 +29,7 @@ import { getClient } from "~/lib/supabase/client";
 
 import { PageContainer } from "~/shared/ui";
 import { GlassButton, GlassEmptyState, GlassSkeleton } from "~/shared/ui/glass";
+import { ErrorState, RefreshingIndicator } from "~/shared/ui/states";
 
 import { useProfileData } from "./useProfileData";
 import { useStats } from "./useStats";
@@ -57,7 +58,7 @@ const ProfilePage: Component = () => {
   const uid = () => user()?.uid;
   const oauthAvatarUrl = () => user()?.photoURL ?? null;
 
-  const { data, loading, error, refetch, watchlist } = useProfileData();
+  const { data, loading, refreshing, error, refetch, watchlist } = useProfileData();
   const { stats } = useStats();
   const { activeTab, setActiveTab } = useProfileTabs();
 
@@ -142,21 +143,14 @@ const ProfilePage: Component = () => {
 
         {/* Error state */}
         <Show when={!loading() && isSignedIn() && (!!error() || !data())}>
-          <div class="profile-error" role="alert">
-            <GlassEmptyState
+          <div class="profile-error">
+            <ErrorState
               icon="cloud_off"
               title="Something went wrong"
               message="We couldn't load your profile. Tap to retry."
-            >
-              <GlassButton
-                variant="ghost"
-                size="default"
-                onClick={() => refetch()}
-                aria-label="Retry"
-              >
-                Retry
-              </GlassButton>
-            </GlassEmptyState>
+              variant="page"
+              onRetry={() => refetch()}
+            />
           </div>
         </Show>
 
@@ -186,6 +180,10 @@ const ProfilePage: Component = () => {
 
         {/* ── SIGNED IN — FULL PROFILE (V3 LAYOUT) ── */}
         <Show when={!loading() && isSignedIn() && data()}>
+          {/* Refreshing indicator — subtle bar at top while data is being refreshed */}
+          <Show when={refreshing()}>
+            <RefreshingIndicator placement="top" message="Updating profile…" />
+          </Show>
           <div class="profile-content-v3">
             {/* 1. Banner */}
             <section

@@ -1,5 +1,5 @@
 // src/routes/watchlist.tsx
-import { lazy, Suspense } from "solid-js";
+import { lazy, Suspense, ErrorBoundary } from "solid-js";
 import { Title, Link, Meta } from "@solidjs/meta";
 import { GlassSkeleton } from "~/shared/ui/glass";
 
@@ -24,9 +24,27 @@ export default function WatchlistRoute() {
       <Title>CineLog — Watchlist</Title>
       <Link rel="canonical" href="https://cinelog.app/watchlist" />
       <Meta name="description" content="Track and organize your movie and TV show watchlist with CineLog." />
-      <Suspense fallback={<WatchlistRouteFallback />}>
-        <WatchlistView />
-      </Suspense>
+      <ErrorBoundary
+        fallback={(error, reset) => (
+          <div class="sec-page" style={{ padding: "var(--sp-12) var(--sp-5)" }}>
+            <div class="glass-empty-state" role="alert">
+              <h3 class="glass-empty-state-title">Something went wrong</h3>
+              <p class="glass-empty-state-body">{error.message}</p>
+              <button
+                class="btn-primary focus-ring"
+                onClick={() => reset()}
+                style={{ "margin-top": "var(--sp-2)" }}
+              >
+                Retry
+              </button>
+            </div>
+          </div>
+        )}
+      >
+        <Suspense fallback={<WatchlistRouteFallback />}>
+          <WatchlistView />
+        </Suspense>
+      </ErrorBoundary>
     </>
   );
 }

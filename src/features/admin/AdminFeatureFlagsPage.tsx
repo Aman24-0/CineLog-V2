@@ -297,13 +297,23 @@ const AdminFeatureFlagsPage: Component = () => {
                 historyLoading()[flag.name] === true;
 
               return (
-                <GlassCard class="admin-flag-card" padding="default">
+                <GlassCard
+                  class={`admin-flag-card${!value() ? " opacity-70" : ""}`}
+                  padding="default"
+                >
                   <div class="admin-flag-row">
                     <div class="admin-flag-icon">{flag.icon}</div>
                     <div class="admin-flag-body">
                       <div class="admin-flag-name">
                         <h4>{flag.name}</h4>
-                        <Show when={value() !== flag.default_value}>
+                        <Show when={!value()}>
+                          <GlassBadge
+                            intent="danger"
+                            label="Disabled"
+                            size="compact"
+                          />
+                        </Show>
+                        <Show when={value() !== flag.default_value && value()}>
                           <GlassBadge
                             intent="primary"
                             label="Modified"
@@ -325,6 +335,18 @@ const AdminFeatureFlagsPage: Component = () => {
                       <p class="admin-flag-enforced">
                         Enforced in: <code>{flag.enforced_in}</code>
                       </p>
+                      <Show when={!value()}>
+                        <p
+                          style={{
+                            "font-size": "0.7rem",
+                            color: "var(--text-dim, rgba(255,255,255,0.35))",
+                            "margin-top": "2px",
+                            "font-style": "italic"
+                          }}
+                        >
+                          Users will not see this feature until re-enabled.
+                        </p>
+                      </Show>
                     </div>
                     <button
                       class="admin-config-toggle"

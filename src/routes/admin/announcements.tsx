@@ -14,8 +14,9 @@
 
 import { Title } from "@solidjs/meta";
 import { useNavigate } from "@solidjs/router";
-import { onMount } from "solid-js";
+import { onMount, ErrorBoundary } from "solid-js";
 import AdminShell from "~/features/admin/AdminShell";
+import { ErrorState } from "~/shared/ui/states";
 
 export default function AdminAnnouncementsRedirect() {
   const navigate = useNavigate();
@@ -26,20 +27,31 @@ export default function AdminAnnouncementsRedirect() {
   return (
     <AdminShell>
       <Title>CineLog Admin — Redirecting…</Title>
-      {/* Fallback meta refresh for the no-JS case. */}
-      <meta
-        http-equiv="refresh"
-        content="0; url=/admin/communication/announcements"
-      />
-      <div class="flex items-center justify-center py-12 text-sm text-text-muted">
-        <span
-          class="material-symbols-outlined mr-2 animate-spin"
-          aria-hidden="true"
-        >
-          progress_activity
-        </span>
-        Redirecting to Communication Hub → Announcements…
-      </div>
+      <ErrorBoundary
+        fallback={(error, reset) => (
+          <ErrorState
+            title="Redirect error"
+            message={error.message}
+            variant="section"
+            onRetry={() => reset()}
+          />
+        )}
+      >
+        {/* Fallback meta refresh for the no-JS case. */}
+        <meta
+          http-equiv="refresh"
+          content="0; url=/admin/communication/announcements"
+        />
+        <div class="flex items-center justify-center py-12 text-sm text-text-muted">
+          <span
+            class="material-symbols-outlined mr-2 animate-spin"
+            aria-hidden="true"
+          >
+            progress_activity
+          </span>
+          Redirecting to Communication Hub → Announcements…
+        </div>
+      </ErrorBoundary>
     </AdminShell>
   );
 }

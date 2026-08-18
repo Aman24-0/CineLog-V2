@@ -273,6 +273,7 @@ export function useNotifications() {
   const [notifications, setNotifications] = createSignal<NotificationRow[]>([]);
   const [reminders, setReminders] = createSignal<UserReminderRow[]>([]);
   const [loading, setLoading] = createSignal(false);
+  const [error, setError] = createSignal<string | null>(null);
 
   const uid = (): string | null => user()?.uid ?? null;
 
@@ -280,6 +281,7 @@ export function useNotifications() {
     const id = uid();
     if (!id) return;
     setLoading(true);
+    setError(null);
     try {
       const [notifs, rems] = await Promise.all([
         getNotifications(id, 50),
@@ -287,6 +289,10 @@ export function useNotifications() {
       ]);
       setNotifications(notifs);
       setReminders(rems);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to load notifications";
+      setError(msg);
+      console.warn("[useNotifications] refresh failed:", err);
     } finally {
       setLoading(false);
     }
@@ -786,6 +792,7 @@ export function useNotifications() {
     reminders: reminders as Accessor<UserReminderRow[]>,
     unreadCount,
     loading,
+    error: error as Accessor<string | null>,
     refresh,
     scheduleReminder,
     cancelReminder,

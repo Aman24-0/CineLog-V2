@@ -59,6 +59,7 @@ import { GlassLoadingState } from "~/shared/ui/glass/GlassLoadingState";
 import { GlassEmptyState } from "~/shared/ui/glass/GlassEmptyState";
 import { DonutChart } from "~/features/stats/components/SvgChart";
 import AuditTrailWidget from "~/features/admin/components/AuditTrailWidget";
+import { ErrorState, RefreshingIndicator } from "~/shared/ui/states";
 
 // ─── Types ─────────────────────────────────────────────────────
 
@@ -260,9 +261,12 @@ const RecentUserSignups: Component = () => {
       </Show>
 
       <Show when={error()}>
-        <div class="px-3 py-2 text-xs text-danger" role="alert">
-          Failed to load: {error()}
-        </div>
+        <ErrorState
+          title="Failed to load signups"
+          message={error()!}
+          variant="section"
+          onRetry={fetchSignups}
+        />
       </Show>
 
       <Show when={!loading() && !error() && users().length === 0}>
@@ -318,10 +322,13 @@ const AdminDashboard: Component = () => {
   const [services, setServices] = createSignal<ServiceHealth[]>([]);
   const [servicesLoading, setServicesLoading] = createSignal(true);
   const [servicesError, setServicesError] = createSignal<string | null>(null);
+  // Refreshing state — true during background polling (60s refresh),
+  // distinct from the initial loading state. Shows RefreshingIndicator.
+  const [refreshing, setRefreshing] = createSignal(false);
 
   let pollTimer: ReturnType<typeof setInterval> | undefined;
 
-  const fetchStats = async () => {
+  const fetchStats = async (isRefresh = false) => {
     // Skip polling when the document is hidden (e.g. user switched to
     // another tab or minimized the window). The visibilitychange
     // listener below restarts polling when the tab becomes visible
@@ -330,6 +337,7 @@ const AdminDashboard: Component = () => {
     if (typeof document !== "undefined" && document.hidden) {
       return;
     }
+    if (isRefresh) setRefreshing(true);
     try {
       const resp = await fetch("/api/admin/stats", {
         credentials: "include",
@@ -351,6 +359,7 @@ const AdminDashboard: Component = () => {
       setError(msg);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -358,8 +367,9 @@ const AdminDashboard: Component = () => {
   // gate with the stats poller so the two stay in sync. Pausing on
   // hidden avoids 60 wasted /api/admin/services/status calls per
   // hour per hidden tab.
-  const fetchServices = async () => {
+  const fetchServices = async (isRefresh = false) => {
     if (typeof document !== "undefined" && document.hidden) return;
+    if (isRefresh) setRefreshing(true);
     try {
       const resp = await fetch("/api/admin/services/status", {
         credentials: "include"
@@ -376,6 +386,7 @@ const AdminDashboard: Component = () => {
       setServicesError(err instanceof Error ? err.message : "Unknown error");
     } finally {
       setServicesLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -393,11 +404,11 @@ const AdminDashboard: Component = () => {
       }
     } else {
       if (!pollTimer) {
-        void fetchStats();
-        void fetchServices();
+        void fetchStats(true);
+        void fetchServices(true);
         pollTimer = setInterval(() => {
-          void fetchStats();
-          void fetchServices();
+          void fetchStats(true);
+          void fetchServices(true);
         }, 60_000);
       }
     }
@@ -407,8 +418,8 @@ const AdminDashboard: Component = () => {
     void fetchStats();
     void fetchServices();
     pollTimer = setInterval(() => {
-      void fetchStats();
-      void fetchServices();
+      void fetchStats(true);
+      void fetchServices(true);
     }, 60_000);
     document.addEventListener("visibilitychange", handleVisibilityChange);
   });
@@ -487,9 +498,14 @@ const AdminDashboard: Component = () => {
           <h2 class="m-0 mb-1 text-2xl font-bold text-text-strong">
             Dashboard
           </h2>
-          <p class="m-0 text-sm text-text-muted">
-            Real-time overview of CineLog V2 platform metrics
-          </p>
+          <div class="flex items-center gap-2">
+            <p class="m-0 text-sm text-text-muted">
+              Real-time overview of CineLog V2 platform metrics
+            </p>
+            <Show when={refreshing()}>
+              <RefreshingIndicator placement="inline" message="Refreshing…" />
+            </Show>
+          </div>
         </div>
         <Show when={lastUpdated()}>
           <div class="flex items-center gap-3 text-xs text-text-muted">
@@ -502,8 +518,8 @@ const AdminDashboard: Component = () => {
                 onClick={() => {
                   setLoading(true);
                   setServicesLoading(true);
-                  void fetchStats();
-                  void fetchServices();
+                  void fetchStats(true);
+                  void fetchServices(true);
                 }}
                 aria-label="Refresh stats"
               >
@@ -514,20 +530,17 @@ const AdminDashboard: Component = () => {
         </Show>
       </div>
 
-      {/* ─── Error banner ───────────────────────────────────── */}
+      {/* ─── Error state ───────────────────────────────────── */}
       <Show when={error()}>
-        <div
-          role="alert"
-          class="flex items-center gap-2 rounded-md border border-danger/30 bg-danger-bg px-4 py-3 text-sm text-danger"
-        >
-          <span
-            class="material-symbols-outlined text-base"
-            aria-hidden="true"
-          >
-            error
-          </span>
-          Failed to load stats: {error()}
-        </div>
+        <ErrorState
+          title="Failed to load dashboard stats"
+          message={error()!}
+          variant="section"
+          onRetry={() => {
+            setLoading(true);
+            void fetchStats();
+          }}
+        />
       </Show>
 
       {/* ─── Service Health Strip (Phase 9 Chunk 2 — live data) ───

@@ -217,6 +217,10 @@ export function useProfileData() {
   const [data, setData] = createSignal<ProfileData | null>(null);
   const [fetching, setFetching] = createSignal(false);
   const [fetchError, setFetchError] = createSignal<Error | null>(null);
+  // `loaded` tracks whether the first successful fetch has completed.
+  // Used to distinguish initial loading (show skeleton) from refreshing
+  // (show RefreshingIndicator while keeping existing content visible).
+  const [loaded, setLoaded] = createSignal(false);
 
   const uid = createMemo(() => user()?.uid ?? null);
 
@@ -302,6 +306,7 @@ export function useProfileData() {
       // Discard stale result if user changed while fetch was in-flight
       if (uid() !== id) return;
       setData(result);
+      setLoaded(true);
     } catch (err) {
       console.error("[useProfileData] Fetch failed:", err);
       // Discard stale error if user changed while fetch was in-flight
@@ -328,8 +333,11 @@ export function useProfileData() {
     }
   });
 
-  // loading is true while auth is resolving OR while the fetch is in flight.
-  const loading = createMemo(() => !authReady() || fetching());
+  // loading is true while auth is resolving OR while the initial fetch is in flight.
+  // Once loaded, subsequent fetches are "refreshes" — the existing content
+  // stays visible and a RefreshingIndicator is shown instead of a skeleton.
+  const loading = createMemo(() => !authReady() || (fetching() && !loaded()));
+  const refreshing = createMemo(() => fetching() && loaded());
   const error = createMemo(() => fetchError());
 
   /**
@@ -361,6 +369,7 @@ export function useProfileData() {
   return {
     data,
     loading,
+    refreshing,
     error,
     saving,
     saveProfile,

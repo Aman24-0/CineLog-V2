@@ -104,6 +104,14 @@ export function useSettingsState(): SettingsState {
     new Set(["account"])
   );
 
+  // ── Page-level loading / error state ──────────────────────────────
+  // Tracks the initial data load (loadProfile + refreshHasPassword).
+  // Once loaded, subsequent mutations don't flip `loading` back to true
+  // — they use per-action signals (savingProfile, linkingProvider, etc.)
+  // so the existing content stays visible.
+  const [settingsLoading, setSettingsLoading] = createSignal(true);
+  const [settingsError, setSettingsError] = createSignal<Error | null>(null);
+
   // ── Account state ────────────────────────────────────────────────
   const [hasPassword, setHasPassword] = createSignal<boolean>(false);
   // Country: initialise from localStorage so the picker doesn't flash
@@ -139,6 +147,9 @@ export function useSettingsState(): SettingsState {
   // only consumer that needs to know the banner TYPE, not just the URL).
   const [editingProfile, setEditingProfile] = createSignal(false);
   const [savingProfile, setSavingProfile] = createSignal(false);
+  // Mutation status for the inline profile save — tracks idle/submitting/success/error
+  // so MutationButton can show appropriate feedback.
+  const [saveProfileStatus, setSaveProfileStatus] = createSignal<"idle" | "submitting" | "success" | "error">("idle");
   const [nameInput, setNameInput] = createSignal("");
   const [bioInput, setBioInput] = createSignal("");
   const [showEmailSheet, setShowEmailSheet] = createSignal(false);
@@ -202,9 +213,21 @@ export function useSettingsState(): SettingsState {
   >("default");
 
   // ── Initial data loading ────────────────────────────────────────
-  onMount(() => {
-    void refreshHasPassword();
-    void loadProfile();
+  onMount(async () => {
+    setSettingsLoading(true);
+    setSettingsError(null);
+    try {
+      await Promise.all([
+        refreshHasPassword(),
+        loadProfile()
+      ]);
+    } catch (err) {
+      console.error("[settings] Initial load failed:", err);
+      setSettingsError(err instanceof Error ? err : new Error(String(err)));
+    } finally {
+      setSettingsLoading(false);
+    }
+    // Providers load independently — don't block the page on them.
     void loadProviders(region());
 
     // Re-apply the custom accent on mount. The customAccent.ts
@@ -593,6 +616,7 @@ export function useSettingsState(): SettingsState {
       return;
     }
     setSavingProfile(true);
+    setSaveProfileStatus("submitting");
     try {
       const { error } = await profileRepo.updateProfile(uid, {
         displayName: trimmedName,
@@ -602,9 +626,13 @@ export function useSettingsState(): SettingsState {
       setDisplayName(trimmedName);
       setBio(bioInput().trim());
       setEditingProfile(false);
+      setSaveProfileStatus("success");
       showToast("Profile saved.", "success", 1500);
+      // Auto-reset to idle after 2s so the button re-enables
+      setTimeout(() => setSaveProfileStatus("idle"), 2000);
     } catch (err) {
       console.error("[settings] Failed to save profile:", err);
+      setSaveProfileStatus("error");
       showToast("Failed to save profile.", "error");
     } finally {
       setSavingProfile(false);
@@ -1096,6 +1124,23 @@ export function useSettingsState(): SettingsState {
     }
   };
 
+  // Retry the initial load (used by ErrorState onRetry).
+  const retryLoad = async () => {
+    setSettingsLoading(true);
+    setSettingsError(null);
+    try {
+      await Promise.all([
+        refreshHasPassword(),
+        loadProfile()
+      ]);
+    } catch (err) {
+      console.error("[settings] Retry load failed:", err);
+      setSettingsError(err instanceof Error ? err : new Error(String(err)));
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
   // Highlight matched text in section titles/descriptions.
   const highlightText = (text: string): JSX.Element => {
     const q = query().trim();
@@ -1142,6 +1187,11 @@ export function useSettingsState(): SettingsState {
     user,
     isSignedIn,
 
+    // Page-level loading / error
+    settingsLoading,
+    settingsError,
+    retryLoad,
+
     // Account state
     hasPassword,
     country,
@@ -1149,6 +1199,7 @@ export function useSettingsState(): SettingsState {
     bio,
     editingProfile,
     savingProfile,
+    saveProfileStatus,
     nameInput,
     bioInput,
     setNameInput,

@@ -51,6 +51,8 @@ import { GlassEmptyState } from "~/shared/ui/glass/GlassEmptyState";
 import { GlassLoadingState } from "~/shared/ui/glass/GlassLoadingState";
 import UserDetailDrawer from "~/features/admin/components/UserDetailDrawer";
 import { useAdminAuth } from "./hooks/useAdminAuth";
+import { LoadMoreState, MutationButton, ErrorState } from "~/shared/ui/states";
+import type { MutationStatus } from "~/shared/ui/states";
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -110,7 +112,9 @@ const AdminUsersPage: Component = () => {
   const [refreshKey, setRefreshKey] = createSignal(0);
   const [confirmDialog, setConfirmDialog] =
     createSignal<ConfirmDialogState | null>(null);
-  const [actionLoading, setActionLoading] = createSignal(false);
+  const [actionStatus, setActionStatus] = createSignal<MutationStatus>("idle");
+  // Search loading state — true while debounced search is pending.
+  const [searchPending, setSearchPending] = createSignal(false);
 
   // Bulk mode (Phase 6 Part 3 — Task 4, restyled in Chunk 3).
   const [selectedIds, setSelectedIds] = createSignal<Set<string>>(
@@ -120,7 +124,8 @@ const AdminUsersPage: Component = () => {
   const [bulkConfirm, setBulkConfirm] = createSignal<BulkConfirmState | null>(
     null
   );
-  const [bulkLoading, setBulkLoading] = createSignal(false);
+  const [bulkStatus, setBulkStatus] = createSignal<MutationStatus>("idle");
+  const bulkLoading = () => bulkStatus() === "submitting";
 
   // Drawer (Phase 9 Chunk 3).
   const [drawerUserId, setDrawerUserId] = createSignal<string | null>(null);
@@ -134,10 +139,12 @@ const AdminUsersPage: Component = () => {
   let searchDebounce: ReturnType<typeof setTimeout> | undefined;
   const debouncedSearch = (val: string) => {
     clearTimeout(searchDebounce);
+    setSearchPending(true);
     searchDebounce = setTimeout(() => {
       setSearch(val);
       setPage(1);
       setRefreshKey((k) => k + 1);
+      setSearchPending(false);
     }, 300);
   };
 
@@ -191,7 +198,7 @@ const AdminUsersPage: Component = () => {
     const dialog = confirmDialog();
     if (!dialog) return;
 
-    setActionLoading(true);
+    setActionStatus("submitting");
     try {
       const resp = await fetch("/api/admin/users", {
         method: "PATCH",
@@ -205,6 +212,7 @@ const AdminUsersPage: Component = () => {
       const body = await resp.json().catch(() => ({}));
       if (!resp.ok || body.error) {
         showToast(body.error || `Failed: ${resp.status}`, "error");
+        setActionStatus("error");
       } else {
         const actionLabels: Record<string, string> = {
           disable: "User disabled",
@@ -216,14 +224,24 @@ const AdminUsersPage: Component = () => {
           actionLabels[dialog.action] || "Action complete",
           "success"
         );
+        setActionStatus("success");
         setRefreshKey((k) => k + 1);
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Network error";
       showToast(msg, "error");
+      setActionStatus("error");
     } finally {
-      setActionLoading(false);
-      setConfirmDialog(null);
+      // Delay closing dialog briefly so user sees success state
+      if (actionStatus() === "success") {
+        setTimeout(() => {
+          setConfirmDialog(null);
+          setActionStatus("idle");
+        }, 800);
+      } else if (actionStatus() !== "submitting") {
+        // Keep dialog open on error so user can retry
+        // but reset to idle so the button is re-clickable
+      }
     }
   };
 
@@ -266,7 +284,7 @@ const AdminUsersPage: Component = () => {
     const dialog = bulkConfirm();
     if (!dialog) return;
 
-    setBulkLoading(true);
+    setBulkStatus("submitting");
     try {
       const ids = Array.from(selectedIds());
       const resp = await fetch("/api/admin/users", {
@@ -281,6 +299,7 @@ const AdminUsersPage: Component = () => {
       const body = await resp.json().catch(() => ({}));
       if (!resp.ok || body.error) {
         showToast(body.error || `Failed: ${resp.status}`, "error");
+        setBulkStatus("error");
       } else {
         const applied: number = body.applied ?? 0;
         const skipped: number = body.skipped ?? 0;
@@ -297,15 +316,21 @@ const AdminUsersPage: Component = () => {
             applied > 0 ? "success" : "error"
           );
         }
+        setBulkStatus("success");
         setRefreshKey((k) => k + 1);
-        exitBulkMode();
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Network error";
       showToast(msg, "error");
+      setBulkStatus("error");
     } finally {
-      setBulkLoading(false);
-      setBulkConfirm(null);
+      if (bulkStatus() === "success") {
+        setTimeout(() => {
+          setBulkConfirm(null);
+          setBulkStatus("idle");
+          exitBulkMode();
+        }, 800);
+      }
     }
   };
 
@@ -440,13 +465,20 @@ const AdminUsersPage: Component = () => {
       {/* ─── Filter bar ─────────────────────────────────────── */}
       <GlassCard padding="default" class="flex flex-col gap-3">
         <div class="flex flex-col gap-3 lg:flex-row lg:items-end">
-          <div class="flex-1">
+          <div class="relative flex-1">
             <GlassInput
               type="text"
               icon="search"
               placeholder="Search by username or display name…"
               onInput={(e) => debouncedSearch(e.currentTarget.value)}
             />
+            <Show when={searchPending()}>
+              <span
+                class="absolute right-3 top-1/2 inline-block h-3.5 w-3.5 -translate-y-1/2 animate-spin rounded-full border-2 border-primary border-t-transparent"
+                aria-hidden="true"
+                role="status"
+              />
+            </Show>
           </div>
           <FilterSelect<FilterValue>
             value={providerFilter()}
@@ -580,12 +612,11 @@ const AdminUsersPage: Component = () => {
       </Show>
 
       <Show when={users.error}>
-        <GlassEmptyState
-          icon="error"
+        <ErrorState
           title="Failed to load users"
           message={String(users.error?.message ?? users.error)}
-          variant="default"
-          surface
+          variant="section"
+          onRetry={() => setRefreshKey((k) => k + 1)}
         />
       </Show>
 
@@ -931,42 +962,19 @@ const AdminUsersPage: Component = () => {
         </div>
       </Show>
 
-      {/* ─── Pagination ─────────────────────────────────────── */}
-      <Show when={users() && users()!.total > PAGE_SIZE}>
-        <div class="flex flex-col items-center justify-between gap-2 text-xs text-text-muted sm:flex-row">
-          <span>
-            Showing {(page() - 1) * PAGE_SIZE + 1}–
-            {Math.min(page() * PAGE_SIZE, users()?.total ?? 0)} of{" "}
-            {users()?.total ?? 0}
-          </span>
-          <div class="flex items-center gap-2">
-            <GlassButton
-              variant="glass"
-              size="compact"
-              disabled={page() === 1}
-              onClick={() => {
-                setPage((p) => Math.max(1, p - 1));
-                setRefreshKey((k) => k + 1);
-              }}
-            >
-              ← Prev
-            </GlassButton>
-            <span class="px-2 py-1">
-              {page()} / {totalPages()}
-            </span>
-            <GlassButton
-              variant="glass"
-              size="compact"
-              disabled={page() >= totalPages()}
-              onClick={() => {
-                setPage((p) => Math.min(totalPages(), p + 1));
-                setRefreshKey((k) => k + 1);
-              }}
-            >
-              Next →
-            </GlassButton>
-          </div>
-        </div>
+      {/* ─── Pagination (LoadMoreState) ────────────────────── */}
+      <Show when={users()}>
+        <LoadMoreState
+          loading={users.loading}
+          hasMore={page() < totalPages()}
+          error={users.error ? String(users.error?.message ?? users.error) : null}
+          onLoadMore={() => {
+            setPage((p) => p + 1);
+            setRefreshKey((k) => k + 1);
+          }}
+          onRetry={() => setRefreshKey((k) => k + 1)}
+          endMessage={`Showing all ${users()?.total ?? 0} users`}
+        />
       </Show>
 
       {/* ─── Single-user confirm dialog ─────────────────────── */}
@@ -979,7 +987,7 @@ const AdminUsersPage: Component = () => {
               "backdrop-filter": "blur(20px) saturate(140%)",
               "-webkit-backdrop-filter": "blur(20px) saturate(140%)"
             }}
-            onClick={() => !actionLoading() && setConfirmDialog(null)}
+            onClick={() => actionStatus() !== "submitting" && (setConfirmDialog(null), setActionStatus("idle"))}
           >
             <GlassCard
               padding="comfortable"
@@ -1010,20 +1018,20 @@ const AdminUsersPage: Component = () => {
                 <GlassButton
                   variant="glass"
                   size="compact"
-                  onClick={() => setConfirmDialog(null)}
-                  disabled={actionLoading()}
+                  onClick={() => { setConfirmDialog(null); setActionStatus("idle"); }}
+                  disabled={actionStatus() === "submitting"}
                 >
                   Cancel
                 </GlassButton>
-                <GlassButton
-                  variant={dialog().action === "delete" ? "danger" : "primary"}
-                  size="compact"
+                <MutationButton
+                  status={actionStatus()}
                   onClick={handleAction}
-                  loading={actionLoading()}
-                  disabled={actionLoading()}
-                >
-                  {actionLoading() ? "Working…" : "Confirm"}
-                </GlassButton>
+                  idleLabel="Confirm"
+                  submittingLabel="Working…"
+                  successLabel="Done!"
+                  errorLabel="Failed"
+                  variant={dialog().action === "delete" ? "danger" : "primary"}
+                />
               </div>
             </GlassCard>
           </div>
@@ -1040,7 +1048,7 @@ const AdminUsersPage: Component = () => {
               "backdrop-filter": "blur(20px) saturate(140%)",
               "-webkit-backdrop-filter": "blur(20px) saturate(140%)"
             }}
-            onClick={() => !bulkLoading() && setBulkConfirm(null)}
+            onClick={() => !bulkLoading() && (setBulkConfirm(null), setBulkStatus("idle"))}
           >
             <GlassCard
               padding="comfortable"
@@ -1075,28 +1083,26 @@ const AdminUsersPage: Component = () => {
                 <GlassButton
                   variant="glass"
                   size="compact"
-                  onClick={() => setBulkConfirm(null)}
+                  onClick={() => { setBulkConfirm(null); setBulkStatus("idle"); }}
                   disabled={bulkLoading()}
                 >
                   Cancel
                 </GlassButton>
-                <GlassButton
+                <MutationButton
+                  status={bulkStatus()}
+                  onClick={handleBulkAction}
+                  idleLabel={`Confirm ${dialog().action} (${dialog().count})`}
+                  submittingLabel="Working…"
+                  successLabel="Done!"
+                  errorLabel="Failed"
                   variant={
                     dialog().action === "delete"
                       ? "danger"
                       : dialog().action === "disable"
-                        ? "secondary"
+                        ? "ghost"
                         : "primary"
                   }
-                  size="compact"
-                  onClick={handleBulkAction}
-                  loading={bulkLoading()}
-                  disabled={bulkLoading()}
-                >
-                  {bulkLoading()
-                    ? "Working…"
-                    : `Confirm ${dialog().action} (${dialog().count})`}
-                </GlassButton>
+                />
               </div>
             </GlassCard>
           </div>

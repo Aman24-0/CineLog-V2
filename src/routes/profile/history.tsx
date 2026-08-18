@@ -1,7 +1,23 @@
 // src/routes/profile/history.tsx
 import { Title } from "@solidjs/meta";
-import { lazy, ErrorBoundary } from "solid-js";
+import { lazy, ErrorBoundary, Suspense } from "solid-js";
+import { GlassSkeleton } from "~/shared/ui/glass";
+import { ErrorState } from "~/shared/ui/states";
 const HistoryPage = lazy(() => import("~/features/profile/HistoryPage"));
+
+function HistoryRouteFallback() {
+  return (
+    <div class="sec-page" aria-busy="true" aria-live="polite">
+      <div class="history-skeleton" style={{ display: "flex", "flex-direction": "column", gap: "var(--sp-3)" }}>
+        <GlassSkeleton class="h-12 w-full rounded-lg" />
+        <GlassSkeleton class="h-12 w-full rounded-lg" />
+        <GlassSkeleton class="h-12 w-full rounded-lg" />
+        <GlassSkeleton class="h-12 w-full rounded-lg" />
+        <GlassSkeleton class="h-12 w-full rounded-lg" />
+      </div>
+    </div>
+  );
+}
 
 export default function HistoryRoute() {
   return (
@@ -10,21 +26,19 @@ export default function HistoryRoute() {
       <ErrorBoundary
         fallback={(error, reset) => (
           <div class="sec-page" style={{ padding: "var(--sp-12) var(--sp-5)" }}>
-            <div class="glass-empty-state" role="alert">
-              <h3 class="glass-empty-state-title">Something went wrong</h3>
-              <p class="glass-empty-state-body">{error.message}</p>
-              <button
-                class="btn-primary focus-ring"
-                onClick={() => reset()}
-                style={{ "margin-top": "var(--sp-2)" }}
-              >
-                Retry
-              </button>
-            </div>
+            <ErrorState
+              icon="error"
+              title="Something went wrong"
+              message={error.message}
+              variant="page"
+              onRetry={() => reset()}
+            />
           </div>
         )}
       >
-        <HistoryPage />
+        <Suspense fallback={<HistoryRouteFallback />}>
+          <HistoryPage />
+        </Suspense>
       </ErrorBoundary>
     </>
   );

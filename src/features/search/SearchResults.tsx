@@ -6,6 +6,7 @@ import SearchResultRow from "./SearchResultRow";
 import SearchEmptyState from "./SearchEmptyState";
 import SearchLoading from "./SearchLoading";
 import PersonModal from "~/features/details/components/PersonModal";
+import { ErrorState } from "~/shared/ui/states";
 
 /**
  * SearchResults — active query results (text search, not genre browse).
@@ -76,7 +77,25 @@ export default function SearchResults(props: SearchResultsProps) {
   return (
     <Show
       when={!props.error()}
-      fallback={<SearchEmptyState error={props.error()} />}
+      fallback={
+        <ErrorState
+          icon="cloud_off"
+          title="Search failed"
+          message={props.error() ?? undefined}
+          retryable={true}
+          onRetry={() => {
+            // Re-trigger search by dispatching an input event on the
+            // active search input, or simply re-setting the query.
+            // This is a best-effort retry — the useSearch hook will
+            // re-fire the search effect when the debounced query
+            // changes. Since we can't force a re-fire from here,
+            // we dispatch a custom event that the search input can
+            // listen for.
+            window.dispatchEvent(new CustomEvent("cinelog:retry-search"));
+          }}
+          variant="section"
+        />
+      }
     >
       <Show when={!props.loading()} fallback={<SearchLoading count={4} />}>
         {/* TMDB results — Movies + Series */}

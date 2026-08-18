@@ -24,6 +24,10 @@ import type { Collection, CollectionEntry } from "~/shared/types";
 export interface CollectionsGridProps {
   loading: Accessor<boolean>;
   userCollections: Accessor<Collection[]>;
+  /** Whether this is the first time the user has any collections.
+   * When true, the empty state is onboarding-style ("Create your first folder").
+   * When false, shows "No folders yet" (could be after filtering). */
+  isFirstUse?: boolean;
 }
 
 export default function CollectionsGrid(props: CollectionsGridProps) {
@@ -37,19 +41,23 @@ export default function CollectionsGrid(props: CollectionsGridProps) {
           when={!props.loading()}
           fallback={<div class="collections-folder-skeleton" />}
         >
-          <div class="collections-empty-folders">
+          <div class="collections-empty-folders" role="status" aria-live="polite">
             <div class="collections-empty-icon" aria-hidden="true">
               <span
                 class="material-symbols-outlined"
                 style={{ "font-size": "40px", color: "var(--p)" }}
                 aria-hidden="true"
               >
-                create_new_folder
+                {props.isFirstUse ? "create_new_folder" : "folder_off"}
               </span>
             </div>
-            <p class="collections-empty-title">No folders yet</p>
+            <p class="collections-empty-title">
+              {props.isFirstUse ? "No collections yet" : "No folders found"}
+            </p>
             <p class="collections-empty-desc">
-              Create a folder to organize your titles.
+              {props.isFirstUse
+                ? "Create your first folder to start organizing your titles."
+                : "No collections match your current view."}
             </p>
           </div>
         </Show>

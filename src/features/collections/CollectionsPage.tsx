@@ -3,6 +3,7 @@ import {
   Show,
   createSignal,
   createMemo,
+  createEffect,
   ErrorBoundary,
   lazy,
   Suspense,
@@ -11,6 +12,7 @@ import {
 import { useNavigate } from "@solidjs/router";
 import PageContainer from "~/shared/ui/PageContainer";
 import ScrollToTop from "~/shared/ui/ScrollToTop";
+import { ErrorState, RefreshingIndicator } from "~/shared/ui/states";
 import { useCollections } from "./hooks/useCollections";
 import { useCuratedUniverses } from "./hooks/useCuratedUniverses";
 import { tmdbImage } from "~/core/tmdb/tmdb";
@@ -53,6 +55,14 @@ export default function CollectionsPage() {
   const { subscribedUniverses } = useCuratedUniverses();
 
   void _curatedCollections;
+
+  // Track whether collections have completed their initial load at least once.
+  // Used to show RefreshingIndicator during background refreshes instead
+  // of the full skeleton loader.
+  const [hasLoadedOnce, setHasLoadedOnce] = createSignal(false);
+  createEffect(() => {
+    if (!loading()) setHasLoadedOnce(true);
+  });
 
   const [showCreate, setShowCreate] = createSignal(false);
   const [newName, setNewName] = createSignal("");
@@ -118,31 +128,15 @@ export default function CollectionsPage() {
         fallback={(err) => {
           console.error("[CollectionsPage] Render error:", err);
           return (
-            <div
+            <ErrorState
+              variant="section"
+              icon="error"
+              title="Failed to load collections"
+              message="Something went wrong while loading your collections. Please try again."
+              retryLabel="Reload"
+              onRetry={() => window.location.reload()}
               class="page-enter"
-              style={{ padding: "var(--sp-8)", "text-align": "center" }}
-            >
-              <p class="type-body-soft">
-                Something went wrong loading collections.
-              </p>
-              <p
-                style={{
-                  "font-size": "0.75rem",
-                  color: "var(--text-dim)",
-                  "margin-top": "var(--sp-2)"
-                }}
-              >
-                {String(err)}
-              </p>
-              <button
-                class="btn-ghost focus-ring"
-                type="button"
-                style={{ "margin-top": "var(--sp-4)" }}
-                onClick={() => window.location.reload()}
-              >
-                Reload
-              </button>
-            </div>
+            />
           );
         }}
       >
@@ -272,9 +266,16 @@ export default function CollectionsPage() {
               </div>
             </Show>
 
+            {/* Refreshing indicator — shows a subtle bar when collections
+                are being refreshed after the initial load. */}
+            <Show when={loading() && hasLoadedOnce()}>
+              <RefreshingIndicator placement="top" message="Refreshing collections…" />
+            </Show>
+
             <CollectionsGrid
               loading={loading}
               userCollections={activeCollections}
+              isFirstUse={!hasLoadedOnce() || userCollections().length === 0}
             />
 
             {/* Archived section — only rendered when the toggle is on.

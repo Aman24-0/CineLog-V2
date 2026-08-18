@@ -64,6 +64,14 @@ export interface SettingsState {
   user: Accessor<User | null>;
   isSignedIn: Accessor<boolean>;
 
+  // ── Page-level loading / error ──────────────────────────────────
+  /** True while the initial profile + auth data is loading. */
+  settingsLoading: Accessor<boolean>;
+  /** Error from the initial load (null once loaded successfully). */
+  settingsError: Accessor<Error | null>;
+  /** Retry the initial load (re-fetches profile + auth state). */
+  retryLoad: () => Promise<void>;
+
   // ── Account state ───────────────────────────────────────────────
   hasPassword: Accessor<boolean>;
   country: Accessor<string>;
@@ -71,6 +79,8 @@ export interface SettingsState {
   bio: Accessor<string>;
   editingProfile: Accessor<boolean>;
   savingProfile: Accessor<boolean>;
+  /** Mutation status for the inline profile save button. */
+  saveProfileStatus: Accessor<"idle" | "submitting" | "success" | "error">;
   nameInput: Accessor<string>;
   bioInput: Accessor<string>;
   setNameInput: Setter<string>;

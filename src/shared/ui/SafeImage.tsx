@@ -69,8 +69,47 @@ const SafeImage: Component<SafeImageProps> = (props) => {
 
   const showFallback = () => !props.src || errored();
 
+  /**
+   * Default fallback — an icon in a glass container that preserves
+   * layout dimensions (width/height) so failed images don't cause
+   * Cumulative Layout Shift. When no explicit dimensions are given,
+   * uses 2:3 aspect ratio (poster default) and 100% width to fill
+   * the parent container.
+   */
+  const defaultFallback = () => (
+    <div
+      class={props.class}
+      style={{
+        ...(typeof props.style === "object" ? props.style : {}),
+        display: "flex",
+        "align-items": "center",
+        "justify-content": "center",
+        width: props.width ? `${props.width}px` : "100%",
+        height: props.height ? `${props.height}px` : undefined,
+        "aspect-ratio": !props.width && !props.height ? "2/3" : undefined,
+        background: "var(--glass-bg, rgba(255,255,255,0.04))",
+        border: "1px solid var(--hairline, rgba(255,255,255,0.08))",
+        "border-radius": "var(--radius-md, 0.5rem)",
+        overflow: "hidden",
+      }}
+      aria-hidden="true"
+    >
+      <span
+        class="material-symbols-outlined"
+        style={{
+          "font-size": "24px",
+          color: "var(--text-muted, rgba(255,255,255,0.3))",
+          opacity: "0.6",
+        }}
+        aria-hidden="true"
+      >
+        broken_image
+      </span>
+    </div>
+  );
+
   return (
-    <Show when={!showFallback()} fallback={props.fallback ?? null}>
+    <Show when={!showFallback()} fallback={props.fallback ?? defaultFallback()}>
       <img
         src={props.src}
         alt={props.alt ?? ""}

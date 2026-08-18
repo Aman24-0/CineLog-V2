@@ -25,6 +25,7 @@ import TwoFactorSetup from "~/features/settings/components/TwoFactorSetup";
 import SessionList from "~/features/settings/components/SessionList";
 import LoginHistoryList from "~/features/settings/components/LoginHistoryList";
 import { SelectRow } from "~/features/settings/sharedControls";
+import { MutationButton } from "~/shared/ui/states";
 
 export function AccountSection(props: { state: SettingsState }) {
   // eslint-disable-next-line solid/reactivity -- props.state is a stable object reference (bag of accessors), not a reactive value; destructuring it once at the top is safe.
@@ -160,19 +161,15 @@ export function AccountSection(props: { state: SettingsState }) {
                             gap: "var(--sp-2)"
                           }}
                         >
-                          <button
-                            type="button"
-                            class="settings-link-btn focus-ring"
+                          <MutationButton
+                            status={s.saveProfileStatus()}
                             onClick={() => void s.handleSaveProfile()}
-                            disabled={s.savingProfile()}
-                          >
-                            <Show
-                              when={!s.savingProfile()}
-                              fallback="Saving…"
-                            >
-                              Save
-                            </Show>
-                          </button>
+                            idleLabel="Save"
+                            submittingLabel="Saving…"
+                            successLabel="Saved!"
+                            errorLabel="Failed"
+                            variant="primary"
+                          />
                           <button
                             type="button"
                             class="settings-link-btn focus-ring"

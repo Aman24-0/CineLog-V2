@@ -259,13 +259,21 @@ const AuthCallback: Component = () => {
         <Show
           when={status() === "loading"}
           fallback={
-            <div class="auth-callback-card" role="alert">
-              <div class="auth-callback-icon" aria-hidden="true">
-                ⚠
+            <div class="auth-callback-card" role="alert" aria-live="assertive">
+              <div class="auth-callback-error-icon" aria-hidden="true">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="12" y1="8" x2="12" y2="12"/>
+                  <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
               </div>
-              <h1 class="auth-callback-title">Sign-in failed</h1>
+              <h1 class="auth-callback-heading">Sign-in failed</h1>
               <p class="auth-callback-message">
-                Sign-in failed: {errorMessage()}
+                {errorMessage() || "The sign-in could not be completed. Please try again."}
+              </p>
+              <p class="auth-callback-hint">
+                This can happen if the authorization code expired, the browser
+                blocked a redirect, or the session couldn't be saved.
               </p>
               <div class="auth-callback-actions">
                 <a class="auth-callback-primary" href="/discover">
@@ -274,19 +282,49 @@ const AuthCallback: Component = () => {
                 <button
                   type="button"
                   class="auth-callback-secondary"
-                  onClick={() => navigate("/discover", { replace: true })}
+                  onClick={() => {
+                    // Re-trigger the OAuth flow by navigating to the
+                    // discover page and opening the auth modal.
+                    navigate("/discover", { replace: true });
+                    // Dispatch a custom event so AppShell knows to open
+                    // the auth modal after navigation completes.
+                    setTimeout(() => {
+                      window.dispatchEvent(
+                        new CustomEvent("cinelog:open-auth-modal")
+                      );
+                    }, 500);
+                  }}
                 >
-                  Try again
+                  Try signing in again
                 </button>
               </div>
             </div>
           }
         >
           <div class="auth-callback-card">
+            {/* Branded loading state — spinner + logo badge */}
+            <div class="auth-callback-logo" aria-hidden="true">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style={{ opacity: 0.7 }}>
+                <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/>
+                <line x1="7" y1="2" x2="7" y2="22"/>
+                <line x1="17" y1="2" x2="17" y2="22"/>
+                <line x1="2" y1="12" x2="22" y2="12"/>
+                <line x1="2" y1="7" x2="7" y2="7"/>
+                <line x1="2" y1="17" x2="7" y2="17"/>
+                <line x1="17" y1="7" x2="22" y2="7"/>
+                <line x1="17" y1="17" x2="22" y2="17"/>
+              </svg>
+            </div>
             <div class="auth-callback-spinner" aria-label="Signing you in" />
-            <h1 class="auth-callback-title">Signing you in…</h1>
+            <h1 class="auth-callback-heading" style={{ color: "#fafafa" }}>
+              Signing you in…
+            </h1>
             <p class="auth-callback-message">
-              You'll be redirected in a moment.
+              Verifying your account with the provider.
+              You'll be redirected automatically.
+            </p>
+            <p class="auth-callback-hint" style={{ "margin-top": "0.75rem" }}>
+              This usually takes a few seconds.
             </p>
           </div>
         </Show>
@@ -323,14 +361,26 @@ const style = `
   max-width: 28rem;
   width: 100%;
   text-align: center;
-  padding: 2rem;
+  padding: 2.5rem 2rem;
   border-radius: 1.5rem;
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(255,255,255,0.08);
   backdrop-filter: blur(28px);
   -webkit-backdrop-filter: blur(28px);
 }
-.auth-callback-icon {
+.auth-callback-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 1rem;
+  background: rgba(99,102,241,0.12);
+  border: 1px solid rgba(99,102,241,0.25);
+  margin-bottom: 1rem;
+  color: #6366f1;
+}
+.auth-callback-error-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -340,38 +390,43 @@ const style = `
   background: rgba(248,113,113,0.10);
   border: 1px solid rgba(248,113,113,0.25);
   margin-bottom: 1rem;
-  font-size: 1.5rem;
   color: #f87171;
-  line-height: 1;
 }
-.auth-callback-title {
-  font-size: 1.125rem;
-  font-weight: 600;
+.auth-callback-heading {
+  font-size: 1.25rem;
+  font-weight: 700;
   margin: 0 0 0.5rem;
-  color: #fca5a5;
+  letter-spacing: -0.01em;
 }
 .auth-callback-message {
   font-size: 0.875rem;
-  line-height: 1.5;
+  line-height: 1.6;
   color: rgba(250,250,250,0.65);
-  margin: 0 0 1.5rem;
+  margin: 0 0 1rem;
   word-break: break-word;
+}
+.auth-callback-hint {
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: rgba(250,250,250,0.35);
+  margin: 0 0 1rem;
 }
 .auth-callback-actions {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.625rem;
   align-items: center;
+  margin-top: 0.5rem;
 }
 .auth-callback-primary {
   display: inline-block;
-  padding: 0.625rem 1.25rem;
+  padding: 0.75rem 1.5rem;
   border-radius: 0.75rem;
   background: #6366f1;
   color: #fff;
   text-decoration: none;
   font-size: 0.875rem;
-  font-weight: 500;
+  font-weight: 600;
   transition: background 0.15s ease;
 }
 .auth-callback-primary:hover { background: #4f46e5; }
@@ -379,16 +434,19 @@ const style = `
   color: rgba(250,250,250,0.5);
   font-size: 0.8125rem;
   text-decoration: none;
-  /* Reset button defaults so it looks like the secondary link it
-     replaced. We use a <button> so we can call
-     navigate("/discover", { replace: true }) instead of reloading. */
   background: none;
-  border: none;
-  padding: 0;
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 0.5rem;
+  padding: 0.5rem 1rem;
   cursor: pointer;
   font-family: inherit;
+  transition: all 0.15s ease;
 }
-.auth-callback-secondary:hover { color: rgba(250,250,250,0.8); }
+.auth-callback-secondary:hover {
+  color: rgba(250,250,250,0.8);
+  border-color: rgba(255,255,255,0.2);
+  background: rgba(255,255,255,0.04);
+}
 .auth-callback-spinner {
   width: 2rem;
   height: 2rem;

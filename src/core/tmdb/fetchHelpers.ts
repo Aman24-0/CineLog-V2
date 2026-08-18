@@ -23,6 +23,15 @@
  *     silently swallow 404s when called from a batch context while
  *     still logging real errors.
  *
+ *   • TMDBRateLimitError — subclass of TMDBError for HTTP 429. Carries
+ *     the Retry-After header value so callers can surface a "slow down"
+ *     message with a specific backoff time. Never retried.
+ *
+ *   • TMDBTimeoutError — thrown when AbortController aborts the fetch.
+ *     Distinct from TMDBError / TypeError so callers can differentiate
+ *     "the server is slow" from "the server returned an error" or
+ *     "the network is down". Never retried.
+ *
  * Both helpers are pure fetch() wrappers — they don't touch the cache.
  * Cache + in-flight dedup are handled by `cachedFetch` in
  * `~/shared/utils/apiCache`, which wraps these helpers at each call
@@ -57,6 +66,44 @@ export class TMDBError extends Error {
 }
 
 /**
+ * Subclass of TMDBError for HTTP 429 (Too Many Requests).
+ *
+ * Thrown when TMDB's rate limit is hit. Callers can check
+ * `err instanceof TMDBRateLimitError` to surface a user-visible
+ * "slow down" message instead of a generic error. The `retryAfterMs`
+ * field carries the Retry-After header value (in seconds) when the
+ * server provides it.
+ */
+export class TMDBRateLimitError extends TMDBError {
+  /** Retry-After value from the response header (seconds), if present. */
+  readonly retryAfterSec: number | null;
+
+  constructor(endpoint: string, retryAfterSec: number | null = null) {
+    super(429, endpoint);
+    this.name = "TMDBRateLimitError";
+    this.retryAfterSec = retryAfterSec;
+  }
+}
+
+/**
+ * Custom error for request timeouts.
+ *
+ * Thrown by fetchWithRetry when AbortController aborts the request.
+ * Distinct from TMDBError (network/HTTP errors) so callers can
+ * differentiate "the server is slow" from "the server returned an
+ * error" or "the network is down".
+ */
+export class TMDBTimeoutError extends Error {
+  readonly url: string;
+
+  constructor(url: string) {
+    super(`TMDB request timed out: ${url}`);
+    this.name = "TMDBTimeoutError";
+    this.url = url;
+  }
+}
+
+/**
  * fetch with AbortController timeout.
  * If the server is unreachable or slow, the request is aborted after
  * `timeoutMs` milliseconds instead of hanging indefinitely (which
@@ -83,15 +130,19 @@ export async function fetchWithTimeout(
  *   • 5xx response   → retry once. On second 5xx, return the response
  *                       so the caller's `if (!r.ok) throw` fires with
  *                       the original status code.
+ *   • 429            → NEVER retry. Throws TMDBRateLimitError immediately
+ *                       so callers can surface a rate-limit message.
+ *   • 401 / 403      → NEVER retry. Returns the response so the caller's
+ *                       `if (!r.ok) throw` fires. Retrying auth errors
+ *                       is pointless (the token won't magically appear).
+ *   • 4xx (other)    → NEVER retry. 4xx is a client error (bad URL,
+ *                       not-found); retrying can't fix it.
  *   • Network error  → retry once. (TypeError from fetch() when the
  *                       request can't reach the server — DNS failure,
  *                       connection refused, offline, etc.)
- *   • Timeout        → never retry. AbortError means the server is
- *                       slow; retrying would just hang for another
- *                       10 seconds before failing again.
- *   • 4xx response   → never retry. 4xx is a client error (bad URL,
- *                       unauthenticated, not-found); retrying can't
- *                       fix it.
+ *   • Timeout        → NEVER retry. Throws TMDBTimeoutError immediately.
+ *                       AbortError means the server is slow; retrying
+ *                       would just hang for another 10 seconds.
  *
  * @param url       Absolute or relative URL to fetch.
  * @param timeoutMs Per-attempt timeout in milliseconds.
@@ -105,6 +156,21 @@ export async function fetchWithRetry(
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const res = await fetchWithTimeout(url, timeoutMs);
+
+      // 429 — rate-limited. Throw immediately with the Retry-After
+      // header value (if present) so callers can show a backoff message.
+      if (res.status === 429) {
+        const retryAfter = res.headers.get("Retry-After");
+        const retryAfterSec =
+          retryAfter !== null ? Number(retryAfter) || null : null;
+        throw new TMDBRateLimitError(url, retryAfterSec);
+      }
+
+      // 401 / 403 — auth errors. Never retry. Return the response
+      // so the caller's `if (!r.ok) throw TMDBError(...)` fires with
+      // the correct status code.
+      if (res.status === 401 || res.status === 403) return res;
+
       // Pass through 2xx/3xx/4xx immediately. Only 5xx retries.
       if (res.status < 500) return res;
       // 5xx — record and retry on the first attempt; on the second
@@ -113,16 +179,18 @@ export async function fetchWithRetry(
       lastError = new Error(`HTTP ${res.status}`);
       if (attempt === 1) return res;
     } catch (err: unknown) {
-      // Timeout (AbortError) — never retry. Throw immediately so the
-      // caller's error handling (e.g. cachedFetch skipping cache
-      // writes on error) kicks in.
+      // TMDBRateLimitError — re-throw immediately (never retry 429).
+      if (err instanceof TMDBRateLimitError) throw err;
+
+      // Timeout (AbortError) — never retry. Throw TMDBTimeoutError
+      // so callers can distinguish timeout from network errors.
       if (
         err &&
         typeof err === "object" &&
         "name" in err &&
         (err as { name: string }).name === "AbortError"
       ) {
-        throw err;
+        throw new TMDBTimeoutError(url);
       }
       // Other errors (typically TypeError for network failures) —
       // retry once. On the second failure, rethrow.

@@ -3,6 +3,7 @@ import { For, Show, type Accessor } from "solid-js";
 import Icon from "~/shared/ui/Icon";
 import MovieCard from "~/shared/ui/MovieCard";
 import { resolveTimelineDate } from "~/shared/utils/date";
+import { LoadMoreState } from "~/shared/ui/states";
 import type { WatchlistItem } from "~/shared/types";
 import VaultShelf from "./VaultShelf";
 import VaultCard from "./VaultCard";
@@ -48,6 +49,8 @@ export interface WatchlistGridProps {
   activeStatusTab: Accessor<string>;
   /** Called when a "See All" button is tapped — switches the active status chip */
   onSelectStatusTab: (status: string) => void;
+  /** The total unfiltered watchlist size — used to distinguish first-use (0 items ever) from filtered empty */
+  totalWatchlistSize: Accessor<number>;
 }
 
 export default function WatchlistGrid(props: WatchlistGridProps) {
@@ -59,16 +62,33 @@ export default function WatchlistGrid(props: WatchlistGridProps) {
           when={props.filtered().length > 0}
           fallback={
             <EmptyState
+              variant={
+                props.isGuest() || props.totalWatchlistSize() === 0
+                  ? "first-use"
+                  : "filtered"
+              }
               isGuest={props.isGuest()}
               onLogin={props.onLogin}
-              title={props.isGuest() ? "Watchlist is Empty" : "No Matches"}
+              title={
+                props.isGuest()
+                  ? "Watchlist is Empty"
+                  : props.totalWatchlistSize() === 0
+                    ? "Your Watchlist is Empty"
+                    : "No Matches"
+              }
               message={
                 props.isGuest()
                   ? "Sign in to start tracking movies and series."
-                  : "No titles match your current filters. Try adjusting or clearing them."
+                  : props.totalWatchlistSize() === 0
+                    ? "Save movies and shows here to build your personal collection."
+                    : "No titles match your current filters. Try adjusting or clearing them."
               }
               actionText={
-                props.isGuest() ? "Sign In to Begin" : "Clear Filters"
+                props.isGuest()
+                  ? "Sign In to Begin"
+                  : props.totalWatchlistSize() === 0
+                    ? "Discover Movies & Shows"
+                    : "Clear Filters"
               }
               onAction={props.isGuest() ? props.onLogin : props.onClearFilters}
             />
@@ -141,24 +161,21 @@ export default function WatchlistGrid(props: WatchlistGridProps) {
             </For>
           </Show>
 
-          {/* Infinite scroll indicator (flat mode only) */}
+          {/* Infinite scroll / load-more indicator (flat mode only).
+              Uses the shared LoadMoreState component for consistent UX
+              (loading spinner, “Load more” button, end-of-list message). */}
           <Show
             when={
               props.isFlatMode() &&
               props.filtered().length > props.displayLimit()
             }
           >
-            <div
-              class="type-caption flex items-center justify-center gap-2 py-8"
-              style={{ color: "var(--p)" }}
-            >
-              <Icon
-                name="progress_activity"
-                class="animate-spin text-sm"
-                aria-hidden="true"
-              />
-              <span>Loading more titles…</span>
-            </div>
+            <LoadMoreState
+              loading={true}
+              hasMore={true}
+              endMessage="You've seen all titles."
+              aria-label="Loading more titles"
+            />
           </Show>
         </Show>
       }

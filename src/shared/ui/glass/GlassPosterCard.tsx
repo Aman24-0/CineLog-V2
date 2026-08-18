@@ -1,5 +1,5 @@
 // src/shared/ui/glass/GlassPosterCard.tsx
-import { Component, JSX, Show, splitProps, mergeProps } from "solid-js";
+import { Component, JSX, Show, splitProps, mergeProps, createSignal, createEffect } from "solid-js";
 import { GlassCard } from "./GlassCard";
 
 // ─── Types ─────────────────────────────────────────────────────
@@ -66,6 +66,15 @@ const GlassPosterCard: Component<GlassPosterCardProps> = (rawProps) => {
     "class"
   ]);
 
+  // Track image load errors so we can show the fallback icon
+  // instead of a broken image glyph. Reset when the URL changes
+  // so a new image gets a fresh attempt.
+  const [imgError, setImgError] = createSignal(false);
+  createEffect(() => {
+    local.imageUrl; // track dependency
+    setImgError(false);
+  });
+
   return (
     <GlassCard
       {...rest}
@@ -81,7 +90,7 @@ const GlassPosterCard: Component<GlassPosterCardProps> = (rawProps) => {
     >
       {/* Poster Image Area (2:3 aspect ratio) */}
       <div class="relative aspect-[2/3] w-full flex-shrink-0 bg-tier-3">
-        <Show when={!local.loading && local.imageUrl}>
+        <Show when={!local.loading && local.imageUrl && !imgError()}>
           <img
             src={local.imageUrl}
             alt={local.imageAlt || local.title || "Poster"}
@@ -90,9 +99,10 @@ const GlassPosterCard: Component<GlassPosterCardProps> = (rawProps) => {
             decoding="async"
             width={342}
             height={513}
+            onError={() => setImgError(true)}
           />
         </Show>
-        <Show when={!local.loading && !local.imageUrl}>
+        <Show when={!local.loading && (!local.imageUrl || imgError())}>
           <div class="absolute inset-0 flex items-center justify-center">
             <span
               class="material-symbols-outlined text-3xl text-text-dim"

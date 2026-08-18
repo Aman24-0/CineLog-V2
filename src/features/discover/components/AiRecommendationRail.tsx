@@ -51,6 +51,7 @@ import {
   type Component
 } from "solid-js";
 import DiscoverEmptyState from "~/features/discover/components/DiscoverEmptyState";
+import { DisabledState, RateLimitState } from "~/shared/ui/states";
 import { getAuthHeaders } from "~/lib/supabase/session";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import type { TMDBTitle } from "~/shared/types";
@@ -241,20 +242,54 @@ const AiRecommendationRail: Component<AiRecommendationRailProps> = (props) => {
 
   // ─── Render ─────────────────────────────────────────────────────
   //
-  // The outer Show gates the entire rail on:
-  //   1. Status fetched (not loading).
-  //   2. Feature is enabled.
-  //   3. User is NOT a guest.
-  // If any of these fail, the rail is invisible — DiscoverPage renders
-  // nothing where this component would have been.
+  // Three branches:
+  //   1. Status loaded + feature DISABLED → DisabledState (visible,
+  //      so the user knows the feature exists but is off).
+  //   2. Status loaded + feature ENABLED + not guest → full rail.
+  //   3. Otherwise (status loading, or guest) → render nothing.
   //
   // Discriminated union narrowing: we use <Show when={recs()?.ok}> with
   // the callback form `(r) => ...` so TypeScript narrows `r` to the
   // `ok: true` branch. Calling `recs()` repeatedly would defeat narrowing
   // because each call returns a fresh value.
 
+  // Rate-limit seconds memo — extracts retryAfterSeconds from the
+  // error result when the reason is "rate_limit".
+  const rateLimitSeconds = createMemo(() => {
+    const r = errorRecs();
+    if (!r || r.reason !== "rate_limit") return 0;
+    // Try to parse retryAfterSeconds from the message (e.g. "Rate limit hit. Try again in 60s.")
+    const match = r.message?.match(/(\d+)s/);
+    return match ? parseInt(match[1], 10) : 60;
+  });
+
   return (
-    <Show when={!statusData.loading && featureEnabled() && !props.isGuest}>
+    <Show when={!statusData.loading}>
+      {/* Feature disabled — show DisabledState so the user knows the feature exists */}
+      <Show when={featureEnabled() === false && !props.isGuest}>
+        <section class="discover-fold" aria-label="AI Picks for You">
+          <div class="discover-fold-header">
+            <div class="discover-fold-label">
+              <span
+                class="material-symbols-outlined"
+                aria-hidden="true"
+                style={{ color: "var(--text-muted)" }}
+              >
+                auto_awesome
+              </span>
+              AI Picks for You
+            </div>
+          </div>
+          <DisabledState
+            featureName="AI Recommendations"
+            message="AI recommendations are currently disabled. Check back later."
+            icon="auto_awesome"
+            variant="section"
+          />
+        </section>
+      </Show>
+      {/* Feature enabled + not guest → full rail */}
+      <Show when={featureEnabled() && !props.isGuest}>
       <section class="discover-fold" aria-label="AI Picks for You">
         <div class="discover-fold-header">
           <div class="discover-fold-label">
@@ -379,35 +414,44 @@ const AiRecommendationRail: Component<AiRecommendationRailProps> = (props) => {
         </Show>
 
         {/* Error / needs-more-ratings state.
-            errorRecs() narrows to the `ok: false` branch. */}
+            errorRecs() narrows to the `ok: false` branch.
+            Rate-limit uses RateLimitState with countdown;
+            other errors use DiscoverEmptyState. */}
         <Show when={!loading() && errorRecs()}>
           {(r) => (
-            <DiscoverEmptyState
-              icon={
-                r().reason === "needs_more_ratings"
-                  ? "rate_review"
-                  : r().reason === "rate_limit"
-                    ? "hourglass_top"
-                    : "cloud_off"
+            <Show
+              when={r().reason === "rate_limit"}
+              fallback={
+                <DiscoverEmptyState
+                  icon={
+                    r().reason === "needs_more_ratings"
+                      ? "rate_review"
+                      : "cloud_off"
+                  }
+                  message={
+                    r().message ??
+                    (r().reason === "needs_more_ratings"
+                      ? "Rate at least 3 movies you love to unlock AI recommendations."
+                      : "AI recommendations are unavailable right now.")
+                  }
+                  hint={
+                    r().reason === "unavailable" ? "Click retry to try again." : undefined
+                  }
+                  onRetry={
+                    r().reason !== "needs_more_ratings" ? () => refetchRecs() : undefined
+                  }
+                />
               }
-              message={
-                r().message ??
-                (r().reason === "needs_more_ratings"
-                  ? "Rate at least 3 movies you love to unlock AI recommendations."
-                  : r().reason === "rate_limit"
-                    ? "Rate limit hit — try again shortly."
-                    : "AI recommendations are unavailable right now.")
-              }
-              hint={
-                r().reason === "unavailable" ? "Click retry to try again." : undefined
-              }
-              onRetry={
-                r().reason !== "needs_more_ratings" ? () => refetchRecs() : undefined
-              }
-            />
+            >
+              <RateLimitState
+                retryAfter={rateLimitSeconds()}
+                onRetry={() => refetchRecs()}
+              />
+            </Show>
           )}
         </Show>
       </section>
+      </Show>
     </Show>
   );
 };

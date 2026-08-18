@@ -30,6 +30,8 @@ import { tmdbImage } from "~/core/tmdb/tmdb";
 import { getBaseUrl } from "~/shared/utils/share";
 import { findInVault } from "~/shared/utils/vaultMatch";
 import type { WatchlistItem } from "~/shared/types";
+import { GlassLoadingState } from "~/shared/ui/glass";
+import { NotFoundState } from "~/shared/ui/states";
 
 // DetailsModal is rendered by AppShell (not by this route) to avoid
 // double-mounting. We don't import it here.
@@ -260,42 +262,32 @@ export default function TvDeepLinkRoute() {
         <Show
           when={!meta.loading}
           fallback={
-            <div style={{ "text-align": "center" }}>Loading series…</div>
+            <GlassLoadingState
+              message="Loading series…"
+              fullHeight
+            />
           }
         >
           <Show
             when={meta()}
             fallback={
-              <div style={{ "text-align": "center" }}>
-                <div
-                  style={{ "font-size": "1.25rem", "margin-bottom": "0.5rem" }}
-                >
-                  Series not found
-                </div>
-                <div style={{ "font-size": "0.875rem", opacity: 0.7 }}>
-                  The link may be broken or the series may have been removed
-                  from TMDB.
-                </div>
-                <a
-                  href="/discover"
-                  style={{
-                    display: "inline-block",
-                    "margin-top": "1.5rem",
-                    padding: "0.625rem 1.25rem",
-                    background: "var(--p)",
-                    color: "white",
-                    "border-radius": "9999px",
-                    "text-decoration": "none",
-                    "font-weight": 600
-                  }}
-                >
-                  Go to Discover
-                </a>
-              </div>
+              <NotFoundState
+                resourceType="Series"
+                message="The link may be broken or this series may have been removed from TMDB."
+                backHref="/discover"
+                backLabel="Back to Discover"
+              />
             }
           >
-            <div style={{ "text-align": "center", opacity: 0.7 }}>
-              Opening series details…
+            <div
+              class="flex items-center gap-2 text-sm text-text-muted animate-pulse"
+              aria-label="Opening series details"
+            >
+              <span
+                class="inline-block animate-spin rounded-full border-2 border-current border-t-transparent w-4 h-4"
+                aria-hidden="true"
+              />
+              Opening details…
             </div>
           </Show>
         </Show>

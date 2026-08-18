@@ -65,6 +65,7 @@ import {
 import { GlassCard } from "~/shared/ui/glass/GlassCard";
 import { GlassBadge } from "~/shared/ui/glass/GlassBadge";
 import { GlassSkeleton } from "~/shared/ui/glass/GlassSkeleton";
+import { ErrorState } from "~/shared/ui/states";
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -415,9 +416,12 @@ const AdminAiPage: Component = () => {
       </div>
 
       <Show when={error()}>
-        <div class="admin-config-alert" role="alert">
-          Failed to load AI settings: {error()}
-        </div>
+        <ErrorState
+          title="Failed to load AI settings"
+          message={error()!}
+          variant="section"
+          onRetry={fetchSettings}
+        />
       </Show>
 
       <Show when={loading()}>

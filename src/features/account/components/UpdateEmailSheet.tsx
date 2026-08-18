@@ -21,6 +21,7 @@ import { Show, createSignal, createMemo, type Component } from "solid-js";
 import AccountSheet from "./AccountSheet";
 import { updateEmail } from "../accountActions";
 import { useAuth } from "~/shared/hooks/useAuth";
+import { MutationButton, type MutationStatus } from "~/shared/ui/states";
 
 interface UpdateEmailSheetProps {
   open: boolean;
@@ -32,6 +33,7 @@ const UpdateEmailSheet: Component<UpdateEmailSheetProps> = (props) => {
   const [newEmail, setNewEmail] = createSignal("");
   const [busy, setBusy] = createSignal(false);
   const [done, setDone] = createSignal(false);
+  const [mutationStatus, setMutationStatus] = createSignal<MutationStatus>("idle");
 
   const currentEmail = () => user()?.email ?? "—";
 
@@ -46,11 +48,15 @@ const UpdateEmailSheet: Component<UpdateEmailSheetProps> = (props) => {
 
   const handleSubmit = async () => {
     if (!canSubmit()) return;
+    setMutationStatus("submitting");
     setBusy(true);
     const result = await updateEmail(newEmail());
     setBusy(false);
     if (result.success) {
+      setMutationStatus("success");
       setDone(true);
+    } else {
+      setMutationStatus("error");
     }
   };
 
@@ -58,6 +64,7 @@ const UpdateEmailSheet: Component<UpdateEmailSheetProps> = (props) => {
     setNewEmail("");
     setDone(false);
     setBusy(false);
+    setMutationStatus("idle");
     props.onClose();
   };
 
@@ -173,26 +180,18 @@ const UpdateEmailSheet: Component<UpdateEmailSheetProps> = (props) => {
           >
             Cancel
           </button>
-          <button
-            type="button"
-            class="btn-primary focus-ring flex-1"
+          <MutationButton
+            status={mutationStatus()}
             onClick={() => void handleSubmit()}
-            disabled={!canSubmit()}
-          >
-            <Show when={busy()} fallback="Send Confirmation">
-              <span
-                class="material-symbols-outlined"
-                style={{
-                  "font-size": "14px",
-                  animation: "spin 1s linear infinite"
-                }}
-                aria-hidden="true"
-              >
-                progress_activity
-              </span>
-              Sending…
-            </Show>
-          </button>
+            idleLabel="Send Confirmation"
+            submittingLabel="Sending…"
+            successLabel="Sent!"
+            errorLabel="Failed — retry?"
+            variant="primary"
+            disabled={!canSubmit() && mutationStatus() === "idle"}
+            class="flex-1"
+            successResetMs={0}
+          />
         </div>
       </Show>
     </AccountSheet>

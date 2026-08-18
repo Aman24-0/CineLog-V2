@@ -20,6 +20,7 @@ import { Show, createSignal, createMemo, For, type Component } from "solid-js";
 import AccountSheet from "./AccountSheet";
 import { changePassword, sendPasswordResetEmail } from "../accountActions";
 import { useAuth } from "~/shared/hooks/useAuth";
+import { MutationButton, type MutationStatus } from "~/shared/ui/states";
 
 interface ChangePasswordSheetProps {
   open: boolean;
@@ -52,6 +53,8 @@ const ChangePasswordSheet: Component<ChangePasswordSheetProps> = (props) => {
   const [busy, setBusy] = createSignal(false);
   const [done, setDone] = createSignal(false);
   const [resetSent, setResetSent] = createSignal(false);
+  const [mutationStatus, setMutationStatus] = createSignal<MutationStatus>("idle");
+  const [resetBusy, setResetBusy] = createSignal(false);
 
   // If the user has no "email" identity linked, they're setting a
   // password for the first time — no current-password field needed.
@@ -72,19 +75,27 @@ const ChangePasswordSheet: Component<ChangePasswordSheetProps> = (props) => {
 
   const handleSubmit = async () => {
     if (!canSubmit()) return;
+    setMutationStatus("submitting");
     setBusy(true);
     const result = await changePassword(
       newPw(),
       mode() === "change" ? currentPw() : undefined
     );
     setBusy(false);
-    if (result.success) setDone(true);
+    if (result.success) {
+      setMutationStatus("success");
+      setDone(true);
+    } else {
+      setMutationStatus("error");
+    }
   };
 
   const handleForgotPassword = async () => {
     const email = user()?.email;
-    if (!email) return;
+    if (!email || resetBusy()) return;
+    setResetBusy(true);
     const result = await sendPasswordResetEmail(email);
+    setResetBusy(false);
     if (result.success) setResetSent(true);
   };
 
@@ -98,6 +109,8 @@ const ChangePasswordSheet: Component<ChangePasswordSheetProps> = (props) => {
     setDone(false);
     setResetSent(false);
     setBusy(false);
+    setMutationStatus("idle");
+    setResetBusy(false);
     props.onClose();
   };
 
@@ -215,8 +228,26 @@ const ChangePasswordSheet: Component<ChangePasswordSheetProps> = (props) => {
                 type="button"
                 class="account-sheet-link"
                 onClick={() => void handleForgotPassword()}
+                disabled={resetBusy()}
+                aria-busy={resetBusy() ? "true" : undefined}
               >
-                Forgot password?
+                <Show
+                  when={!resetBusy()}
+                  fallback={
+                    <>
+                      <span
+                        class="material-symbols-outlined"
+                        style={{ "font-size": "12px", animation: "spin 1s linear infinite" }}
+                        aria-hidden="true"
+                      >
+                        progress_activity
+                      </span>
+                      Sending…
+                    </>
+                  }
+                >
+                  Forgot password?
+                </Show>
               </button>
             </Show>
           </div>
@@ -341,31 +372,18 @@ const ChangePasswordSheet: Component<ChangePasswordSheetProps> = (props) => {
           >
             Cancel
           </button>
-          <button
-            type="button"
-            class="btn-primary focus-ring flex-1"
+          <MutationButton
+            status={mutationStatus()}
             onClick={() => void handleSubmit()}
-            disabled={!canSubmit()}
-          >
-            <Show
-              when={busy()}
-              fallback={
-                mode() === "change" ? "Update Password" : "Set Password"
-              }
-            >
-              <span
-                class="material-symbols-outlined"
-                style={{
-                  "font-size": "14px",
-                  animation: "spin 1s linear infinite"
-                }}
-                aria-hidden="true"
-              >
-                progress_activity
-              </span>
-              Saving…
-            </Show>
-          </button>
+            idleLabel={mode() === "change" ? "Update Password" : "Set Password"}
+            submittingLabel="Saving…"
+            successLabel="Saved!"
+            errorLabel="Failed — retry?"
+            variant="primary"
+            disabled={!canSubmit() && mutationStatus() === "idle"}
+            class="flex-1"
+            successResetMs={0}
+          />
         </div>
       </Show>
     </AccountSheet>

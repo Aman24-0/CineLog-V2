@@ -1,9 +1,10 @@
 // src/features/watchlist/WatchlistView.tsx
-import { createSignal, onMount, onCleanup, Show, batch } from "solid-js";
+import { createSignal, onMount, onCleanup, Show, batch, createEffect } from "solid-js";
 import { useModalState } from "~/shared/hooks/useModalState";
 import { useAuthModal } from "~/shared/hooks/useAuthModal";
 import PageContainer from "~/shared/ui/PageContainer";
 import ScrollToTop from "~/shared/ui/ScrollToTop";
+import { RefreshingIndicator } from "~/shared/ui/states";
 import { useVault } from "./useVault";
 import { useVaultSections } from "./useVaultSections";
 import { useVaultFiltering } from "./useVaultFiltering";
@@ -34,6 +35,15 @@ export default function WatchlistView() {
   const { openTitle } = useModalState();
   const { openAuthModal } = useAuthModal();
   const { watchlist, loading, isGuest, error, presets, savePreset, deletePreset } = useVault();
+
+  // Track whether the vault has completed its initial load at least once.
+  // Once true, any subsequent loading=true means a background refresh,
+  // not the first fetch. Used to show RefreshingIndicator instead of
+  // the full LoadingSkeleton during refreshes.
+  const [hasLoadedOnce, setHasLoadedOnce] = createSignal(false);
+  createEffect(() => {
+    if (!loading()) setHasLoadedOnce(true);
+  });
 
   const [showFilter, setShowFilter] = createSignal(false);
   const [filterCollapsed, setFilterCollapsed] = createSignal(false);
@@ -258,11 +268,19 @@ export default function WatchlistView() {
               The filtered count is still visible via the section subtitles
               (in dashboard mode) or the grid's natural rendering (in flat mode). */}
 
+          {/* Refreshing indicator — shows a subtle bar when the vault
+              is re-fetching after the initial load. NEVER replaces the
+              content with a full-page skeleton during refresh. */}
+          <Show when={loading() && hasLoadedOnce()}>
+            <RefreshingIndicator placement="top" message="Refreshing watchlist…" />
+          </Show>
+
           <Show when={!loading()} fallback={<LoadingSkeleton />}>
             <Show
               when={!error()}
               fallback={
                 <EmptyState
+                  variant="error"
                   isGuest={false}
                   onLogin={() => {}}
                   title="Error Loading Watchlist"
@@ -290,6 +308,7 @@ export default function WatchlistView() {
                 onReload={handleReload}
                 activeStatusTab={activeStatusTab}
                 onSelectStatusTab={handleSelectStatusTab}
+                totalWatchlistSize={() => watchlist().length}
               />
             </Show>
           </Show>

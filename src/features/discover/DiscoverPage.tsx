@@ -133,6 +133,9 @@ import { useAnimeCarousels } from "./hooks/useAnimeCarousels";
 // self-hides when the AI feature is disabled or the user is a guest,
 // so mounting it is always safe.
 import AiRecommendationRail from "./components/AiRecommendationRail";
+// Shared state components for consistent error / empty / refreshing UI.
+import { ErrorState, RefreshingIndicator } from "~/shared/ui/states";
+import { GlassEmptyState } from "~/shared/ui/glass";
 
 export default function DiscoverPage() {
   const { watchlist, isGuest } = useUserLibrary();
@@ -497,6 +500,15 @@ export default function DiscoverPage() {
 
       <Show when={!isLoading()} fallback={<DiscoverSkeleton />}>
         <div class="page-enter discover-folds relative">
+              {/* Refreshing indicator — shown when feeds are refreshing
+                  (not initial load) so the user knows content is updating
+                  without the full skeleton replacing the page. */}
+              <Show when={feeds.loading() && !isLoading()}>
+                <RefreshingIndicator
+                  message="Updating feeds…"
+                  placement="top"
+                />
+              </Show>
               {/* 1. SPOTLIGHT — daily rotating hero */}
               <Show when={homepageConfig.isEnabled("spotlight")}>
                 <ErrorBoundary
@@ -769,7 +781,8 @@ export default function DiscoverPage() {
                 </Suspense>
               </ErrorBoundary>
 
-              {/* Anime outage state — when AniList is down */}
+              {/* Anime outage state — when AniList is down. Uses shared ErrorState
+                  for a consistent error experience with retry support. */}
               <Show when={animeCarousels.outage() && !animeCarousels.loading()}>
                 <section class="discover-fold" aria-label="Anime — Temporarily Unavailable">
                   <div class="discover-fold-header">
@@ -780,54 +793,38 @@ export default function DiscoverPage() {
                       Anime
                     </div>
                   </div>
-                  <div class="discover-empty-state">
-                    <span class="material-symbols-outlined discover-empty-icon" aria-hidden="true">
-                      cloud_off
-                    </span>
-                    <p class="type-body-soft">Anime data is temporarily unavailable</p>
-                    <p class="type-caption" style={{ color: "var(--text-muted)" }}>
-                      AniList is experiencing issues. Anime carousels will return when service is restored.
-                    </p>
-                    <button
-                      type="button"
-                      class="btn-ghost focus-ring"
-                      style={{ "margin-top": "0.75rem" }}
-                      onClick={animeCarousels.retry}
-                    >
-                      <span class="material-symbols-outlined" aria-hidden="true">
-                        refresh
-                      </span>
-                      Retry
-                    </button>
-                  </div>
+                  <ErrorState
+                    icon="cloud_off"
+                    title="Anime data is temporarily unavailable"
+                    message="AniList is experiencing issues. Anime carousels will return when service is restored."
+                    variant="section"
+                    onRetry={animeCarousels.retry}
+                  />
                 </section>
               </Show>
 
-              {/* 9. GUEST SIGN-IN CTA */}
+              {/* 9. GUEST SIGN-IN CTA — uses GlassEmptyState for a polished,
+                  cinematic empty state that matches the app's design language. */}
               <Show when={isGuest()}>
                 <div class="discover-guest-nudge">
-                  <p
-                    class="type-body-soft"
-                    style={{
-                      "text-align": "center",
-                      "max-width": "280px",
-                      margin: "0 auto var(--sp-3)"
-                    }}
-                  >
-                    Sign in to make Spotlight yours — every pick adapts to what
-                    you love.
-                  </p>
-                  <button
-                    type="button"
-                    class="btn-primary focus-ring"
-                    onClick={handleLogin}
-                    style={{ margin: "0 auto", display: "flex" }}
-                  >
-                    <span class="material-symbols-outlined" aria-hidden="true">
-                      login
-                    </span>
-                    Sign In to Begin
-                  </button>
+                  <GlassEmptyState
+                    icon="movie_filter"
+                    title="Make Spotlight yours"
+                    message="Sign in and every pick adapts to what you love."
+                    variant="compact"
+                    action={
+                      <button
+                        type="button"
+                        class="btn-primary focus-ring"
+                        onClick={handleLogin}
+                      >
+                        <span class="material-symbols-outlined" aria-hidden="true">
+                          login
+                        </span>
+                        Sign In to Begin
+                      </button>
+                    }
+                  />
                 </div>
               </Show>
         </div>

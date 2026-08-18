@@ -69,6 +69,7 @@ import { GlassCard } from "~/shared/ui/glass/GlassCard";
 import { GlassInput } from "~/shared/ui/glass/GlassInput";
 import { GlassButton } from "~/shared/ui/glass/GlassButton";
 import { GlassBadge } from "~/shared/ui/glass/GlassBadge";
+import { DisabledState, RateLimitState, TimeoutState, ErrorState } from "~/shared/ui/states";
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -107,6 +108,12 @@ const AdminAiAssistantPage: Component = () => {
   const [input, setInput] = createSignal("");
   const [sending, setSending] = createSignal(false);
   const [featureDisabled, setFeatureDisabled] = createSignal(false);
+  // Rate limit state: retryAfter seconds from 429 responses.
+  const [rateLimited, setRateLimited] = createSignal<number>(0);
+  // Timeout state: true when the request exceeds the client-side timeout.
+  const [timedOut, setTimedOut] = createSignal(false);
+  // General error state for non-429/403/timeout errors shown outside the chat.
+  const [chatError, setChatError] = createSignal<string | null>(null);
   // Model selection: "" = use server default, otherwise a specific model id.
   const [selectedModel, setSelectedModel] = createSignal("");
   // Available models fetched from AI settings.
@@ -156,9 +163,19 @@ const AdminAiAssistantPage: Component = () => {
   });
 
   // ─── Send a message ─────────────────────────────────────────────
+  // Client-side timeout for AI chat requests (30s). Groq free tier
+  // can be slow on cold starts; this prevents the UI from hanging
+  // indefinitely.
+  const CHAT_TIMEOUT_MS = 30_000;
+
   const sendMessage = async (text: string) => {
     const trimmed = text.trim();
     if (trimmed.length === 0 || sending() || featureDisabled()) return;
+
+    // Clear any previous rate-limit / timeout / error states.
+    setRateLimited(0);
+    setTimedOut(false);
+    setChatError(null);
 
     // Add the user's message to the list immediately.
     const userMsg: ChatMessage = {
@@ -177,21 +194,42 @@ const AdminAiAssistantPage: Component = () => {
       body.model = selectedModel();
     }
 
-    try {
-      const resp = await fetch("/api/admin/ai/chat", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body)
-      });
+    // Build a timeout promise that races against the fetch.
+    let requestTimedOut = false;
+    const timeoutPromise = new Promise<null>((resolve) => {
+      setTimeout(() => {
+        requestTimedOut = true;
+        resolve(null);
+      }, CHAT_TIMEOUT_MS);
+    });
 
-      const body = await resp.json().catch(() => ({}));
+    try {
+      const result = await Promise.race([
+        fetch("/api/admin/ai/chat", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body)
+        }).then(async (resp) => {
+          const respBody = await resp.json().catch(() => ({}));
+          return { resp, body: respBody };
+        }),
+        timeoutPromise
+      ]);
+
+      // Timeout case — the fetch didn't respond in time.
+      if (result === null) {
+        setTimedOut(true);
+        return;
+      }
+
+      const { resp, body: respBody } = result;
 
       // 403 → feature is disabled. Set the disabled flag + show an
       // error bubble explaining how to re-enable.
       if (resp.status === 403) {
         setFeatureDisabled(true);
-        const errBody = body as ChatApiError;
+        const errBody = respBody as ChatApiError;
         const errorMsg: ChatMessage = {
           id: newId(),
           role: "error",
@@ -202,35 +240,23 @@ const AdminAiAssistantPage: Component = () => {
         return;
       }
 
-      // 429 → rate limit. Show the retry-after in the error bubble.
+      // 429 → rate limit. Use RateLimitState component.
       if (resp.status === 429) {
-        const errBody = body as { retryAfterSeconds?: number; error?: string };
+        const errBody = respBody as { retryAfterSeconds?: number; error?: string };
         const secs = errBody.retryAfterSeconds ?? 60;
-        const errorMsg: ChatMessage = {
-          id: newId(),
-          role: "error",
-          text: `Rate limit hit. Try again in ${secs} second${secs === 1 ? "" : "s"}.`,
-          createdAt: new Date().toISOString()
-        };
-        setMessages((prev) => [...prev, errorMsg]);
+        setRateLimited(secs);
         return;
       }
 
-      // Any other non-2xx → generic error bubble with the hint.
+      // Any other non-2xx → show as a chat error bubble.
       if (!resp.ok) {
-        const errBody = body as ChatApiError;
-        const errorMsg: ChatMessage = {
-          id: newId(),
-          role: "error",
-          text: errBody.hint || errBody.error || `Request failed (HTTP ${resp.status}).`,
-          createdAt: new Date().toISOString()
-        };
-        setMessages((prev) => [...prev, errorMsg]);
+        const errBody = respBody as ChatApiError;
+        setChatError(errBody.hint || errBody.error || `Request failed (HTTP ${resp.status}).`);
         return;
       }
 
       // Success — add the assistant reply.
-      const okBody = body as ChatApiResponse;
+      const okBody = respBody as ChatApiResponse;
       const assistantMsg: ChatMessage = {
         id: newId(),
         role: "assistant",
@@ -239,15 +265,8 @@ const AdminAiAssistantPage: Component = () => {
       };
       setMessages((prev) => [...prev, assistantMsg]);
     } catch {
-      // Network error — show a generic error bubble. The user's
-      // message stays in the list so they can retry.
-      const errorMsg: ChatMessage = {
-        id: newId(),
-        role: "error",
-        text: "Network error — couldn't reach the server. Check your connection and try again.",
-        createdAt: new Date().toISOString()
-      };
-      setMessages((prev) => [...prev, errorMsg]);
+      // Network error — show as a chat error state.
+      setChatError("Network error — couldn't reach the server. Check your connection and try again.");
     } finally {
       setSending(false);
     }
@@ -277,6 +296,9 @@ const AdminAiAssistantPage: Component = () => {
   // in another tab, this button re-attempts the last message.
   const retryFeatureCheck = () => {
     setFeatureDisabled(false);
+    setRateLimited(0);
+    setTimedOut(false);
+    setChatError(null);
     // Re-send the last user message if there is one.
     const lastUser = [...messages()].reverse().find((m) => m.role === "user");
     if (lastUser) {
@@ -290,6 +312,25 @@ const AdminAiAssistantPage: Component = () => {
       });
       sendMessage(lastUser.text);
     }
+  };
+
+  // Retry after rate limit clears.
+  const retryAfterRateLimit = () => {
+    setRateLimited(0);
+    const lastUser = [...messages()].reverse().find((m) => m.role === "user");
+    if (lastUser) sendMessage(lastUser.text);
+  };
+
+  // Retry after timeout.
+  const retryAfterTimeout = () => {
+    setTimedOut(false);
+    const lastUser = [...messages()].reverse().find((m) => m.role === "user");
+    if (lastUser) sendMessage(lastUser.text);
+  };
+
+  // Dismiss chat error.
+  const dismissChatError = () => {
+    setChatError(null);
   };
 
   // Cleanup is handled by Solid automatically; no explicit onCleanup
@@ -332,19 +373,12 @@ const AdminAiAssistantPage: Component = () => {
 
       {/* Disabled banner — shown when the backend returns 403. */}
       <Show when={featureDisabled()}>
-        <div
-          class="admin-config-alert"
-          role="alert"
-          style={{ display: "flex", "align-items": "center", gap: "var(--sp-3)", "flex-wrap": "wrap" }}
-        >
-          <span style={{ flex: "1 1 240px" }}>
-            <strong>AI Assistant is disabled.</strong> Enable the Master
-            AI Switch + Admin Assistant toggle at{" "}
-            <a href="/admin/ai" style={{ color: "inherit", "text-decoration": "underline" }}>
-              /admin/ai
-            </a>
-            , then retry.
-          </span>
+        <DisabledState
+          featureName="AI Assistant"
+          message="Enable the Master AI Switch + Admin Assistant toggle at /admin/ai, then retry."
+          variant="section"
+        />
+        <div style={{ "margin-top": "var(--sp-2)", "text-align": "right" }}>
           <GlassButton
             variant="secondary"
             size="compact"
@@ -530,6 +564,35 @@ const AdminAiAssistantPage: Component = () => {
                   <span class="ai-typing-dot" />
                 </div>
               </div>
+            </Show>
+
+            {/* Rate limit state — replaces error bubble for 429. */}
+            <Show when={rateLimited() > 0}>
+              <RateLimitState
+                retryAfter={rateLimited()}
+                onRetry={retryAfterRateLimit}
+              />
+            </Show>
+
+            {/* Timeout state — shown when the request exceeds CHAT_TIMEOUT_MS. */}
+            <Show when={timedOut()}>
+              <TimeoutState
+                label="AI response timed out"
+                message="The server hasn't responded in 30 seconds. You can wait or try again."
+                onRetry={retryAfterTimeout}
+                variant="section"
+              />
+            </Show>
+
+            {/* Error state — for non-429/403/timeout errors. */}
+            <Show when={chatError()}>
+              <ErrorState
+                title="Message failed"
+                message={chatError()!}
+                variant="section"
+                onRetry={dismissChatError}
+                retryLabel="Dismiss"
+              />
             </Show>
           </Show>
         </div>
