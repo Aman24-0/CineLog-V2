@@ -380,9 +380,43 @@ function summarizeAuthCookies(
  *   HTTP (localhost dev), `Secure` is omitted so the browser accepts
  *   the cookie.
  */
-export async function createServerClientFromRequest(
+type RequestSupabaseContext = {
+  client: SupabaseClient;
+  cookies: CookieJar;
+};
+
+// Middleware and a downstream API handler receive the same Request object.
+// Keep one request-scoped initialization promise so Bearer-token injection,
+// cookie parsing, and the CookieJar are not recreated or re-verified by the
+// second caller. WeakMap ensures completed requests are not retained.
+const requestSupabaseContextCache = new WeakMap<
+  Request,
+  Promise<RequestSupabaseContext>
+>();
+
+export function createServerClientFromRequest(
   request: Request
-): Promise<{ client: SupabaseClient; cookies: CookieJar }> {
+): Promise<RequestSupabaseContext> {
+  const cached = requestSupabaseContextCache.get(request);
+  if (cached) return cached;
+
+  const pending = createServerClientFromRequestUncached(request);
+  requestSupabaseContextCache.set(request, pending);
+
+  // Preserve the existing retry behavior if initialization fails (for
+  // example, because deployment environment variables are unavailable).
+  void pending.catch(() => {
+    if (requestSupabaseContextCache.get(request) === pending) {
+      requestSupabaseContextCache.delete(request);
+    }
+  });
+
+  return pending;
+}
+
+async function createServerClientFromRequestUncached(
+  request: Request
+): Promise<RequestSupabaseContext> {
   // ── Parse the incoming Cookie header ───────────────────────────
   // Use the `cookie` package's `parse()` for byte-identical decoding
   // with the browser client's `serialize()` writes.
