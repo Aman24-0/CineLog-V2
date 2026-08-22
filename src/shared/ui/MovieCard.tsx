@@ -143,6 +143,13 @@ const BOTTOM_INFO_DEFAULT_PADDING: JSX.CSSProperties = {
   padding: "0.625rem"
 };
 
+export function shouldShowCompactEpisodeMeta(
+  variant: "default" | "compact" | "featured",
+  showCompactEpisodeMeta?: boolean
+): boolean {
+  return variant === "compact" && showCompactEpisodeMeta !== false;
+}
+
 interface MovieCardProps {
   movie: WatchlistItem;
   variant?: "default" | "compact" | "featured";
@@ -161,6 +168,8 @@ interface MovieCardProps {
   isSelected?: boolean;
   /** Called when the card is tapped in selection mode */
   onToggleSelect?: () => void;
+  /** Hide compact TV episode metadata when a shelf supplies its own badge. */
+  showCompactEpisodeMeta?: boolean;
 }
 
 const MovieCard: Component<MovieCardProps> = (props) => {
@@ -577,7 +586,12 @@ const MovieCard: Component<MovieCardProps> = (props) => {
               progress for TV shows with status "Watching".
               Uses the lazy MDBList IMDb score (falls back to TMDB
               while loading) so the badge matches the Details modal. */}
-          <Show when={variant() === "compact"}>
+          <Show
+            when={shouldShowCompactEpisodeMeta(
+              variant(),
+              props.showCompactEpisodeMeta
+            )}
+          >
             <Show
               when={hasEpisodeProgress()}
               fallback={

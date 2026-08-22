@@ -19,7 +19,7 @@
 //        - Logged in  → vaultItem is matched (status tabs, activity)
 //        - Not logged → vaultItem is null (only + and Trailer)
 //        - User taps + → useDetailsActions opens AuthModal
-//   6. When the modal closes, navigate to the Watchlist (logged-in)
+//   6. When the modal closes, navigate to the Library (logged-in)
 //      or Discover (guest) page so the user doesn't see the "Opening
 //      movie details..." loading state forever.
 //
@@ -31,7 +31,7 @@
 //
 // When the user closed the modal, closeTitle() saw historyEntryOurs
 // was true and called window.history.back(). Meanwhile, our
-// close-navigate effect called navigate('/watchlist', { replace: true }).
+// close-navigate effect called navigate('/library', { replace: true }).
 // The popstate from history.back() fired AFTER the navigate(), causing
 // the router to bounce back to /movie/{id}, which remounted the route,
 // which re-ran onMount, which re-opened the modal. The symptom was
@@ -40,7 +40,7 @@
 // Fix: Call setSelectedItem() directly instead of openTitle(). This
 // sets historyEntryOurs = false (it's never set to true), so
 // closeTitle() does NOT call history.back(). The only navigation
-// that happens is our explicit navigate('/watchlist'), which is clean
+// that happens is our explicit navigate('/library'), which is clean
 // and race-free.
 //
 // SEO / OG TAGS — CRITICAL FOR CHAT-APP LINK PREVIEWS
@@ -204,7 +204,7 @@ export default function MovieDeepLinkRoute() {
   // When the user closes the Details modal (X button, ESC, or Back),
   // the route component is still mounted and would show "Opening
   // movie details..." forever. Instead, navigate to:
-  //   - /watchlist if the user is signed in
+  //   - /library if the user is signed in
   //   - /discover if the user is a guest
   //
   // We watch selectedItem() — when it becomes null (modal closed) and
@@ -218,7 +218,7 @@ export default function MovieDeepLinkRoute() {
   createEffect(() => {
     const current = selectedItem();
     if (opened && !current && authReady()) {
-      navigate(isGuest() ? "/discover" : "/watchlist", { replace: true });
+      navigate(isGuest() ? "/discover" : "/library", { replace: true });
     }
   });
 

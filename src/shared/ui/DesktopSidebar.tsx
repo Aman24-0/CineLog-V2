@@ -15,7 +15,7 @@ import { prefetchRoute } from "~/shared/utils/routePrefetch";
  *
  * Structure:
  *   - Logo at top
- *   - Navigation items (Dashboard, Discover, Watchlist, Collections, Upcoming, Statistics)
+ *   - Navigation items (Discover, Library, Search, Collections, Upcoming, Statistics)
  *   - Profile/Settings at bottom
  *   - Collapse toggle
  *
@@ -45,7 +45,8 @@ const DesktopSidebar: Component = () => {
 
   const navItems = [
     { icon: "explore", label: "Discover", href: "/discover" },
-    { icon: "visibility", label: "Watchlist", href: "/watchlist" },
+    { icon: "video_library", label: "Library", href: "/library" },
+    { icon: "search", label: "Search", href: "/search" },
     { icon: "collections_bookmark", label: "Collections", href: "/collections" },
     { icon: "upcoming", label: "Upcoming", href: "/profile/upcoming" },
     { icon: "bar_chart", label: "Statistics", href: "/profile/stats" },
@@ -54,7 +55,7 @@ const DesktopSidebar: Component = () => {
   ];
 
   const isActive = (href: string) => {
-    if (href === "/discover" && (path() === "/discover" || path() === "/search")) return true;
+    if (href === "/library" && (path() === "/library" || path() === "/watchlist")) return true;
     if (href === "/collections" && path().startsWith("/collections")) return true;
     // Profile should only be active for exact /profile or /profile/ sub-paths
     // that are NOT claimed by more specific routes (upcoming, stats).

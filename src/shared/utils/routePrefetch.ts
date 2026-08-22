@@ -9,8 +9,8 @@
  * hard refresh clears the module cache).
  *
  * Usage:
- *   prefetchRoute("/watchlist");
- *   prefetchRoute("/collections");
+ *   prefetchRoute("/library");
+ *   prefetchRoute("/search");
  *
  * The import() is fire-and-forget. Errors are silently ignored — if
  * the prefetch fails (network issue), the normal lazy() import on
@@ -23,11 +23,12 @@ const prefetched = new Set<string>();
 /** Map of route paths to their lazy import triggers. */
 const routeImports: Record<string, () => Promise<unknown>> = {
   "/discover": () => import("~/features/discover/DiscoverPage"),
-  "/watchlist": () => import("~/features/watchlist/WatchlistView"),
+  "/library": () => import("~/features/watchlist/LibraryView"),
+  "/watchlist": () => import("~/features/watchlist/LibraryView"),
   "/collections": () => import("~/features/collections/CollectionsPage"),
   "/profile": () => import("~/features/profile/ProfilePage"),
   "/settings": () => import("~/features/settings/SettingsPage"),
-  "/search": () => import("~/features/search/SearchOverlay")
+  "/search": () => import("~/routes/search")
 };
 
 /**

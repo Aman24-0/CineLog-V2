@@ -84,7 +84,9 @@ const EditProfileModal: Component<EditProfileModalProps> = (props) => {
     document.addEventListener("keydown", handleEsc);
   });
   onCleanup(() => {
-    document.removeEventListener("keydown", handleEsc);
+    if (typeof document !== "undefined") {
+      document.removeEventListener("keydown", handleEsc);
+    }
   });
 
   createEffect(() => {

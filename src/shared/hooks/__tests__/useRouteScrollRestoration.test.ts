@@ -1,5 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { createRouteScrollStore } from "../useRouteScrollRestoration";
+import {
+  createRouteScrollStore,
+  canonicalRouteKey
+} from "../useRouteScrollRestoration";
+
+describe("canonicalRouteKey", () => {
+  it("normalizes the legacy watchlist path to library", () => {
+    expect(canonicalRouteKey("/watchlist", "?status=Completed", "#top")).toBe(
+      "/library?status=Completed#top"
+    );
+    expect(canonicalRouteKey("/library", "?status=Completed", "#top")).toBe(
+      "/library?status=Completed#top"
+    );
+  });
+});
 
 describe("createRouteScrollStore", () => {
   it("keeps scroll positions isolated by route and persists them", () => {

@@ -49,6 +49,7 @@ import {
   type JSX
 } from "solid-js";
 import { useGlobalSearch } from "~/shared/contexts/SearchContext";
+import { useLocation } from "@solidjs/router";
 import { useUserLibrary } from "~/shared/hooks/useUserLibrary";
 import { useDiscoverActions } from "~/features/discover/useDiscoverActions";
 import SearchResults from "./SearchResults";
@@ -95,6 +96,7 @@ const OVERLAY_CLOSE_BTN_STYLE: JSX.CSSProperties = {
  */
 const SearchOverlay: Component = () => {
   const search = useGlobalSearch();
+  const location = useLocation();
   const { watchlist, isGuest } = useUserLibrary();
   const { handleOpenTitle, addToVault } = useDiscoverActions({
     watchlist,
@@ -109,7 +111,8 @@ const SearchOverlay: Component = () => {
   // (the inline bar drives results via hasQuery directly), but we
   // still mount the overlay when hasQuery() is true so desktop users
   // see results without needing to "open" anything.
-  const shouldRender = () => search.searchOpen() || search.hasQuery();
+  const shouldRender = () =>
+    location.pathname !== "/search" && (search.searchOpen() || search.hasQuery());
 
   // Whether to show the in-overlay search input. Shown ONLY when the
   // overlay was opened via searchOpen() (mobile path). On desktop,

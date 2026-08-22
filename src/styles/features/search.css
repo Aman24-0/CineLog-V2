@@ -562,3 +562,79 @@
     height: 240px;
   }
 }
+
+
+/* Dedicated /search route — keeps the same search primitives as the
+   Discover overlay while using normal document flow instead of a fixed panel. */
+.search-page-shell {
+  width: 100%;
+  max-width: 56rem;
+  margin: 0 auto;
+}
+
+.search-page-header {
+  margin-bottom: var(--sp-5);
+}
+
+.search-page-form {
+  position: relative;
+  top: auto;
+  z-index: 1;
+  margin-bottom: var(--sp-6);
+  padding: 0;
+}
+
+.search-page-form .search-bar-input-wrapper {
+  min-height: 3.5rem;
+}
+
+.search-page-recent-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+.search-page-recent-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  max-width: 100%;
+  padding: 0.625rem 0.875rem;
+  border: 1px solid var(--hairline-2);
+  border-radius: var(--radius-pill);
+  background: var(--glass-bg);
+  color: var(--text-soft);
+  cursor: pointer;
+  font-family: "Outfit", sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-page-recent-chip:hover {
+  border-color: var(--active-border);
+  color: var(--text-strong);
+  background: var(--raised);
+}
+
+.search-page-recent-chip .material-symbols-outlined {
+  flex: 0 0 auto;
+  font-size: 1rem;
+  color: var(--p);
+}
+
+.search-page-cold-start {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+}
+
+.search-page-empty {
+  padding: var(--sp-8) var(--sp-4);
+  border: 1px dashed var(--hairline-2);
+  border-radius: var(--radius-lg);
+  color: var(--text-muted);
+  text-align: center;
+}

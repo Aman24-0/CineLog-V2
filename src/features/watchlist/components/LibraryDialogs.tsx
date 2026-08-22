@@ -1,4 +1,4 @@
-// src/features/watchlist/components/WatchlistDialogs.tsx
+// src/features/watchlist/components/LibraryDialogs.tsx
 import { Show, Suspense, lazy, type Accessor } from "solid-js";
 import type { VaultFilters, WatchlistItem } from "~/shared/types";
 import type { PlatformFilterOption } from "../hooks/useWatchlistOttAvailability";
@@ -6,14 +6,14 @@ import type { PlatformFilterOption } from "../hooks/useWatchlistOttAvailability"
 const VaultFilters = lazy(() => import("./VaultFilters"));
 
 /**
- * WatchlistDialogs — the filter drawer modal.
+ * LibraryDialogs — the filter drawer modal.
  *
  * Renders the lazy-loaded VaultFilters component inside a Suspense
  * boundary (with a spinner fallback) when `show` is true. The drawer
  * is rendered via Portal at body level (inside VaultFilters) so the
  * fixed bottom nav can never cover the Apply / Clear buttons.
  */
-export interface WatchlistDialogsProps {
+export interface LibraryDialogsProps {
   show: Accessor<boolean>;
   filters: Accessor<VaultFilters>;
   setFilters: (v: VaultFilters) => void;
@@ -36,7 +36,7 @@ export interface WatchlistDialogsProps {
   /** CHUNK 6N Task 3 — first 3 raw batch-response keys as JSON
    *  string. Empty string before the first fetch completes. */
   debugRawKeys: Accessor<string>;
-  /** CHUNK 6N Task 3 — number of items in the user's watchlist. */
+  /** CHUNK 6N Task 3 — number of items in the user's library. */
   watchlistSize: Accessor<number>;
   /** CHUNK 6O Task 1 — TEMPORARY debug accessor. Coarse-grained OTT
    *  fetch state machine for the visible debug line. */
@@ -62,7 +62,7 @@ export interface WatchlistDialogsProps {
   onClear: () => void;
 }
 
-export default function WatchlistDialogs(props: WatchlistDialogsProps) {
+export default function LibraryDialogs(props: LibraryDialogsProps) {
   return (
     <Show when={props.show()}>
       <Suspense

@@ -21,7 +21,7 @@ interface UseVaultSectionsArgs {
 }
 
 /**
- * useVaultSections — the brain of the Vault browsing experience.
+ * useVaultSections — the brain of the Library browsing experience.
  *
  * ADAPTIVE SHELF ORDERING:
  *   1. In Progress — items with watchProgress.currentTime > 0, status !== Completed
@@ -114,7 +114,7 @@ export function useVaultSections(args: UseVaultSectionsArgs) {
         id: "planned",
         title: "Planned",
         icon: "bookmark",
-        subtitle: `${planned.length} title${planned.length !== 1 ? "s" : ""} in your watchlist`,
+        subtitle: `${planned.length} title${planned.length !== 1 ? "s" : ""} in your library`,
         items: planned,
         railByDefault: true
       });
@@ -157,7 +157,7 @@ export function useVaultSections(args: UseVaultSectionsArgs) {
         id: "all",
         title: "All Titles",
         icon: "video_library",
-        subtitle: `${remaining.length} title${remaining.length !== 1 ? "s" : ""} in your watchlist`,
+        subtitle: `${remaining.length} title${remaining.length !== 1 ? "s" : ""} in your library`,
         items: remaining,
         railByDefault: false
       });

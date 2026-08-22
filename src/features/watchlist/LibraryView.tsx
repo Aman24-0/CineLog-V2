@@ -1,5 +1,6 @@
-// src/features/watchlist/WatchlistView.tsx
+// src/features/watchlist/LibraryView.tsx
 import { createSignal, onMount, onCleanup, Show, batch, createEffect } from "solid-js";
+import { readLibraryViewState, writeLibraryViewState } from "./libraryViewState";
 import { useModalState } from "~/shared/hooks/useModalState";
 import { useAuthModal } from "~/shared/hooks/useAuthModal";
 import { useOnlineStatus } from "~/shared/hooks/useOnlineStatus";
@@ -9,18 +10,18 @@ import { OfflineState, RefreshingIndicator } from "~/shared/ui/states";
 import { useVault } from "./useVault";
 import { useVaultSections } from "./useVaultSections";
 import { useVaultFiltering } from "./useVaultFiltering";
-import WatchlistHeader from "./components/WatchlistHeader";
-import WatchlistGrid from "./components/WatchlistGrid";
-import WatchlistDialogs from "./components/WatchlistDialogs";
+import LibraryHeader from "./components/LibraryHeader";
+import LibraryGrid from "./components/LibraryGrid";
+import LibraryDialogs from "./components/LibraryDialogs";
 import VaultFiltersContent from "./components/VaultFiltersContent";
 import EmptyState from "./components/EmptyState";
 import LoadingSkeleton from "./components/LoadingSkeleton";
 
 /**
- * WatchlistView — orchestration only.
+ * LibraryView — orchestration only.
  *
- * OVERHAULED LAYOUT (v2):
- *   - Removed the redundant WatchlistStats bar (the inline status chips
+ * Library layout (v2):
+ *   - Removed the redundant saved-title stats bar (the inline status chips
  *     already show live counts, making a separate stats bar redundant).
  *   - The sticky header combines search + view toggle + filter icon +
  *     status chips into a single compact control center.
@@ -32,7 +33,7 @@ import LoadingSkeleton from "./components/LoadingSkeleton";
  * Owns top-level state (view mode, display limit, expanded shelves, filter
  * drawer visibility) and composes the section components.
  */
-export default function WatchlistView() {
+export default function LibraryView() {
   const { openTitle } = useModalState();
   const { openAuthModal } = useAuthModal();
   const { isOffline } = useOnlineStatus();
@@ -56,6 +57,7 @@ export default function WatchlistView() {
   const [expandedShelves, setExpandedShelves] = createSignal<Set<string>>(
     new Set()
   );
+  const [hasRestoredViewState, setHasRestoredViewState] = createSignal(false);
 
   // Deferred view-mode switch for INP optimization.
   const setViewMode = (mode: "grid" | "timeline") => {
@@ -63,7 +65,11 @@ export default function WatchlistView() {
     requestAnimationFrame(() => setViewModeInternal(mode));
   };
 
-  const filtering = useVaultFiltering({ watchlist, viewMode });
+  const filtering = useVaultFiltering({
+    watchlist,
+    viewMode,
+    isRestoringViewState: () => !hasRestoredViewState()
+  });
   const {
     searchInput,
     onSearchInput,
@@ -100,6 +106,21 @@ export default function WatchlistView() {
     cacheSource
   } = filtering;
 
+  // Persist ephemeral presentation state only. The UserLibrary provider and
+  // vault adapters remain the sole owners of watched history and other data.
+  createEffect(() => {
+    if (!hasRestoredViewState()) return;
+    writeLibraryViewState({
+      searchInput: searchInput(),
+      filters: filters(),
+      activeStatusTab: activeStatusTab(),
+      viewMode: viewMode(),
+      displayLimit: displayLimit(),
+      expandedShelves: [...expandedShelves()],
+      filterCollapsed: filterCollapsed()
+    });
+  });
+
   // Infinite scroll — bump display limit when user nears the bottom.
   const handleScroll = () => {
     if (
@@ -111,6 +132,18 @@ export default function WatchlistView() {
   };
 
   onMount(() => {
+    const savedViewState = readLibraryViewState();
+    batch(() => {
+      onSearchInput(savedViewState.searchInput);
+      setFilters(savedViewState.filters);
+      setActiveStatusTab(savedViewState.activeStatusTab);
+      setFilterCollapsed(savedViewState.filterCollapsed);
+      setDisplayLimit(savedViewState.displayLimit);
+      setViewModeInternal(savedViewState.viewMode);
+      setExpandedShelves(new Set(savedViewState.expandedShelves));
+      setHasRestoredViewState(true);
+    });
+
     window.addEventListener("scroll", handleScroll, { passive: true });
     onCleanup(() => window.removeEventListener("scroll", handleScroll));
   });
@@ -170,7 +203,7 @@ export default function WatchlistView() {
         {/* Phase 10 Chunk 2 — Desktop-only advanced-filters sidebar.
             Renders VaultFiltersContent inline (always visible) on
             desktop (≥1024px). Hidden on mobile/tablet, where the
-            existing bottom-sheet VaultFilters (via WatchlistDialogs)
+            existing bottom-sheet VaultFilters (via LibraryDialogs)
             handles filter UX. */}
         <Show when={!isGuest()}>
           <aside
@@ -251,7 +284,7 @@ export default function WatchlistView() {
         </Show>
 
         <div class="vault-desktop-main">
-          <WatchlistHeader
+          <LibraryHeader
             viewMode={viewMode}
             setViewMode={setViewMode}
             activeFilterCount={activeFilterCount}
@@ -268,7 +301,7 @@ export default function WatchlistView() {
             setFilters={setFilters}
           />
 
-          {/* WatchlistStats REMOVED — the inline status chips in the header
+          {/* Saved-title stats removed — the inline status chips in the header
               already show live counts, making a separate stats bar redundant.
               The filtered count is still visible via the section subtitles
               (in dashboard mode) or the grid's natural rendering (in flat mode). */}
@@ -277,7 +310,7 @@ export default function WatchlistView() {
               is re-fetching after the initial load. NEVER replaces the
               content with a full-page skeleton during refresh. */}
           <Show when={loading() && hasLoadedOnce()}>
-            <RefreshingIndicator placement="top" message="Refreshing watchlist…" />
+            <RefreshingIndicator placement="top" message="Refreshing library…" />
           </Show>
 
           <Show when={!loading()} fallback={<LoadingSkeleton />}>
@@ -288,14 +321,14 @@ export default function WatchlistView() {
                   variant="error"
                   isGuest={false}
                   onLogin={() => {}}
-                  title="Error Loading Watchlist"
+                  title="Error Loading Library"
                   message={error() || "An unknown error occurred."}
                   actionText="Reload Page"
                   onAction={handleReload}
                 />
               }
             >
-              <WatchlistGrid
+              <LibraryGrid
                 viewMode={viewMode}
                 loading={loading}
                 error={error}
@@ -313,14 +346,14 @@ export default function WatchlistView() {
                 onReload={handleReload}
                 activeStatusTab={activeStatusTab}
                 onSelectStatusTab={handleSelectStatusTab}
-                totalWatchlistSize={() => watchlist().length}
+                totalLibrarySize={() => watchlist().length}
               />
             </Show>
           </Show>
         </div>
       </div>
 
-      <WatchlistDialogs
+      <LibraryDialogs
         show={showFilter}
         filters={filters}
         setFilters={(v) => {

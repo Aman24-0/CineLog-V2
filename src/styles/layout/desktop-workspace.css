@@ -42,6 +42,24 @@
     min-height: 100dvh;
   }
 
+  /* Routes without the Discover header use the full viewport height. */
+  .app-shell-bg.app-shell-no-header {
+    grid-template-rows: 1fr;
+    grid-template-areas: "sidebar main utility";
+  }
+
+  .app-shell-bg.app-shell-no-header > #main-content {
+    height: 100vh;
+    height: 100dvh;
+  }
+
+  .app-shell-bg.app-shell-no-header .desktop-sidebar,
+  .app-shell-bg.app-shell-no-header .desktop-utility-panel {
+    height: 100vh;
+    height: 100dvh;
+    top: 0;
+  }
+
   /* Header spans full width */
   .app-shell-bg > .app-header-glass {
     grid-area: header;

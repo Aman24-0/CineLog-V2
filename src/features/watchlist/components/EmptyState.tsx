@@ -1,4 +1,4 @@
-// src/features/watchlist/components/EmptyState.tsx
+// src/features/watchlist/components/EmptyState.tsx — Library empty states
 import { Show } from "solid-js";
 import { GlassEmptyState, GlassSurface, GlassButton } from "~/shared/ui/glass";
 import Icon from "~/shared/ui/Icon";
@@ -21,11 +21,11 @@ interface EmptyStateProps {
 }
 
 /**
- * GlassEmptyState for the Vault.
+ * GlassEmptyState for the Library.
  *
  * Variants:
  *  - Guest: glass surface with accent CTA (sign-in prompt)
- *  - first-use: onboarding icon + discover CTA ("Your Watchlist is empty")
+ *  - first-use: onboarding icon + discover CTA ("Your Library is empty")
  *  - filtered:  filter icon + "No items match your filters"
  *  - error:     dissatisfied icon + retry action (original default)
  *

@@ -4,6 +4,10 @@ import MovieCard from "~/shared/ui/MovieCard";
 import type { VaultSection } from "../useVaultSections";
 import WatchNextBadge from "./WatchNextBadge";
 
+export function hasWatchNextBadge(sectionId: string): boolean {
+  return sectionId === "watching" || sectionId === "in-progress";
+}
+
 interface VaultShelfProps {
   section: VaultSection;
   search: () => string;
@@ -61,8 +65,7 @@ const VaultShelf: Component<VaultShelfProps> = (props) => {
   // "watching" shelf (Continue Watching + Watching). For other shelves
   // (Planned, Recently Completed, All Titles) the badge is suppressed
   // because the user isn't actively progressing through those titles.
-  const showWatchNext = () =>
-    props.section.id === "watching" || props.section.id === "in-progress";
+  const showWatchNext = () => hasWatchNextBadge(props.section.id);
 
   const handleSeeAll = () => {
     if (props.onSeeAll) {
@@ -143,6 +146,7 @@ const VaultShelf: Component<VaultShelfProps> = (props) => {
                     movie={m}
                     variant="compact"
                     search={props.search()}
+                    showCompactEpisodeMeta={!showWatchNext()}
                     onClick={() => props.onOpenMovie(m.id)}
                   />
                   <Show when={showWatchNext()}>
@@ -163,6 +167,7 @@ const VaultShelf: Component<VaultShelfProps> = (props) => {
                   movie={m}
                   variant="compact"
                   search={props.search()}
+                  showCompactEpisodeMeta={!showWatchNext()}
                   onClick={() => props.onOpenMovie(m.id)}
                 />
                 <Show when={showWatchNext()}>

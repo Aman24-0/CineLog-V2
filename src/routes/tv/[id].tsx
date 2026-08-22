@@ -143,7 +143,7 @@ export default function TvDeepLinkRoute() {
   createEffect(() => {
     const current = selectedItem();
     if (opened && !current && authReady()) {
-      navigate(isGuest() ? "/discover" : "/watchlist", { replace: true });
+      navigate(isGuest() ? "/discover" : "/library", { replace: true });
     }
   });
 

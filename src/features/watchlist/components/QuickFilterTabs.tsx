@@ -1,6 +1,7 @@
 // src/features/watchlist/components/QuickFilterTabs.tsx
 import { For, Show, Component, createMemo, batch } from "solid-js";
 import type { WatchlistItem } from "~/shared/types";
+import { hasRewatchHistory } from "../vaultFilterUtils";
 
 interface QuickFilterTabsProps {
   active: () => string;
@@ -14,12 +15,13 @@ interface TabDef {
   icon: string;
 }
 
-const TABS: TabDef[] = [
+export const LIBRARY_STATUS_TABS: TabDef[] = [
   { label: "All", value: "all", icon: "video_library" },
   { label: "Watching", value: "Watching", icon: "visibility" },
   { label: "Planned", value: "Planned", icon: "bookmark" },
   { label: "Completed", value: "Completed", icon: "task_alt" },
-  { label: "Dropped", value: "Dropped", icon: "block" }
+  { label: "Dropped", value: "Dropped", icon: "block" },
+  { label: "Re-watched", value: "Re-watched", icon: "replay" }
 ];
 
 /**
@@ -31,7 +33,7 @@ const TABS: TabDef[] = [
  * The tabs show live counts derived from the watchlist so the user sees
  * their collection's status distribution at a glance:
  *
- *   [All 47] [Watching 5] [Planned 12] [Completed 27] [Dropped 3]
+ *   [All 47] [Watching 5] [Planned 12] [Completed 27] [Dropped 3] [Re-watched 4]
  *
  * The active tab is highlighted with the accent color. The tabs are
  * horizontally scrollable on mobile (no wrapping) to preserve the
@@ -43,6 +45,8 @@ const TABS: TabDef[] = [
  * uses the accent color with a glow.
  */
 const QuickFilterTabs: Component<QuickFilterTabsProps> = (props) => {
+  const TABS = LIBRARY_STATUS_TABS;
+
   // Single-pass status count — runs once per watchlist change, not once
   // per tab per render. Previously countFor() called .filter() 10 times
   // (2 per tab × 5 tabs), each iterating the full array.
@@ -53,7 +57,8 @@ const QuickFilterTabs: Component<QuickFilterTabsProps> = (props) => {
       Watching: 0,
       Planned: 0,
       Completed: 0,
-      Dropped: 0
+      Dropped: 0,
+      "Re-watched": 0
     };
     for (let i = 0; i < list.length; i++) {
       const s = list[i].status;
@@ -61,6 +66,7 @@ const QuickFilterTabs: Component<QuickFilterTabsProps> = (props) => {
       else if (s === "Watching") counts.Watching++;
       else if (s === "Completed") counts.Completed++;
       else if (s === "Dropped") counts.Dropped++;
+      if (hasRewatchHistory(list[i])) counts["Re-watched"]++;
     }
     return counts;
   });
@@ -113,7 +119,7 @@ const QuickFilterTabs: Component<QuickFilterTabsProps> = (props) => {
     <div
       class="quick-filter-bar"
       role="tablist"
-      aria-label="Filter watchlist by status"
+      aria-label="Filter library by status"
       onKeyDown={onKeyDown}
     >
       <For each={TABS}>

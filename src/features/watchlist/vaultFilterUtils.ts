@@ -264,12 +264,29 @@ export function matchSearch(m: WatchlistItem, query: string): boolean {
   return getSearchText(m).includes(s);
 }
 
+/**
+ * True when a title has a recorded viewing beyond its first watch.
+ * Re-watched is a derived Library view, not a persisted vault status.
+ */
+export function hasRewatchHistory(m: WatchlistItem): boolean {
+  if ((m.rewatchCount ?? 0) > 0) return true;
+  if ((m.seasonRewatchCount ?? 0) > 0) return true;
+  if (Array.isArray(m.rewatchDates) && m.rewatchDates.length > 1) return true;
+  return (
+    Array.isArray(m.seasonRewatchDates) &&
+    m.seasonRewatchDates.some(
+      (pass) => pass && Object.keys(pass).length > 0
+    )
+  );
+}
+
 /** Apply the quick-filter status tab + advanced status filter. */
 export function filterByStatus(
   items: WatchlistItem[],
   effectiveStatus: string
 ): WatchlistItem[] {
   if (effectiveStatus === "all") return items;
+  if (effectiveStatus === "Re-watched") return items.filter(hasRewatchHistory);
   return items.filter(
     (m) =>
       m.status === effectiveStatus ||

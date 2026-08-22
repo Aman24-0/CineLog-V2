@@ -6,8 +6,8 @@
 // axis. The bar width encodes the count; the colour is a stable gold
 // accent.
 //
-// Clicking a bar navigates to /watchlist?genre=<name> (Phase 6.2 Task
-// 3b). The Watchlist page reads the `genre` query param via
+// Clicking a bar navigates to /library?genre=<name> (Phase 6.2 Task
+// 3b). The Library page reads the `genre` query param via
 // useSearchParams() inside useVaultFiltering and applies it as the
 // active Genre filter — so the user lands on a ready-filtered Watchlist
 // showing only titles in that genre.
@@ -52,17 +52,17 @@ const GenreChart: Component<GenreChartProps> = (props) => {
     }));
 
   const handleClick = (item: BarHItem) => {
-    // Phase 6.2 Task 3b — navigate to /watchlist?genre=<name>.
-    // The Watchlist's useVaultFiltering reads `?genre=` from the URL
+    // Phase 6.2 Task 3b — navigate to /library?genre=<name>.
+    // The Library's useVaultFiltering reads `?genre=` from the URL
     // and applies it as the active Genre filter, so the user lands
     // on a ready-filtered list of titles in that genre.
     //
     // Previous behavior (pre-6.2) navigated to /discover?genre=...
     // which opened the Discover page's GenreExplorer. The task spec
-    // asks for navigation to the Watchlist (filtered) instead — this
+    // asks for navigation to the Library (filtered) instead — this
     // is more useful because it shows the user's OWN titles in that
     // genre, not TMDB's general catalog.
-    navigate(`/watchlist?genre=${encodeURIComponent(item.label)}`);
+    navigate(`/library?genre=${encodeURIComponent(item.label)}`);
   };
 
   return (

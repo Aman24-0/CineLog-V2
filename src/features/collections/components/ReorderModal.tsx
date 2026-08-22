@@ -328,7 +328,7 @@ const ReorderModal: Component<ReorderModalProps> = (props) => {
             <span class="material-symbols-outlined" aria-hidden="true">
               {showAddPanel() ? "remove" : "add"}
             </span>
-            {showAddPanel() ? "Hide add titles" : "Add titles from watchlist"}
+            {showAddPanel() ? "Hide add titles" : "Add titles from library"}
           </button>
 
           <Show when={showAddPanel()}>
@@ -339,10 +339,10 @@ const ReorderModal: Component<ReorderModalProps> = (props) => {
                 </span>
                 <input
                   type="text"
-                  placeholder="Search your watchlist..."
+                  placeholder="Search your library..."
                   value={search.query()}
                   onInput={(e) => search.setQuery(e.currentTarget.value)}
-                  aria-label="Search watchlist to add titles"
+                  aria-label="Search library to add titles"
                 />
               </div>
               <div class="reorder-modal-add-results">
@@ -353,7 +353,7 @@ const ReorderModal: Component<ReorderModalProps> = (props) => {
                       when={search.query().length > 0}
                       fallback={
                         <p class="reorder-modal-add-empty">
-                          Your watchlist is empty.
+                          Your library is empty.
                         </p>
                       }
                     >
@@ -463,7 +463,7 @@ const ReorderModal: Component<ReorderModalProps> = (props) => {
                 <GlassEmptyState
                   icon="drag_indicator"
                   title="Nothing to reorder"
-                  message="Use 'Add titles from watchlist' above to populate this collection."
+                  message="Use 'Add titles from library' above to populate this collection."
                   variant="compact"
                 />
               }

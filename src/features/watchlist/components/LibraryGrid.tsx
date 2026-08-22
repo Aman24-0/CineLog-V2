@@ -1,4 +1,4 @@
-// src/features/watchlist/components/WatchlistGrid.tsx
+// src/features/watchlist/components/LibraryGrid.tsx
 import { For, Show, type Accessor } from "solid-js";
 import Icon from "~/shared/ui/Icon";
 import MovieCard from "~/shared/ui/MovieCard";
@@ -11,7 +11,7 @@ import EmptyState from "./EmptyState";
 import type { VaultSection } from "../useVaultSections";
 
 /**
- * WatchlistGrid — the grid + timeline content area of the Vault page.
+ * LibraryGrid — the grid + timeline content area of the Library page.
  *
  * DYNAMIC LAYOUT ENGINE (v2):
  *   - Dashboard mode (status = "all", no search/filters): renders
@@ -29,7 +29,7 @@ import type { VaultSection } from "../useVaultSections";
  *   - Authenticated + no matches → "Clear Filters" CTA
  *   - Timeline + no dated titles → "No Dates Found" with "Clear Filters"
  */
-export interface WatchlistGridProps {
+export interface LibraryGridProps {
   viewMode: Accessor<"grid" | "timeline">;
   loading: Accessor<boolean>;
   error: Accessor<string | null>;
@@ -49,11 +49,11 @@ export interface WatchlistGridProps {
   activeStatusTab: Accessor<string>;
   /** Called when a "See All" button is tapped — switches the active status chip */
   onSelectStatusTab: (status: string) => void;
-  /** The total unfiltered watchlist size — used to distinguish first-use (0 items ever) from filtered empty */
-  totalWatchlistSize: Accessor<number>;
+  /** The total unfiltered library size — used to distinguish first-use from filtered empty. */
+  totalLibrarySize: Accessor<number>;
 }
 
-export default function WatchlistGrid(props: WatchlistGridProps) {
+export default function LibraryGrid(props: LibraryGridProps) {
   return (
     <Show
       when={props.viewMode() === "timeline"}
@@ -63,7 +63,7 @@ export default function WatchlistGrid(props: WatchlistGridProps) {
           fallback={
             <EmptyState
               variant={
-                props.isGuest() || props.totalWatchlistSize() === 0
+                props.isGuest() || props.totalLibrarySize() === 0
                   ? "first-use"
                   : "filtered"
               }
@@ -71,22 +71,22 @@ export default function WatchlistGrid(props: WatchlistGridProps) {
               onLogin={props.onLogin}
               title={
                 props.isGuest()
-                  ? "Watchlist is Empty"
-                  : props.totalWatchlistSize() === 0
-                    ? "Your Watchlist is Empty"
+                  ? "Library is Empty"
+                  : props.totalLibrarySize() === 0
+                    ? "Your Library is Empty"
                     : "No Matches"
               }
               message={
                 props.isGuest()
                   ? "Sign in to start tracking movies and series."
-                  : props.totalWatchlistSize() === 0
+                  : props.totalLibrarySize() === 0
                     ? "Save movies and shows here to build your personal collection."
                     : "No titles match your current filters. Try adjusting or clearing them."
               }
               actionText={
                 props.isGuest()
                   ? "Sign In to Begin"
-                  : props.totalWatchlistSize() === 0
+                  : props.totalLibrarySize() === 0
                     ? "Discover Movies & Shows"
                     : "Clear Filters"
               }

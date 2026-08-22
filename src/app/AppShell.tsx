@@ -27,6 +27,10 @@ import { useAuthModal } from "~/shared/hooks/useAuthModal";
 import SearchOverlay from "~/features/search/SearchOverlay";
 import { useRouteScrollRestoration } from "~/shared/hooks/useRouteScrollRestoration";
 
+export function isDiscoverConsumerRoute(pathname: string): boolean {
+  return pathname === "/discover";
+}
+
 const DetailsModal = lazy(() => import("~/features/details/DetailsModal"));
 const CollectionModal = lazy(
   () => import("~/features/collection/CollectionModal")
@@ -113,6 +117,14 @@ const AppShell: ParentComponent = (props) => {
   // guaranteed to be logged-out (or about to be redirected).
   const isLandingRoute = createMemo(() => location.pathname === "/");
 
+  // The consumer header is intentionally a Discover-only surface. Library,
+  // Search, Collections, Profile, and Settings own their own page context and
+  // should begin at the top of the workspace instead of inheriting a second
+  // global header band.
+  const isDiscoverRoute = createMemo(() =>
+    isDiscoverConsumerRoute(location.pathname)
+  );
+
   // Any modal open — used for body scroll lock (set in each modal's onMount)
   // AND for setting `inert` on the consumer wrapper so the background chrome
   // (header, sidebar, main, bottom nav) is non-focusable AND hidden from AT
@@ -141,7 +153,7 @@ const AppShell: ParentComponent = (props) => {
           when={isLandingRoute()}
           fallback={
             <div
-              class="app-shell-bg min-h-screen w-full"
+              class={`app-shell-bg min-h-screen w-full${isDiscoverRoute() ? "" : " app-shell-no-header"}`}
               // `inert` makes the entire background chrome (header, sidebar,
               // main, bottom nav) non-focusable AND hidden from the AT tree
               // when any modal is open. This is the WCAG-compliant way to
@@ -173,9 +185,10 @@ const AppShell: ParentComponent = (props) => {
                 Skip to content
               </a>
 
-              <AppHeader />
-
-              <AnnouncementsBanner />
+              <Show when={isDiscoverRoute()}>
+                <AppHeader />
+                <AnnouncementsBanner />
+              </Show>
 
               {/* Desktop Sidebar — hidden on mobile, visible on desktop via CSS */}
               <DesktopSidebar />

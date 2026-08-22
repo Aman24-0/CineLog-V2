@@ -8,7 +8,8 @@ import {
   sortItems,
   computeChips,
   countActiveFilters,
-  hasAdvancedFiltersActive
+  hasAdvancedFiltersActive,
+  hasRewatchHistory
 } from "../vaultFilterUtils";
 import {
   makeMovie,
@@ -119,6 +120,34 @@ describe("filterByStatus", () => {
     const result = filterByStatus(items, "Completed");
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe("3");
+  });
+
+  it("filters Re-watched using existing movie re-watch activity only", () => {
+    const rewatched = makeMovie({
+      id: "5",
+      status: "Completed",
+      rewatchCount: 1,
+      rewatchDates: ["2026-01-01", "2026-02-01"]
+    });
+    const firstWatch = makeMovie({ id: "6", status: "Completed", rewatchCount: 0 });
+    expect(hasRewatchHistory(rewatched)).toBe(true);
+    expect(hasRewatchHistory(firstWatch)).toBe(false);
+    expect(filterByStatus([rewatched, firstWatch], "Re-watched").map((m) => m.id)).toEqual(["5"]);
+  });
+
+  it("filters Re-watched using TV season counters or per-season dates", () => {
+    const seasonCount = makeTVSeries({ id: "7", seasonRewatchCount: 1 });
+    const seasonDates = makeTVSeries({
+      id: "8",
+      seasonRewatchDates: [{ "1": { start: "2026-01-01", end: "2026-01-10" } }]
+    });
+    const firstWatch = makeTVSeries({ id: "9", seasonRewatchCount: 0, seasonRewatchDates: [] });
+    const result = filterByStatus([seasonCount, seasonDates, firstWatch], "Re-watched");
+
+    expect(hasRewatchHistory(seasonCount)).toBe(true);
+    expect(hasRewatchHistory(seasonDates)).toBe(true);
+    expect(hasRewatchHistory(firstWatch)).toBe(false);
+    expect(result.map((item) => item.id)).toEqual(["7", "8"]);
   });
 });
 

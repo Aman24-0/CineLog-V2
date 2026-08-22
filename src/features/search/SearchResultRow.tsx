@@ -82,7 +82,7 @@ export default function SearchResultRow(props: SearchResultRowProps) {
         fallback={
           <span
             class="v2-pill v2-pill-accent search-result-pill"
-            aria-label="In your watchlist"
+            aria-label="In your library"
           >
             <span
               class="material-symbols-outlined"
@@ -91,7 +91,7 @@ export default function SearchResultRow(props: SearchResultRowProps) {
             >
               check
             </span>
-            In Watchlist
+            In Library
           </span>
         }
       >
@@ -99,7 +99,7 @@ export default function SearchResultRow(props: SearchResultRowProps) {
           type="button"
           class="search-result-add focus-ring"
           onClick={() => props.onAdd()}
-          aria-label={`Add ${titleOf(props.title)} to your watchlist`}
+          aria-label={`Add ${titleOf(props.title)} to your library`}
         >
           <span
             class="material-symbols-outlined"

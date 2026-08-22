@@ -32,6 +32,25 @@ function writePositions(storage: Storage, positions: ScrollPositions): void {
   }
 }
 
+function scrollTarget(): Window | HTMLElement {
+  if (typeof window === "undefined" || typeof document === "undefined") return window;
+  const main = document.getElementById("main-content");
+  // DesktopWorkspace makes #main-content the scroll container. Mobile keeps
+  // normal document scrolling, so use window there.
+  if (main && window.matchMedia?.("(min-width: 1024px)").matches) return main;
+  return window;
+}
+
+function readScrollTop(): number {
+  const target = scrollTarget();
+  return target instanceof HTMLElement ? target.scrollTop : window.scrollY;
+}
+
+function restoreScrollTop(top: number): void {
+  const target = scrollTarget();
+  target.scrollTo({ top, behavior: "auto" });
+}
+
 /** Small storage-backed route scroll store, exported for deterministic tests. */
 export function createRouteScrollStore(storage: Storage) {
   const positions = readPositions(storage);
@@ -54,8 +73,17 @@ export function createRouteScrollStore(storage: Storage) {
   };
 }
 
+export function canonicalRouteKey(
+  pathname: string,
+  search = "",
+  hash = ""
+): string {
+  const canonicalPath = pathname === "/watchlist" ? "/library" : pathname;
+  return `${canonicalPath}${search}${hash}`;
+}
+
 function routeKey(location: ReturnType<typeof useLocation>): string {
-  return `${location.pathname}${location.search}${location.hash}`;
+  return canonicalRouteKey(location.pathname, location.search, location.hash);
 }
 
 /**
@@ -73,7 +101,7 @@ export function useRouteScrollRestoration(): void {
 
   const saveActiveRoute = () => {
     if (!store || !activeRoute || typeof window === "undefined") return;
-    store.save(activeRoute, window.scrollY);
+    store.save(activeRoute, readScrollTop());
   };
 
   const scheduleRestore = (route: string) => {
@@ -83,7 +111,7 @@ export function useRouteScrollRestoration(): void {
 
     const restore = () => {
       if (token !== restoreToken || activeRoute !== route) return;
-      window.scrollTo({ top: store!.get(route), behavior: "auto" });
+      restoreScrollTop(store!.get(route));
       restoreTimer = null;
     };
 

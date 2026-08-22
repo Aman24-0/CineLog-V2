@@ -11,10 +11,10 @@
 //   │           Trash is Empty                │
 //   │   Deleted items will appear here for    │
 //   │             30 days.                    │
-//   │         [ Go to Watchlist ]             │
+//   │         [ Go to Library ]             │
 //   └─────────────────────────────────────────┘
 //
-// The CTA takes the user to the Watchlist page (the most useful next
+// The CTA takes the user to the Library page (the most useful next
 // destination from the Trash — they likely came from there to clean
 // up, and now want to get back to their library).
 
@@ -38,10 +38,10 @@ const TrashEmptyState: Component = () => {
             variant="primary"
             size="default"
             icon="bookmark"
-            onClick={() => navigate("/watchlist")}
-            aria-label="Go to Watchlist"
+            onClick={() => navigate("/library")}
+            aria-label="Go to Library"
           >
-            Go to Watchlist
+            Go to Library
           </GlassButton>
         }
         class="trash-empty-state"

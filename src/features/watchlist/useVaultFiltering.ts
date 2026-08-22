@@ -64,6 +64,10 @@ export const defaultFilters: VaultFilters = {
 export interface UseVaultFilteringArgs {
   watchlist: Accessor<WatchlistItem[]>;
   viewMode: Accessor<"grid" | "timeline">;
+  initialSearchInput?: string;
+  initialFilters?: VaultFilters;
+  initialStatusTab?: string;
+  isRestoringViewState?: Accessor<boolean>;
 }
 
 export interface UseVaultFilteringResult {
@@ -171,10 +175,13 @@ export function useVaultFiltering(
   args: UseVaultFilteringArgs
 ): UseVaultFilteringResult {
   const [searchParams] = useSearchParams();
-  const [searchInput, setSearchInput] = createSignal("");
-  const [search, setSearch] = createSignal("");
-  const [filters, setFilters] = createSignal<VaultFilters>(defaultFilters);
-  const [activeStatusTab, setActiveStatusTab] = createSignal("all");
+  const initialSearch = args.initialSearchInput ?? "";
+  const initialFilters = args.initialFilters ?? defaultFilters;
+  const initialStatus = args.initialStatusTab ?? initialFilters.status ?? "all";
+  const [searchInput, setSearchInput] = createSignal(initialSearch);
+  const [search, setSearch] = createSignal(initialSearch);
+  const [filters, setFilters] = createSignal<VaultFilters>(initialFilters);
+  const [activeStatusTab, setActiveStatusTab] = createSignal(initialStatus);
 
   let searchTimer: ReturnType<typeof setTimeout> | null = null;
   const onSearchInput = (v: string) => {
@@ -218,7 +225,8 @@ export function useVaultFiltering(
         status === "Watching" ||
         status === "Planned" ||
         status === "Completed" ||
-        status === "Dropped"
+        status === "Dropped" ||
+        status === "Re-watched"
       ) {
         setActiveStatusTab(status);
       }
@@ -246,9 +254,16 @@ export function useVaultFiltering(
 
   // View mode effect — timeline forces Completed + watch_date desc.
   // Grid mode resets to added_date desc (recently-added default).
-  let prevViewMode = "grid";
+  // Seed the lifecycle tracker from the restored view mode. This prevents
+  // the initial effect pass from treating a restored Timeline view as a user
+  // toggle and resetting its saved filters/status.
+  let prevViewMode = args.viewMode();
   createEffect(() => {
     const mode = args.viewMode();
+    if (args.isRestoringViewState?.()) {
+      prevViewMode = mode;
+      return;
+    }
     if (mode === "timeline" && prevViewMode !== "timeline") {
       setFilters({
         ...defaultFilters,

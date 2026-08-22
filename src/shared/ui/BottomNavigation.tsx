@@ -3,31 +3,24 @@ import { useAuth } from "~/shared/hooks/useAuth";
 import { useAuthModal } from "~/shared/hooks/useAuthModal";
 import NavButton from "./NavButton";
 
+export const PRIMARY_NAV_LABELS = [
+  "Discover",
+  "Library",
+  "Search",
+  "Collections",
+  "Profile"
+] as const;
+
 /**
  * BottomNavigation — primary navigation bar fixed to the viewport bottom.
  *
- * Navigation restructure (Search → Discover merge):
- *   The dedicated Search page has been removed. Search is now a first-
- *   class citizen of the Discover page (search bar pinned to the top of
- *   Discover, with the Genre Explorer right below it). This collapses
- *   the "intentional vs serendipitous" split into a single primary
- *   surface — the user no longer has to switch tabs to do both.
+ * Primary navigation is deliberately split into five destinations:
+ *   Discover, Library, Search, Collections, and Profile. Search is a
+ *   first-class route rather than an alias for Discover, while Discover
+ *   retains its own exploratory surface and Genre Explorer.
  *
- * Social module removed — "Feed" tab replaced with "Profile":
- *   The social feed, people search, followers/following, and public
- *   profile features have been removed. CineLog is now a premium
- *   personal Movie / TV / Anime tracker. The bottom nav is exactly
- *   four destinations:
- *     1. Discover    — serendipitous browsing + intentional search + genre
- *                      exploration, all in one place
- *     2. Watchlist   — the user's library (formerly "Vault")
- *     3. Collections — user folders + subscribed universes
- *     4. Profile     — personal dashboard (stats, history, achievements)
- *
- *   For logged-out users, the Profile tab opens the AuthModal directly
- *   instead of navigating to the empty "Your Cinematic Identity" page.
- *   This matches the behavior of the previous Header Profile button.
- *
+ * For logged-out users, the Profile tab opens the AuthModal directly
+ * instead of navigating to the empty profile page.
  * The bar is opaque (not glass) so content scrolling underneath never
  * bleeds through — this matches Letterboxd / Trakt / TV Time, which all
  * use solid bottom bars for thumb-zone stability.
@@ -65,23 +58,31 @@ export default function BottomNavigation() {
     <nav class="bottom-nav-glass fixed flex" aria-label="Primary navigation">
       <NavButton
         icon="explore"
-        label="Discover"
+        label={PRIMARY_NAV_LABELS[0]}
         href="/discover"
-        active={path() === "/discover" || path() === "/search"}
+        active={path() === "/discover"}
         onClick={() => go("/discover")}
       />
 
       <NavButton
-        icon="visibility"
-        label="Watchlist"
-        href="/watchlist"
-        active={path() === "/watchlist"}
-        onClick={() => go("/watchlist")}
+        icon="video_library"
+        label={PRIMARY_NAV_LABELS[1]}
+        href="/library"
+        active={path() === "/library" || path() === "/watchlist"}
+        onClick={() => go("/library")}
+      />
+
+      <NavButton
+        icon="search"
+        label={PRIMARY_NAV_LABELS[2]}
+        href="/search"
+        active={path() === "/search"}
+        onClick={() => go("/search")}
       />
 
       <NavButton
         icon="collections_bookmark"
-        label="Collections"
+        label={PRIMARY_NAV_LABELS[3]}
         href="/collections"
         active={path() === "/collections" || path().startsWith("/collections/")}
         onClick={() => go("/collections")}
@@ -89,7 +90,7 @@ export default function BottomNavigation() {
 
       <NavButton
         icon="person"
-        label="Profile"
+        label={PRIMARY_NAV_LABELS[4]}
         href="/profile"
         active={path() === "/profile" || path().startsWith("/profile/")}
         onClick={handleProfileClick}
