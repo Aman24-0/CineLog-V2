@@ -170,8 +170,8 @@ export function getEpisodeProgress(
   if (!m || !isWatchable(m)) return null;
   if (m.media_type !== "tv") return null;
 
-  const season = m.season || 1;
-  const episode = m.episode || 1;
+  const season = m.season ?? m.watchProgress?.season ?? 1;
+  const episode = m.episode ?? m.watchProgress?.episode ?? 1;
   const seasonList = resolveSeasons(m, details);
 
   // No season data at all — show a 0% with just the S/E label
@@ -301,17 +301,27 @@ export function getNextEpisode(
   if (!m || !isWatchable(m)) return null;
   if (m.media_type !== "tv") return null;
 
-  const season = m.season || 1;
-  const episode = m.episode || 1;
+  const season = m.season ?? m.watchProgress?.season ?? 1;
+  const episode = m.episode ?? m.watchProgress?.episode ?? 1;
   const seasonList = resolveSeasons(m, details);
 
-  // No season data — best-effort suggestion of S1 E1 (or current+1).
+  // No season data — preserve any tracked position rather than resetting
+  // an existing series to S1 E1. A truly unstarted item still defaults to
+  // S1 E1; an item already tracked at SxEy gets the best-effort next
+  // episode in that same season until season metadata is available.
   if (seasonList.length === 0) {
+    const hasTrackedPosition =
+      typeof m.season === "number" ||
+      typeof m.episode === "number" ||
+      !!m.watchProgress?.season ||
+      !!m.watchProgress?.episode;
+    const fallbackSeason = hasTrackedPosition ? season : 1;
+    const fallbackEpisode = hasTrackedPosition ? episode + 1 : 1;
     return {
-      season: 1,
-      episode: 1,
+      season: fallbackSeason,
+      episode: fallbackEpisode,
       totalEps: 0,
-      label: "S1 E1",
+      label: `S${fallbackSeason} E${fallbackEpisode}`,
       isAtEnd: false
     };
   }

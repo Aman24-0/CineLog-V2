@@ -28,7 +28,6 @@ import {
   Show,
   createSignal,
   createMemo,
-  onMount,
   createEffect,
   type Component
 } from "solid-js";
@@ -74,6 +73,14 @@ interface ProviderOption {
   id: string;
   name: string;
   logoPath: string | null;
+}
+
+export function chooseInitialProviderId(
+  providers: Array<{ id: string }>,
+  preferredIds: string[]
+): string | null {
+  const available = new Set(providers.map((provider) => provider.id));
+  return preferredIds.find((id) => available.has(id)) ?? providers[0]?.id ?? null;
 }
 
 /**
@@ -135,10 +142,9 @@ const OttDropdown: Component<OttDropdownProps> = (props) => {
     }
   };
 
-  onMount(() => {
-    void loadRegionProviders(props.region);
-  });
-  // Refetch when the region changes (user switched country in settings).
+  // Load once on the first reactive run and refetch only when the region
+  // changes (user switched country in settings). Using one reactive entry
+  // point avoids the previous onMount + createEffect duplicate request.
   createEffect(() => {
     const r = props.region;
     void loadRegionProviders(r);
@@ -191,11 +197,13 @@ const OttDropdown: Component<OttDropdownProps> = (props) => {
     return tryResolveProvider(sel);
   });
 
-  // The summary label — the active provider's name, or "All Providers"
-  // when nothing is selected or the selected id is stale.
+  // The summary label always reflects a real provider. The parent auto-selects
+  // the first loaded provider when there is no user preference; this fallback
+  // is only a transient/loading or stale-selection label, never a synthetic
+  // provider option.
   const summaryLabel = createMemo(() => {
     const active = activeProvider();
-    if (!active) return "All Providers";
+    if (!active) return "Select provider";
     return active.name;
   });
 

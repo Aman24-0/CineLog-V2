@@ -181,36 +181,6 @@ const AppHeader: Component = () => {
     search.commitSearch(search.query());
   };
 
-  // Clear button rendered inside the desktop GlassInput's rightContent slot.
-  const renderClearButton = () => (
-    <button
-      type="button"
-      class="focus-ring"
-      style={SEARCH_CLEAR_BTN_STYLE}
-      onClick={() => {
-        search.setQuery("");
-        desktopSearchRef?.focus();
-      }}
-      aria-label="Clear search"
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = "var(--glass-bg)";
-        e.currentTarget.style.color = "var(--text-strong)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = "transparent";
-        e.currentTarget.style.color = "var(--text-muted)";
-      }}
-    >
-      <span
-        class="material-symbols-outlined"
-        style={{ "font-size": "18px" }}
-        aria-hidden="true"
-      >
-        close
-      </span>
-    </button>
-  );
-
   // The user object is unused in render but destructured for future use
   // (e.g. showing the user's avatar image). Suppress the unused-var
   // warning by referencing it here.
@@ -238,39 +208,52 @@ const AppHeader: Component = () => {
           onSubmit={handleSearchSubmit}
           role="search"
         >
-          <GlassInput
-            ref={desktopSearchRef}
-            type="search"
-            icon="search"
-            placeholder="Search movies, series, anime…"
-            value={search.query()}
-            onInput={(e) => search.setQuery(e.currentTarget.value)}
-            aria-label="Search movies, series, and anime"
-            autocomplete="off"
-            spellcheck={false}
-            rightContent={
-              <Show
-                when={search.query()}
-                fallback={
+          <div class="app-header-search-field">
+            <GlassInput
+              ref={desktopSearchRef}
+              type="search"
+              icon="search"
+              placeholder="Search movies, series, anime…"
+              value={search.query()}
+              onInput={(e) => search.setQuery(e.currentTarget.value)}
+              aria-label="Search movies, series, and anime"
+              autocomplete="off"
+              spellcheck={false}
+            />
+            <div class="app-header-search-right-content">
+              <span class="app-header-search-shortcut">
+                ⌘K
+              </span>
+              <span class="app-header-search-clear-slot">
+                <button
+                  type="button"
+                  class="focus-ring"
+                  style={SEARCH_CLEAR_BTN_STYLE}
+                  onClick={() => {
+                    search.setQuery("");
+                    desktopSearchRef?.focus();
+                  }}
+                  aria-label="Clear search"
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "var(--glass-bg)";
+                    e.currentTarget.style.color = "var(--text-strong)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "transparent";
+                    e.currentTarget.style.color = "var(--text-muted)";
+                  }}
+                >
                   <span
-                    class="app-header-search-shortcut"
-                    style={{
-                      "font-size": "11px",
-                      color: "var(--text-dim)",
-                      "font-family": "'Azeret Mono', monospace",
-                      padding: "2px 6px",
-                      "border-radius": "var(--radius-sm)",
-                      border: "1px solid var(--hairline-2)"
-                    }}
+                    class="material-symbols-outlined"
+                    style={{ "font-size": "18px" }}
+                    aria-hidden="true"
                   >
-                    ⌘K
+                    close
                   </span>
-                }
-              >
-                {renderClearButton()}
-              </Show>
-            }
-          />
+                </button>
+              </span>
+            </div>
+          </div>
           <button type="submit" class="sr-only">
             Search
           </button>

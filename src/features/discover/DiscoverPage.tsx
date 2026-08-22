@@ -107,7 +107,9 @@ import { useDiscoverActions } from "./useDiscoverActions";
 import Spotlight from "./components/Spotlight";
 import DiscoverRail from "./components/DiscoverRail";
 import GenreExplorer from "./components/GenreExplorer";
-import OttDropdown from "./components/OttDropdown";
+import OttDropdown, {
+  chooseInitialProviderId
+} from "./components/OttDropdown";
 import GenreDropdown from "./components/GenreDropdown";
 import DiscoverSkeleton from "./components/DiscoverSkeleton";
 import { DiscoverSectionError } from "./components/DiscoverSectionError";
@@ -337,17 +339,18 @@ export default function DiscoverPage() {
   const [ottSelected, setOttSelected] = createSignal<string | null>(null);
   createEffect(() => {
     const userPicks = streamingProviders();
-    if (ottSelected() === null && userPicks.length > 0) {
-      setOttSelected(userPicks[0]);
-    }
+    const current = ottSelected();
+    if (current !== null) return;
+    const preferred = userPicks[0];
+    if (preferred) setOttSelected(preferred);
   });
   const handleOttProvidersLoaded = (
     providers: Array<{ id: string; name: string; logoPath: string | null }>
   ) => {
-    if (ottSelected() !== null) return;
-    if (streamingProviders().length > 0) return;
-    if (providers.length === 0) return;
-    setOttSelected(providers[0].id);
+    const current = ottSelected();
+    if (current && providers.some((provider) => provider.id === current)) return;
+    const next = chooseInitialProviderId(providers, streamingProviders());
+    setOttSelected(next);
   };
   const row3Key = createMemo(() => {
     const providerId = ottSelected();
@@ -811,7 +814,7 @@ export default function DiscoverPage() {
 
               {/* 9. GUEST SIGN-IN CTA — uses GlassEmptyState for a polished,
                   cinematic empty state that matches the app's design language. */}
-              <Show when={isGuest()}>
+              <Show when={authReady() && isGuest()}>
                 <div class="discover-guest-nudge">
                   <GlassEmptyState
                     icon="movie_filter"

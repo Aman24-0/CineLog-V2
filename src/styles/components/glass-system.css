@@ -360,6 +360,41 @@
   }
 }
 
+/* The desktop search slot keeps both visual branches in the SSR/client
+   DOM to avoid hydration mismatches. Native :placeholder-shown state toggles
+   which branch is visible without creating or destroying nodes. */
+.app-header-search-field {
+  position: relative;
+  width: 100%;
+}
+.app-header-search-field input[type="search"] {
+  padding-right: 4.5rem !important;
+}
+.app-header-search-right-content {
+  position: absolute;
+  top: 50%;
+  right: 0.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+.app-header-search-clear-slot {
+  display: none;
+}
+.app-header-search-clear-slot button {
+  pointer-events: auto;
+}
+.app-header-search-field:has(input[type="search"]:not(:placeholder-shown))
+  .app-header-search-shortcut {
+  display: none;
+}
+.app-header-search-field:has(input[type="search"]:not(:placeholder-shown))
+  .app-header-search-clear-slot {
+  display: inline-flex;
+}
+
 /* Hide the native search input cancel button — we provide our own
    close button in the overlay header row and the desktop inline bar. */
 .search-overlay-input::-webkit-search-cancel-button,

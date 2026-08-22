@@ -114,6 +114,15 @@ export function vaultRowToWatchlistItem(
     tmdbRating:
       tmdb?.vote_average != null ? String(tmdb.vote_average) : undefined,
     genresList: normalizeGenres(tmdb?.genres as unknown[] | undefined),
+    // Read-only season metadata from TMDB. This is needed by Continue
+    // Watching to move from a completed season to the first episode of the
+    // next season; it does not touch any user-owned progress fields.
+    seasons:
+      row.media_type === "tv" && Array.isArray(tmdb?.seasons)
+        ? tmdb.seasons
+            .filter((s) => s.season_number > 0 && s.episode_count > 0)
+            .map((s) => ({ number: s.season_number, count: s.episode_count }))
+        : undefined,
     // ── Region filter hydration (v3) ─────────────────────────────────
     // TMDB returns origin_country (e.g. ["IN", "US"]) and spoken_languages
     // (array of { iso_639_1, name, english_name }) on both /movie/{id}

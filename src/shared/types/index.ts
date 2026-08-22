@@ -691,6 +691,8 @@ export interface TMDBTitle {
   genre_ids?: number[];
   /** Resolved genre names — populated by the discover API layer */
   genres?: string[];
+  /** Lightweight TV season summaries returned by the TMDB title endpoint. */
+  seasons?: TMDBSeason[];
   /** Director or creator — populated for "Because you watched X" surfaces */
   director?: string;
   /** Originating franchise name, when surfaced via the franchise trajectory */

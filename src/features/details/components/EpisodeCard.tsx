@@ -74,6 +74,16 @@ export interface EpisodeCardProps {
   onRate?: (rating: number | null) => void;
 }
 
+export function canRateEpisode(
+  props: Pick<EpisodeCardProps, "inVault" | "isWatched" | "isCurrent" | "onRate">,
+  scale: string
+): boolean {
+  return props.inVault &&
+    (props.isWatched || props.isCurrent) &&
+    scale !== "thumbs" &&
+    typeof props.onRate === "function";
+}
+
 const EpisodeCard: Component<EpisodeCardProps> = (props) => {
   const [expanded, setExpanded] = createSignal(false);
   // Local rating signal for optimistic UI — the parent's `rating` prop
@@ -103,15 +113,11 @@ const EpisodeCard: Component<EpisodeCardProps> = (props) => {
     return localRating();
   };
 
-  // Whether to show the rating row at all. Hidden when:
-  //   • Not in vault (can't rate an episode we're not tracking).
-  //   • Not watched (rating an unwatched episode makes no sense).
-  //   • ratingScale is "thumbs" (no 1-N scale applies).
+  // Whether to show the rating row at all. The current tracker episode is
+  // also a completed/watched episode in CineLog's model (the toggle already
+  // uses the same `isWatched || isCurrent` rule), so it must remain rateable.
   const showRatingRow = (): boolean =>
-    props.inVault &&
-    props.isWatched &&
-    ratingScale() !== "thumbs" &&
-    typeof props.onRate === "function";
+    canRateEpisode(props, ratingScale());
 
   // The max value for the rating scale — 5 for "5star", 10 for "10star".
   const ratingMax = (): number => (ratingScale() === "5star" ? 5 : 10);
@@ -241,10 +247,10 @@ const EpisodeCard: Component<EpisodeCardProps> = (props) => {
           </button>
         </Show>
 
-        {/* Phase 6 Task 2 — Per-episode rating row.
-            Renders only when: in vault + watched + scale != "thumbs" +
-            onRate callback is provided. Each star is a button so the
-            row is keyboard-accessible. Tapping a star sets the rating;
+          {/* Phase 6 Task 2 — Per-episode rating row.
+            Renders only when: in vault + watched/current + scale != "thumbs" +
+            onRate callback is provided. Each star is a button so the row is
+            keyboard-accessible. Tapping a star sets the rating;
             tapping the same star again clears it (toggle behavior). */}
         <Show when={showRatingRow()}>
           <div

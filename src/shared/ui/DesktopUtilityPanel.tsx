@@ -35,6 +35,7 @@ import {
   For,
   createMemo,
   createSignal,
+  onMount,
   type Component,
   type JSX
 } from "solid-js";
@@ -161,6 +162,10 @@ const DesktopUtilityPanel: Component = () => {
   const notif = useNotifications();
   const { openTitle } = useModalState();
   const [panelCollapsed, setPanelCollapsed] = createSignal(false);
+  // Auth can resolve differently on the server and client. Keep the
+  // sign-in branch stable through hydration, then reveal the real panel.
+  const [authHydrated, setAuthHydrated] = createSignal(false);
+  onMount(() => setAuthHydrated(true));
 
   // ── Continue Watching: top 5 by recent progress ──────────────
   const continueWatching = createMemo<WatchlistItem[]>(() => {
@@ -273,7 +278,7 @@ const DesktopUtilityPanel: Component = () => {
       <Show when={!panelCollapsed()}>
         <Switch>
         {/* ── Signed-out: show a single sign-in prompt ──────── */}
-        <Match when={!isSignedIn()}>
+        <Match when={!authHydrated() || !isSignedIn()}>
           <GlassCard variant="glass" size="default" padding="default">
             <h3 style={SECTION_HEADING_STYLE}>
               <span
@@ -300,7 +305,7 @@ const DesktopUtilityPanel: Component = () => {
         </Match>
 
         {/* ── Signed-in: show contextual shelves ────────────── */}
-        <Match when={true}>
+        <Match when={authHydrated() && isSignedIn()}>
           <Show
             when={!remindersFirst()}
             fallback={

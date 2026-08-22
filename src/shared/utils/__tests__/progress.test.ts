@@ -5,6 +5,7 @@ import {
   getContinueWatchingList,
   getEpisodeProgress,
   getInProgressCount,
+  getNextEpisode,
   resolveSeasons
 } from "../progress";
 import {
@@ -282,6 +283,60 @@ describe("getEpisodeProgress", () => {
     expect(result!.season).toBe(1);
     expect(result!.episode).toBe(1);
     expect(result!.pct).toBe(10); // 1/10 = 10%
+  });
+});
+
+describe("getNextEpisode", () => {
+  it("moves from the last episode of a season to the next season", () => {
+    const item = makeTVSeries({
+      seasons: makeSeasons([
+        { number: 1, count: 10 },
+        { number: 2, count: 8 },
+        { number: 3, count: 8 }
+      ]),
+      season: 2,
+      episode: 8
+    });
+    expect(getNextEpisode(item)).toMatchObject({
+      season: 3,
+      episode: 1,
+      label: "S3 E1",
+      isAtEnd: false
+    });
+  });
+
+  it("returns the next episode within a partially watched season", () => {
+    const item = makeTVSeries({
+      seasons: makeSeasons([
+        { number: 1, count: 10 },
+        { number: 2, count: 8 }
+      ]),
+      season: 1,
+      episode: 10
+    });
+    expect(getNextEpisode(item)?.label).toBe("S2 E1");
+  });
+
+  it("preserves a tracked position when season metadata is temporarily absent", () => {
+    const item = makeTVSeries({ seasons: undefined, season: 2, episode: 8 });
+    expect(getNextEpisode(item)).toMatchObject({
+      season: 2,
+      episode: 9,
+      label: "S2 E9"
+    });
+  });
+
+  it("marks a fully completed final season as caught up", () => {
+    const item = makeTVSeries({
+      seasons: makeSeasons([
+        { number: 1, count: 10 },
+        { number: 2, count: 8 }
+      ]),
+      season: 2,
+      episode: 8
+    });
+    expect(getNextEpisode(item)?.isAtEnd).toBe(true);
+    expect(getNextEpisode(item)?.label).toBe("Caught up");
   });
 });
 
