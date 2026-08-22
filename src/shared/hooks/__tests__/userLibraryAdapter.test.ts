@@ -10,6 +10,13 @@ vi.mock("~/shared/hooks/useAuth", () => ({
   getCurrentUid: vi.fn()
 }));
 
+vi.mock("~/lib/supabase/repositories/externalIds", () => ({
+  getExternalIdsByVaultIds: vi.fn().mockResolvedValue({
+    data: new Map(),
+    error: null
+  })
+}));
+
 // Mock the TMDB batch fetch so tests don't make real network calls.
 // fetchTmdbMetadataBatch is called during fetchUserLibrary to enrich
 // vault items with title/poster metadata from TMDB.
@@ -27,6 +34,7 @@ import {
   getEpisodeProgressRepository
 } from "~/lib/supabase/repositories";
 import { getCurrentUid } from "~/shared/hooks/useAuth";
+import { getExternalIdsByVaultIds } from "~/lib/supabase/repositories/externalIds";
 import type { VaultRow, EpisodeProgressRow } from "~/lib/supabase/repositories";
 
 const mockVaultRow = {
@@ -64,6 +72,10 @@ const mockProgressRow: EpisodeProgressRow = {
 describe("userLibraryAdapter", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(getExternalIdsByVaultIds).mockResolvedValue({
+      data: new Map(),
+      error: null
+    });
   });
 
   describe("vaultRowToWatchlistItem", () => {
@@ -181,6 +193,7 @@ describe("userLibraryAdapter", () => {
       expect(result[1].media_type).toBe("tv");
       expect(result[1].season).toBe(2);
       expect(result[1].episode).toBe(5);
+      expect(getExternalIdsByVaultIds).toHaveBeenCalledWith(["v1", "v2"]);
     });
 
     it("returns empty array when vault is empty", async () => {

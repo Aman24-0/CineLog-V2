@@ -33,7 +33,7 @@ const FORMATS: CsvFormat[] = [
   {
     id: "trakt",
     label: "Trakt",
-    desc: "Movies + shows — imports into Trakt",
+    desc: "Trakt-ready IDs, watch history, watchlist, and ratings",
     icon: "tv"
   },
   {
@@ -59,7 +59,9 @@ const CsvExportCard: Component = () => {
     try {
       exportWatchlistCsv(items, format);
       showToast(
-        `Exported ${items.length} titles as ${format} CSV`,
+        format === "trakt"
+          ? "Exported Trakt-compatible CSV"
+          : `Exported ${items.length} titles as ${format} CSV`,
         "success",
         2000
       );

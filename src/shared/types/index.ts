@@ -25,7 +25,18 @@ export interface CachedSeasonInfo {
 }
 
 export interface WatchlistItem {
+  /** TMDB identifier sourced from `vault.tmdb_id`; never CineLog's vault UUID. */
   id: string;
+  /**
+   * Optional identifiers imported or synced from other media services.
+   * These values are persisted separately from the CineLog vault UUID and
+   * are used verbatim by interoperability exports such as Trakt CSV.
+   */
+  externalIds?: {
+    imdb?: string;
+    trakt?: string;
+    tvdb?: string;
+  };
   title?: string;
   name?: string;
   original_title?: string; // original/native title (e.g. foreign-language films)

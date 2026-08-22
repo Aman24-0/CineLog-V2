@@ -37,6 +37,11 @@
 import { getDashboardRepository } from "~/lib/supabase/repositories";
 import { getEpisodeProgressRepository } from "~/lib/supabase/repositories";
 import type { VaultRow, EpisodeProgressRow } from "~/lib/supabase/repositories";
+import {
+  getExternalIdsByVaultIds,
+  type ExternalIdSet,
+  type ExternalIdsByVaultId
+} from "~/lib/supabase/repositories/externalIds";
 import { STATUS_TO_UI } from "~/shared/utils/vaultStatus";
 import { normalizeGenres } from "~/shared/utils/genres";
 import { getCurrentUid } from "~/shared/hooks/useAuth";
@@ -61,7 +66,8 @@ import type { TMDBTitle, WatchlistItem, WatchProgress } from "~/shared/types";
 export function vaultRowToWatchlistItem(
   row: VaultRow,
   progress?: EpisodeProgressRow | null,
-  tmdb?: TMDBTitle | null
+  tmdb?: TMDBTitle | null,
+  externalIds?: ExternalIdSet
 ): WatchlistItem {
   // ── Media-type-aware watch date resolution ────────────────────────
   // See vaultReadAdapter.ts for the full rationale. Short version:
@@ -75,6 +81,7 @@ export function vaultRowToWatchlistItem(
 
   const base: WatchlistItem = {
     id: String(row.tmdb_id),
+    externalIds,
     media_type: row.media_type,
     status: STATUS_TO_UI[row.status] ?? "Planned",
     rating: row.rating ?? undefined,
@@ -297,12 +304,12 @@ export async function fetchUserLibrary(
     throw new DOMException("Vault fetch aborted", "AbortError");
   }
 
-  // 2. PARALLEL: Episode progress + tmdb_cache lookup
-  //    These have NO dependency on each other — both only need vault rows.
+  // 2. PARALLEL: Episode progress, external IDs, and tmdb_cache lookup.
+  //    These have no dependency on each other — each only needs vault rows.
   const tvVaultIds = rows.filter((r) => r.media_type === "tv").map((r) => r.id);
   const cacheKeys = rows.map((r) => buildCacheKey(r.media_type, r.tmdb_id));
 
-  const [progressResult, cachedTmdbMap] = await Promise.all([
+  const [progressResult, externalIdsResult, cachedTmdbMap] = await Promise.all([
     // Episode progress for TV items
     tvVaultIds.length > 0
       ? getEpisodeProgressRepository().getLatestEpisodeProgressBatch(tvVaultIds)
@@ -310,6 +317,9 @@ export async function fetchUserLibrary(
           data: new Map<string, EpisodeProgressRow>(),
           error: null
         }),
+    // Preserve imported/synced IMDb, Trakt, and TVDB IDs for interoperable
+    // exports. This read silently degrades when a user has no external IDs.
+    getExternalIdsByVaultIds(rows.map((row) => row.id)),
     // Cached TMDB metadata (localStorage + server tmdb_cache table)
     cacheKeys.length > 0
       ? fetchCachedMetadataBatch(cacheKeys)
@@ -324,6 +334,16 @@ export async function fetchUserLibrary(
     );
   } else {
     progressMap = progressResult.data;
+  }
+
+  let externalIdsByVaultId: ExternalIdsByVaultId = new Map();
+  if (externalIdsResult.error) {
+    console.warn(
+      "[userLibraryAdapter] Error fetching external IDs:",
+      externalIdsResult.error
+    );
+  } else {
+    externalIdsByVaultId = externalIdsResult.data;
   }
 
   // 3. Identify cache misses — items that need TMDB API calls
@@ -368,7 +388,12 @@ export async function fetchUserLibrary(
     const progress = progressMap.get(row.id);
     const tmdbKey = buildCacheKey(row.media_type, row.tmdb_id);
     const tmdb = tmdbMap.get(tmdbKey) ?? null;
-    return vaultRowToWatchlistItem(row, progress, tmdb);
+    return vaultRowToWatchlistItem(
+      row,
+      progress,
+      tmdb,
+      externalIdsByVaultId.get(row.id)
+    );
   });
 }
 
