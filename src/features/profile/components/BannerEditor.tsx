@@ -248,10 +248,9 @@ const BannerEditor: Component<BannerEditorProps> = (props) => {
           class="modal-backdrop profile-banner-editor-backdrop fixed inset-0 z-[999999] flex items-end justify-center p-0 sm:items-center sm:p-4"
           style={{
             background:
-              "color-mix(in srgb, var(--p) 4%, var(--bg-modal-backdrop))",
-            "backdrop-filter": "var(--elevation-backdrop-blur) saturate(125%)",
-            "-webkit-backdrop-filter":
-              "var(--elevation-backdrop-blur) saturate(125%)"
+              "color-mix(in srgb, var(--bg-modal-backdrop) 94%, var(--void) 6%)",
+            "backdrop-filter": "blur(18px) saturate(85%)",
+            "-webkit-backdrop-filter": "blur(18px) saturate(85%)"
           }}
           onClick={() => !saving() && props.onClose()}
           role="dialog"
@@ -261,268 +260,266 @@ const BannerEditor: Component<BannerEditorProps> = (props) => {
           <div
             class="modal-sheet-enter modal-surface profile-banner-editor-modal relative z-10 w-full max-w-md"
             style={{
-              "border-radius": "var(--radius-xl)",
-              padding: "var(--sp-4)",
-              "padding-bottom":
-                "calc(var(--sp-5) + env(safe-area-inset-bottom, 0px))",
-              "max-height": "90vh",
+              padding: "0",
+              "max-height": "min(90dvh, 760px)",
               display: "flex",
-              "flex-direction": "column"
+              "flex-direction": "column",
+              overflow: "hidden"
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Drag handle */}
-            <div class="sheet-handle sm:hidden" aria-hidden="true" />
+            <div class="profile-banner-editor-scroll">
+              {/* Drag handle */}
+              <div class="sheet-handle sm:hidden" aria-hidden="true" />
 
-            {/* Close button */}
-            <button
-              type="button"
-              onClick={() => !saving() && props.onClose()}
-              class="focus-ring absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full"
-              style={{
-                background: "rgba(255,255,255,0.06)",
-                border: "1px solid var(--hairline)",
-                color: "var(--text-soft)"
-              }}
-              aria-label="Close"
-            >
-              <span
-                class="material-symbols-outlined"
-                style={{ "font-size": "16px" }}
-                aria-hidden="true"
-              >
-                close
-              </span>
-            </button>
-
-            {/* Header */}
-            <div style={{ "margin-bottom": "var(--sp-4)" }}>
-              <p
+              {/* Close button */}
+              <button
+                type="button"
+                onClick={() => !saving() && props.onClose()}
+                class="focus-ring absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full"
                 style={{
-                  "font-family": "'Azeret Mono', monospace",
-                  "font-size": "0.5625rem",
-                  "font-weight": 700,
-                  "letter-spacing": "0.14em",
-                  "text-transform": "uppercase",
-                  color: "var(--p)",
-                  margin: "0 0 var(--sp-1)"
+                  background: "rgba(255,255,255,0.06)",
+                  border: "1px solid var(--hairline)",
+                  color: "var(--text-soft)"
+                }}
+                aria-label="Close"
+              >
+                <span
+                  class="material-symbols-outlined"
+                  style={{ "font-size": "16px" }}
+                  aria-hidden="true"
+                >
+                  close
+                </span>
+              </button>
+
+              {/* Header */}
+              <div
+                class="profile-banner-editor-header"
+                style={{ "margin-bottom": "var(--sp-4)" }}
+              >
+                <p
+                  style={{
+                    "font-family": "'Azeret Mono', monospace",
+                    "font-size": "0.5625rem",
+                    "font-weight": 700,
+                    "letter-spacing": "0.14em",
+                    "text-transform": "uppercase",
+                    color: "var(--p)",
+                    margin: "0 0 var(--sp-1)"
+                  }}
+                >
+                  Customize
+                </p>
+                <h2
+                  style={{
+                    "font-family": "'Bebas Neue', sans-serif",
+                    "font-size": "1.5rem",
+                    "line-height": "1",
+                    "letter-spacing": "0.03em",
+                    color: "var(--text-strong)",
+                    margin: "0"
+                  }}
+                >
+                  Profile Banner
+                </h2>
+              </div>
+
+              {/* Tabs */}
+              <div
+                class="quick-filter-bar profile-banner-editor-tabs"
+                style={{ "margin-bottom": "var(--sp-4)" }}
+              >
+                <button
+                  type="button"
+                  class={`quick-filter-tab focus-ring${tab() === "auto" ? "" : ""}`}
+                  data-active={tab() === "auto"}
+                  onClick={() => setTab("auto")}
+                >
+                  Automatic
+                </button>
+                <button
+                  type="button"
+                  class={`quick-filter-tab focus-ring${tab() === "upload" ? "" : ""}`}
+                  data-active={tab() === "upload"}
+                  onClick={() => setTab("upload")}
+                >
+                  Upload
+                </button>
+                <button
+                  type="button"
+                  class={`quick-filter-tab focus-ring${tab() === "url" ? "" : ""}`}
+                  data-active={tab() === "url"}
+                  onClick={() => setTab("url")}
+                >
+                  Image URL
+                </button>
+              </div>
+
+              {/* Live preview */}
+              <div
+                class="profile-banner-editor-preview"
+                style={{
+                  width: "100%",
+                  "aspect-ratio": "16 / 5",
+                  "border-radius": "var(--radius-lg)",
+                  overflow: "hidden",
+                  border: "1px solid var(--hairline-2)",
+                  "margin-bottom": "var(--sp-4)",
+                  background: "var(--glass-bg)",
+                  position: "relative"
                 }}
               >
-                Customize
-              </p>
-              <h2
-                style={{
-                  "font-family": "'Bebas Neue', sans-serif",
-                  "font-size": "1.5rem",
-                  "line-height": "1",
-                  "letter-spacing": "0.03em",
-                  color: "var(--text-strong)",
-                  margin: "0"
-                }}
-              >
-                Profile Banner
-              </h2>
-            </div>
-
-            {/* Tabs */}
-            <div
-              class="quick-filter-bar"
-              style={{ "margin-bottom": "var(--sp-4)" }}
-            >
-              <button
-                type="button"
-                class={`quick-filter-tab focus-ring${tab() === "auto" ? "" : ""}`}
-                data-active={tab() === "auto"}
-                onClick={() => setTab("auto")}
-              >
-                Automatic
-              </button>
-              <button
-                type="button"
-                class={`quick-filter-tab focus-ring${tab() === "upload" ? "" : ""}`}
-                data-active={tab() === "upload"}
-                onClick={() => setTab("upload")}
-              >
-                Upload
-              </button>
-              <button
-                type="button"
-                class={`quick-filter-tab focus-ring${tab() === "url" ? "" : ""}`}
-                data-active={tab() === "url"}
-                onClick={() => setTab("url")}
-              >
-                Image URL
-              </button>
-            </div>
-
-            {/* Live preview */}
-            <div
-              style={{
-                width: "100%",
-                "aspect-ratio": "16 / 5",
-                "border-radius": "var(--radius-lg)",
-                overflow: "hidden",
-                border: "1px solid var(--hairline-2)",
-                "margin-bottom": "var(--sp-4)",
-                background: "var(--glass-bg)",
-                position: "relative"
-              }}
-            >
-              <Show
-                when={currentPreview().url}
-                fallback={
+                <Show
+                  when={currentPreview().url}
+                  fallback={
+                    <div
+                      style={{
+                        position: "absolute",
+                        inset: "0",
+                        background:
+                          "radial-gradient(ellipse at 20% 30%, var(--p-glow) 0%, transparent 50%), radial-gradient(ellipse at 80% 70%, color-mix(in srgb, var(--p2) 18%, transparent) 0%, transparent 50%), linear-gradient(145deg, var(--glass-bg), var(--glass-bg-strong))"
+                      }}
+                    />
+                  }
+                >
+                  <img
+                    src={currentPreview().url!}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      "object-fit": "cover"
+                    }}
+                    alt="Banner preview"
+                    loading="lazy"
+                    decoding="async"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).style.display =
+                        "none";
+                    }}
+                  />
                   <div
                     style={{
                       position: "absolute",
                       inset: "0",
                       background:
-                        "radial-gradient(ellipse at 20% 30%, var(--p-glow) 0%, transparent 50%), radial-gradient(ellipse at 80% 70%, color-mix(in srgb, var(--p2) 18%, transparent) 0%, transparent 50%), linear-gradient(145deg, var(--glass-bg), var(--glass-bg-strong))"
+                        "linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 50%)",
+                      "pointer-events": "none"
                     }}
                   />
-                }
-              >
-                <img
-                  src={currentPreview().url!}
+                </Show>
+                <Show when={uploading()}>
+                  <div
+                    style={{
+                      position: "absolute",
+                      inset: "0",
+                      display: "flex",
+                      "align-items": "center",
+                      "justify-content": "center",
+                      background: "rgba(0,0,0,0.6)",
+                      "backdrop-filter": "blur(4px)"
+                    }}
+                  >
+                    <span
+                      class="material-symbols-outlined animate-soft-pulse"
+                      style={{ "font-size": "24px", color: "var(--p)" }}
+                      aria-hidden="true"
+                    >
+                      progress_activity
+                    </span>
+                  </div>
+                </Show>
+              </div>
+
+              {/* Tab content */}
+              <Show when={tab() === "auto"}>
+                <p
                   style={{
-                    width: "100%",
-                    height: "100%",
-                    "object-fit": "cover"
-                  }}
-                  alt="Banner preview"
-                  loading="lazy"
-                  decoding="async"
-                  onError={(e) => {
-                    (e.currentTarget as HTMLImageElement).style.display =
-                      "none";
-                  }}
-                />
-                <div
-                  style={{
-                    position: "absolute",
-                    inset: "0",
-                    background:
-                      "linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 50%)",
-                    "pointer-events": "none"
-                  }}
-                />
-              </Show>
-              <Show when={uploading()}>
-                <div
-                  style={{
-                    position: "absolute",
-                    inset: "0",
-                    display: "flex",
-                    "align-items": "center",
-                    "justify-content": "center",
-                    background: "rgba(0,0,0,0.6)",
-                    "backdrop-filter": "blur(4px)"
+                    "font-family": "'Outfit', sans-serif",
+                    "font-size": "0.8125rem",
+                    color: "var(--text-soft)",
+                    margin: "0 0 var(--sp-3)",
+                    "line-height": "1.5"
                   }}
                 >
-                  <span
-                    class="material-symbols-outlined animate-soft-pulse"
-                    style={{ "font-size": "24px", color: "var(--p)" }}
-                    aria-hidden="true"
-                  >
-                    progress_activity
-                  </span>
-                </div>
+                  Your banner automatically uses your favorite movie's backdrop.
+                  Set a favorite movie to customize it, or reset to the CineLog
+                  gradient.
+                </p>
+              </Show>
+
+              <Show when={tab() === "upload"}>
+                <input
+                  id="banner-file-input"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileSelect}
+                  class="glass-input focus-ring"
+                  style={{ "margin-bottom": "var(--sp-2)" }}
+                  aria-label="Upload banner image"
+                />
+                <p
+                  style={{
+                    "font-family": "'Azeret Mono', monospace",
+                    "font-size": "0.5rem",
+                    color: "var(--text-muted)",
+                    margin: "0",
+                    "letter-spacing": "0.06em"
+                  }}
+                >
+                  JPG, PNG, or WebP · Max 10MB · Auto-cropped to 16:5
+                </p>
+              </Show>
+
+              <Show when={tab() === "url"}>
+                <input
+                  type="url"
+                  placeholder="https://example.com/banner.jpg"
+                  value={urlInput()}
+                  onInput={(e) => handleUrlInput(e.currentTarget.value)}
+                  class="glass-input focus-ring"
+                  style={{ "margin-bottom": "var(--sp-2)" }}
+                  aria-label="Banner image URL"
+                  autocomplete="off"
+                  spellcheck={false}
+                />
+                <p
+                  style={{
+                    "font-family": "'Azeret Mono', monospace",
+                    "font-size": "0.5rem",
+                    color: "var(--text-muted)",
+                    margin: "0",
+                    "letter-spacing": "0.06em"
+                  }}
+                >
+                  Paste a direct image URL (https://...)
+                </p>
+              </Show>
+
+              {/* Error */}
+              <Show when={error()}>
+                <p
+                  role="alert"
+                  style={{
+                    color: "#f87171",
+                    "font-size": "0.8125rem",
+                    "text-align": "center",
+                    margin: "var(--sp-3) 0 0",
+                    "font-family": "'Outfit', sans-serif",
+                    "font-weight": 500,
+                    padding: "0.5rem 0.75rem",
+                    "border-radius": "var(--radius-sm)",
+                    background: "rgba(248,113,113,0.08)",
+                    border: "1px solid rgba(248,113,113,0.2)"
+                  }}
+                >
+                  {error()}
+                </p>
               </Show>
             </div>
 
-            {/* Tab content */}
-            <Show when={tab() === "auto"}>
-              <p
-                style={{
-                  "font-family": "'Outfit', sans-serif",
-                  "font-size": "0.8125rem",
-                  color: "var(--text-soft)",
-                  margin: "0 0 var(--sp-3)",
-                  "line-height": "1.5"
-                }}
-              >
-                Your banner automatically uses your favorite movie's backdrop.
-                Set a favorite movie to customize it, or reset to the CineLog
-                gradient.
-              </p>
-            </Show>
-
-            <Show when={tab() === "upload"}>
-              <input
-                id="banner-file-input"
-                type="file"
-                accept="image/*"
-                onChange={handleFileSelect}
-                class="glass-input focus-ring"
-                style={{ "margin-bottom": "var(--sp-2)" }}
-                aria-label="Upload banner image"
-              />
-              <p
-                style={{
-                  "font-family": "'Azeret Mono', monospace",
-                  "font-size": "0.5rem",
-                  color: "var(--text-muted)",
-                  margin: "0",
-                  "letter-spacing": "0.06em"
-                }}
-              >
-                JPG, PNG, or WebP · Max 10MB · Auto-cropped to 16:5
-              </p>
-            </Show>
-
-            <Show when={tab() === "url"}>
-              <input
-                type="url"
-                placeholder="https://example.com/banner.jpg"
-                value={urlInput()}
-                onInput={(e) => handleUrlInput(e.currentTarget.value)}
-                class="glass-input focus-ring"
-                style={{ "margin-bottom": "var(--sp-2)" }}
-                aria-label="Banner image URL"
-                autocomplete="off"
-                spellcheck={false}
-              />
-              <p
-                style={{
-                  "font-family": "'Azeret Mono', monospace",
-                  "font-size": "0.5rem",
-                  color: "var(--text-muted)",
-                  margin: "0",
-                  "letter-spacing": "0.06em"
-                }}
-              >
-                Paste a direct image URL (https://...)
-              </p>
-            </Show>
-
-            {/* Error */}
-            <Show when={error()}>
-              <p
-                role="alert"
-                style={{
-                  color: "#f87171",
-                  "font-size": "0.8125rem",
-                  "text-align": "center",
-                  margin: "var(--sp-3) 0 0",
-                  "font-family": "'Outfit', sans-serif",
-                  "font-weight": 500,
-                  padding: "0.5rem 0.75rem",
-                  "border-radius": "var(--radius-sm)",
-                  background: "rgba(248,113,113,0.08)",
-                  border: "1px solid rgba(248,113,113,0.2)"
-                }}
-              >
-                {error()}
-              </p>
-            </Show>
-
             {/* Actions */}
-            <div
-              style={{
-                display: "flex",
-                gap: "var(--sp-2)",
-                "margin-top": "var(--sp-4)"
-              }}
-            >
+            <div class="profile-banner-editor-footer">
               <button
                 type="button"
                 class="btn-ghost focus-ring"

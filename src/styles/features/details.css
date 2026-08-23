@@ -3986,16 +3986,10 @@
 }
 
 .details-page-modal .cinematic-hero-overlay {
+  /* Keep the artwork clean in page mode. The top/left layers preserve
+     control and text legibility; the boundary transition is owned by the
+     external `.cinematic-hero::before` feather below. */
   background:
-    linear-gradient(
-      to top,
-      var(--void-ambient) 0%,
-      color-mix(in srgb, var(--void-ambient) 94%, transparent) 12%,
-      rgba(8, 8, 13, 0.72) 28%,
-      rgba(8, 8, 13, 0.3) 46%,
-      rgba(8, 8, 13, 0.05) 68%,
-      transparent 100%
-    ),
     linear-gradient(
       to bottom,
       rgba(8, 8, 13, 0.62) 0%,
@@ -4029,30 +4023,60 @@
   }
 }
 
-/* ─── Final screenshot pass: page-mode cinematic composition ───────────── */
-.details-page-modal .cinematic-hero::after {
+/* ─── Final screenshot pass: external atmospheric hero transition ───────── */
+.details-page-modal .cinematic-hero {
+  overflow: visible;
+  isolation: isolate;
+}
+
+.details-page-modal .cinematic-hero-media {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  isolation: isolate;
+  border-radius: inherit;
+}
+
+/* The feather lives outside the clipped media layer. It only kisses the
+   final 1.5rem of the hero, then continues for a full 10rem into the page so
+   the artwork stays clean while the rectangular boundary disappears. */
+.details-page-modal .cinematic-hero::before {
   content: "";
   position: absolute;
-  left: -4%;
-  right: -4%;
-  bottom: -0.75rem;
-  height: 48%;
-  z-index: 10;
+  left: -10%;
+  right: -10%;
+  bottom: -10rem;
+  height: 11.5rem;
+  z-index: 1;
   pointer-events: none;
-  background: linear-gradient(
-    to top,
-    var(--void-ambient) 0%,
-    color-mix(in srgb, var(--void-ambient) 84%, transparent) 22%,
-    color-mix(in srgb, var(--p) 8%, transparent) 54%,
+  background:
+    radial-gradient(
+      ellipse 70% 58% at 50% 0%,
+      color-mix(in srgb, var(--p) 8%, transparent) 0%,
+      transparent 72%
+    ),
+    linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--void-ambient) 5%, transparent) 0%,
+      color-mix(in srgb, var(--void-ambient) 24%, transparent) 18%,
+      color-mix(in srgb, var(--void-ambient) 68%, transparent) 56%,
+      var(--void-ambient) 100%
+    );
+  filter: blur(14px);
+  opacity: 0.98;
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    black 12%,
+    black 86%,
     transparent 100%
   );
-  filter: blur(5px);
-  opacity: 0.98;
-  mask-image: linear-gradient(to top, black 0%, black 72%, transparent 100%);
   -webkit-mask-image: linear-gradient(
-    to top,
-    black 0%,
-    black 72%,
+    to bottom,
+    transparent 0%,
+    black 12%,
+    black 86%,
     transparent 100%
   );
 }

@@ -114,36 +114,90 @@ export default function CinematicHero(props: CinematicHeroProps) {
 
   return (
     <div class="cinematic-hero" ref={heroRef}>
-      {/* Backdrop layer — HIDDEN when trailer is active.
+      <div class="cinematic-hero-media">
+        {/* Backdrop layer — HIDDEN when trailer is active.
           Falls back to the gradient overlay if the image URL fails
           to load (broken TMDB path, CDN hiccup, etc.) so the user
           never sees a broken-image glyph behind the hero. */}
-      <Show when={backdropUrl() && !props.trailerActive}>
-        <img
-          src={backdropUrl()}
-          class={`cinematic-backdrop${backdropLoaded() ? " img-loaded" : ""}`}
-          loading="eager"
-          decoding="async"
-          {...({ fetchpriority: "high" } as Record<string, string>)}
-          onLoad={() => setBackdropLoaded(true)}
-          onError={() => setBackdropError(true)}
-          alt={
-            props.baseItem?.title ||
-            props.baseItem?.name ||
-            props.details?.name ||
-            "Movie backdrop"
-          }
-        />
-      </Show>
+        <Show when={backdropUrl() && !props.trailerActive}>
+          <img
+            src={backdropUrl()}
+            class={`cinematic-backdrop${backdropLoaded() ? " img-loaded" : ""}`}
+            loading="eager"
+            decoding="async"
+            {...({ fetchpriority: "high" } as Record<string, string>)}
+            onLoad={() => setBackdropLoaded(true)}
+            onError={() => setBackdropError(true)}
+            alt={
+              props.baseItem?.title ||
+              props.baseItem?.name ||
+              props.details?.name ||
+              "Movie backdrop"
+            }
+          />
+        </Show>
 
-      {/* Multi-layer gradient overlay — HIDDEN when trailer is active */}
-      <Show when={!props.trailerActive}>
-        <div class="cinematic-hero-overlay" aria-hidden="true" />
-      </Show>
+        {/* Multi-layer gradient overlay — HIDDEN when trailer is active */}
+        <Show when={!props.trailerActive}>
+          <div class="cinematic-hero-overlay" aria-hidden="true" />
+        </Show>
+
+        {/* Trailer iframe — replaces the backdrop when active.
+          z-index: 5 ensures it paints above the backdrop/overlay layers
+          but below the close button (z-index: 20).
+
+          Uses youtube-nocookie.com for privacy-enhanced mode.
+          referrerpolicy="strict-origin-when-cross-origin" prevents
+          full URL leakage to YouTube.
+
+          Fallback: if the embed is blocked (CSP, YouTube restrictions,
+          network errors), an error state is shown with a "Watch on
+          YouTube" link that opens the video directly on youtube.com. */}
+        <Show when={props.trailerActive && props.trailerKey}>
+          <div class="cinematic-trailer-player" aria-label="Trailer player">
+            <Show
+              when={!iframeError()}
+              fallback={
+                <div class="cinematic-trailer-fallback">
+                  <span
+                    class="material-symbols-outlined"
+                    style={{ "font-size": "48px", color: "var(--text-soft)" }}
+                    aria-hidden="true"
+                  >
+                    play_circle
+                  </span>
+                  <p class="cinematic-trailer-fallback-text">
+                    Trailer embed unavailable
+                  </p>
+                  <a
+                    class="cinematic-trailer-fallback-link"
+                    href={`https://www.youtube.com/watch?v=${props.trailerKey}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Watch on YouTube
+                  </a>
+                </div>
+              }
+            >
+              <iframe
+                class="cinematic-trailer-iframe"
+                src={`https://www.youtube-nocookie.com/embed/${props.trailerKey}?autoplay=1&rel=0`}
+                title="Trailer"
+                frameborder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowfullscreen
+                referrerpolicy="strict-origin-when-cross-origin"
+                onError={() => setIframeError(true)}
+              />
+            </Show>
+          </div>
+        </Show>
+      </div>
 
       {/* One control for both trailer states. It stays in the hero corner
-          above the iframe, so ON → OFF cleanly unmounts the player and
-          restores the artwork without a second close button. */}
+          above the media and fade layer, so ON → OFF cleanly unmounts the
+          player and restores the artwork without a second close control. */}
       <Show when={props.hasTrailer && !!props.onPlayTrailer}>
         <button
           type="button"
@@ -168,58 +222,6 @@ export default function CinematicHero(props: CinematicHeroProps) {
           </span>
           <span>{props.trailerActive ? "Trailer On" : "Trailer Off"}</span>
         </button>
-      </Show>
-
-      {/* Trailer iframe — replaces the backdrop when active.
-          z-index: 5 ensures it paints above the backdrop/overlay layers
-          but below the close button (z-index: 20).
-          
-          Uses youtube-nocookie.com for privacy-enhanced mode.
-          referrerpolicy="strict-origin-when-cross-origin" prevents
-          full URL leakage to YouTube.
-          
-          Fallback: if the embed is blocked (CSP, YouTube restrictions,
-          network errors), an error state is shown with a "Watch on
-          YouTube" link that opens the video directly on youtube.com. */}
-      <Show when={props.trailerActive && props.trailerKey}>
-        <div class="cinematic-trailer-player" aria-label="Trailer player">
-          <Show
-            when={!iframeError()}
-            fallback={
-              <div class="cinematic-trailer-fallback">
-                <span
-                  class="material-symbols-outlined"
-                  style={{ "font-size": "48px", color: "var(--text-soft)" }}
-                  aria-hidden="true"
-                >
-                  play_circle
-                </span>
-                <p class="cinematic-trailer-fallback-text">
-                  Trailer embed unavailable
-                </p>
-                <a
-                  class="cinematic-trailer-fallback-link"
-                  href={`https://www.youtube.com/watch?v=${props.trailerKey}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Watch on YouTube
-                </a>
-              </div>
-            }
-          >
-            <iframe
-              class="cinematic-trailer-iframe"
-              src={`https://www.youtube-nocookie.com/embed/${props.trailerKey}?autoplay=1&rel=0`}
-              title="Trailer"
-              frameborder="0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-              allowfullscreen
-              referrerpolicy="strict-origin-when-cross-origin"
-              onError={() => setIframeError(true)}
-            />
-          </Show>
-        </div>
       </Show>
     </div>
   );
