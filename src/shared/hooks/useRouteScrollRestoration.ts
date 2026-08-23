@@ -1,5 +1,5 @@
 import { createEffect, onCleanup, onMount } from "solid-js";
-import { useLocation } from "@solidjs/router";
+import { useBeforeLeave, useLocation } from "@solidjs/router";
 
 const STORAGE_KEY = "cinelog.route-scroll.v1";
 const MAX_SAVED_ROUTES = 24;
@@ -11,13 +11,17 @@ function readPositions(storage: Storage): ScrollPositions {
     const raw = storage.getItem(STORAGE_KEY);
     if (!raw) return {};
     const parsed: unknown = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
-    return Object.entries(parsed).reduce<ScrollPositions>((result, [key, value]) => {
-      if (typeof value === "number" && Number.isFinite(value) && value >= 0) {
-        result[key] = value;
-      }
-      return result;
-    }, {});
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+      return {};
+    return Object.entries(parsed).reduce<ScrollPositions>(
+      (result, [key, value]) => {
+        if (typeof value === "number" && Number.isFinite(value) && value >= 0) {
+          result[key] = value;
+        }
+        return result;
+      },
+      {}
+    );
   } catch {
     return {};
   }
@@ -33,7 +37,8 @@ function writePositions(storage: Storage, positions: ScrollPositions): void {
 }
 
 function scrollTarget(): Window | HTMLElement {
-  if (typeof window === "undefined" || typeof document === "undefined") return window;
+  if (typeof window === "undefined" || typeof document === "undefined")
+    return window;
   const main = document.getElementById("main-content");
   // DesktopWorkspace makes #main-content the scroll container. Mobile keeps
   // normal document scrolling, so use window there.
@@ -64,7 +69,10 @@ export function createRouteScrollStore(storage: Storage) {
       positions[route] = Math.floor(y);
       const routes = Object.keys(positions);
       if (routes.length > MAX_SAVED_ROUTES) {
-        for (const oldRoute of routes.slice(0, routes.length - MAX_SAVED_ROUTES)) {
+        for (const oldRoute of routes.slice(
+          0,
+          routes.length - MAX_SAVED_ROUTES
+        )) {
           delete positions[oldRoute];
         }
       }
@@ -97,6 +105,8 @@ export function useRouteScrollRestoration(): void {
   let activeRoute = "";
   let restoreTimer: ReturnType<typeof setTimeout> | null = null;
   let restoreToken = 0;
+  let isNavigating = false;
+  let isRestoring = false;
   let previousScrollRestoration: ScrollRestoration | null = null;
 
   const saveActiveRoute = () => {
@@ -107,11 +117,14 @@ export function useRouteScrollRestoration(): void {
   const scheduleRestore = (route: string) => {
     if (!store || typeof window === "undefined") return;
     const token = ++restoreToken;
+    isRestoring = true;
     if (restoreTimer !== null) clearTimeout(restoreTimer);
 
     const restore = () => {
       if (token !== restoreToken || activeRoute !== route) return;
       restoreScrollTop(store!.get(route));
+      isRestoring = false;
+      isNavigating = false;
       restoreTimer = null;
     };
 
@@ -123,7 +136,8 @@ export function useRouteScrollRestoration(): void {
   };
 
   onMount(() => {
-    if (typeof window === "undefined" || typeof sessionStorage === "undefined") return;
+    if (typeof window === "undefined" || typeof sessionStorage === "undefined")
+      return;
     store = createRouteScrollStore(sessionStorage);
     previousScrollRestoration = window.history.scrollRestoration;
     window.history.scrollRestoration = "manual";
@@ -134,10 +148,18 @@ export function useRouteScrollRestoration(): void {
     };
     const onPageHide = () => saveActiveRoute();
     const onPageShow = () => scheduleRestore(activeRoute);
+    const activeScrollTarget = scrollTarget();
+    const onScroll = () => {
+      // Router/browser scroll resets and our own restore scrollTo() both emit
+      // scroll events. Neither represents user movement on the active route.
+      if (isNavigating || isRestoring) return;
+      saveActiveRoute();
+    };
 
     document.addEventListener("visibilitychange", onVisibilityChange);
     window.addEventListener("pagehide", onPageHide);
     window.addEventListener("pageshow", onPageShow);
+    activeScrollTarget.addEventListener("scroll", onScroll, { passive: true });
 
     if (!activeRoute) activeRoute = routeKey(location);
     scheduleRestore(activeRoute);
@@ -147,6 +169,7 @@ export function useRouteScrollRestoration(): void {
       document.removeEventListener("visibilitychange", onVisibilityChange);
       window.removeEventListener("pagehide", onPageHide);
       window.removeEventListener("pageshow", onPageShow);
+      activeScrollTarget.removeEventListener("scroll", onScroll);
       if (restoreTimer !== null) clearTimeout(restoreTimer);
       if (previousScrollRestoration !== null) {
         window.history.scrollRestoration = previousScrollRestoration;
@@ -154,10 +177,17 @@ export function useRouteScrollRestoration(): void {
     });
   });
 
+  // Capture scroll before the router changes the destination and resets its
+  // scroll position. Saving from the location effect is too late: it can
+  // overwrite the outgoing route with zero after navigation has begun.
+  useBeforeLeave(() => {
+    isNavigating = true;
+    saveActiveRoute();
+  });
+
   createEffect(() => {
     const nextRoute = routeKey(location);
     if (!nextRoute || nextRoute === activeRoute) return;
-    saveActiveRoute();
     activeRoute = nextRoute;
     scheduleRestore(nextRoute);
   });

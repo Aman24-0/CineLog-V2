@@ -13,6 +13,16 @@ const clearQuery = vi.fn(() => {
   setHasQuery(false);
 });
 const commitSearch = vi.fn();
+const beginDetailNavigation = vi.fn();
+const searchParams: { q?: string } = {};
+const setSearchParams = vi.fn((params: { q?: string }) => {
+  if (params.q === undefined) delete searchParams.q;
+  else searchParams.q = params.q;
+});
+
+vi.mock("@solidjs/router", () => ({
+  useSearchParams: () => [searchParams, setSearchParams]
+}));
 
 vi.mock("~/shared/contexts/SearchContext", () => ({
   useGlobalSearch: () => ({
@@ -42,7 +52,10 @@ vi.mock("~/shared/contexts/SearchContext", () => ({
     animeLoading: () => false,
     searchOpen: () => false,
     openSearch: vi.fn(),
-    closeSearch: vi.fn()
+    closeSearch: vi.fn(),
+    beginDetailNavigation,
+    searchSessionInvalidated: () => false,
+    consumeInvalidatedSearchSession: () => false
   })
 }));
 
@@ -65,7 +78,27 @@ vi.mock("~/shared/ui/PageContainer", () => ({
 }));
 
 vi.mock("../SearchResults", () => ({
-  default: () => <div data-testid="search-results" />
+  default: (props: {
+    onOpenTitle: (title: {
+      id: number;
+      title: string;
+      media_type: "movie";
+    }) => void;
+  }) => (
+    <button
+      type="button"
+      data-testid="open-search-result"
+      onClick={() =>
+        props.onOpenTitle({
+          id: 101,
+          title: "Fixture Movie",
+          media_type: "movie"
+        })
+      }
+    >
+      Open fixture result
+    </button>
+  )
 }));
 
 vi.mock("../SearchResultRow", () => ({
@@ -81,6 +114,9 @@ describe("SearchPage", () => {
     runSearchNow.mockClear();
     clearQuery.mockClear();
     commitSearch.mockClear();
+    beginDetailNavigation.mockClear();
+    setSearchParams.mockClear();
+    delete searchParams.q;
   });
 
   afterEach(cleanup);
@@ -99,6 +135,16 @@ describe("SearchPage", () => {
     expect(screen.queryByText(/Find movies, series/)).toBeNull();
   });
 
+  it("hydrates a query from the canonical URL", () => {
+    searchParams.q = "inception";
+    render(() => <SearchPage />);
+
+    expect(runSearchNow).toHaveBeenCalledWith("inception");
+    expect((screen.getByRole("searchbox") as HTMLInputElement).value).toBe(
+      "inception"
+    );
+  });
+
   it("submits through the shared immediate-search path and clears back to the cold-start state", () => {
     render(() => <SearchPage />);
     const input = screen.getByRole("searchbox", {
@@ -112,8 +158,19 @@ describe("SearchPage", () => {
 
     expect(runSearchNow).toHaveBeenCalledWith("batman");
     expect(commitSearch).toHaveBeenCalledWith("batman");
+    expect(setSearchParams).toHaveBeenCalledWith(
+      { q: "batman" },
+      { replace: true }
+    );
+
+    fireEvent.click(screen.getByTestId("open-search-result"));
+    expect(beginDetailNavigation).toHaveBeenCalledTimes(1);
 
     fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
     expect(clearQuery).toHaveBeenCalledTimes(1);
+    expect(setSearchParams).toHaveBeenLastCalledWith(
+      { q: undefined },
+      { replace: true }
+    );
   });
 });

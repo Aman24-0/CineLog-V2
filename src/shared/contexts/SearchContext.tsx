@@ -26,6 +26,12 @@ import {
   type Component,
   type JSX
 } from "solid-js";
+import { useBeforeLeave } from "@solidjs/router";
+import {
+  getSearchNavigationIntent,
+  isDedicatedDetailPath,
+  pathnameFromNavigationTarget
+} from "~/shared/utils/searchNavigation";
 import { useSearch } from "~/features/search/useSearch";
 import { useUserLibrary } from "~/shared/hooks/useUserLibrary";
 import type { Accessor } from "solid-js";
@@ -68,6 +74,12 @@ interface SearchContextValue {
   openSearch: () => void;
   /** Close the search overlay AND reset ALL search state. */
   closeSearch: () => void;
+  /** Mark a Search result → movie/TV detail transition as session-preserving. */
+  beginDetailNavigation: () => void;
+  /** True while a Search session is being invalidated during route departure. */
+  searchSessionInvalidated: Accessor<boolean>;
+  /** Consume the one-shot reset marker when a Search route mounts again. */
+  consumeInvalidatedSearchSession: () => boolean;
 }
 
 const SearchContext = createContext<SearchContextValue>();
@@ -88,10 +100,29 @@ export const SearchProvider: Component<{ children: JSX.Element }> = (props) => {
 
   // Search overlay open/close state
   const [searchOpen, setSearchOpen] = createSignal(false);
+  // True only after the current Search session has entered a dedicated title
+  // detail route. It lets the next primary-page departure reset the session
+  // while preserving Search → Detail → Back browser history.
+  const [searchOriginDetail, setSearchOriginDetail] = createSignal(false);
+  // A reset must also invalidate a historical /search?q=… entry. The marker
+  // is consumed once when that route mounts again, where the URL key can be
+  // removed with normal router replace semantics.
+  const [invalidatedSearchSession, setInvalidatedSearchSession] =
+    createSignal(false);
 
   /** Open the search overlay — does NOT navigate to any page. */
   const openSearch = () => {
     setSearchOpen(true);
+  };
+
+  const beginDetailNavigation = () => {
+    setSearchOriginDetail(true);
+  };
+
+  const consumeInvalidatedSearchSession = () => {
+    const invalidated = invalidatedSearchSession();
+    if (invalidated) setInvalidatedSearchSession(false);
+    return invalidated;
   };
 
   /** Close the search overlay AND completely reset the search session.
@@ -99,12 +130,40 @@ export const SearchProvider: Component<{ children: JSX.Element }> = (props) => {
    *  Every new search starts clean. */
   const closeSearch = () => {
     setSearchOpen(false);
+    setSearchOriginDetail(false);
+
     // Reset all search state — complete session destruction
     search.clearQuery();
     search.clearGenre();
     // Results will be cleared automatically by the useSearch hook
     // when the query is set to "" (hasQuery becomes false)
   };
+
+  // Search is app-global so its live signals outlive a route component. The
+  // router lifecycle is the correct place to distinguish a temporary detail
+  // hop from intentionally leaving the Search destination for another page.
+  // Search → Detail keeps state for browser Back; every other departure from
+  // /search destroys the live session before the destination mounts.
+  useBeforeLeave(({ from, to }) => {
+    const intent = getSearchNavigationIntent(from.pathname, to);
+    const toPathname = pathnameFromNavigationTarget(to);
+
+    if (intent === "preserve") {
+      setSearchOriginDetail(true);
+      return;
+    }
+
+    const leavingSearchOriginDetail =
+      searchOriginDetail() &&
+      isDedicatedDetailPath(from.pathname) &&
+      toPathname !== null &&
+      !isDedicatedDetailPath(toPathname);
+
+    if (intent === "reset" || leavingSearchOriginDetail) {
+      setInvalidatedSearchSession(true);
+      closeSearch();
+    }
+  });
 
   // Escape closes the search overlay.
   //
@@ -129,7 +188,10 @@ export const SearchProvider: Component<{ children: JSX.Element }> = (props) => {
     ...search,
     searchOpen,
     openSearch,
-    closeSearch
+    closeSearch,
+    beginDetailNavigation,
+    searchSessionInvalidated: invalidatedSearchSession,
+    consumeInvalidatedSearchSession
   };
 
   return (

@@ -1,4 +1,5 @@
-import { For, Show, type Component } from "solid-js";
+import { createEffect, For, Show, type Component } from "solid-js";
+import { useSearchParams } from "@solidjs/router";
 import { useGlobalSearch } from "~/shared/contexts/SearchContext";
 import { useUserLibrary } from "~/shared/hooks/useUserLibrary";
 import { useDiscoverActions } from "~/features/discover/useDiscoverActions";
@@ -16,10 +17,55 @@ import SearchResultRow from "./SearchResultRow";
  */
 const SearchPage: Component = () => {
   const search = useGlobalSearch();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { watchlist, isGuest } = useUserLibrary();
   const { handleOpenTitle, addToVault } = useDiscoverActions({
     watchlist,
     isGuest
+  });
+
+  let hydratedFromUrl = false;
+  let skipUrlSyncOnce = false;
+
+  createEffect(() => {
+    if (hydratedFromUrl) return;
+
+    const urlQuery =
+      typeof searchParams.q === "string" ? searchParams.q.trim() : "";
+    hydratedFromUrl = true;
+
+    if (search.consumeInvalidatedSearchSession()) {
+      skipUrlSyncOnce = true;
+      if (urlQuery) {
+        void setSearchParams({ q: undefined }, { replace: true });
+      }
+      return;
+    }
+
+    if (urlQuery && search.query().trim() !== urlQuery) {
+      search.runSearchNow(urlQuery);
+    } else if (!urlQuery && search.query()) {
+      search.clearQuery();
+    }
+  });
+
+  createEffect(() => {
+    if (search.searchSessionInvalidated()) return;
+    if (!hydratedFromUrl) return;
+    if (skipUrlSyncOnce) {
+      skipUrlSyncOnce = false;
+      return;
+    }
+
+    const query = search.query().trim();
+    const currentUrlQuery =
+      typeof searchParams.q === "string" ? searchParams.q : "";
+
+    if (query === currentUrlQuery) return;
+
+    void setSearchParams(query ? { q: query } : { q: undefined }, {
+      replace: true
+    });
   });
 
   const submitQuery = (value: string) => {
@@ -30,6 +76,7 @@ const SearchPage: Component = () => {
   };
 
   const openTitle = (title: Parameters<typeof handleOpenTitle>[0]) => {
+    search.beginDetailNavigation();
     handleOpenTitle(title);
   };
 

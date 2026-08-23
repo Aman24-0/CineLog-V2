@@ -1,17 +1,17 @@
 // src/features/search/SearchOverlay.tsx
 //
-// SearchOverlay — a standalone search results overlay that renders
-// INDEPENDENTLY from DiscoverPage. It floats above the current page
-// (whichever page the user is on) when the global search is active.
+// SearchOverlay — a standalone contextual search surface rendered by AppShell.
+// The first-class /search route owns normal Search browsing. This component is
+// intentionally limited to explicit overlay sessions so retained Search state
+// cannot appear beneath a dedicated title route or another primary page.
 //
 // KEY BEHAVIOUR:
 //   • The dedicated /search route is the primary catalog-search surface.
 //   • A programmatic caller may still open this overlay for contextual search;
 //     in that case it renders its own input and shared SearchResults.
-//   • A shared query can also render results on non-search routes for legacy
-//     contextual callers, but the Discover header no longer owns an input.
+//   • A shared query alone never mounts the overlay.
 //   • Renders SearchResults directly — no dependency on DiscoverPage.
-//   • Clicking a result opens the details modal (same as Discover).
+//   • Clicking a result opens the canonical dedicated title route.
 //   • Scrolling the overlay does NOT scroll the page behind it.
 
 import { Show, type Component, type JSX } from "solid-js";
@@ -19,6 +19,7 @@ import { useGlobalSearch } from "~/shared/contexts/SearchContext";
 import { useLocation } from "@solidjs/router";
 import { useUserLibrary } from "~/shared/hooks/useUserLibrary";
 import { useDiscoverActions } from "~/features/discover/useDiscoverActions";
+import { shouldRenderSearchOverlay } from "~/shared/utils/searchNavigation";
 import SearchResults from "./SearchResults";
 
 // Module-level static style for the in-overlay search input row.
@@ -57,9 +58,9 @@ const OVERLAY_CLOSE_BTN_STYLE: JSX.CSSProperties = {
 };
 
 /**
- * SearchOverlay — renders search results when the global search is
- * active (open OR has a query). Rendered in AppShell (not
- * DiscoverPage), so it works from ANY page.
+ * SearchOverlay — renders contextual results only while explicitly open.
+ * Rendered in AppShell (not DiscoverPage) so programmatic callers can still
+ * use it without making the first-class /search route an overlay.
  */
 const SearchOverlay: Component = () => {
   const search = useGlobalSearch();
@@ -70,17 +71,11 @@ const SearchOverlay: Component = () => {
     isGuest
   });
 
-  // The overlay renders when EITHER the user has opened it (mobile
-  // tap) OR they have a query (desktop inline bar typing). The
-  // `searchOpen()` flag is the master switch — once true, the overlay
-  // mounts and stays mounted until closeSearch() is called (which
-  // also clears the query). On desktop, searchOpen() is rarely true
-  // (the inline bar drives results via hasQuery directly), but we
-  // still mount the overlay when hasQuery() is true so desktop users
-  // see results without needing to "open" anything.
+  // The dedicated /search route owns the query/results surface. This global
+  // overlay is reserved for explicit contextual callers; a retained query
+  // alone must never recreate an overlay above Detail or another page.
   const shouldRender = () =>
-    location.pathname !== "/search" &&
-    (search.searchOpen() || search.hasQuery());
+    shouldRenderSearchOverlay(location.pathname, search.searchOpen());
 
   // Whether to show the in-overlay search input. Shown ONLY when the
   // overlay was opened via searchOpen() (mobile path). On desktop,
