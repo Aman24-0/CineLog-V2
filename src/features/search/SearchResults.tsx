@@ -46,6 +46,7 @@ export interface SearchResultsProps {
   isInVault: (t: TMDBTitle) => boolean;
   onOpenTitle: (t: TMDBTitle) => void;
   onAddToVault: (t: TMDBTitle) => void;
+  onRetry?: () => void;
   /** Phase 5 — AniList fallback results (TMDB-shaped). */
   animeResults?: Accessor<TMDBTitle[]>;
   /** Phase 5 — true while the AniList fallback is in flight. */
@@ -53,10 +54,8 @@ export interface SearchResultsProps {
 }
 
 export default function SearchResults(props: SearchResultsProps) {
-  const hasAnimeResults = () =>
-    (props.animeResults?.() ?? []).length > 0;
-  const showAnimeLoading = () =>
-    !!props.animeLoading?.() && !hasAnimeResults();
+  const hasAnimeResults = () => (props.animeResults?.() ?? []).length > 0;
+  const showAnimeLoading = () => !!props.animeLoading?.() && !hasAnimeResults();
   const hasPeople = () => (props.results().people?.length ?? 0) > 0;
   const showEmptyState = () =>
     props.results().totalCount === 0 &&
@@ -83,16 +82,7 @@ export default function SearchResults(props: SearchResultsProps) {
           title="Search failed"
           message={props.error() ?? undefined}
           retryable={true}
-          onRetry={() => {
-            // Re-trigger search by dispatching an input event on the
-            // active search input, or simply re-setting the query.
-            // This is a best-effort retry — the useSearch hook will
-            // re-fire the search effect when the debounced query
-            // changes. Since we can't force a re-fire from here,
-            // we dispatch a custom event that the search input can
-            // listen for.
-            window.dispatchEvent(new CustomEvent("cinelog:retry-search"));
-          }}
+          onRetry={() => props.onRetry?.()}
           variant="section"
         />
       }
@@ -203,7 +193,8 @@ export default function SearchResults(props: SearchResultsProps) {
                       e.currentTarget.style.background = "var(--glass-bg)";
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "var(--glass-bg-strong)";
+                      e.currentTarget.style.background =
+                        "var(--glass-bg-strong)";
                     }}
                   >
                     {/* Profile image — 40×40 circle with fallback */}

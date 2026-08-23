@@ -1,6 +1,16 @@
 // src/features/watchlist/LibraryView.tsx
-import { createSignal, onMount, onCleanup, Show, batch, createEffect } from "solid-js";
-import { readLibraryViewState, writeLibraryViewState } from "./libraryViewState";
+import {
+  createSignal,
+  onMount,
+  onCleanup,
+  Show,
+  batch,
+  createEffect
+} from "solid-js";
+import {
+  readLibraryViewState,
+  writeLibraryViewState
+} from "./libraryViewState";
 import { useModalState } from "~/shared/hooks/useModalState";
 import { useAuthModal } from "~/shared/hooks/useAuthModal";
 import { useOnlineStatus } from "~/shared/hooks/useOnlineStatus";
@@ -10,6 +20,7 @@ import { OfflineState, RefreshingIndicator } from "~/shared/ui/states";
 import { useVault } from "./useVault";
 import { useVaultSections } from "./useVaultSections";
 import { useVaultFiltering } from "./useVaultFiltering";
+import { resolveStatusToggle } from "./vaultFilterUtils";
 import LibraryHeader from "./components/LibraryHeader";
 import LibraryGrid from "./components/LibraryGrid";
 import LibraryDialogs from "./components/LibraryDialogs";
@@ -37,7 +48,15 @@ export default function LibraryView() {
   const { openTitle } = useModalState();
   const { openAuthModal } = useAuthModal();
   const { isOffline } = useOnlineStatus();
-  const { watchlist, loading, isGuest, error, presets, savePreset, deletePreset } = useVault();
+  const {
+    watchlist,
+    loading,
+    isGuest,
+    error,
+    presets,
+    savePreset,
+    deletePreset
+  } = useVault();
 
   // Track whether the vault has completed its initial load at least once.
   // Once true, any subsequent loading=true means a background refresh,
@@ -177,17 +196,13 @@ export default function LibraryView() {
   });
 
   const handleSelectStatusTab = (status: string) => {
-    // batch() defers reactive updates until both signals are set,
-    // so the filtered memo re-computes ONCE instead of cascading
-    // two micro-renders (statusTab change + filter change).
+    // Status controls are mutually exclusive toggles. Clicking the active
+    // status again returns to the base Library state, represented internally
+    // by the existing `all` filter value; no visible All control is needed.
+    const nextStatus = resolveStatusToggle(activeStatusTab(), status);
     batch(() => {
-      setActiveStatusTab(status);
-      if (status === "all") {
-        setFilters({ ...filters(), status: "all" });
-      } else {
-        setFilters({ ...filters(), status });
-      }
-      // Reset display limit when switching tabs
+      setActiveStatusTab(nextStatus);
+      setFilters({ ...filters(), status: nextStatus });
       setDisplayLimit(20);
     });
   };
@@ -227,14 +242,20 @@ export default function LibraryView() {
                 type="button"
                 class="vault-filter-sidebar__toggle"
                 onClick={() => setFilterCollapsed(!filterCollapsed())}
-                aria-label={filterCollapsed() ? "Expand filters" : "Collapse filters"}
-                title={filterCollapsed() ? "Expand filters" : "Collapse filters"}
+                aria-label={
+                  filterCollapsed() ? "Expand filters" : "Collapse filters"
+                }
+                title={
+                  filterCollapsed() ? "Expand filters" : "Collapse filters"
+                }
               >
                 <span
                   class="material-symbols-outlined"
                   style={{
                     "font-size": "18px",
-                    transform: filterCollapsed() ? "rotate(180deg)" : "rotate(0deg)",
+                    transform: filterCollapsed()
+                      ? "rotate(180deg)"
+                      : "rotate(0deg)",
                     transition: "transform var(--dur-base) var(--ease-out)"
                   }}
                   aria-hidden="true"
@@ -297,8 +318,6 @@ export default function LibraryView() {
             watchlist={watchlist}
             chips={chips}
             onClearFilter={clearFilter}
-            filters={filters}
-            setFilters={setFilters}
           />
 
           {/* Saved-title stats removed — the inline status chips in the header
@@ -310,7 +329,10 @@ export default function LibraryView() {
               is re-fetching after the initial load. NEVER replaces the
               content with a full-page skeleton during refresh. */}
           <Show when={loading() && hasLoadedOnce()}>
-            <RefreshingIndicator placement="top" message="Refreshing library…" />
+            <RefreshingIndicator
+              placement="top"
+              message="Refreshing library…"
+            />
           </Show>
 
           <Show when={!loading()} fallback={<LoadingSkeleton />}>

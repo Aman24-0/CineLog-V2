@@ -6,19 +6,16 @@
 // It works from ANY page without navigating away.
 //
 // KEY BEHAVIOUR:
-//   • openSearch() — opens the overlay, focuses the input
-//   • closeSearch() — closes the overlay, CLEARS everything:
-//     query, results, focus, scroll position. Every new search
-//     starts completely clean.
-//   • The search overlay renders its own results independently.
+//   • The dedicated /search route is the primary catalog-search surface.
+//   • openSearch() remains available for contextual overlay callers.
+//   • closeSearch() closes the overlay and clears query/results state.
+//   • The search overlay renders its own shared results independently.
 //   • DiscoverPage does NOT render search results.
-//   • The overlay is a Portal — it floats above the current page.
 //
 // ARCHITECTURE:
 //   <SearchProvider> wraps the app (inside UserLibraryProvider).
-//   AppHeader consumes it for the search icon + overlay trigger.
-//   The SearchOverlay component (rendered in AppShell) consumes
-//   it for the search bar + results.
+//   SearchPage and SearchOverlay consume the same useSearch instance,
+//   so catalog requests and library-aware result actions are not duplicated.
 
 import {
   createContext,
@@ -43,6 +40,9 @@ interface SearchContextValue {
   // Search hook state
   query: Accessor<string>;
   setQuery: (q: string) => void;
+  runSearchNow: (q: string) => void;
+  clearQuery: () => void;
+  retrySearch: () => void;
   debouncedQuery: Accessor<string>;
   results: Accessor<SearchResultsType>;
   loading: Accessor<boolean>;
@@ -75,16 +75,12 @@ const SearchContext = createContext<SearchContextValue>();
 export function useGlobalSearch(): SearchContextValue {
   const ctx = useContext(SearchContext);
   if (!ctx) {
-    throw new Error(
-      "useGlobalSearch must be used within a <SearchProvider>"
-    );
+    throw new Error("useGlobalSearch must be used within a <SearchProvider>");
   }
   return ctx;
 }
 
-export const SearchProvider: Component<{ children: JSX.Element }> = (
-  props
-) => {
+export const SearchProvider: Component<{ children: JSX.Element }> = (props) => {
   const { watchlist } = useUserLibrary();
 
   // Instantiate the search hook ONCE — all consumers share this instance.
@@ -104,7 +100,7 @@ export const SearchProvider: Component<{ children: JSX.Element }> = (
   const closeSearch = () => {
     setSearchOpen(false);
     // Reset all search state — complete session destruction
-    search.setQuery("");
+    search.clearQuery();
     search.clearGenre();
     // Results will be cleared automatically by the useSearch hook
     // when the query is set to "" (hasQuery becomes false)
@@ -112,13 +108,9 @@ export const SearchProvider: Component<{ children: JSX.Element }> = (
 
   // Escape closes the search overlay.
   //
-  // NOTE (Phase 10 Chunk 1): The ⌘K handler that previously lived here
-  // was REMOVED. It conflicted with AppHeader's ⌘K handler (both fired
-  // on the same keystroke). AppHeader's handler now owns ⌘K and focuses
-  // the desktop inline search bar. The old handler also called
-  // closeSearch() on the second ⌘K press, which would WIPE the user's
-  // query — a regression now that the desktop bar drives the
-  // SearchOverlay directly via search.hasQuery().
+  // Search is intentionally not bound to the Discover header. The
+  // dedicated /search route owns its input, while this provider keeps the
+  // shared request and result state available to the overlay elsewhere.
   const handleGlobalKeyDown = (e: KeyboardEvent) => {
     if (e.key === "Escape" && searchOpen()) {
       closeSearch();

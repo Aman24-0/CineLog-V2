@@ -1,53 +1,25 @@
 // src/shared/ui/AppHeader.tsx
 //
 // Phase 10 Chunk 1 — Desktop View & UI Architecture Redesign
-// Phase 14 Chunk 5 fix — Mobile search opens the SearchOverlay.
+// Final refinement — Search is a primary navigation destination, so the
+// Discover-only header intentionally contains no search control.
 // ───────────────────────────────────────────────────────────
-// WHAT CHANGED (Phase 14 Chunk 5 fix):
-//   • The mobile search icon no longer navigates to /discover. It
-//     now calls `search.openSearch()` from the useGlobalSearch()
-//     hook, which sets `searchOpen = true` and triggers the
-//     SearchOverlay (rendered in AppShell) to mount. The overlay
-//     provides its own search input + results list, so mobile
-//     users get the same global search experience as desktop users
-//     without navigating away from the current page.
-//
-//   • The SearchOverlay component was updated to render when
-//     `search.searchOpen()` is true (not just when `hasQuery()` is
-//     true). It now shows a search input field at the top so mobile
-//     users can type their query. The ⌘K desktop shortcut path is
-//     unchanged.
-//
-//   • There is NO duplication: on mobile, only the search icon
-//     button is visible (no inline bar). On desktop, only the
-//     inline search bar is visible (no icon button). Both paths
-//     drive the same SearchOverlay via the same search context.
-//
 // VISUAL STRUCTURE:
-//   MOBILE  (<1024px): [CINELOG] ........................ [🔍] [🔔]
-//                       (search icon → opens SearchOverlay)
+//   MOBILE  (<1024px): [CINELOG] ........................ [🔔]
+//   DESKTOP (≥1024px): [CINELOG] [➕] [☁️] [🔔] [👤]
 //
-//   DESKTOP (≥1024px): [CINELOG] [────── search ──────] [➕] [☁️] [🔔] [👤]
-//                       (inline search bar → drives SearchOverlay via hasQuery)
-//
+// The notification bell remains available in the header. The dedicated
+// /search route and bottom/desktop navigation own catalog search access.
 // The breakpoint is 1024px (aligned with the desktop sidebar).
 
-import {
-  Show,
-  createSignal,
-  createEffect,
-  onCleanup,
-  type Component,
-  type JSX
-} from "solid-js";
+import { Show, createSignal, type Component, type JSX } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { useAuth } from "~/shared/hooks/useAuth";
 import { useAuthModal } from "~/shared/hooks/useAuthModal";
 import HeaderNotificationBell from "~/features/upcoming/components/HeaderNotificationBell";
 import { useNotifications } from "~/features/upcoming/hooks/useNotifications";
 import NotificationCenter from "~/features/upcoming/components/NotificationCenter";
-import { useGlobalSearch } from "~/shared/contexts/SearchContext";
-import { GlassIconButton, GlassInput } from "~/shared/ui/glass";
+import { GlassIconButton } from "~/shared/ui/glass";
 
 // ─── Module-level style constants ────────────────────────────────────
 const WORDMARK_STYLE: JSX.CSSProperties = {
@@ -80,46 +52,19 @@ const AVATAR_STYLE: JSX.CSSProperties = {
   transition: "border-color var(--dur-fast) var(--ease-out)"
 };
 
-// Search-clear button rendered inside GlassInput's `rightContent` slot.
-// Styled as a subtle pill so it doesn't compete with the search icon
-// on the left. Used only by the desktop inline bar (the mobile
-// slide-down that previously used it has been removed).
-const SEARCH_CLEAR_BTN_STYLE: JSX.CSSProperties = {
-  display: "inline-flex",
-  "align-items": "center",
-  "justify-content": "center",
-  width: "32px",
-  height: "32px",
-  "border-radius": "50%",
-  border: "none",
-  background: "transparent",
-  color: "var(--text-muted)",
-  cursor: "pointer",
-  transition:
-    "background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out)"
-};
-
 /**
- * AppHeader — sticky application header.
+ * AppHeader — sticky Discover-only application header.
  *
- * MOBILE Layout  (<1024px): [CINELOG] .............. [🔍] [🔔]
- *   • Search icon opens the global SearchOverlay (Phase 14 Chunk 5 fix).
- *     The overlay renders its own search input + results, so users can
- *     search from any page without navigating away.
- *   • BottomNavigation handles primary nav.
+ * MOBILE Layout  (<1024px): [CINELOG] ........................ [🔔]
+ * DESKTOP Layout (≥1024px): [CINELOG] [➕] [☁️] [🔔] [👤]
  *
- * DESKTOP Layout (≥1024px): [CINELOG] [search bar] [➕] [☁️] [🔔] [👤]
- *   • Inline expansive search bar (drives global SearchOverlay via
- *     `search.hasQuery()` — typing in the bar shows results in the
- *     overlay below the header).
- *   • DesktopSidebar handles primary nav (left sidebar).
- *   • Quick Add + Cloud Sync + Avatar are desktop-only.
+ * Search is a primary bottom-navigation destination and therefore does not
+ * appear in this global header. The notification bell remains available here.
+ * DesktopSidebar and BottomNavigation own primary route navigation.
  *
  * GLASS SYSTEM:
  *   • All action buttons use <GlassIconButton size="default"> (44×44px,
  *     WCAG 2.5.5 compliant).
- *   • Search input uses <GlassInput> with `rightContent` slot for the
- *     clear button (or ⌘K hint when empty).
  */
 const AppHeader: Component = () => {
   const { isSignedIn, user } = useAuth();
@@ -127,31 +72,6 @@ const AppHeader: Component = () => {
   const navigate = useNavigate();
   const notif = useNotifications();
   const [notifOpen, setNotifOpen] = createSignal(false);
-
-  // Global search context — drives the SearchOverlay rendered in AppShell.
-  const search = useGlobalSearch();
-
-  // Desktop inline search bar ref — focused on ⌘K.
-  // The mobile slide-down bar's ref was removed along with the bar.
-  let desktopSearchRef: HTMLInputElement | undefined;
-
-  // ⌘K keyboard shortcut — focuses the desktop inline search input.
-  // On mobile this is a no-op (desktopSearchRef is undefined because
-  // the inline bar is hidden via CSS, but SolidJS still mounts it in
-  // the DOM — so we additionally check viewport width to be safe).
-  const handleShortcut = (e: KeyboardEvent) => {
-    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
-      if (desktopSearchRef && typeof window !== "undefined" && window.innerWidth >= 1024) {
-        e.preventDefault();
-        desktopSearchRef.focus();
-      }
-    }
-  };
-  createEffect(() => {
-    if (typeof window === "undefined") return;
-    window.addEventListener("keydown", handleShortcut);
-    onCleanup(() => window.removeEventListener("keydown", handleShortcut));
-  });
 
   const handleQuickAdd = () => {
     navigate("/discover");
@@ -163,22 +83,6 @@ const AppHeader: Component = () => {
     } else {
       openAuthModal();
     }
-  };
-
-  // Mobile search icon — opens the global SearchOverlay (Phase 14
-  // Chunk 5 fix). Previously this navigated to /discover, which was a
-  // jarring context switch (the user lost their place in the app).
-  // The overlay now renders its own search input + results list, so
-  // mobile users get the same global search experience as desktop
-  // users without leaving the current page. The overlay closes on
-  // Escape or on result click (handled by SearchOverlay itself).
-  const handleMobileSearchClick = () => {
-    search.openSearch();
-  };
-
-  const handleSearchSubmit = (e: Event) => {
-    e.preventDefault();
-    search.commitSearch(search.query());
   };
 
   // The user object is unused in render but destructured for future use
@@ -193,90 +97,17 @@ const AppHeader: Component = () => {
     >
       {/* Wordmark — hidden on desktop (sidebar has the logo) */}
       <h1
-        class="font-headline m-0 app-header__wordmark"
+        class="font-headline app-header__wordmark m-0"
         aria-label="CineLog"
         style={WORDMARK_STYLE}
       >
         CINE<span style={WORDMARK_ACCENT_STYLE}>LOG</span>
       </h1>
 
-      {/* Desktop inline search bar — always visible on desktop (≥1024px),
-          hidden on mobile/tablet. Drives the global SearchOverlay. */}
-      <div class="app-header__search-desktop">
-        <form
-          class="app-header-search-form"
-          onSubmit={handleSearchSubmit}
-          role="search"
-        >
-          <div class="app-header-search-field">
-            <GlassInput
-              ref={desktopSearchRef}
-              type="search"
-              icon="search"
-              placeholder="Search movies, series, anime…"
-              value={search.query()}
-              onInput={(e) => search.setQuery(e.currentTarget.value)}
-              aria-label="Search movies, series, and anime"
-              autocomplete="off"
-              spellcheck={false}
-            />
-            <div class="app-header-search-right-content">
-              <span class="app-header-search-shortcut">
-                ⌘K
-              </span>
-              <span class="app-header-search-clear-slot">
-                <button
-                  type="button"
-                  class="focus-ring"
-                  style={SEARCH_CLEAR_BTN_STYLE}
-                  onClick={() => {
-                    search.setQuery("");
-                    desktopSearchRef?.focus();
-                  }}
-                  aria-label="Clear search"
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = "var(--glass-bg)";
-                    e.currentTarget.style.color = "var(--text-strong)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "transparent";
-                    e.currentTarget.style.color = "var(--text-muted)";
-                  }}
-                >
-                  <span
-                    class="material-symbols-outlined"
-                    style={{ "font-size": "18px" }}
-                    aria-hidden="true"
-                  >
-                    close
-                  </span>
-                </button>
-              </span>
-            </div>
-          </div>
-          <button type="submit" class="sr-only">
-            Search
-          </button>
-        </form>
-      </div>
-
-      {/* Right cluster — mobile search icon + quick-add + sync + bell + avatar.
-          The mobile search icon, quick-add, sync, and avatar are individually
-          toggled by CSS at the 1024px breakpoint (see glass-system.css). */}
+      {/* Right cluster — quick-add + sync + notification + avatar.
+          Quick-add, sync, and avatar are desktop-only; the notification bell
+          remains visible on all viewports. */}
       <div class="flex items-center gap-1.5">
-        {/* Mobile search icon — visible only on mobile/tablet (<1024px).
-            Phase 14 Chunk 5 fix: opens the global SearchOverlay instead
-            of navigating to /discover. The overlay renders its own
-            search input + results list. */}
-        <GlassIconButton
-          class="app-header__search-mobile"
-          variant="secondary"
-          size="default"
-          icon="search"
-          label="Search"
-          onClick={handleMobileSearchClick}
-        />
-
         {/* Desktop Quick Add — hidden on mobile/tablet. size="default" (44×44) */}
         <GlassIconButton
           class="app-header__action"

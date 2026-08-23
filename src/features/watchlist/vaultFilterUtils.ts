@@ -274,10 +274,21 @@ export function hasRewatchHistory(m: WatchlistItem): boolean {
   if (Array.isArray(m.rewatchDates) && m.rewatchDates.length > 1) return true;
   return (
     Array.isArray(m.seasonRewatchDates) &&
-    m.seasonRewatchDates.some(
-      (pass) => pass && Object.keys(pass).length > 0
-    )
+    m.seasonRewatchDates.some((pass) => pass && Object.keys(pass).length > 0)
   );
+}
+
+/**
+ * Resolve a status-toggle click. The base Library state remains represented
+ * internally by the existing `all` filter value, but has no visible control.
+ */
+export function resolveStatusToggle(
+  activeStatus: string,
+  requestedStatus: string
+): string {
+  return requestedStatus !== "all" && requestedStatus === activeStatus
+    ? "all"
+    : requestedStatus;
 }
 
 /** Apply the quick-filter status tab + advanced status filter. */
@@ -327,7 +338,10 @@ export function filterByAdvanced(
             : typeof g === "object" && g !== null && "name" in g
               ? String((g as { name: unknown }).name)
               : String(g);
-        if (name === f.genre) { hasGenre = true; break; }
+        if (name === f.genre) {
+          hasGenre = true;
+          break;
+        }
       }
       if (!hasGenre) continue;
     }
@@ -617,9 +631,7 @@ export function computeChips(
   if (f.platform !== "all") {
     let label = f.platform;
     if (Array.isArray(platformCatalog)) {
-      const match = platformCatalog.find(
-        (p) => p.technicalName === f.platform
-      );
+      const match = platformCatalog.find((p) => p.technicalName === f.platform);
       if (match) label = match.clearName;
     }
     out.push({ label, key: "platform" });

@@ -7,7 +7,12 @@ import {
   onCleanup,
   Accessor
 } from "solid-js";
-import { searchMulti, searchPeople, getTrending, genreIdFor } from "~/core/tmdb/discover";
+import {
+  searchMulti,
+  searchPeople,
+  getTrending,
+  genreIdFor
+} from "~/core/tmdb/discover";
 import { buildVaultKeySet, vaultIdKey } from "~/shared/utils/vaultMatch";
 import type { TMDBTitle, TMDBPerson, WatchlistItem } from "~/shared/types";
 import { loadRecent, saveRecent, MAX_RECENT } from "./searchStorage";
@@ -81,6 +86,10 @@ export function useSearch(args: UseSearchArgs) {
   // separate "Anime Results" section so the user can distinguish them.
   const [animeResults, setAnimeResults] = createSignal<TMDBTitle[]>([]);
   const [animeLoading, setAnimeLoading] = createSignal(false);
+  // Incrementing this signal re-runs the current catalog request without
+  // creating a second search implementation. It powers the visible Retry
+  // action when the shared request fails.
+  const [searchRevision, setSearchRevision] = createSignal(0);
 
   // Vault key set — composite "{media_type}/{id}" keys for O(1) membership
   // checks. Uses composite keys (not bare ids) because TMDB movie and TV
@@ -146,6 +155,8 @@ export function useSearch(args: UseSearchArgs) {
 
   // Fetch text-search results when the debounced query changes
   createEffect(() => {
+    // Read the revision so retrySearch() can re-run the same query.
+    searchRevision();
     if (genreBrowse().genre) return; // Don't run text search in genre mode
     const q = debouncedQuery().trim();
     if (q.length < 2) {
@@ -199,7 +210,7 @@ export function useSearch(args: UseSearchArgs) {
           setAnimeResults(titles);
           return titles;
         })
-        .catch((err) => {
+        .catch(() => {
           if (signal.aborted) return [];
           setAnimeResults([]);
           return [];
@@ -231,7 +242,9 @@ export function useSearch(args: UseSearchArgs) {
         // no-op. If it's in-flight, we wait for it so the merged result
         // includes both sources. Dedup by TMDB id (a popular anime like
         // "Attack on Titan" might appear in both TMDB and AniList).
-        const mergeAnime = (animeTitles: TMDBTitle[]): {
+        const mergeAnime = (
+          animeTitles: TMDBTitle[]
+        ): {
           movies: TMDBTitle[];
           series: TMDBTitle[];
         } => {
@@ -354,6 +367,29 @@ export function useSearch(args: UseSearchArgs) {
 
   const clearGenre = () => setGenreBrowse(emptyGenreBrowse());
 
+  /**
+   * Run a submitted query immediately instead of waiting for the debounce
+   * timer. Typing still uses the normal debounce; this method fixes the
+   * submit path where commitSearch() previously only wrote recent history.
+   */
+  const runSearchNow = (value: string) => {
+    const trimmed = value.trim();
+    setQuery(value);
+    setDebouncedQuery(trimmed);
+  };
+
+  /** Clear the active catalog query and its rendered results immediately. */
+  const clearQuery = () => {
+    setQuery("");
+    setDebouncedQuery("");
+  };
+
+  /** Retry the current debounced catalog query through the same pipeline. */
+  const retrySearch = () => {
+    if (debouncedQuery().trim().length < 2) return;
+    setSearchRevision((value) => value + 1);
+  };
+
   /* ---- RECENT SEARCHES ---- */
 
   const commitSearch = (q: string) => {
@@ -397,6 +433,9 @@ export function useSearch(args: UseSearchArgs) {
   return {
     query,
     setQuery,
+    runSearchNow,
+    clearQuery,
+    retrySearch,
     debouncedQuery,
     results,
     loading,

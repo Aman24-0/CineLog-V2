@@ -119,172 +119,6 @@
 }
 
 /* ============================================================
-   APP HEADER — Global Search (expandable search bar)
-
-   PHASE 10 CHUNK 1:
-   Breakpoints aligned to 1024px (was 640px) so tablet viewports
-   (640–1023px) use the mobile pattern (search icon → /discover)
-   instead of showing the desktop inline bar without the desktop
-   sidebar. This eliminates the "stretched mobile app" feel.
-   ============================================================ */
-
-/* Desktop inline search bar — hidden on mobile/tablet, visible on desktop (≥1024px).
-   flex:1 lets it grow to fill the available header space, with a sane
-   max-width so it doesn't dominate on ultra-wide screens. */
-.app-header__search-desktop {
-  display: none;
-  flex: 1;
-  max-width: 560px;
-  margin: 0 auto;
-}
-@media (min-width: 1024px) {
-  .app-header__search-desktop {
-    display: flex;
-  }
-}
-
-/* Mobile search icon — visible on mobile/tablet, hidden on desktop (≥1024px).
-   On click, navigates to /discover (no overlay). */
-.app-header__search-mobile {
-  display: flex;
-}
-@media (min-width: 1024px) {
-  .app-header__search-mobile {
-    display: none;
-  }
-}
-
-/* Search bar form — desktop (pill shape) */
-.app-header-search-form {
-  width: 100%;
-}
-
-.app-header-search-bar {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-3, 0.75rem);
-  padding: 0.5rem 0.875rem;
-  border-radius: var(--radius-pill);
-  background: var(--glass-default-bg);
-  backdrop-filter: var(--glass-default-blur) saturate(var(--glass-default-saturate));
-  -webkit-backdrop-filter: var(--glass-default-blur) saturate(var(--glass-default-saturate));
-  border: 1px solid var(--glass-default-border);
-  box-shadow:
-    var(--glass-default-shadow),
-    var(--glass-highlight);
-  transition:
-    border-color var(--dur-base) var(--ease-out),
-    box-shadow var(--dur-base) var(--ease-out),
-    background var(--dur-base) var(--ease-out);
-}
-
-.app-header-search-bar:focus-within {
-  border-color: var(--color-border-focus);
-  background: var(--glass-strong-bg);
-  box-shadow:
-    0 0 0 3px var(--p-dim),
-    0 0 20px var(--p-glow),
-    var(--glass-strong-shadow),
-    var(--glass-highlight-hover);
-}
-
-.app-header-search-icon {
-  font-size: 20px;
-  color: var(--text-muted);
-  flex-shrink: 0;
-  transition: color var(--dur-base) var(--ease-out);
-}
-.app-header-search-bar:focus-within .app-header-search-icon {
-  color: var(--p);
-  filter: drop-shadow(0 0 6px var(--p-glow));
-}
-
-.app-header-search-input {
-  flex: 1;
-  min-width: 0;
-  background: transparent;
-  border: none;
-  outline: none;
-  font-family: "Outfit", sans-serif;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--text-strong);
-  -webkit-appearance: none;
-  letter-spacing: 0.005em;
-}
-.app-header-search-input::placeholder {
-  color: var(--text-muted);
-  font-weight: 400;
-  letter-spacing: 0.01em;
-}
-
-.app-header-search-clear {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: var(--glass-bg);
-  border: 1px solid var(--hairline-2);
-  cursor: pointer;
-  color: var(--text-soft);
-  flex-shrink: 0;
-  transition:
-    background var(--dur-fast) var(--ease-out),
-    color var(--dur-fast) var(--ease-out),
-    border-color var(--dur-fast) var(--ease-out);
-}
-.app-header-search-clear:hover {
-  background: var(--p-dim);
-  border-color: var(--p);
-  color: var(--p);
-  box-shadow: 0 0 12px var(--p-glow);
-}
-
-.app-header-search-shortcut {
-  margin-left: auto;
-  font-size: 0.6875rem;
-  font-family: "Azeret Mono", monospace;
-  color: var(--text-muted);
-  background: var(--glass-default-bg);
-  padding: 0.125rem 0.375rem;
-  border-radius: var(--radius-4);
-  border: 1px solid var(--hairline);
-  flex-shrink: 0;
-}
-
-/* Mobile expanded search bar — slides down below the header */
-.app-header-search-mobile-bar {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  background: var(--glass-strong-bg);
-  backdrop-filter: var(--glass-strong-blur) saturate(var(--glass-strong-saturate));
-  -webkit-backdrop-filter: var(--glass-strong-blur) saturate(var(--glass-strong-saturate));
-  border-bottom: 1px solid var(--glass-strong-border);
-  padding: 0.75rem 1rem;
-  animation: slideDown var(--dur-instant) var(--ease-out);
-  z-index: var(--z-sticky);
-}
-
-@keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.app-header-search-mobile-form {
-  width: 100%;
-}
-
-/* ============================================================
    SEARCH OVERLAY — independent results panel below the header
    ============================================================
    Phase 14 Chunk 5 fix:
@@ -349,56 +183,18 @@
   padding: var(--sp-6, 1.5rem) var(--sp-5, 1.25rem);
 }
 
-/* In-overlay search input row — mobile path only.
-   Hidden on desktop because the desktop inline bar in AppHeader is
-   the input on that breakpoint. The <Show> in SearchOverlay.tsx
-   also gates this, but the CSS guard is a defensive belt-and-
-   suspenders measure. */
+/* Contextual overlay input row. The dedicated /search page owns the
+   primary search surface; this overlay row remains available for
+   programmatic contextual callers. */
 @media (min-width: 1024px) {
   .search-overlay-input-wrapper {
     display: none !important;
   }
 }
 
-/* The desktop search slot keeps both visual branches in the SSR/client
-   DOM to avoid hydration mismatches. Native :placeholder-shown state toggles
-   which branch is visible without creating or destroying nodes. */
-.app-header-search-field {
-  position: relative;
-  width: 100%;
-}
-.app-header-search-field input[type="search"] {
-  padding-right: 4.5rem !important;
-}
-.app-header-search-right-content {
-  position: absolute;
-  top: 50%;
-  right: 0.5rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transform: translateY(-50%);
-  pointer-events: none;
-}
-.app-header-search-clear-slot {
-  display: none;
-}
-.app-header-search-clear-slot button {
-  pointer-events: auto;
-}
-.app-header-search-field:has(input[type="search"]:not(:placeholder-shown))
-  .app-header-search-shortcut {
-  display: none;
-}
-.app-header-search-field:has(input[type="search"]:not(:placeholder-shown))
-  .app-header-search-clear-slot {
-  display: inline-flex;
-}
-
-/* Hide the native search input cancel button — we provide our own
-   close button in the overlay header row and the desktop inline bar. */
-.search-overlay-input::-webkit-search-cancel-button,
-.app-header-search-form input[type="search"]::-webkit-search-cancel-button {
+/* Hide the native search input cancel button — the overlay provides
+   its own close button. */
+.search-overlay-input::-webkit-search-cancel-button {
   display: none;
 }
 

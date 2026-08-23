@@ -5,49 +5,16 @@
 // (whichever page the user is on) when the global search is active.
 //
 // KEY BEHAVIOUR:
-//   • Shows when EITHER:
-//       (a) search.searchOpen() is true — mobile users tapped the
-//           header search icon, which calls openSearch(). The overlay
-//           renders its OWN search input field at the top so the user
-//           can type their query.
-//       (b) search.hasQuery() is true — desktop users typed in the
-//           inline header search bar. The overlay shows results below
-//           the header.
-//     Both conditions trigger the same overlay; the only difference
-//     is whether the in-overlay search input is shown (mobile: yes;
-//     desktop: no, because the header bar is already visible).
-//
+//   • The dedicated /search route is the primary catalog-search surface.
+//   • A programmatic caller may still open this overlay for contextual search;
+//     in that case it renders its own input and shared SearchResults.
+//   • A shared query can also render results on non-search routes for legacy
+//     contextual callers, but the Discover header no longer owns an input.
 //   • Renders SearchResults directly — no dependency on DiscoverPage.
 //   • Clicking a result opens the details modal (same as Discover).
-//   • The overlay sits below the header search bar.
 //   • Scrolling the overlay does NOT scroll the page behind it.
-//
-// PHASE 14 CHUNK 5 FIX:
-//   Previously the overlay ONLY rendered when `hasQuery()` was true.
-//   This worked for desktop (the inline bar drives hasQuery directly)
-//   but on mobile the search icon navigated to /discover instead of
-//   opening an overlay — a jarring context switch. The fix:
-//     1. AppHeader's mobile search icon now calls search.openSearch().
-//     2. This overlay renders when searchOpen() is true, regardless
-//        of whether hasQuery() is true yet.
-//     3. The overlay includes its own <input> bound to search.query /
-//        search.setQuery, so mobile users have somewhere to type.
-//     4. A close button calls search.closeSearch() to dismiss the
-//        overlay (also clears the query + resets state via the
-//        SearchContext's closeSearch implementation).
-//
-//   On desktop, searchOpen() is rarely true (the desktop inline bar
-//   drives the overlay via hasQuery directly, without calling
-//   openSearch). The in-overlay search input is therefore hidden on
-//   desktop via a CSS media query (see .search-overlay-input-wrapper
-//   in glass-system.css) — the desktop user already has the header
-//   bar visible, so showing a second input would be redundant.
 
-import {
-  Show,
-  type Component,
-  type JSX
-} from "solid-js";
+import { Show, type Component, type JSX } from "solid-js";
 import { useGlobalSearch } from "~/shared/contexts/SearchContext";
 import { useLocation } from "@solidjs/router";
 import { useUserLibrary } from "~/shared/hooks/useUserLibrary";
@@ -112,7 +79,8 @@ const SearchOverlay: Component = () => {
   // still mount the overlay when hasQuery() is true so desktop users
   // see results without needing to "open" anything.
   const shouldRender = () =>
-    location.pathname !== "/search" && (search.searchOpen() || search.hasQuery());
+    location.pathname !== "/search" &&
+    (search.searchOpen() || search.hasQuery());
 
   // Whether to show the in-overlay search input. Shown ONLY when the
   // overlay was opened via searchOpen() (mobile path). On desktop,
@@ -124,14 +92,9 @@ const SearchOverlay: Component = () => {
     <Show when={shouldRender()}>
       <div class="search-overlay">
         <div class="search-overlay-content">
-          {/* In-overlay search input — mobile path only.
-              On desktop, the header inline bar is the input; this
-              row is hidden via the .search-overlay-input-wrapper
-              CSS class (display: none on min-width: 1024px). The
-              Show gate is a secondary guard so the input element
-              isn't even mounted on desktop (saves a tiny bit of
-              DOM + avoids a focusable element competing with the
-              header bar for ⌘K focus). */}
+          {/* Contextual overlay input. The dedicated /search route owns the
+              primary search surface; this input remains available only for
+              programmatic overlay callers. */}
           <Show when={showOverlayInput()}>
             <div
               class="search-overlay-input-wrapper"
@@ -155,8 +118,7 @@ const SearchOverlay: Component = () => {
                 placeholder="Search movies, series, anime…"
                 value={search.query()}
                 onInput={(e) => search.setQuery(e.currentTarget.value)}
-                // Autofocus so mobile users can start typing
-                // immediately after tapping the search icon.
+                // Autofocus when a contextual caller opens the overlay.
                 autofocus
                 autocomplete="off"
                 spellcheck={false}
@@ -195,6 +157,7 @@ const SearchOverlay: Component = () => {
               handleOpenTitle(t);
             }}
             onAddToVault={addToVault}
+            onRetry={search.retrySearch}
             animeResults={search.animeResults}
             animeLoading={search.animeLoading}
           />

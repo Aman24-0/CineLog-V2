@@ -1,7 +1,14 @@
-import { For, Show, createMemo, batch, type Component, type Accessor } from "solid-js";
+import {
+  For,
+  Show,
+  createMemo,
+  batch,
+  type Component,
+  type Accessor
+} from "solid-js";
 import Icon from "~/shared/ui/Icon";
 import QuickFilterTabs from "./QuickFilterTabs";
-import type { VaultFilters, WatchlistItem } from "~/shared/types";
+import type { WatchlistItem } from "~/shared/types";
 
 export interface LibraryHeaderProps {
   viewMode: Accessor<"grid" | "timeline">;
@@ -16,8 +23,6 @@ export interface LibraryHeaderProps {
   watchlist: Accessor<WatchlistItem[]>;
   chips: Accessor<{ label: string; key: string }[]>;
   onClearFilter: (key: string) => void;
-  filters: Accessor<VaultFilters>;
-  setFilters: (v: VaultFilters) => void;
 }
 
 /** The Library’s compact control center. Search is intentionally always open. */
@@ -33,20 +38,15 @@ const LibraryHeader: Component<LibraryHeaderProps> = (props) => {
   return (
     <div class="library-header-glass sticky top-0 z-40 -mx-4 mb-4 px-4 pb-3 pt-4 sm:-mx-5 sm:px-5">
       <div class="library-header-top">
-        <div class="library-header-title-group">
-          <p class="type-eyebrow" style={{ color: "var(--p)", margin: 0 }}>
-            YOUR LIBRARY
-          </p>
-          <div class="library-header-title-row">
-            <h1 class="type-display library-header-title">Library</h1>
-            <span
-              class="library-header-count"
-              aria-label={`${totalCount()} titles in your library`}
-            >
-              {totalCount()}
-            </span>
-          </div>
-        </div>
+        <h1
+          class="type-display library-header-title"
+          aria-label={`Library (${totalCount()})`}
+        >
+          Library{" "}
+          <span class="library-header-count" aria-hidden="true">
+            ({totalCount()})
+          </span>
+        </h1>
 
         <div class="library-header-actions">
           <button
@@ -57,7 +57,11 @@ const LibraryHeader: Component<LibraryHeaderProps> = (props) => {
             aria-label={`Open library filters${props.activeFilterCount() > 0 ? ` — ${props.activeFilterCount()} active` : ""}`}
             aria-pressed={props.activeFilterCount() > 0}
           >
-            <Icon name="tune" style={{ "font-size": "18px" }} aria-hidden="true" />
+            <Icon
+              name="tune"
+              style={{ "font-size": "18px" }}
+              aria-hidden="true"
+            />
             <Show when={props.activeFilterCount() > 0}>
               <span class="filter-count-badge" aria-hidden="true">
                 {props.activeFilterCount()}
@@ -73,7 +77,11 @@ const LibraryHeader: Component<LibraryHeaderProps> = (props) => {
               aria-label="Grid view"
               aria-pressed={props.viewMode() === "grid"}
             >
-              <Icon name="grid_view" style={{ "font-size": "16px" }} aria-hidden="true" />
+              <Icon
+                name="grid_view"
+                style={{ "font-size": "16px" }}
+                aria-hidden="true"
+              />
             </button>
             <button
               type="button"
@@ -83,14 +91,22 @@ const LibraryHeader: Component<LibraryHeaderProps> = (props) => {
               aria-label="Timeline view"
               aria-pressed={props.viewMode() === "timeline"}
             >
-              <Icon name="timeline" style={{ "font-size": "16px" }} aria-hidden="true" />
+              <Icon
+                name="timeline"
+                style={{ "font-size": "16px" }}
+                aria-hidden="true"
+              />
             </button>
           </div>
         </div>
       </div>
 
       <div class="library-search-row">
-        <Icon name="search" style={{ "font-size": "20px" }} aria-hidden="true" />
+        <Icon
+          name="search"
+          style={{ "font-size": "20px" }}
+          aria-hidden="true"
+        />
         <input
           type="search"
           value={props.searchInput()}
@@ -108,7 +124,11 @@ const LibraryHeader: Component<LibraryHeaderProps> = (props) => {
             onClick={() => props.onClearAll()}
             aria-label="Clear library search and filters"
           >
-            <Icon name="close" style={{ "font-size": "18px" }} aria-hidden="true" />
+            <Icon
+              name="close"
+              style={{ "font-size": "18px" }}
+              aria-hidden="true"
+            />
           </button>
         </Show>
       </div>
@@ -117,7 +137,6 @@ const LibraryHeader: Component<LibraryHeaderProps> = (props) => {
         <QuickFilterTabs
           active={props.activeStatusTab}
           onSelect={(status) => props.onSelectStatusTab(status)}
-          watchlist={props.watchlist}
         />
       </div>
 
@@ -132,7 +151,11 @@ const LibraryHeader: Component<LibraryHeaderProps> = (props) => {
                 aria-label={`Remove filter: ${chip.label}`}
               >
                 {chip.label}
-                <Icon name="close" style={{ "font-size": "12px" }} aria-hidden="true" />
+                <Icon
+                  name="close"
+                  style={{ "font-size": "12px" }}
+                  aria-hidden="true"
+                />
               </button>
             )}
           </For>

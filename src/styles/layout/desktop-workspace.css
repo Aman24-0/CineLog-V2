@@ -119,10 +119,9 @@
     display: block;
   }
 
-  /* The inline desktop search bar is shown via glass-system.css
-     (.app-header__search-desktop → display:flex at ≥1024px).
-     No extra rule needed here — the previous `.app-header__search`
-     selector was a typo (the actual JSX class is `-desktop`). */
+  /* The Discover header keeps its wordmark and desktop action cluster.
+     Catalog search is owned by the dedicated /search route and primary
+     navigation, so no header search slot is reserved here. */
 
   /* Desktop action buttons (Quick Add, Cloud Sync) — hidden on
      mobile via the rule below; shown on desktop here. */
@@ -293,7 +292,9 @@
   height: 60%;
   border-radius: 0 3px 3px 0;
   background: var(--p);
-  box-shadow: 0 0 8px var(--p-glow), 0 0 16px var(--p-glow);
+  box-shadow:
+    0 0 8px var(--p-glow),
+    0 0 16px var(--p-glow);
 }
 
 /* Collapsed sidebar — icons only */
@@ -440,7 +441,9 @@
 @media (min-width: 768px) and (max-width: 1023px) {
   /* Tablet: slightly wider content, no sidebar yet */
   .app-shell-bg {
-    padding-bottom: calc(var(--nav-total-height) + var(--sp-4, 1rem)) !important;
+    padding-bottom: calc(
+      var(--nav-total-height) + var(--sp-4, 1rem)
+    ) !important;
   }
 }
 

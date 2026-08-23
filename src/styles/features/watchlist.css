@@ -914,12 +914,11 @@
 
 /* Quick-filter tabs */
 .quick-filter-bar {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 0.375rem;
-  overflow-x: auto;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-  -webkit-overflow-scrolling: touch;
+  width: 100%;
+  overflow: visible;
   padding-bottom: 2px;
 }
 .quick-filter-bar::-webkit-scrollbar {
@@ -935,7 +934,9 @@
   font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.02em;
-  padding: 0.5rem 0.875rem;
+  width: 100%;
+  min-width: 0;
+  padding: 0.5rem 0.25rem;
   border-radius: var(--radius-pill);
   background: var(--glass-bg);
   backdrop-filter: blur(16px) saturate(140%);
@@ -947,7 +948,7 @@
   color: var(--text-soft);
   cursor: pointer;
   white-space: nowrap;
-  flex-shrink: 0;
+  justify-content: center;
   will-change: transform, opacity;
   transition:
     background var(--dur-base) var(--ease-out),
@@ -1241,8 +1242,12 @@
     width: 280px;
     position: sticky;
     top: calc(var(--desktop-header-height, 56px) + var(--sp-4, 1rem));
-    max-height: calc(100vh - var(--desktop-header-height, 56px) - var(--sp-8, 2rem));
-    max-height: calc(100dvh - var(--desktop-header-height, 56px) - var(--sp-8, 2rem));
+    max-height: calc(
+      100vh - var(--desktop-header-height, 56px) - var(--sp-8, 2rem)
+    );
+    max-height: calc(
+      100dvh - var(--desktop-header-height, 56px) - var(--sp-8, 2rem)
+    );
     overflow-y: auto;
     overflow-x: hidden;
     padding: var(--sp-4, 1rem);
@@ -1356,7 +1361,6 @@
   }
 }
 
-
 /* ============================================================
    LIBRARY CONTROL CENTER
    ============================================================ */
@@ -1400,15 +1404,7 @@
 }
 
 .library-header-count {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 2rem;
-  height: 1.5rem;
-  padding: 0 0.5rem;
-  border: 1px solid var(--hairline-2);
-  border-radius: var(--radius-pill);
-  background: var(--glass-bg-strong);
+  display: inline;
   color: var(--text-muted);
   font-family: "Azeret Mono", monospace;
   font-size: 0.625rem;
@@ -1448,7 +1444,9 @@
   border-radius: var(--radius-pill);
   background: var(--glass-bg-strong);
   color: var(--text-soft);
-  transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+  transition:
+    border-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out);
 }
 
 .library-search-row:focus-within {
@@ -1506,7 +1504,7 @@
 }
 
 .library-status-row .quick-filter-tab {
-  flex-shrink: 0;
+  min-width: 0;
 }
 
 .library-filter-chips {
@@ -1528,6 +1526,15 @@
 }
 
 @media (max-width: 380px) {
+  .quick-filter-bar {
+    gap: 0.125rem;
+  }
+
+  .quick-filter-tab {
+    padding-left: 0.125rem;
+    padding-right: 0.125rem;
+  }
+
   .library-header-title {
     font-size: 1.7rem;
   }

@@ -563,7 +563,6 @@
   }
 }
 
-
 /* Dedicated /search route — keeps the same search primitives as the
    Discover overlay while using normal document flow instead of a fixed panel. */
 .search-page-shell {
@@ -573,14 +572,19 @@
 }
 
 .search-page-header {
-  margin-bottom: var(--sp-5);
+  margin-bottom: var(--sp-4);
+  text-align: center;
+}
+
+.search-page-title {
+  margin: 0;
 }
 
 .search-page-form {
   position: relative;
   top: auto;
   z-index: 1;
-  margin-bottom: var(--sp-6);
+  margin-bottom: var(--sp-4);
   padding: 0;
 }
 
@@ -628,7 +632,7 @@
 .search-page-cold-start {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-8);
+  gap: var(--sp-5);
 }
 
 .search-page-empty {

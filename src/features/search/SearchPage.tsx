@@ -25,7 +25,7 @@ const SearchPage: Component = () => {
   const submitQuery = (value: string) => {
     const trimmed = value.trim();
     if (!trimmed) return;
-    search.setQuery(trimmed);
+    search.runSearchNow(trimmed);
     search.commitSearch(trimmed);
   };
 
@@ -34,18 +34,14 @@ const SearchPage: Component = () => {
   };
 
   return (
-    <PageContainer width="wide" paddingTop="var(--sp-5)" paddingBottom="var(--sp-12)">
+    <PageContainer
+      width="wide"
+      paddingTop="var(--sp-5)"
+      paddingBottom="var(--sp-12)"
+    >
       <div class="search-page-shell">
         <header class="search-page-header">
-          <p class="type-eyebrow" style={{ color: "var(--p)" }}>
-            DISCOVERY
-          </p>
-          <h1 class="type-display" style={{ margin: "var(--sp-1) 0 0" }}>
-            Search
-          </h1>
-          <p class="type-body" style={{ "max-width": "38rem", margin: "var(--sp-2) 0 0" }}>
-            Find movies, series, people, and anime across CineLog’s catalog.
-          </p>
+          <h1 class="type-display search-page-title">Search</h1>
         </header>
 
         <form
@@ -56,7 +52,10 @@ const SearchPage: Component = () => {
           }}
         >
           <div class="search-bar">
-            <span class="material-symbols-outlined search-bar-icon" aria-hidden="true">
+            <span
+              class="material-symbols-outlined search-bar-icon"
+              aria-hidden="true"
+            >
               search
             </span>
             <input
@@ -64,11 +63,6 @@ const SearchPage: Component = () => {
               class="search-bar-input"
               value={search.query()}
               onInput={(event) => search.setQuery(event.currentTarget.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  search.commitSearch(search.query());
-                }
-              }}
               placeholder="Search movies, series, people, or anime…"
               autocomplete="off"
               spellcheck={false}
@@ -79,10 +73,12 @@ const SearchPage: Component = () => {
               <button
                 type="button"
                 class="search-bar-clear focus-ring"
-                onClick={() => search.setQuery("")}
+                onClick={() => search.clearQuery()}
                 aria-label="Clear search"
               >
-                <span class="material-symbols-outlined" aria-hidden="true">close</span>
+                <span class="material-symbols-outlined" aria-hidden="true">
+                  close
+                </span>
               </button>
             </Show>
           </div>
@@ -93,9 +89,14 @@ const SearchPage: Component = () => {
           fallback={
             <div class="search-page-cold-start">
               <Show when={search.recentSearches().length > 0}>
-                <section class="search-section" aria-labelledby="recent-searches-title">
+                <section
+                  class="search-section"
+                  aria-labelledby="recent-searches-title"
+                >
                   <div id="recent-searches-title" class="search-section-label">
-                    <span class="material-symbols-outlined" aria-hidden="true">history</span>
+                    <span class="material-symbols-outlined" aria-hidden="true">
+                      history
+                    </span>
                     Recent searches
                   </div>
                   <div class="search-page-recent-list">
@@ -106,7 +107,12 @@ const SearchPage: Component = () => {
                           class="search-page-recent-chip focus-ring"
                           onClick={() => submitQuery(recent)}
                         >
-                          <span class="material-symbols-outlined" aria-hidden="true">history</span>
+                          <span
+                            class="material-symbols-outlined"
+                            aria-hidden="true"
+                          >
+                            history
+                          </span>
                           {recent}
                         </button>
                       )}
@@ -117,12 +123,18 @@ const SearchPage: Component = () => {
 
               <section class="search-section" aria-labelledby="trending-title">
                 <div id="trending-title" class="search-section-label">
-                  <span class="material-symbols-outlined" aria-hidden="true">trending_up</span>
+                  <span class="material-symbols-outlined" aria-hidden="true">
+                    trending_up
+                  </span>
                   Trending this week
                 </div>
                 <Show
                   when={!search.trendingLoading()}
-                  fallback={<div class="search-page-empty">Loading trending titles…</div>}
+                  fallback={
+                    <div class="search-page-empty">
+                      Loading trending titles…
+                    </div>
+                  }
                 >
                   <div class="search-results-list">
                     <For each={search.trending().slice(0, 8)}>
@@ -149,6 +161,7 @@ const SearchPage: Component = () => {
             isInVault={search.isInVault}
             onOpenTitle={openTitle}
             onAddToVault={addToVault}
+            onRetry={search.retrySearch}
             animeResults={search.animeResults}
             animeLoading={search.animeLoading}
           />

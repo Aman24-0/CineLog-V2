@@ -9,7 +9,8 @@ import {
   computeChips,
   countActiveFilters,
   hasAdvancedFiltersActive,
-  hasRewatchHistory
+  hasRewatchHistory,
+  resolveStatusToggle
 } from "../vaultFilterUtils";
 import {
   makeMovie,
@@ -129,10 +130,16 @@ describe("filterByStatus", () => {
       rewatchCount: 1,
       rewatchDates: ["2026-01-01", "2026-02-01"]
     });
-    const firstWatch = makeMovie({ id: "6", status: "Completed", rewatchCount: 0 });
+    const firstWatch = makeMovie({
+      id: "6",
+      status: "Completed",
+      rewatchCount: 0
+    });
     expect(hasRewatchHistory(rewatched)).toBe(true);
     expect(hasRewatchHistory(firstWatch)).toBe(false);
-    expect(filterByStatus([rewatched, firstWatch], "Re-watched").map((m) => m.id)).toEqual(["5"]);
+    expect(
+      filterByStatus([rewatched, firstWatch], "Re-watched").map((m) => m.id)
+    ).toEqual(["5"]);
   });
 
   it("filters Re-watched using TV season counters or per-season dates", () => {
@@ -141,13 +148,38 @@ describe("filterByStatus", () => {
       id: "8",
       seasonRewatchDates: [{ "1": { start: "2026-01-01", end: "2026-01-10" } }]
     });
-    const firstWatch = makeTVSeries({ id: "9", seasonRewatchCount: 0, seasonRewatchDates: [] });
-    const result = filterByStatus([seasonCount, seasonDates, firstWatch], "Re-watched");
+    const firstWatch = makeTVSeries({
+      id: "9",
+      seasonRewatchCount: 0,
+      seasonRewatchDates: []
+    });
+    const result = filterByStatus(
+      [seasonCount, seasonDates, firstWatch],
+      "Re-watched"
+    );
 
     expect(hasRewatchHistory(seasonCount)).toBe(true);
     expect(hasRewatchHistory(seasonDates)).toBe(true);
     expect(hasRewatchHistory(firstWatch)).toBe(false);
     expect(result.map((item) => item.id)).toEqual(["7", "8"]);
+  });
+});
+
+describe("resolveStatusToggle", () => {
+  it("returns the requested status when no status is active", () => {
+    expect(resolveStatusToggle("all", "Watching")).toBe("Watching");
+  });
+
+  it("replaces the active status when another status is selected", () => {
+    expect(resolveStatusToggle("Watching", "Planned")).toBe("Planned");
+  });
+
+  it("returns the base Library state when the active status is selected again", () => {
+    expect(resolveStatusToggle("Completed", "Completed")).toBe("all");
+  });
+
+  it("does not expose or persist a separate visible All control", () => {
+    expect(resolveStatusToggle("all", "all")).toBe("all");
   });
 });
 
