@@ -13,6 +13,7 @@ import {
   updateWatchProgressInSupabase,
   markEpisodeCompletedInSupabase,
   unmarkEpisodeInSupabase,
+  updateEpisodeFeedbackInSupabase,
   updateEpisodeRatingInSupabase
 } from "../episodeProgressAdapter";
 import {
@@ -525,6 +526,71 @@ describe("episodeProgressAdapter", () => {
         5,
         8
       );
+      expect(result).toBe(false);
+    });
+  });
+
+  describe("updateEpisodeFeedbackInSupabase", () => {
+    it("resolves the vault UUID and saves rating plus reaction together", async () => {
+      const mockVaultRepo = {
+        getVaultByTmdbId: vi
+          .fn()
+          .mockResolvedValue({ data: mockVaultRow, error: null })
+      };
+      const mockProgRepo = {
+        updateEpisodeFeedback: vi.fn().mockResolvedValue({ error: null })
+      };
+      vi.mocked(getVaultRepository).mockReturnValue(mockVaultRepo as never);
+      vi.mocked(getEpisodeProgressRepository).mockReturnValue(
+        mockProgRepo as never
+      );
+
+      const result = await updateEpisodeFeedbackInSupabase(
+        "user-1",
+        "123",
+        "tv",
+        2,
+        5,
+        9,
+        "love"
+      );
+
+      expect(result).toBe(true);
+      expect(mockProgRepo.updateEpisodeFeedback).toHaveBeenCalledWith(
+        "vault-uuid-1",
+        2,
+        5,
+        9,
+        "love"
+      );
+    });
+
+    it("returns false when the combined feedback write fails", async () => {
+      const mockVaultRepo = {
+        getVaultByTmdbId: vi
+          .fn()
+          .mockResolvedValue({ data: mockVaultRow, error: null })
+      };
+      const mockProgRepo = {
+        updateEpisodeFeedback: vi
+          .fn()
+          .mockResolvedValue({ error: new Error("Feedback update fail") })
+      };
+      vi.mocked(getVaultRepository).mockReturnValue(mockVaultRepo as never);
+      vi.mocked(getEpisodeProgressRepository).mockReturnValue(
+        mockProgRepo as never
+      );
+
+      const result = await updateEpisodeFeedbackInSupabase(
+        "user-1",
+        "123",
+        "tv",
+        2,
+        5,
+        null,
+        "disappointed"
+      );
+
       expect(result).toBe(false);
     });
   });

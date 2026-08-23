@@ -7,10 +7,15 @@ import { updateStatusInSupabase } from "~/features/watchlist/vaultAdapter";
 import {
   updateSeasonEpisodeInSupabase,
   unmarkEpisodeInSupabase,
+  updateEpisodeFeedbackInSupabase,
   updateEpisodeRatingInSupabase
 } from "~/features/watchlist/episodeProgressAdapter";
 import { getEpisodeProgressRepository } from "~/lib/supabase/repositories";
 import type { WatchlistItem } from "~/shared/types";
+import type {
+  EpisodeFeedback,
+  EpisodeReaction
+} from "~/lib/supabase/repositories";
 
 /**
  * useDetailsProgress — progress-related action handlers for the Details modal.
@@ -95,6 +100,13 @@ export interface UseDetailsProgressResult {
     episode: number,
     rating: number | null
   ) => Promise<void>;
+  /** Persist numeric rating and reaction as one episode feedback update. */
+  handleEpisodeFeedback: (
+    season: number,
+    episode: number,
+    rating: number | null,
+    reaction: EpisodeReaction | null
+  ) => Promise<void>;
   /**
    * Phase 6 Task 2 — Map of "S{season}E{episode}" → rating for the
    * currently-open vault item. Hydrated once on mount (when the modal
@@ -102,6 +114,8 @@ export interface UseDetailsProgressResult {
    * Updated optimistically when the user rates an episode.
    */
   episodeRatings: Accessor<Map<string, number | null>>;
+  /** Hydrated rating + reaction state keyed by S{season}E{episode}. */
+  episodeFeedbacks: Accessor<Map<string, EpisodeFeedback>>;
   /**
    * Phase 6 Task 2 — Re-fetch all episode_progress rows for the
    * currently-open vault item and rebuild the `episodeRatings` Map.
@@ -325,6 +339,9 @@ export function useDetailsProgress(
   const [episodeRatings, setEpisodeRatings] = createSignal<
     Map<string, number | null>
   >(new Map());
+  const [episodeFeedbacks, setEpisodeFeedbacks] = createSignal<
+    Map<string, EpisodeFeedback>
+  >(new Map());
 
   // Hydrate episodeRatings when the vault item changes (i.e. when the
   // modal opens or the user navigates to a related title). We use a
@@ -343,6 +360,7 @@ export function useDetailsProgress(
     const v = args.vaultItem();
     if (!uid || !v) {
       setEpisodeRatings(new Map());
+      setEpisodeFeedbacks(new Map());
       return;
     }
     try {
@@ -357,6 +375,7 @@ export function useDetailsProgress(
         await vaultRepo.getVaultByTmdbId(uid, Number(v.id), v.media_type);
       if (vaultErr || !vaultRow) {
         setEpisodeRatings(new Map());
+        setEpisodeFeedbacks(new Map());
         return;
       }
       const epRepo = getEpisodeProgressRepository();
@@ -364,16 +383,28 @@ export function useDetailsProgress(
         await epRepo.getEpisodeProgressForVaultItem(vaultRow.id);
       if (epErr || !epRows) {
         setEpisodeRatings(new Map());
+        setEpisodeFeedbacks(new Map());
         return;
       }
       const map = new Map<string, number | null>();
+      const feedbackMap = new Map<string, EpisodeFeedback>();
       for (const row of epRows) {
-        map.set(
-          `S${row.season_number}E${row.episode_number}`,
-          row.rating ?? null
-        );
+        const key = `S${row.season_number}E${row.episode_number}`;
+        const rating = row.rating ?? null;
+        const reaction =
+          row.reaction === "love" ||
+          row.reaction === "funny" ||
+          row.reaction === "wow" ||
+          row.reaction === "sad" ||
+          row.reaction === "angry" ||
+          row.reaction === "disappointed"
+            ? row.reaction
+            : null;
+        map.set(key, rating);
+        feedbackMap.set(key, { rating, reaction });
       }
       setEpisodeRatings(map);
+      setEpisodeFeedbacks(feedbackMap);
     } catch (err) {
       console.error("[useDetailsProgress] hydrateEpisodeRatings failed:", err);
       // Leave the existing map in place — a failed refresh shouldn't
@@ -396,6 +427,14 @@ export function useDetailsProgress(
     setEpisodeRatings((prev) => {
       const next = new Map(prev);
       next.set(key, rating);
+      return next;
+    });
+    setEpisodeFeedbacks((prev) => {
+      const next = new Map(prev);
+      next.set(key, {
+        rating,
+        reaction: prev.get(key)?.reaction ?? null
+      });
       return next;
     });
 
@@ -425,13 +464,58 @@ export function useDetailsProgress(
     }
   };
 
+  const handleEpisodeFeedback = async (
+    season: number,
+    episode: number,
+    rating: number | null,
+    reaction: EpisodeReaction | null
+  ): Promise<void> => {
+    const uid = getCurrentUid();
+    const v = args.vaultItem();
+    if (!uid || !v) return;
+
+    const key = `S${season}E${episode}`;
+    setEpisodeRatings((prev) => {
+      const next = new Map(prev);
+      next.set(key, rating);
+      return next;
+    });
+    setEpisodeFeedbacks((prev) => {
+      const next = new Map(prev);
+      next.set(key, { rating, reaction });
+      return next;
+    });
+
+    try {
+      const ok = await updateEpisodeFeedbackInSupabase(
+        uid,
+        v.id,
+        v.media_type,
+        season,
+        episode,
+        rating,
+        reaction
+      );
+      if (!ok) {
+        void hydrateEpisodeRatings();
+        args.showToast("Failed to save episode feedback.", "error");
+      }
+    } catch (err) {
+      console.error("[useDetailsProgress] handleEpisodeFeedback failed:", err);
+      args.showToast("Failed to save episode feedback.", "error");
+      void hydrateEpisodeRatings();
+    }
+  };
+
   return {
     handleStatusCycle,
     handleSetStatus,
     handleEpisodeChange,
     handleEpisodeUnmark,
     handleEpisodeRating,
+    handleEpisodeFeedback,
     episodeRatings,
+    episodeFeedbacks,
     hydrateEpisodeRatings,
     handleMarkCompleted,
     handleSelectItem

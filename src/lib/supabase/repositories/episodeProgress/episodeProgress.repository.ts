@@ -19,7 +19,9 @@ import {
   clearEpisodeProgress,
   deleteEpisodeProgressFrom,
   markEpisodeCompleted,
+  updateEpisodeFeedback,
   updateEpisodeRating,
+  updateEpisodeReaction,
   upsertEpisodeProgress
 } from "./episodeProgress.write";
 import type {
@@ -27,6 +29,7 @@ import type {
   EpisodeProgressResult,
   EpisodeProgressRow,
   EpisodeProgressWriteResult,
+  EpisodeReaction,
   UpsertEpisodeProgressPayload
 } from "./episodeProgress.types";
 
@@ -128,6 +131,37 @@ export class EpisodeProgressRepository {
       seasonNumber,
       episodeNumber,
       rating
+    );
+  }
+
+  updateEpisodeReaction(
+    vaultId: string,
+    seasonNumber: number,
+    episodeNumber: number,
+    reaction: EpisodeReaction | null
+  ): Promise<EpisodeProgressWriteResult> {
+    return updateEpisodeReaction(
+      this.supabase,
+      vaultId,
+      seasonNumber,
+      episodeNumber,
+      reaction
+    );
+  }
+
+  updateEpisodeFeedback(
+    vaultId: string,
+    seasonNumber: number,
+    episodeNumber: number,
+    rating: number | null,
+    reaction: EpisodeReaction | null
+  ): Promise<EpisodeProgressWriteResult> {
+    return updateEpisodeFeedback(
+      this.supabase,
+      vaultId,
+      seasonNumber,
+      episodeNumber,
+      { rating, reaction }
     );
   }
 }

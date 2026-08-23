@@ -3,8 +3,13 @@ import { Show, createSignal, For, type Component } from "solid-js";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import { formatRuntime } from "~/shared/utils/format";
 import { SafeImage } from "~/shared/ui";
+import { GlassModal } from "~/shared/ui/glass";
 import { ratingScale } from "~/core/preferences";
 import type { TMDBEpisode } from "~/shared/types";
+import type {
+  EpisodeFeedback,
+  EpisodeReaction
+} from "~/lib/supabase/repositories";
 
 /**
  * EpisodeCard — a single episode in the expanded SeasonNavigator list.
@@ -34,16 +39,13 @@ import type { TMDBEpisode } from "~/shared/types";
  *     - Bidirectional (tap to mark watched, tap again to unwatch)
  *     - State-clear (filled check vs empty circle at a glance)
  *
- * Phase 6 Task 2 — EPISODE RATING:
- *   When the episode is watched AND the user is in the vault AND the
- *   user's ratingScale is "5star" or "10star" (NOT "thumbs"), a row
- *   of star buttons appears below the overview. Tapping a star:
- *     • Sets the rating (1-N depending on the scale).
- *     • Calls onRate(rating) which persists it to the
- *       `episode_progress.rating` column.
- *   Tapping the same star again clears the rating (sets it to null).
- *   For "thumbs" users, the rating row is hidden — thumbs-up/down
- *   doesn't translate to a 1-N scale.
+ * EPISODE FEEDBACK:
+ *   When a watched/current vault episode is rateable, MORE and RATE share
+ *   one compact action row. RATE opens a centered dialog with the user's
+ *   configured 5- or 10-point rating scale plus Love, Funny, Wow, Sad,
+ *   Angry, and Disappointed reactions. Save persists both fields together;
+ *   selecting the active value again clears that value. Thumbs-only users
+ *   still get the reaction picker while the numeric rating field is hidden.
  */
 export interface EpisodeCardProps {
   episode: TMDBEpisode;
@@ -65,12 +67,17 @@ export interface EpisodeCardProps {
    */
   onToggle: (newWatched: boolean) => void;
   onAddToVault: () => void;
+  /** Existing persisted rating/reaction for this episode. */
+  feedback?: EpisodeFeedback;
   /**
-   * Phase 6 Task 2 — Called when the user picks a star rating.
-   * `rating` is the new rating (1-N), or null to clear. The parent
-   * (SeasonNavigator → useDetailsProgress.handleEpisodeRating)
-   * persists it via `updateEpisodeRatingInSupabase`.
+   * Save the complete selection from the centered RATE dialog.
+   * The parent persists rating and reaction atomically.
    */
+  onFeedback?: (
+    rating: number | null,
+    reaction: EpisodeReaction | null
+  ) => void;
+  /** Legacy numeric-only callback retained for compatibility. */
   onRate?: (rating: number | null) => void;
 }
 
@@ -89,50 +96,119 @@ export function canRateEpisode(
   );
 }
 
+export function canOpenEpisodeFeedback(
+  props: Pick<
+    EpisodeCardProps,
+    "inVault" | "isWatched" | "isCurrent" | "onFeedback" | "onRate"
+  >
+): boolean {
+  return (
+    props.inVault &&
+    (props.isWatched || props.isCurrent) &&
+    (typeof props.onFeedback === "function" ||
+      typeof props.onRate === "function")
+  );
+}
+
+const REACTION_OPTIONS: ReadonlyArray<{
+  value: EpisodeReaction;
+  label: string;
+  icon: string;
+}> = [
+  { value: "love", label: "Love", icon: "favorite" },
+  { value: "funny", label: "Funny", icon: "sentiment_very_satisfied" },
+  { value: "wow", label: "Wow", icon: "auto_awesome" },
+  { value: "sad", label: "Sad", icon: "sentiment_dissatisfied" },
+  { value: "angry", label: "Angry", icon: "mood_bad" },
+  { value: "disappointed", label: "Disappointed", icon: "heart_broken" }
+];
+
 const EpisodeCard: Component<EpisodeCardProps> = (props) => {
   const [expanded, setExpanded] = createSignal(false);
-  // Local rating signal for optimistic UI — the parent's `rating` prop
-  // is the source of truth, but we keep a local copy so the star the
-  // user just clicked highlights IMMEDIATELY before the server round-
-  // trip completes. The local signal resets whenever the prop changes
-  // (e.g. on a vault refresh).
-  const [localRating, setLocalRating] = createSignal<number | null>(
-    props.rating ?? null
-  );
+  const [rateDialogOpen, setRateDialogOpen] = createSignal(false);
+  const [draftRating, setDraftRating] = createSignal<number | null>(null);
+  const [draftReaction, setDraftReaction] =
+    createSignal<EpisodeReaction | null>(null);
+  const [isSavingFeedback, setIsSavingFeedback] = createSignal(false);
 
-  // Keep localRating in sync with the prop. When the parent's rating
-  // changes (e.g. after a vault refresh picks up the persisted value),
-  // we update the local signal so the stars reflect the canonical state.
-  // We use createEffect-like behavior via a derived signal: read the
-  // prop on every render and reset localRating when it changes.
-  // SolidJS doesn't have a built-in "sync signal to prop" primitive,
-  // so we use a createEffect-free approach: track the last-seen prop
-  // value and reset localRating when it differs.
-  let lastPropRating = props.rating ?? null;
-  const currentRating = (): number | null => {
-    const propRating = props.rating ?? null;
-    if (propRating !== lastPropRating) {
+  // Keep the local display state aligned with the hydrated parent map. The
+  // fallback to `props.rating` preserves the legacy prop contract while the
+  // new feedback map is loading or when an older caller is still mounted.
+  const [localRating, setLocalRating] = createSignal<number | null>(
+    props.feedback?.rating ?? props.rating ?? null
+  );
+  const [localReaction, setLocalReaction] =
+    createSignal<EpisodeReaction | null>(props.feedback?.reaction ?? null);
+  let lastPropRating = props.feedback?.rating ?? props.rating ?? null;
+  let lastPropReaction = props.feedback?.reaction ?? null;
+  const syncFeedbackFromProps = () => {
+    const propRating = props.feedback?.rating ?? props.rating ?? null;
+    const propReaction = props.feedback?.reaction ?? null;
+    if (propRating !== lastPropRating || propReaction !== lastPropReaction) {
       lastPropRating = propRating;
+      lastPropReaction = propReaction;
       setLocalRating(propRating);
+      setLocalReaction(propReaction);
     }
-    return localRating();
   };
 
-  // Whether to show the rating row at all. The current tracker episode is
-  // also a completed/watched episode in CineLog's model (the toggle already
-  // uses the same `isWatched || isCurrent` rule), so it must remain rateable.
-  const showRatingRow = (): boolean => canRateEpisode(props, ratingScale());
+  const currentRating = (): number | null => {
+    syncFeedbackFromProps();
+    return localRating();
+  };
+  const currentReaction = (): EpisodeReaction | null => {
+    syncFeedbackFromProps();
+    return localReaction();
+  };
 
-  // The max value for the rating scale — 5 for "5star", 10 for "10star".
+  const canOpenFeedback = (): boolean => canOpenEpisodeFeedback(props);
   const ratingMax = (): number => (ratingScale() === "5star" ? 5 : 10);
 
-  const handleStarClick = (star: number): void => {
-    if (!props.onRate) return;
-    const cur = currentRating();
-    // Tap the same star again → clear the rating.
-    const next = cur === star ? null : star;
-    setLocalRating(next);
-    props.onRate(next);
+  const openFeedbackDialog = (): void => {
+    setDraftRating(currentRating());
+    setDraftReaction(currentReaction());
+    setRateDialogOpen(true);
+  };
+
+  const closeFeedbackDialog = (): void => {
+    if (!isSavingFeedback()) setRateDialogOpen(false);
+  };
+
+  const selectDraftRating = (star: number): void => {
+    setDraftRating((current) => (current === star ? null : star));
+  };
+
+  const selectDraftReaction = (reaction: EpisodeReaction): void => {
+    setDraftReaction((current) => (current === reaction ? null : reaction));
+  };
+
+  const saveFeedback = async (): Promise<void> => {
+    if (isSavingFeedback()) return;
+    setIsSavingFeedback(true);
+    try {
+      if (props.onFeedback) {
+        await props.onFeedback(draftRating(), draftReaction());
+      } else {
+        props.onRate?.(draftRating());
+      }
+      setLocalRating(draftRating());
+      setLocalReaction(draftReaction());
+      setRateDialogOpen(false);
+    } finally {
+      setIsSavingFeedback(false);
+    }
+  };
+
+  const feedbackSummary = (): string | null => {
+    const rating = currentRating();
+    const reaction = currentReaction();
+    if (rating == null && reaction == null) return null;
+    const parts = [rating != null ? `★ ${rating}/${ratingMax()}` : null];
+    const reactionLabel = REACTION_OPTIONS.find(
+      (option) => option.value === reaction
+    )?.label;
+    if (reactionLabel) parts.push(reactionLabel);
+    return parts.filter(Boolean).join(" · ");
   };
 
   const stillUrl = () =>
@@ -229,90 +305,151 @@ const EpisodeCard: Component<EpisodeCardProps> = (props) => {
           </div>
         </div>
 
-        {/* Overview — truncated, expandable */}
-        <Show when={hasOverview()}>
-          <Show
-            when={expanded()}
-            fallback={
-              <p class="episode-card-overview episode-card-overview-clamped">
-                {props.episode.overview}
-              </p>
-            }
-          >
-            <p class="episode-card-overview">{props.episode.overview}</p>
-          </Show>
-          <button
-            type="button"
-            class="episode-card-expand"
-            onClick={() => setExpanded((v) => !v)}
-            aria-label={expanded() ? "Collapse overview" : "Expand overview"}
-          >
-            {expanded() ? "Less" : "More"}
-          </button>
-        </Show>
-
-        {/* Phase 6 Task 2 — Per-episode rating row.
-            Renders only when: in vault + watched/current + scale != "thumbs" +
-            onRate callback is provided. Each star is a button so the row is
-            keyboard-accessible. Tapping a star sets the rating;
-            tapping the same star again clears it (toggle behavior). */}
-        <Show when={showRatingRow()}>
-          <div
-            class="episode-card-rating"
-            role="radiogroup"
-            aria-label={`Rating for episode ${props.episode.episode_number}`}
-          >
-            <div
-              class={`episode-card-rating-stars episode-card-rating-stars--${ratingMax()}`}
-              role="presentation"
+        {/* Overview — truncated, expandable. The MORE action and the RATE
+            action share one compact row so episode cards stay scannable. */}
+        <div class="episode-card-actions">
+          <Show when={hasOverview()}>
+            <button
+              type="button"
+              class="episode-card-expand"
+              onClick={() => setExpanded((v) => !v)}
+              aria-label={expanded() ? "Collapse overview" : "Expand overview"}
             >
-              <For each={Array.from({ length: ratingMax() }, (_, i) => i + 1)}>
-                {(star) => {
-                  const isActive = () => (currentRating() ?? 0) >= star;
-                  return (
+              {expanded() ? "Less" : "More"}
+            </button>
+          </Show>
+          <Show when={canOpenFeedback()}>
+            <button
+              type="button"
+              class="episode-card-rate-button focus-ring"
+              onClick={(event) => {
+                event.stopPropagation();
+                openFeedbackDialog();
+              }}
+              aria-haspopup="dialog"
+              aria-label={`Rate episode ${props.episode.episode_number}`}
+            >
+              Rate
+            </button>
+          </Show>
+          <Show when={feedbackSummary()}>
+            <span class="episode-card-feedback-summary">
+              {feedbackSummary()}
+            </span>
+          </Show>
+        </div>
+
+        <GlassModal
+          open={rateDialogOpen()}
+          onClose={closeFeedbackDialog}
+          title={`Rate Episode ${props.episode.episode_number}`}
+          icon="rate_review"
+          size="md"
+          class="episode-rating-dialog"
+          id={`episode-rating-${props.episode.id}`}
+        >
+          <div class="episode-rating-dialog-body">
+            <Show when={ratingScale() !== "thumbs"}>
+              <fieldset class="episode-rating-fieldset">
+                <legend>Rating</legend>
+                <div
+                  class={`episode-rating-dialog-stars episode-rating-dialog-stars--${ratingMax()}`}
+                  role="radiogroup"
+                  aria-label={`Rating for episode ${props.episode.episode_number}`}
+                >
+                  <For
+                    each={Array.from(
+                      { length: ratingMax() },
+                      (_, index) => index + 1
+                    )}
+                  >
+                    {(star) => (
+                      <button
+                        type="button"
+                        class={`episode-rating-dialog-star focus-ring${
+                          (draftRating() ?? 0) >= star ? " is-active" : ""
+                        }`}
+                        onClick={() => selectDraftRating(star)}
+                        role="radio"
+                        aria-checked={draftRating() === star}
+                        aria-label={
+                          draftRating() === star
+                            ? `Clear rating`
+                            : `Rate ${star} of ${ratingMax()}`
+                        }
+                      >
+                        <span
+                          class="material-symbols-outlined"
+                          aria-hidden="true"
+                        >
+                          star
+                        </span>
+                        <span class="episode-rating-dialog-star-value">
+                          {star}
+                        </span>
+                      </button>
+                    )}
+                  </For>
+                </div>
+              </fieldset>
+            </Show>
+
+            <fieldset class="episode-reaction-fieldset">
+              <legend>Reaction</legend>
+              <div
+                class="episode-reaction-options"
+                role="radiogroup"
+                aria-label={`Reaction for episode ${props.episode.episode_number}`}
+              >
+                <For each={REACTION_OPTIONS}>
+                  {(option) => (
                     <button
                       type="button"
-                      class={`episode-card-star focus-ring${isActive() ? " is-active" : ""}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleStarClick(star);
-                      }}
-                      aria-label={
-                        currentRating() === star
-                          ? `Clear rating`
-                          : `Rate ${star} of ${ratingMax()}`
-                      }
-                      aria-checked={currentRating() === star}
+                      class={`episode-reaction-option focus-ring${
+                        draftReaction() === option.value ? " is-active" : ""
+                      }`}
+                      onClick={() => selectDraftReaction(option.value)}
                       role="radio"
-                      title={`Rate ${star} of ${ratingMax()}`}
+                      aria-checked={draftReaction() === option.value}
+                      aria-label={
+                        draftReaction() === option.value
+                          ? `Clear ${option.label} reaction`
+                          : option.label
+                      }
                     >
                       <span
-                        class={`material-symbols-outlined${isActive() ? " is-active" : ""}`}
+                        class="material-symbols-outlined"
                         aria-hidden="true"
                       >
-                        star
+                        {option.icon}
                       </span>
+                      <span>{option.label}</span>
                     </button>
-                  );
-                }}
-              </For>
-            </div>
-            <Show when={currentRating() != null}>
+                  )}
+                </For>
+              </div>
+            </fieldset>
+
+            <div class="episode-rating-dialog-actions">
               <button
                 type="button"
-                class="episode-card-rating-clear focus-ring"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleStarClick(currentRating()!);
-                }}
-                aria-label="Clear episode rating"
-                title="Clear rating"
+                class="episode-rating-dialog-cancel focus-ring"
+                onClick={closeFeedbackDialog}
+                disabled={isSavingFeedback()}
               >
-                clear
+                Cancel
               </button>
-            </Show>
+              <button
+                type="button"
+                class="episode-rating-dialog-save focus-ring"
+                onClick={() => void saveFeedback()}
+                disabled={isSavingFeedback()}
+              >
+                {isSavingFeedback() ? "Saving…" : "Save"}
+              </button>
+            </div>
           </div>
-        </Show>
+        </GlassModal>
       </div>
 
       {/* Right-aligned circular toggle — vault-aware.

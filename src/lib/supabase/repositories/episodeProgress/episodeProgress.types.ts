@@ -24,6 +24,32 @@ export type EpisodeProgressRow = Tables<"episode_progress">;
 export type EpisodeProgressInsert = TablesInsert<"episode_progress">;
 export type EpisodeProgressUpdate = TablesUpdate<"episode_progress">;
 
+/** Reactions supported by the episode RATE dialog and database constraint. */
+export const EPISODE_REACTIONS = [
+  "love",
+  "funny",
+  "wow",
+  "sad",
+  "angry",
+  "disappointed"
+] as const;
+
+export type EpisodeReaction = (typeof EPISODE_REACTIONS)[number];
+
+export interface EpisodeFeedback {
+  readonly rating: number | null;
+  readonly reaction: EpisodeReaction | null;
+}
+
+export function isEpisodeReaction(
+  value: string | null | undefined
+): value is EpisodeReaction {
+  return (
+    typeof value === "string" &&
+    (EPISODE_REACTIONS as readonly string[]).includes(value)
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Input payload types
 // ---------------------------------------------------------------------------
@@ -46,6 +72,8 @@ export interface UpsertEpisodeProgressPayload {
    * passing it here — the DB column has no CHECK constraint.
    */
   readonly rating?: number | null;
+  /** Optional reaction; omitted means preserve the existing reaction on updates. */
+  readonly reaction?: EpisodeReaction | null;
 }
 
 // ---------------------------------------------------------------------------

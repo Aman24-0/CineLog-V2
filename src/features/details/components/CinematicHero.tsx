@@ -6,27 +6,17 @@ import type { WatchlistItem, TMDBDetails } from "~/shared/types";
 interface CinematicHeroProps {
   baseItem: WatchlistItem | null;
   details: TMDBDetails | null;
-  /**
-   * Close handler — kept in the interface for backwards compat with
-   * DetailsHero, but the actual close BUTTON is no longer rendered here.
-   * The close button is rendered once at the modal-container level
-   * (DetailsModal.tsx) with position:fixed so it stays visible while
-   * scrolling. Rendering it here too caused a double-button overlap.
-   */
+  /** Close handler retained for the shared DetailsHero contract. */
   onClose: () => void;
   /** Whether the trailer is currently active — replaces the backdrop with the iframe */
   trailerActive?: boolean;
   /** YouTube video key for the trailer (from pickTrailer) */
   trailerKey?: string | null;
-  /** Called when the user closes the trailer (taps the close-trailer button) */
+  /** Called when the user turns the trailer off. */
   onCloseTrailer?: () => void;
-  /**
-   * Whether a trailer is available at all. When true AND the trailer
-   * isn't currently playing, a high-contrast "Watch Trailer" overlay
-   * button is rendered on top of the backdrop image (Netflix-style).
-   */
+  /** Whether a trailer is available for this title. */
   hasTrailer?: boolean;
-  /** Called when the user taps the "Watch Trailer" overlay button. */
+  /** Called when the user turns the trailer on. */
   onPlayTrailer?: () => void;
 }
 
@@ -53,16 +43,9 @@ interface CinematicHeroProps {
  *  close button (z-index: 20). When the trailer is active, the overlay
  *  is hidden so the video is fully visible.
  *
- *  A "close trailer" button appears top-left when the trailer is active,
- *  so the user can return to the backdrop view.
- *
- * TRAILER CTA OVERLAY (v2.5):
- *  When `hasTrailer` is true AND the trailer is NOT currently playing,
- *  a high-contrast "Watch Trailer" overlay button is positioned
- *  center-bottom of the backdrop image. Clicking it calls `onPlayTrailer`
- *  which flips `trailerActive` to true (the orchestrator owns this
- *  state) and the iframe replaces the backdrop. Netflix-style discovery
- *  affordance: the trailer is one tap away without leaving the hero.
+ *  A single top-right Trailer toggle controls both states. Turning the
+ *  trailer off unmounts the iframe, releasing the player and restoring the
+ *  artwork without introducing a second close control.
  *
  * SSR-safe: all data from props, no client-only APIs.
  */
@@ -97,7 +80,8 @@ export default function CinematicHero(props: CinematicHeroProps) {
     const scrollTop = scrollRef.scrollTop;
     // Cache heroHeight to avoid forced reflow on every scroll frame.
     // Only recompute on first call (0) — height doesn't change during scroll.
-    const heroHeight = cachedHeroHeight || (cachedHeroHeight = heroRef.offsetHeight);
+    const heroHeight =
+      cachedHeroHeight || (cachedHeroHeight = heroRef.offsetHeight);
     const progress = Math.min(1, scrollTop / heroHeight);
     setScrolled(progress > 0.1);
 
@@ -112,11 +96,17 @@ export default function CinematicHero(props: CinematicHeroProps) {
   };
 
   onMount(() => {
-    const parent = heroRef?.parentElement;
-    if (parent) {
-      scrollRef = parent;
-      parent.addEventListener("scroll", onScroll, { passive: true });
+    // Modal mode scrolls inside `.cinematic-scroll`; page mode intentionally
+    // removes that nested overflow trap, so walk upward to the app content
+    // scroll surface instead.
+    let parent = heroRef?.parentElement;
+    while (parent && parent !== document.body) {
+      const overflowY = window.getComputedStyle(parent).overflowY;
+      if (overflowY === "auto" || overflowY === "scroll") break;
+      parent = parent.parentElement;
     }
+    scrollRef = parent ?? document.getElementById("main-content") ?? undefined;
+    scrollRef?.addEventListener("scroll", onScroll, { passive: true });
     onCleanup(() => {
       scrollRef?.removeEventListener("scroll", onScroll);
     });
@@ -137,7 +127,12 @@ export default function CinematicHero(props: CinematicHeroProps) {
           {...({ fetchpriority: "high" } as Record<string, string>)}
           onLoad={() => setBackdropLoaded(true)}
           onError={() => setBackdropError(true)}
-          alt={props.baseItem?.title || props.baseItem?.name || props.details?.name || "Movie backdrop"}
+          alt={
+            props.baseItem?.title ||
+            props.baseItem?.name ||
+            props.details?.name ||
+            "Movie backdrop"
+          }
         />
       </Show>
 
@@ -146,42 +141,32 @@ export default function CinematicHero(props: CinematicHeroProps) {
         <div class="cinematic-hero-overlay" aria-hidden="true" />
       </Show>
 
-      {/* "Watch Trailer" overlay button — Netflix-style CTA on the backdrop.
-          Only renders when:
-            - A trailer is available (hasTrailer=true)
-            - The trailer is NOT currently playing (trailerActive=false)
-            - A backdrop URL exists (so the button has something to sit on)
-            - onPlayTrailer is wired (defensive — always true in DetailsModal)
-          The button is positioned center-bottom of the hero, above the
-          gradient overlay (z-index: 3) so it stays visible against any
-          backdrop. High-contrast white-on-black with backdrop blur so it
-          pops against both bright and dark backdrop images. */}
-      <Show
-        when={
-          props.hasTrailer &&
-          !props.trailerActive &&
-          !!backdropUrl() &&
-          !!props.onPlayTrailer
-        }
-      >
+      {/* One control for both trailer states. It stays in the hero corner
+          above the iframe, so ON → OFF cleanly unmounts the player and
+          restores the artwork without a second close button. */}
+      <Show when={props.hasTrailer && !!props.onPlayTrailer}>
         <button
           type="button"
-          class="cinematic-hero-trailer-cta"
-          onClick={() => props.onPlayTrailer?.()}
-          aria-label="Watch trailer"
+          class="cinematic-hero-trailer-toggle"
+          onClick={() =>
+            props.trailerActive
+              ? props.onCloseTrailer?.()
+              : props.onPlayTrailer?.()
+          }
+          aria-pressed={props.trailerActive}
+          aria-label={
+            props.trailerActive ? "Turn trailer off" : "Turn trailer on"
+          }
+          title={
+            props.trailerActive
+              ? "Trailer On — turn off"
+              : "Trailer Off — turn on"
+          }
         >
-          <span
-            class="material-symbols-outlined"
-            style={{
-              "font-size": "20px",
-              "font-variation-settings":
-                "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24"
-            }}
-            aria-hidden="true"
-          >
-            play_circle
+          <span class="material-symbols-outlined" aria-hidden="true">
+            {props.trailerActive ? "pause" : "play_arrow"}
           </span>
-          <span>Watch Trailer</span>
+          <span>{props.trailerActive ? "Trailer On" : "Trailer Off"}</span>
         </button>
       </Show>
 
@@ -235,20 +220,6 @@ export default function CinematicHero(props: CinematicHeroProps) {
             />
           </Show>
         </div>
-        {/* Close trailer button — top left, restores the backdrop */}
-        <button
-          onClick={() => props.onCloseTrailer?.()}
-          class="cinematic-trailer-close"
-          aria-label="Close trailer"
-        >
-          <span
-            class="material-symbols-outlined"
-            style={{ "font-size": "18px" }}
-            aria-hidden="true"
-          >
-            close
-          </span>
-        </button>
       </Show>
     </div>
   );

@@ -19,18 +19,22 @@ import { getClient } from "../../client";
 export function toInsert(
   payload: UpsertEpisodeProgressPayload
 ): EpisodeProgressInsert {
-  return {
+  const insert: EpisodeProgressInsert = {
     vault_id: payload.vaultId,
     season_number: payload.seasonNumber,
     episode_number: payload.episodeNumber,
     is_completed: payload.isCompleted ?? false,
     progress_minutes: payload.progressMinutes ?? 0,
-    watched_at: payload.watchedAt ?? new Date().toISOString(),
-    // Phase 6 Task 2: per-episode rating. undefined → NULL (the DB
-    // default), so existing callers that don't pass `rating` continue
-    // to work without setting a rating.
-    rating: payload.rating ?? null
+    watched_at: payload.watchedAt ?? new Date().toISOString()
   };
+
+  // Keep the historical utility contract: omitted feedback fields are
+  // represented as NULL in this standalone mapping helper. The repository
+  // strips those keys before a real progress upsert so existing feedback is
+  // not overwritten by a watch-state write.
+  insert.rating = payload.rating ?? null;
+  insert.reaction = payload.reaction ?? null;
+  return insert;
 }
 
 /**

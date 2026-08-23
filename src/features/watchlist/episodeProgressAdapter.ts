@@ -17,7 +17,7 @@
 
 import { getVaultRepository } from "~/lib/supabase/repositories";
 import { getEpisodeProgressRepository } from "~/lib/supabase/repositories";
-import type { VaultRow } from "~/lib/supabase/repositories";
+import type { EpisodeReaction, VaultRow } from "~/lib/supabase/repositories";
 import type { WatchlistItem, WatchProgress } from "~/shared/types";
 
 // ---------------------------------------------------------------------------
@@ -362,8 +362,77 @@ export async function updateEpisodeRatingInSupabase(
     rating
   );
   if (error) {
+    console.error("[episodeProgressAdapter] updateEpisodeRating error:", error);
+    return false;
+  }
+  return true;
+}
+
+/** Persist or clear the controlled reaction for one watched episode. */
+export async function updateEpisodeReactionInSupabase(
+  userId: string,
+  itemId: string,
+  mediaType: WatchlistItem["media_type"],
+  season: number,
+  episode: number,
+  reaction: EpisodeReaction | null
+): Promise<boolean> {
+  const vaultId = await resolveVaultId(userId, itemId, mediaType);
+  if (!vaultId) {
     console.error(
-      "[episodeProgressAdapter] updateEpisodeRating error:",
+      "[episodeProgressAdapter] Could not resolve vaultId for item:",
+      itemId
+    );
+    return false;
+  }
+
+  const repo = getEpisodeProgressRepository();
+  const { error } = await repo.updateEpisodeReaction(
+    vaultId,
+    season,
+    episode,
+    reaction
+  );
+  if (error) {
+    console.error(
+      "[episodeProgressAdapter] updateEpisodeReaction error:",
+      error
+    );
+    return false;
+  }
+  return true;
+}
+
+/** Persist both feedback fields in one vault/episode-scoped write. */
+export async function updateEpisodeFeedbackInSupabase(
+  userId: string,
+  itemId: string,
+  mediaType: WatchlistItem["media_type"],
+  season: number,
+  episode: number,
+  rating: number | null,
+  reaction: EpisodeReaction | null
+): Promise<boolean> {
+  const vaultId = await resolveVaultId(userId, itemId, mediaType);
+  if (!vaultId) {
+    console.error(
+      "[episodeProgressAdapter] Could not resolve vaultId for item:",
+      itemId
+    );
+    return false;
+  }
+
+  const repo = getEpisodeProgressRepository();
+  const { error } = await repo.updateEpisodeFeedback(
+    vaultId,
+    season,
+    episode,
+    rating,
+    reaction
+  );
+  if (error) {
+    console.error(
+      "[episodeProgressAdapter] updateEpisodeFeedback error:",
       error
     );
     return false;

@@ -17,10 +17,32 @@ import type { WatchlistItem, TMDBTitle } from "~/shared/types";
 interface SimilarTitlesProps {
   /** The currently-open title — used to fetch TMDB recommendations */
   currentItem: WatchlistItem;
-  /** The user's vault — used to mark which recommendations are already owned */
+  /** The user's vault — authenticated recommendations already owned are excluded. */
   watchlist: WatchlistItem[];
   /** Called when the user taps a recommendation — opens its Details */
   onSelect: (item: WatchlistItem) => void;
+}
+
+export function filterSimilarTitles(
+  recommendations: TMDBTitle[],
+  currentItem: WatchlistItem,
+  watchlist: WatchlistItem[]
+): TMDBTitle[] {
+  const seen = new Set<string>();
+  return recommendations
+    .filter((title) => {
+      const key = `${title.media_type}/${title.id}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      if (
+        String(title.id) === String(currentItem.id) &&
+        title.media_type === currentItem.media_type
+      ) {
+        return false;
+      }
+      return !isInVault(watchlist, title);
+    })
+    .slice(0, 12);
 }
 
 /**
@@ -40,10 +62,6 @@ interface SimilarTitlesProps {
  *     1. Filtered to exclude the current title (by id AND media_type)
  *     2. Filtered to exclude titles already in the vault (vault-aware)
  *     3. Limited to 12 for the horizontal carousel
- *
- *   Vault titles that DO appear (e.g. if the user has many recommendations
- *   in their vault) are visually marked with a subtle accent dot so the
- *   user can distinguish "new" from "already in vault".
  *
  *   The resource is lazy — it only fetches when the component mounts
  *   (which happens when the Details modal's content area renders).
@@ -68,23 +86,15 @@ const SimilarTitles: Component<SimilarTitlesProps> = (props) => {
     }
   });
 
-  // Filter out the current title and vault titles, take 12
-  const similar = createMemo(() => {
-    const recs = recommendations();
-    if (!recs || recs.length === 0) return [];
-
-    return recs
-      .filter((t) => {
-        // Exclude the current title (by id AND media_type — TMDB ID namespace safety)
-        if (
-          String(t.id) === String(props.currentItem.id) &&
-          t.media_type === props.currentItem.media_type
-        )
-          return false;
-        return true;
-      })
-      .slice(0, 12);
-  });
+  // Filter out the current title and titles already in the user's vault,
+  // deduplicate by canonical media identity, then take 12.
+  const similar = createMemo(() =>
+    filterSimilarTitles(
+      recommendations() ?? [],
+      props.currentItem,
+      props.watchlist
+    )
+  );
 
   // Convert a TMDBTitle to a minimal WatchlistItem for the onSelect handler
   const handleSelect = (title: TMDBTitle) => {
@@ -160,13 +170,6 @@ const SimilarTitles: Component<SimilarTitlesProps> = (props) => {
                       </div>
                     }
                   />
-                  {/* Vault indicator dot — subtle accent if the title is already in the vault */}
-                  <Show when={isInVault(props.watchlist, t)}>
-                    <span
-                      class="similar-title-vault-dot"
-                      aria-label="In your watchlist"
-                    />
-                  </Show>
                 </div>
                 <p class="similar-title-name">{titleOf(t)}</p>
                 <p class="similar-title-meta">

@@ -36,9 +36,10 @@
    selectors intentionally scope every override to page mode so the legacy
    modal retains its fixed frame, nested scroll, and focus behavior. */
 .details-page-shell {
+  position: relative;
   width: 100%;
   min-height: 100%;
-  padding: clamp(0.75rem, 2vw, 1.5rem) clamp(0.75rem, 3vw, 2rem) 3rem;
+  padding: 0 0 3rem;
 }
 
 .details-page-content {
@@ -47,11 +48,15 @@
 }
 
 .details-page-back {
+  position: absolute;
+  top: 1rem;
+  left: clamp(0.75rem, 3vw, 2rem);
+  z-index: 8;
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
   min-height: 44px;
-  margin: 0 0 0.75rem;
+  margin: 0;
   padding: 0.5rem 0.75rem;
   border: 1px solid var(--hairline);
   border-radius: var(--radius-pill);
@@ -81,7 +86,7 @@
 
 .details-page-modal {
   max-height: none;
-  overflow: visible;
+  overflow: hidden;
   display: block;
   border: 1px solid var(--glass-border-warm-strong);
   border-radius: var(--radius-modal);
@@ -188,49 +193,59 @@
     linear-gradient(to right, rgba(8, 8, 13, 0.5) 0%, transparent 50%);
 }
 
-/* "Watch Trailer" CTA — overlay button on the hero backdrop.
-   Renders only when a trailer is available and not currently playing.
-   High-contrast white-on-black pill with backdrop blur, positioned
-   center-bottom of the hero (where Netflix / Apple TV+ put it). The
-   bottom fade of the gradient overlay already darkens this region so
-   the button stays legible against bright backdrops. */
-.cinematic-hero-trailer-cta {
+/* One top-right control owns both trailer states. It remains above the
+   iframe when active and reads as an explicit toggle rather than a second
+   close action. */
+.cinematic-hero-trailer-toggle {
   position: absolute;
-  bottom: var(--sp-4);
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 3;
+  top: var(--sp-4);
+  right: var(--sp-4);
+  z-index: 20;
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
-  padding: 0.5rem 1rem;
+  min-height: 2.5rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.22);
   border-radius: var(--radius-pill);
-  background: rgba(8, 8, 13, 0.65);
+  background: rgba(8, 8, 13, 0.68);
   backdrop-filter: blur(var(--blur-md));
   -webkit-backdrop-filter: blur(var(--blur-md));
-  border: 1px solid rgba(255, 255, 255, 0.18);
   color: var(--text-strong);
   font-family: "Outfit", sans-serif;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
   cursor: pointer;
   transition:
     transform var(--dur-fast) var(--ease-spring),
     background var(--dur-fast) var(--ease-out),
-    border-color var(--dur-fast) var(--ease-out);
-  white-space: nowrap;
+    border-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
 }
-.cinematic-hero-trailer-cta:hover {
-  background: rgba(8, 8, 13, 0.85);
-  border-color: rgba(255, 255, 255, 0.32);
-  transform: translateX(-50%) translateY(-1px);
+.cinematic-hero-trailer-toggle:hover {
+  background: rgba(8, 8, 13, 0.88);
+  border-color: var(--p);
 }
-.cinematic-hero-trailer-cta:active {
-  transform: translateX(-50%) scale(0.97);
+.cinematic-hero-trailer-toggle:active {
+  transform: scale(0.97);
 }
-.cinematic-hero-trailer-cta .material-symbols-outlined {
-  color: var(--p);
+.cinematic-hero-trailer-toggle[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--p) 82%, #081013);
+  border-color: var(--p);
+  color: var(--on-primary, #081013);
+}
+.cinematic-hero-trailer-toggle .material-symbols-outlined {
+  font-size: 1.125rem;
+}
+@media (max-width: 639px) {
+  .cinematic-hero-trailer-toggle {
+    top: 0.75rem;
+    right: 0.75rem;
+    padding-inline: 0.625rem;
+    font-size: 0.6875rem;
+  }
 }
 
 /* Ambient backdrop continuation — blurred tint that bleeds into content */
@@ -1192,6 +1207,239 @@
   color: var(--text-strong);
 }
 
+.episode-card-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  min-height: 2rem;
+  margin-top: 0.35rem;
+}
+.episode-card-actions .episode-card-expand,
+.episode-card-rate-button {
+  min-height: 2rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-pill);
+  font-family: "Azeret Mono", monospace;
+  font-size: 0.5rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+.episode-card-actions .episode-card-expand {
+  padding-left: 0;
+  padding-right: 0.25rem;
+}
+.episode-card-rate-button {
+  border: 1px solid color-mix(in srgb, var(--p) 58%, transparent);
+  background: color-mix(in srgb, var(--p) 12%, transparent);
+  color: var(--p);
+  cursor: pointer;
+  transition:
+    color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-spring);
+}
+.episode-card-rate-button:hover {
+  background: color-mix(in srgb, var(--p) 24%, transparent);
+  color: var(--text-strong);
+}
+.episode-card-rate-button:active {
+  transform: scale(0.96);
+}
+.episode-card-feedback-summary {
+  color: #f5c518;
+  font-family: "Azeret Mono", monospace;
+  font-size: 0.5rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.episode-rating-dialog {
+  width: min(100%, 30rem);
+}
+.episode-rating-dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding: 0.25rem 0 0;
+}
+.episode-rating-fieldset,
+.episode-reaction-fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.episode-rating-fieldset legend,
+.episode-reaction-fieldset legend {
+  margin-bottom: 0.625rem;
+  color: var(--text-soft);
+  font-family: "Azeret Mono", monospace;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.episode-rating-dialog-stars {
+  display: grid;
+  gap: 0.25rem;
+  width: 100%;
+}
+.episode-rating-dialog-stars--5 {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+.episode-rating-dialog-stars--10 {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+.episode-rating-dialog-star {
+  display: flex;
+  min-width: 0;
+  min-height: 3.5rem;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.125rem;
+  padding: 0.375rem 0.125rem;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  background: var(--glass-bg);
+  color: var(--text-dim);
+  cursor: pointer;
+  transition:
+    color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-spring);
+}
+.episode-rating-dialog-star:hover,
+.episode-rating-dialog-star.is-active {
+  border-color: color-mix(in srgb, #f5c518 65%, transparent);
+  background: color-mix(in srgb, #f5c518 12%, var(--glass-bg));
+  color: #f5c518;
+}
+.episode-rating-dialog-star:active {
+  transform: scale(0.95);
+}
+.episode-rating-dialog-star .material-symbols-outlined {
+  font-size: 1.25rem;
+  font-variation-settings:
+    "FILL" 0,
+    "wght" 400,
+    "GRAD" 0,
+    "opsz" 24;
+}
+.episode-rating-dialog-star.is-active .material-symbols-outlined {
+  font-variation-settings:
+    "FILL" 1,
+    "wght" 400,
+    "GRAD" 0,
+    "opsz" 24;
+}
+.episode-rating-dialog-star-value {
+  font-family: "Azeret Mono", monospace;
+  font-size: 0.5rem;
+  font-weight: 700;
+}
+.episode-reaction-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+.episode-reaction-option {
+  display: flex;
+  min-height: 3.25rem;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  padding: 0.375rem 0.25rem;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  background: var(--glass-bg);
+  color: var(--text-soft);
+  cursor: pointer;
+  font-family: "Outfit", sans-serif;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  transition:
+    color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-spring);
+}
+.episode-reaction-option:hover,
+.episode-reaction-option.is-active {
+  border-color: var(--p);
+  background: color-mix(in srgb, var(--p) 15%, var(--glass-bg));
+  color: var(--text-strong);
+}
+.episode-reaction-option.is-active .material-symbols-outlined {
+  color: var(--p);
+}
+.episode-reaction-option:active {
+  transform: scale(0.96);
+}
+.episode-reaction-option .material-symbols-outlined {
+  font-size: 1.25rem;
+}
+.episode-rating-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.625rem;
+  padding-top: 0.25rem;
+}
+.episode-rating-dialog-cancel,
+.episode-rating-dialog-save {
+  min-width: 5.5rem;
+  min-height: 2.75rem;
+  padding: 0.625rem 0.875rem;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  font-family: "Outfit", sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-spring);
+}
+.episode-rating-dialog-cancel {
+  border: 1px solid var(--hairline-2);
+  background: transparent;
+  color: var(--text-soft);
+}
+.episode-rating-dialog-cancel:hover {
+  background: var(--glass-bg);
+  color: var(--text-strong);
+}
+.episode-rating-dialog-save {
+  border: 1px solid var(--p);
+  background: var(--p);
+  color: var(--on-primary, #081013);
+}
+.episode-rating-dialog-save:hover {
+  background: var(--p-strong, var(--p));
+  transform: translateY(-1px);
+}
+.episode-rating-dialog-cancel:disabled,
+.episode-rating-dialog-save:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+@media (max-width: 420px) {
+  .episode-rating-dialog-stars--10 {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+  .episode-rating-dialog-star {
+    min-height: 3.25rem;
+  }
+  .episode-reaction-options {
+    gap: 0.375rem;
+  }
+}
+
 /* Rating cluster — user rating prominent */
 .rating-cluster {
   display: flex;
@@ -1445,34 +1693,6 @@
 .cinematic-trailer-fallback-link:hover {
   background: rgba(255, 0, 0, 0.22);
   transform: translateY(-1px);
-}
-/* Close trailer button — top left of the hero, restores the backdrop */
-.cinematic-trailer-close {
-  position: absolute;
-  top: var(--sp-4);
-  left: var(--sp-4);
-  z-index: 20;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.5rem;
-  height: 2.5rem;
-  border-radius: 50%;
-  background: rgba(8, 8, 13, 0.6);
-  backdrop-filter: blur(var(--blur-md));
-  -webkit-backdrop-filter: blur(var(--blur-md));
-  border: 1px solid var(--hairline-2);
-  color: var(--text-strong);
-  cursor: pointer;
-  transition:
-    transform var(--dur-fast) var(--ease-spring),
-    background var(--dur-fast) var(--ease-out);
-}
-.cinematic-trailer-close:hover {
-  background: rgba(8, 8, 13, 0.8);
-}
-.cinematic-trailer-close:active {
-  transform: scale(0.95);
 }
 
 /* Scrollable content area */

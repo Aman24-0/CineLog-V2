@@ -156,7 +156,9 @@ export type {
 // exported from the dashboard barrel (same generated type).
 export {
   EpisodeProgressRepository,
-  getEpisodeProgressRepository
+  getEpisodeProgressRepository,
+  EPISODE_REACTIONS,
+  isEpisodeReaction
 } from "./episodeProgress";
 
 export type {
@@ -165,7 +167,9 @@ export type {
   UpsertEpisodeProgressPayload,
   EpisodeProgressResult,
   EpisodeProgressListResult,
-  EpisodeProgressWriteResult
+  EpisodeProgressWriteResult,
+  EpisodeReaction,
+  EpisodeFeedback
 } from "./episodeProgress";
 
 // ---- PresetRepository (Phase 12.1) ----------------------------------------

@@ -155,7 +155,10 @@ export default function DetailsExperience(props: DetailsExperienceProps) {
         const name = (err as DOMException)?.name;
         if (name === "AbortError") return; // User cancelled — do nothing
         // Non-AbortError — fall through to bottom sheet
-        console.warn("[DetailsExperience] Native share failed, opening sheet:", err);
+        console.warn(
+          "[DetailsExperience] Native share failed, opening sheet:",
+          err
+        );
       }
     }
     // No native share, or native share failed — open the bottom sheet
@@ -194,7 +197,9 @@ export default function DetailsExperience(props: DetailsExperienceProps) {
     handleEpisodeChange,
     handleEpisodeUnmark,
     handleEpisodeRating,
+    handleEpisodeFeedback,
     episodeRatings,
+    episodeFeedbacks,
     hydrateEpisodeRatings,
     handleSelectItem,
     handleRemoveFromVault
@@ -474,7 +479,9 @@ export default function DetailsExperience(props: DetailsExperienceProps) {
                     onEpisodeUnmark={handleEpisodeUnmark}
                     onAddToVault={handleAddToVault}
                     onRateEpisode={handleEpisodeRating}
+                    onFeedbackEpisode={handleEpisodeFeedback}
                     episodeRatings={episodeRatings}
+                    episodeFeedbacks={episodeFeedbacks}
                   />
                   <AnimeSections
                     anilist={animeEnrichment.anilist}

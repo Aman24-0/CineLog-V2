@@ -297,6 +297,54 @@ describe("EpisodeProgressRepository", () => {
       expect(eqCalls).toContain("episode_number");
     });
   });
+
+  describe("updateEpisodeFeedback", () => {
+    it("updates rating and reaction together without inserting when the row exists", async () => {
+      const { client, query } = createMockSupabase({ listData: [], count: 1 });
+      const repo = new EpisodeProgressRepository(client as never);
+
+      const result = await repo.updateEpisodeFeedback(
+        "vault-1",
+        2,
+        3,
+        9,
+        "wow"
+      );
+
+      expect(result.error).toBeNull();
+      expect(query.update).toHaveBeenCalledWith(
+        { rating: 9, reaction: "wow" },
+        { count: "exact" }
+      );
+      expect(query.upsert).not.toHaveBeenCalled();
+    });
+
+    it("upserts reaction feedback when the episode row is missing", async () => {
+      const { client, query } = createMockSupabase({ listData: [], count: 0 });
+      const repo = new EpisodeProgressRepository(client as never);
+
+      const result = await repo.updateEpisodeFeedback(
+        "vault-1",
+        1,
+        4,
+        null,
+        "love" as never
+      );
+
+      expect(result.error).toBeNull();
+      expect(query.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          vault_id: "vault-1",
+          season_number: 1,
+          episode_number: 4,
+          rating: null,
+          reaction: "love",
+          is_completed: true
+        }),
+        { onConflict: "vault_id,season_number,episode_number" }
+      );
+    });
+  });
 });
 
 describe("episodeProgress.utils", () => {

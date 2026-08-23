@@ -118,7 +118,7 @@ const ProfilePage: Component = () => {
   };
 
   return (
-    <PageContainer>
+    <PageContainer paddingTop="0">
       <div class="profile-layout profile-layout-v3">
         {/* Guest state */}
         <Show when={isGuest()}>

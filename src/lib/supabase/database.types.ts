@@ -345,6 +345,8 @@ export type Database = {
           progress_minutes: number;
           /** Phase 6 Task 2: per-episode rating (1-10 or 1-5, app-validated). NULL = no rating. */
           rating: number | null;
+          /** Episode reaction chosen in the RATE dialog. NULL = no reaction. */
+          reaction: string | null;
           season_number: number;
           updated_at: string;
           vault_id: string;
@@ -357,6 +359,7 @@ export type Database = {
           is_completed?: boolean;
           progress_minutes?: number;
           rating?: number | null;
+          reaction?: string | null;
           season_number: number;
           updated_at?: string;
           vault_id: string;
@@ -369,6 +372,7 @@ export type Database = {
           is_completed?: boolean;
           progress_minutes?: number;
           rating?: number | null;
+          reaction?: string | null;
           season_number?: number;
           updated_at?: string;
           vault_id?: string;

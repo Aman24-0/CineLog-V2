@@ -73,6 +73,24 @@ interface MergedCrewMember {
 }
 
 /**
+ * Put people with a TMDB profile image first while keeping the existing
+ * meaningful order stable inside each group.
+ */
+function imagesFirst<T extends { profile_path?: string | null }>(
+  items: T[]
+): T[] {
+  return items
+    .map((item, index) => ({ item, index }))
+    .sort((a, b) => {
+      const aHasImage = Boolean(a.item.profile_path);
+      const bHasImage = Boolean(b.item.profile_path);
+      if (aHasImage !== bHasImage) return aHasImage ? -1 : 1;
+      return a.index - b.index;
+    })
+    .map(({ item }) => item);
+}
+
+/**
  * DetailsCast — Cast & Crew section with images + clickable person modal.
  *
  * REDESIGN (per user request):
@@ -167,7 +185,7 @@ const DetailsCast: Component<DetailsCastProps> = (props) => {
       // Flatten aggregate cast into the regular TMDBCastMember shape
       // so the rest of the component (rendering, PersonModal wiring)
       // doesn't need to know about the aggregate vs regular distinction.
-      return aggregate
+      const aggregateCast = aggregate
         .map((m: TMDBAggregateCastMember) => {
           // Combine all character names — dedupe identical strings so
           // "Rick Grimes" + "Rick Grimes" doesn't show as "Rick Grimes, Rick Grimes".
@@ -202,13 +220,16 @@ const DetailsCast: Component<DetailsCastProps> = (props) => {
           if (ea !== eb) return eb - ea;
           // Tiebreaker: name asc for stable ordering.
           return a.name.localeCompare(b.name);
-        })
-        .slice(0, 20);
+        });
+      return imagesFirst(aggregateCast).slice(0, 20);
     }
     // Regular credits (movies, or TV without aggregate_credits).
     const c = d.credits;
     if (!c?.cast) return [];
-    return [...c.cast].sort((a, b) => a.order - b.order).slice(0, 20);
+    return imagesFirst([...c.cast].sort((a, b) => a.order - b.order)).slice(
+      0,
+      20
+    );
   });
 
   /**
@@ -262,7 +283,7 @@ const DetailsCast: Component<DetailsCastProps> = (props) => {
         });
       }
     }
-    return Array.from(byId.values()).slice(0, 12);
+    return imagesFirst(Array.from(byId.values())).slice(0, 12);
   });
 
   const hasAny = createMemo(

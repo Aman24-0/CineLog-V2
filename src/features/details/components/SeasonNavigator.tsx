@@ -10,6 +10,10 @@ import {
 import { fetchSeasonDetails } from "~/core/tmdb/tmdb";
 import { getEpisodeProgress, resolveSeasons } from "~/shared/utils/progress";
 import type { WatchlistItem, TMDBDetails, TMDBEpisode } from "~/shared/types";
+import type {
+  EpisodeFeedback,
+  EpisodeReaction
+} from "~/lib/supabase/repositories";
 import EpisodeCard from "./EpisodeCard";
 
 interface SeasonNavigatorProps {
@@ -52,6 +56,13 @@ interface SeasonNavigatorProps {
     episode: number,
     rating: number | null
   ) => void;
+  /** Save rating and reaction selected in the episode RATE dialog. */
+  onFeedbackEpisode?: (
+    season: number,
+    episode: number,
+    rating: number | null,
+    reaction: EpisodeReaction | null
+  ) => void;
   /**
    * Phase 6 Task 2 — A map of "S{season}E{episode}" → rating for the
    * current vault item. Used to hydrate each EpisodeCard's stars with
@@ -59,6 +70,7 @@ interface SeasonNavigatorProps {
    * a pre-existing rating (the stars start empty).
    */
   episodeRatings?: Map<string, number | null>;
+  episodeFeedbacks?: Map<string, EpisodeFeedback>;
 }
 
 /**
@@ -504,6 +516,20 @@ const SeasonNavigator: Component<SeasonNavigatorProps> = (props) => {
                                       ep.season_number,
                                       ep.episode_number,
                                       rating
+                                    )
+                                : undefined
+                            }
+                            feedback={props.episodeFeedbacks?.get(
+                              `S${ep.season_number}E${ep.episode_number}`
+                            )}
+                            onFeedback={
+                              props.onFeedbackEpisode
+                                ? (rating, reaction) =>
+                                    props.onFeedbackEpisode?.(
+                                      ep.season_number,
+                                      ep.episode_number,
+                                      rating,
+                                      reaction
                                     )
                                 : undefined
                             }

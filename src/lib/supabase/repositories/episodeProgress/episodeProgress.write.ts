@@ -10,9 +10,11 @@
  */
 
 import type {
+  EpisodeProgressInsert,
   EpisodeProgressResult,
   EpisodeProgressRow,
   EpisodeProgressWriteResult,
+  EpisodeReaction,
   TypedSupabaseClient,
   UpsertEpisodeProgressPayload
 } from "./episodeProgress.types";
@@ -34,6 +36,10 @@ export async function upsertEpisodeProgress(
   payload: UpsertEpisodeProgressPayload
 ): Promise<EpisodeProgressResult<EpisodeProgressRow>> {
   const insert = toInsert(payload);
+  // `toInsert` keeps its historical null-default contract for callers and
+  // tests, but omitted feedback must not clear fields during a watch update.
+  if (payload.rating === undefined) delete insert.rating;
+  if (payload.reaction === undefined) delete insert.reaction;
   const { data, error } = await supabase
     .from(TABLE)
     .upsert(insert, { onConflict: "vault_id,season_number,episode_number" })
@@ -120,42 +126,52 @@ export async function deleteEpisodeProgressFrom(
 }
 
 /**
- * Phase 6 Task 2 — Set the rating on a specific episode_progress record,
- * creating the row if it doesn't already exist.
- *
- * BUG FIX (rating persistence): the previous implementation was a plain
- * UPDATE, which is a **no-op when the episode_progress row doesn't
- * exist**. That scenario is common: when the user advances the tracker
- * from e.g. S1E1 directly to S1E5 (by tapping the watched toggle on E5),
- * `handleEpisodeChange` only upserts a row for E5 — the episodes in
- * between (E2, E3, E4) are marked "watched" by the UI (because the
- * tracker is past them) but have NO episode_progress row. So rating E3
- * silently disappeared: the optimistic local Map showed the star, but
- * the server-side UPDATE matched zero rows. On the next page load,
- * `hydrateEpisodeRatings` fetched all rows (E1 + E5, neither rated) and
- * E3's rating was gone.
- *
- * The fix: two-step upsert.
- *   Step 1 — UPDATE only the `rating` column on the matching row, if it
- *     exists. This preserves `is_completed`, `watched_at`,
- *     `progress_minutes` on existing rows (so we don't clobber the
- *     "latest watched" ordering by resetting watched_at).
- *   Step 2 — If Step 1 affected zero rows (the row didn't exist), INSERT
- *     a new row with the rating and sensible defaults for a watched
- *     episode (`is_completed: true`, `watched_at: now()`). The UI only
- *     shows the rating row for episodes marked `isWatched` (tracker is
- *     past them), so we can safely treat a rating action as evidence
- *     the episode was watched.
- *
- * Passing `null` for the rating clears it (sets the column to NULL) on
- * an existing row. If the row doesn't exist, passing `null` is a no-op
- * (there's nothing to clear — we don't insert a row just to store NULL).
- *
- * The app validates the rating range (1-10 or 1-5 depending on the
- * user's ratingScale preference) before calling this function — the
- * DB column has no CHECK constraint.
- *
- * @returns { error } — null on success, Error on failure.
+ * Update the feedback fields on one episode_progress row without touching
+ * watch-state fields. If the row does not exist and at least one non-null
+ * feedback value is supplied, create it as a watched episode so feedback
+ * for tracker-skipped episodes is durable too.
+ */
+export async function updateEpisodeFeedback(
+  supabase: TypedSupabaseClient,
+  vaultId: string,
+  seasonNumber: number,
+  episodeNumber: number,
+  feedback: Pick<EpisodeProgressInsert, "rating" | "reaction">
+): Promise<EpisodeProgressWriteResult> {
+  const { count, error: updateErr } = await supabase
+    .from(TABLE)
+    .update(feedback, { count: "exact" })
+    .eq("vault_id", vaultId)
+    .eq("season_number", seasonNumber)
+    .eq("episode_number", episodeNumber);
+
+  if (updateErr) return { error: toError(updateErr) };
+
+  const hasValue = feedback.rating != null || feedback.reaction != null;
+  if (count === 0 && hasValue) {
+    const insert: EpisodeProgressInsert = {
+      vault_id: vaultId,
+      season_number: seasonNumber,
+      episode_number: episodeNumber,
+      is_completed: true,
+      progress_minutes: 0,
+      watched_at: new Date().toISOString(),
+      rating: feedback.rating ?? null,
+      reaction: feedback.reaction ?? null
+    };
+    const { error: insertErr } = await supabase
+      .from(TABLE)
+      .upsert(insert, { onConflict: "vault_id,season_number,episode_number" });
+    if (insertErr) return { error: toError(insertErr) };
+  }
+
+  return { error: null };
+}
+
+/**
+ * Phase 6 Task 2 — Set the numeric rating on one episode. The two-step
+ * update/upsert preserves watch timestamps and also works for episodes
+ * without an intermediate progress row.
  */
 export async function updateEpisodeRating(
   supabase: TypedSupabaseClient,
@@ -164,42 +180,20 @@ export async function updateEpisodeRating(
   episodeNumber: number,
   rating: number | null
 ): Promise<EpisodeProgressWriteResult> {
-  // Step 1: Try a plain UPDATE scoped to the target row. This only
-  // touches the `rating` column, leaving is_completed / watched_at /
-  // progress_minutes untouched on existing rows. We use the PostgREST
-  // `count: 'exact'` option to learn how many rows were affected.
-  const { count, error: updateErr } = await supabase
-    .from(TABLE)
-    .update({ rating }, { count: "exact" })
-    .eq("vault_id", vaultId)
-    .eq("season_number", seasonNumber)
-    .eq("episode_number", episodeNumber);
+  return updateEpisodeFeedback(supabase, vaultId, seasonNumber, episodeNumber, {
+    rating
+  });
+}
 
-  if (updateErr) return { error: toError(updateErr) };
-
-  // Step 2: If Step 1 updated zero rows, the episode_progress row
-  // doesn't exist yet (the user is rating an episode the tracker jumped
-  // past without creating intermediate rows). INSERT it now with the
-  // rating + watched-episode defaults. We skip the insert when rating
-  // is null — there's no value in creating a row just to store NULL.
-  if (count === 0 && rating !== null) {
-    const { error: insertErr } = await supabase
-      .from(TABLE)
-      .upsert(
-        {
-          vault_id: vaultId,
-          season_number: seasonNumber,
-          episode_number: episodeNumber,
-          rating,
-          is_completed: true,
-          progress_minutes: 0,
-          watched_at: new Date().toISOString()
-        },
-        { onConflict: "vault_id,season_number,episode_number" }
-      );
-
-    if (insertErr) return { error: toError(insertErr) };
-  }
-
-  return { error: null };
+/** Set or clear the controlled reaction on one episode. */
+export async function updateEpisodeReaction(
+  supabase: TypedSupabaseClient,
+  vaultId: string,
+  seasonNumber: number,
+  episodeNumber: number,
+  reaction: EpisodeReaction | null
+): Promise<EpisodeProgressWriteResult> {
+  return updateEpisodeFeedback(supabase, vaultId, seasonNumber, episodeNumber, {
+    reaction
+  });
 }

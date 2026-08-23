@@ -173,6 +173,7 @@ const VaultShelf: Component<VaultShelfProps> = (props) => {
                   variant="compact"
                   search={props.search()}
                   showCompactEpisodeMeta={!showWatchNext()}
+                  reserveWatchNextBadge={showWatchNext()}
                   onClick={() => props.onOpenMovie(m.id)}
                 />
                 <Show when={showWatchNext()}>

@@ -3,6 +3,10 @@ import { Show, Suspense, lazy } from "solid-js";
 import type { Accessor } from "solid-js";
 import DetailSection from "~/features/details/components/DetailSection";
 import type { WatchlistItem, TMDBDetails } from "~/shared/types";
+import type {
+  EpisodeFeedback,
+  EpisodeReaction
+} from "~/lib/supabase/repositories";
 
 const SeasonNavigator = lazy(
   () => import("~/features/details/components/SeasonNavigator")
@@ -52,6 +56,13 @@ export interface DetailsSeasonsProps {
     episode: number,
     rating: number | null
   ) => void;
+  /** Save the complete rating/reaction selection from the RATE dialog. */
+  onFeedbackEpisode?: (
+    season: number,
+    episode: number,
+    rating: number | null,
+    reaction: EpisodeReaction | null
+  ) => void;
   /**
    * Phase 6 Task 2 — Accessor returning a Map of "S{season}E{episode}"
    * → rating for the current vault item. Optional; when omitted (or
@@ -59,6 +70,8 @@ export interface DetailsSeasonsProps {
    * pre-existing rating.
    */
   episodeRatings?: Accessor<Map<string, number | null>>;
+  /** Accessor returning complete persisted episode feedback. */
+  episodeFeedbacks?: Accessor<Map<string, EpisodeFeedback>>;
 }
 
 export default function DetailsSeasons(props: DetailsSeasonsProps) {
@@ -79,7 +92,9 @@ export default function DetailsSeasons(props: DetailsSeasonsProps) {
             onEpisodeUnmark={props.onEpisodeUnmark}
             onAddToVault={props.onAddToVault}
             onRateEpisode={props.onRateEpisode}
+            onFeedbackEpisode={props.onFeedbackEpisode}
             episodeRatings={props.episodeRatings?.() ?? new Map()}
+            episodeFeedbacks={props.episodeFeedbacks?.() ?? new Map()}
           />
         </Suspense>
       </DetailSection>

@@ -25,6 +25,10 @@ import {
 import { cacheMetadataEntries, buildCacheKey } from "~/shared/utils/tmdbCache";
 import type { WatchlistItem, TMDBDetails } from "~/shared/types";
 import type { DetailsFormState } from "./types";
+import type {
+  EpisodeFeedback,
+  EpisodeReaction
+} from "~/lib/supabase/repositories";
 import { useDetailsProgress } from "./useDetailsProgress";
 
 /**
@@ -89,8 +93,15 @@ export interface UseDetailsActionsResult {
     episode: number,
     rating: number | null
   ) => Promise<void>;
+  handleEpisodeFeedback: (
+    season: number,
+    episode: number,
+    rating: number | null,
+    reaction: EpisodeReaction | null
+  ) => Promise<void>;
   /** Phase 6 Task 2 — Map of "S{season}E{episode}" → rating for the open vault item. */
   episodeRatings: Accessor<Map<string, number | null>>;
+  episodeFeedbacks: Accessor<Map<string, EpisodeFeedback>>;
   /** Phase 6 Task 2 — Re-fetch all episode_progress ratings for the open vault item. */
   hydrateEpisodeRatings: () => Promise<void>;
   handleMarkCompleted: () => Promise<void>;

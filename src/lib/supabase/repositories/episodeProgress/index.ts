@@ -7,6 +7,8 @@ export {
   getEpisodeProgressRepository
 } from "./episodeProgress.repository";
 
+export { EPISODE_REACTIONS, isEpisodeReaction } from "./episodeProgress.types";
+
 export type {
   EpisodeProgressRow,
   EpisodeProgressInsert,
@@ -14,5 +16,7 @@ export type {
   UpsertEpisodeProgressPayload,
   EpisodeProgressResult,
   EpisodeProgressListResult,
-  EpisodeProgressWriteResult
+  EpisodeProgressWriteResult,
+  EpisodeReaction,
+  EpisodeFeedback
 } from "./episodeProgress.types";
