@@ -24,15 +24,19 @@ import {
   updateNotesInSupabase,
   updateProgressInSupabase,
   updateRatingInSupabase,
-  updateStatusInSupabase,
   updateTagInSupabase,
   clearTagFromAllItemsInSupabase,
   updateWatchDateInSupabase
 } from "./vaultAdapter";
 import {
-  updateSeasonEpisodeInSupabase,
-  updateWatchProgressInSupabase
-} from "./episodeProgressAdapter";
+  markEpisodeWatchedAndSync,
+  setSeriesStatusInSupabase
+} from "./seriesEpisodeStateAdapter";
+import {
+  deriveSeriesStatus,
+  getWatchedPrefixThrough,
+  listSeriesEpisodes
+} from "~/shared/utils/episodeState";
 import { useVaultPresets } from "./useVaultPresets";
 import type {
   WatchlistItem,
@@ -66,10 +70,7 @@ export interface VaultStore extends UserLibrary {
     itemId: string,
     progressMinutes: number
   ) => Promise<void>;
-  readonly updateTag: (
-    itemId: string,
-    tag: string | null
-  ) => Promise<void>;
+  readonly updateTag: (itemId: string, tag: string | null) => Promise<void>;
   readonly clearTagFromAllItems: (tagName: string) => Promise<number>;
   readonly savePreset: (name: string, filters: VaultFilters) => Promise<void>;
   readonly deletePreset: (presetId: string) => Promise<void>;
@@ -156,17 +157,45 @@ const useVaultLogic = (): VaultStore => {
   };
 
   // ---- Vault write operations (optimistic) ----
-  const updateStatus = (itemId: string, status: string) =>
-    runWriteOptimistic(
-      itemId,
-      (u, id, mt) => updateStatusInSupabase(u, id, mt, status),
-      "Status updated!",
-      "Failed to update status.",
-      {
-        status: status as WatchlistItem["status"],
+  const updateStatus = async (itemId: string, status: string) => {
+    if (!uid()) {
+      showToast("Please sign in to make changes.", "error");
+      return;
+    }
+    const item = findItem(itemId);
+    if (!item) return;
+
+    try {
+      const state = await setSeriesStatusInSupabase(
+        uid()!,
+        itemId,
+        item.media_type,
+        status as WatchlistItem["status"],
+        item.seasons
+      );
+      updateItem(itemId, {
+        status: state.status,
+        ...(item.media_type === "tv"
+          ? {
+              season: state.season,
+              episode: state.episode,
+              watchProgress: {
+                ...(item.watchProgress ?? { currentTime: 0, duration: 0 }),
+                season: state.season,
+                episode: state.episode,
+                updatedAt: new Date().toISOString()
+              }
+            }
+          : {}),
         updatedAt: new Date().toISOString()
-      }
-    );
+      });
+      showToast("Status updated!", "success");
+    } catch (err) {
+      void refresh();
+      showToast("Failed to update status.", "error");
+      throw err;
+    }
+  };
   const updateRating = (itemId: string, rating: number) =>
     runWriteOptimistic(
       itemId,
@@ -195,19 +224,36 @@ const useVaultLogic = (): VaultStore => {
     itemId: string,
     season: number,
     episode: number
-  ) =>
-    runWriteOptimistic(
+  ) => {
+    const item = findItem(itemId);
+    const prefix =
+      item?.media_type === "tv"
+        ? getWatchedPrefixThrough(item.seasons, season, episode)
+        : [];
+    const total =
+      item?.media_type === "tv" ? listSeriesEpisodes(item.seasons).length : 0;
+    const derivedStatus =
+      item?.media_type === "tv" && total > 0
+        ? deriveSeriesStatus(prefix.length, total)
+        : item?.status === "Planned" || item?.status === "Plan to Watch"
+          ? "Watching"
+          : item?.status;
+
+    return runWriteOptimistic(
       itemId,
-      (u, id, mt) => updateSeasonEpisodeInSupabase(u, id, mt, season, episode),
+      (u, id, mt) =>
+        markEpisodeWatchedAndSync(u, id, mt, season, episode, item?.seasons),
       "Episode progress updated!",
       "Failed to update episode progress.",
       {
         season,
         episode,
+        status: derivedStatus,
         watchProgress: { currentTime: 0, duration: 0, season, episode },
         updatedAt: new Date().toISOString()
       }
     );
+  };
   const deleteWatchlistItem = (itemId: string): Promise<void> => {
     // Delete uses removeItem (removes from local array) instead of updateItem
     if (!uid()) {
@@ -338,47 +384,48 @@ const useVaultLogic = (): VaultStore => {
     }
   };
 
-  // ---- Watch progress (special: auto-upgrades Planned → Watching) ----
+  // ---- Watch progress (shared sequential episode state machine) ----
   const updateWatchProgress = async (
     itemId: string,
     progress: WatchProgress
   ) => {
     if (!uid()) return showToast("Please sign in to make changes.", "error");
     const item = watchlist().find((m) => m.id === itemId);
+    if (!item) return;
 
-    // Optimistic local update
-    const statusUpgrade =
-      item && (item.status === "Planned" || item.status === "Plan to Watch");
+    const season = progress.season ?? 1;
+    const episode = progress.episode ?? 1;
+    const prefix =
+      item.media_type === "tv"
+        ? getWatchedPrefixThrough(item.seasons, season, episode)
+        : [];
+    const total =
+      item.media_type === "tv" ? listSeriesEpisodes(item.seasons).length : 0;
+    const derivedStatus =
+      item.media_type === "tv" && total > 0
+        ? deriveSeriesStatus(prefix.length, total)
+        : item.status === "Planned" || item.status === "Plan to Watch"
+          ? "Watching"
+          : item.status;
+
     updateItem(itemId, {
-      season: progress.season,
-      episode: progress.episode,
-      watchProgress: progress,
-      ...(statusUpgrade
-        ? { status: "Watching" as WatchlistItem["status"] }
-        : {}),
+      season,
+      episode,
+      watchProgress: { ...progress, season, episode },
+      status: derivedStatus,
       updatedAt: new Date().toISOString()
     });
 
-    // Persist to Supabase in the background
     try {
-      if (statusUpgrade) {
-        await updateStatusInSupabase(
-          uid()!,
-          itemId,
-          item.media_type,
-          "Watching"
-        );
-      }
-      if (item) {
-        await updateWatchProgressInSupabase(
-          uid()!,
-          itemId,
-          item.media_type,
-          progress
-        );
-      }
+      await markEpisodeWatchedAndSync(
+        uid()!,
+        itemId,
+        item.media_type,
+        season,
+        episode,
+        item.seasons
+      );
     } catch (err) {
-      // Revert on failure
       void refresh();
       showToast("Failed to save progress.", "error");
       throw err;

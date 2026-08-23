@@ -198,13 +198,18 @@ const BannerEditor: Component<BannerEditorProps> = (props) => {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              ...await getAuthHeaders()
+              ...(await getAuthHeaders())
             },
             body: JSON.stringify({ url: preview.url })
           });
           if (!resp.ok) {
-            const body = (await resp.json().catch(() => ({}))) as { error?: string; hint?: string };
-            setError(body.error ?? `Failed to fetch image (HTTP ${resp.status}).`);
+            const body = (await resp.json().catch(() => ({}))) as {
+              error?: string;
+              hint?: string;
+            };
+            setError(
+              body.error ?? `Failed to fetch image (HTTP ${resp.status}).`
+            );
             return;
           }
           const body = (await resp.json()) as { url: string };
@@ -240,11 +245,13 @@ const BannerEditor: Component<BannerEditorProps> = (props) => {
     <Show when={props.open}>
       <Portal>
         <div
-          class="modal-backdrop fixed inset-0 z-[999999] flex items-end justify-center p-0 sm:items-center sm:p-4"
+          class="modal-backdrop profile-banner-editor-backdrop fixed inset-0 z-[999999] flex items-end justify-center p-0 sm:items-center sm:p-4"
           style={{
-            background: "rgba(0,0,0,0.85)",
-            "backdrop-filter": "blur(8px)",
-            "-webkit-backdrop-filter": "blur(8px)"
+            background:
+              "color-mix(in srgb, var(--p) 4%, var(--bg-modal-backdrop))",
+            "backdrop-filter": "var(--elevation-backdrop-blur) saturate(125%)",
+            "-webkit-backdrop-filter":
+              "var(--elevation-backdrop-blur) saturate(125%)"
           }}
           onClick={() => !saving() && props.onClose()}
           role="dialog"
@@ -252,7 +259,7 @@ const BannerEditor: Component<BannerEditorProps> = (props) => {
           aria-label="Customize banner"
         >
           <div
-            class="modal-sheet-enter modal-surface relative z-10 w-full max-w-md"
+            class="modal-sheet-enter modal-surface profile-banner-editor-modal relative z-10 w-full max-w-md"
             style={{
               "border-radius": "var(--radius-xl)",
               padding: "var(--sp-4)",

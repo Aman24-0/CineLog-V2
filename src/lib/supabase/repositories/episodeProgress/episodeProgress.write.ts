@@ -87,6 +87,27 @@ export async function clearEpisodeProgress(
 }
 
 /**
+ * Reset watch-state fields without deleting episode feedback. This is used
+ * when a series returns to Planned: ratings and reactions are user data and
+ * must survive the status reset.
+ */
+export async function resetEpisodeProgress(
+  supabase: TypedSupabaseClient,
+  vaultId: string
+): Promise<EpisodeProgressWriteResult> {
+  const { error } = await supabase
+    .from(TABLE)
+    .update({
+      is_completed: false,
+      progress_minutes: 0,
+      watched_at: null
+    })
+    .eq("vault_id", vaultId);
+
+  return { error: toError(error) };
+}
+
+/**
  * Delete all episode progress records at or AFTER a given position
  * (season/episode) — used when the user unmarks an episode they
  * previously watched.

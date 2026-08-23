@@ -125,6 +125,10 @@ const AppShell: ParentComponent = (props) => {
     isDiscoverConsumerRoute(location.pathname)
   );
 
+  const isDedicatedDetailRoute = createMemo(() =>
+    /^\/(?:movie|tv)\/\d+\/?$/.test(location.pathname)
+  );
+
   // Any modal open — used for body scroll lock (set in each modal's onMount)
   // AND for setting `inert` on the consumer wrapper so the background chrome
   // (header, sidebar, main, bottom nav) is non-focusable AND hidden from AT
@@ -153,15 +157,16 @@ const AppShell: ParentComponent = (props) => {
           when={isLandingRoute()}
           fallback={
             <div
-              class={`app-shell-bg min-h-screen w-full${isDiscoverRoute() ? "" : " app-shell-no-header"}`}
+              class={`app-shell-bg min-h-screen w-full${isDiscoverRoute() ? "" : " app-shell-no-header"}${isDedicatedDetailRoute() ? " app-shell-detail-page" : ""}`}
               // `inert` makes the entire background chrome (header, sidebar,
               // main, bottom nav) non-focusable AND hidden from the AT tree
               // when any modal is open. This is the WCAG-compliant way to
               // contain keyboard focus inside the modal — see header comment.
               inert={anyModalOpen() ? true : undefined}
               style={{
-                "padding-bottom":
-                  "calc(var(--nav-total-height) + var(--nav-float-margin, 1rem) + 0.5rem)",
+                "padding-bottom": isDedicatedDetailRoute()
+                  ? "0"
+                  : "calc(var(--nav-total-height) + var(--nav-float-margin, 1rem) + 0.5rem)",
                 // Phase 14: switched from solid --void to translucent
                 // --void-ambient so the AmbientBackground blobs show
                 // through. Solid --void is still used by body + admin +
@@ -207,7 +212,9 @@ const AppShell: ParentComponent = (props) => {
 
               <ToastContainer />
 
-              <BottomNavigation />
+              <Show when={!isDedicatedDetailRoute()}>
+                <BottomNavigation />
+              </Show>
 
               {/* Auth modal — opened from any page when a guest tries to sign in.
                 AuthModal takes no props; it reads open/close state directly from
@@ -292,7 +299,7 @@ const AppShell: ParentComponent = (props) => {
                             padding: "24px",
                             "border-radius": "16px",
                             background: "rgba(255,255,255,0.06)",
-                            "border": "1px solid rgba(255,255,255,0.10)",
+                            border: "1px solid rgba(255,255,255,0.10)",
                             "backdrop-filter": "blur(12px)"
                           }}
                         >

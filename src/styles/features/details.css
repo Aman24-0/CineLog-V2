@@ -43,7 +43,7 @@
 }
 
 .details-page-content {
-  width: min(100%, 1000px);
+  width: 100%;
   margin: 0 auto;
 }
 
@@ -86,14 +86,14 @@
 
 .details-page-modal {
   max-height: none;
-  overflow: hidden;
+  overflow: visible;
   display: block;
-  border: 1px solid var(--glass-border-warm-strong);
-  border-radius: var(--radius-modal);
-  box-shadow:
-    var(--shadow-glass-elevated),
-    0 0 32px var(--p-glow),
-    inset 0 1px 0 rgba(232, 183, 74, 0.1);
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 .details-page-scroll,
 .cinematic-scroll.details-page-scroll {
@@ -116,14 +116,13 @@
 
 @media (max-width: 639px) {
   .details-page-shell {
-    padding-right: 0.5rem;
-    padding-left: 0.5rem;
+    padding-right: 0;
+    padding-left: 0;
   }
 
   .details-page-modal {
-    border-right: 0;
-    border-left: 0;
-    border-radius: var(--radius-lg);
+    border: 0;
+    border-radius: 0;
   }
 }
 
@@ -172,14 +171,14 @@
   pointer-events: none;
   z-index: 1;
   background:
-    /* Bottom fade into content (the key to no hard cut-off) */
+    /* Layered bottom fade: image → dark/theme tint → page background. */
     linear-gradient(
       to top,
-      var(--glass-bg-strong) 0%,
-      rgba(8, 8, 13, 0.95) 8%,
-      rgba(8, 8, 13, 0.7) 20%,
-      rgba(8, 8, 13, 0.3) 40%,
-      rgba(8, 8, 13, 0.05) 65%,
+      var(--void-ambient) 0%,
+      color-mix(in srgb, var(--void-ambient) 88%, transparent) 13%,
+      color-mix(in srgb, var(--p) 10%, transparent) 30%,
+      rgba(8, 8, 13, 0.3) 48%,
+      rgba(8, 8, 13, 0.06) 70%,
       transparent 100%
     ),
     /* Top fade for status bar / close button legibility */
@@ -4040,3 +4039,80 @@
     padding-right: 0 !important;
   }
 }
+
+/* ─── Final screenshot pass: page-mode cinematic composition ───────────── */
+.details-page-modal .cinematic-hero::after {
+  content: "";
+  position: absolute;
+  left: -4%;
+  right: -4%;
+  bottom: -0.75rem;
+  height: 48%;
+  z-index: 2;
+  pointer-events: none;
+  background: linear-gradient(
+    to top,
+    var(--void-ambient) 0%,
+    color-mix(in srgb, var(--void-ambient) 84%, transparent) 22%,
+    color-mix(in srgb, var(--p) 8%, transparent) 54%,
+    transparent 100%
+  );
+  filter: blur(5px);
+  opacity: 0.98;
+  mask-image: linear-gradient(to top, black 0%, black 72%, transparent 100%);
+  -webkit-mask-image: linear-gradient(
+    to top,
+    black 0%,
+    black 72%,
+    transparent 100%
+  );
+}
+
+.details-page-modal .hero-content-cluster {
+  position: relative;
+  z-index: 3;
+  margin-top: clamp(-7rem, -12vw, -4.5rem);
+  padding: 0 1.5rem 0.75rem;
+  overflow: visible;
+  contain: none;
+}
+
+.details-page-modal .floating-poster {
+  box-shadow:
+    var(--shadow-premium),
+    0 0 0 1px var(--hairline-2),
+    0 12px 28px rgba(0, 0, 0, 0.42);
+}
+
+.details-page-modal .action-dock,
+.details-page-modal .detail-section,
+.details-page-modal .season-navigator {
+  width: min(100%, 1000px);
+  margin-right: auto;
+  margin-left: auto;
+}
+
+.details-page-modal .action-dock {
+  margin-top: 1rem;
+}
+
+@media (min-width: 640px) {
+  .details-page-modal .hero-content-cluster {
+    margin-top: clamp(-8.5rem, -10vw, -6rem);
+    padding: 0 2rem 1rem;
+  }
+
+  .details-page-modal .action-dock {
+    margin-top: 1.25rem;
+  }
+}
+
+@media (max-width: 639px) {
+  .details-page-modal .hero-content-cluster {
+    gap: 0.875rem;
+    padding-right: 1rem;
+    padding-left: 1rem;
+  }
+}
+
+/* ─── End page-mode cinematic composition ───────────────────────────────── */

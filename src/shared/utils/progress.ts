@@ -9,11 +9,13 @@ import type {
  * CineLog V2 Progress Engine — the SINGLE source of truth for all progress.
  *
  * ARCHITECTURE:
- *   Status is the source of truth. Only titles with status === "Watching"
- *   may participate in the progress system. Planned and Completed titles
- *   are NEVER considered "in progress" regardless of legacy watchProgress data.
+ *   Status is the source of truth for activity surfaces: only titles with
+ *   status === "Watching" participate in Continue Watching and in-progress
+ *   shelves. Planned and Completed titles still expose synchronized TV
+ *   progress objects so detail pages can render 0% and 100% accurately.
  *
- *   Progress is calculated from the manual tracker (season/episode) only.
+ *   Progress is calculated from the manual tracker (season/episode) only, with
+ *   Planned and Completed using explicit 0% and 100% terminal states.
  *   No currentTime, no streaming playback percentage, no legacy logic.
  *
  *   *** SERIES-WIDE PROGRESS ***
@@ -156,7 +158,7 @@ export function resolveSeasons(
  *
  * Returns null when:
  *   - item is null/undefined
- *   - item is not watchable (status !== "Watching")
+ *   - status === "Dropped"
  *   - media_type !== "tv" (movies)
  *
  * The returned `pct` is the SAME value used by Dashboard Hero, Continue
@@ -167,24 +169,32 @@ export function getEpisodeProgress(
   m: WatchlistItem | null | undefined,
   details?: TMDBDetails | null
 ): EpisodeProgress | null {
-  if (!m || !isWatchable(m)) return null;
-  if (m.media_type !== "tv") return null;
+  if (!m || m.media_type !== "tv") return null;
+  if (m.status === "Dropped") return null;
 
-  const season = m.season ?? m.watchProgress?.season ?? 1;
-  const episode = m.episode ?? m.watchProgress?.episode ?? 1;
   const seasonList = resolveSeasons(m, details);
+  const lastSeason = seasonList[seasonList.length - 1];
+  const season =
+    m.status === "Completed" && lastSeason
+      ? lastSeason.number
+      : (m.season ?? m.watchProgress?.season ?? 1);
+  const episode =
+    m.status === "Completed" && lastSeason
+      ? lastSeason.count
+      : (m.episode ?? m.watchProgress?.episode ?? 1);
 
   // No season data at all — show a 0% with just the S/E label
   if (seasonList.length === 0) {
+    const isCompleted = m.status === "Completed";
     return {
-      pct: 0,
+      pct: isCompleted ? 100 : 0,
       season,
       episode,
       totalEps: 0,
       totalSeasons: 1,
       seriesTotalEps: 0,
       seriesCompletedEps: 0,
-      isAtEnd: false,
+      isAtEnd: isCompleted,
       label: `S${season} E${episode}`,
       seriesLabel: "—"
     };
@@ -200,13 +210,18 @@ export function getEpisodeProgress(
   // SERIES TOTAL = sum of every season's episode count
   const seriesTotalEps = seasonList.reduce((sum, s) => sum + s.count, 0);
 
-  // SERIES COMPLETED = full count of every season before current + current episode
-  //   (clamp current episode to the season's count to avoid >100% if data drifts)
-  const seriesCompletedEps = seasonList.reduce((sum, s) => {
-    if (s.number < season) return sum + s.count;
-    if (s.number === season) return sum + Math.min(episode, s.count);
-    return sum;
-  }, 0);
+  // SERIES COMPLETED = status-derived terminal values or the current
+  // contiguous tracker prefix. Planned titles intentionally contribute zero.
+  const seriesCompletedEps =
+    m.status === "Completed"
+      ? seriesTotalEps
+      : m.status === "Planned" || m.status === "Plan to Watch"
+        ? 0
+        : seasonList.reduce((sum, s) => {
+            if (s.number < season) return sum + s.count;
+            if (s.number === season) return sum + Math.min(episode, s.count);
+            return sum;
+          }, 0);
 
   // SERIES-WIDE percentage — the ONE number every consumer uses
   const pct =
@@ -215,11 +230,11 @@ export function getEpisodeProgress(
       : 0;
 
   // "At end" = on the last episode of the last season
-  const lastSeason = seasonList[seasonList.length - 1];
   const isAtEnd =
-    lastSeason.count > 0 &&
-    season === lastSeason.number &&
-    episode >= lastSeason.count;
+    m.status === "Completed" ||
+    (lastSeason.count > 0 &&
+      season === lastSeason.number &&
+      episode >= lastSeason.count);
 
   // Labels
   const label =
@@ -345,9 +360,8 @@ export function getNextEpisode(
   // Case 2: at the end of a season — find the next season (if any).
   const sortedSeasons = [...seasonList].sort((a, b) => a.number - b.number);
   const idx = sortedSeasons.findIndex((s) => s.number === season);
-  const nextSeason = idx >= 0 && idx + 1 < sortedSeasons.length
-    ? sortedSeasons[idx + 1]
-    : null;
+  const nextSeason =
+    idx >= 0 && idx + 1 < sortedSeasons.length ? sortedSeasons[idx + 1] : null;
 
   if (nextSeason) {
     return {

@@ -2857,9 +2857,9 @@
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: color-mix(in srgb, var(--p) 4%, var(--bg-modal-backdrop));
+  backdrop-filter: var(--elevation-backdrop-blur) saturate(125%);
+  -webkit-backdrop-filter: var(--elevation-backdrop-blur) saturate(125%);
   animation: profile-edit-fade-in 0.18s ease;
 }
 @keyframes profile-edit-fade-in {
@@ -2877,10 +2877,23 @@
   max-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: var(--bg-elevated, #14141a);
-  border: 1px solid var(--hairline-2, rgba(255, 255, 255, 0.12));
+  background: linear-gradient(
+    155deg,
+    color-mix(in srgb, var(--p) 8%, var(--glass-strong-bg)),
+    var(--glass-strong-bg) 58%,
+    color-mix(in srgb, var(--p2) 5%, var(--glass-strong-bg))
+  );
+  backdrop-filter: var(--glass-strong-blur)
+    saturate(var(--glass-strong-saturate));
+  -webkit-backdrop-filter: var(--glass-strong-blur)
+    saturate(var(--glass-strong-saturate));
+  border: 1px solid var(--glass-strong-border, var(--hairline-2));
   border-bottom: none;
   border-radius: 1rem 1rem 0 0;
+  box-shadow:
+    var(--glass-strong-shadow),
+    0 0 28px var(--p-glow),
+    var(--glass-highlight-hover);
   overflow: hidden;
   animation: profile-edit-slide-up 0.22s ease;
   /* Reserve clearance for the floating bottom-nav on mobile so the
@@ -3256,3 +3269,56 @@
     margin-right: 1rem;
   }
 }
+
+/* Banner customization modal — scoped to the nested Profile editor sheet. */
+.profile-banner-editor-backdrop {
+  background: color-mix(in srgb, var(--p) 4%, var(--bg-modal-backdrop));
+  backdrop-filter: var(--elevation-backdrop-blur) saturate(125%);
+  -webkit-backdrop-filter: var(--elevation-backdrop-blur) saturate(125%);
+}
+
+.profile-banner-editor-modal {
+  background: linear-gradient(
+    155deg,
+    color-mix(in srgb, var(--p) 8%, var(--glass-strong-bg)),
+    var(--glass-strong-bg) 58%,
+    color-mix(in srgb, var(--p2) 5%, var(--glass-strong-bg))
+  );
+  backdrop-filter: var(--glass-strong-blur)
+    saturate(var(--glass-strong-saturate));
+  -webkit-backdrop-filter: var(--glass-strong-blur)
+    saturate(var(--glass-strong-saturate));
+  border: 1px solid var(--glass-strong-border);
+  box-shadow:
+    var(--glass-strong-shadow),
+    0 0 28px var(--p-glow),
+    var(--glass-highlight-hover);
+}
+
+.profile-banner-editor-modal .quick-filter-bar {
+  background: var(--glass-default-bg);
+  border-color: var(--glass-default-border);
+  box-shadow: var(--glass-default-shadow), var(--glass-highlight);
+}
+
+.profile-banner-editor-modal .quick-filter-tab[data-active="true"] {
+  background: var(--active-bg);
+  border-color: var(--active-border);
+  color: var(--active-text);
+  box-shadow: var(--active-glow);
+}
+
+.profile-banner-editor-modal .glass-input {
+  background: var(--glass-default-bg);
+  border-color: var(--glass-default-border);
+  box-shadow: var(--glass-default-shadow), var(--glass-highlight);
+}
+
+@media (max-width: 639px) {
+  .profile-banner-editor-modal {
+    border-bottom: 0;
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  }
+}
+
+/* ─── End Banner customization modal surface ───────────────────────────── */

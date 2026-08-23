@@ -3,15 +3,18 @@ import { createSignal, type Accessor, type Setter } from "solid-js";
 import { getCurrentUid } from "~/shared/hooks/useAuth";
 import type { ToastType } from "~/shared/hooks/useToast";
 import { findInVault } from "~/shared/utils/vaultMatch";
-import { updateStatusInSupabase } from "~/features/watchlist/vaultAdapter";
 import {
-  updateSeasonEpisodeInSupabase,
-  unmarkEpisodeInSupabase,
   updateEpisodeFeedbackInSupabase,
   updateEpisodeRatingInSupabase
 } from "~/features/watchlist/episodeProgressAdapter";
+import {
+  markEpisodeWatchedAndSync,
+  setSeriesStatusInSupabase,
+  unwatchEpisodeAndSync
+} from "~/features/watchlist/seriesEpisodeStateAdapter";
 import { getEpisodeProgressRepository } from "~/lib/supabase/repositories";
-import type { WatchlistItem } from "~/shared/types";
+import type { TMDBDetails, WatchlistItem } from "~/shared/types";
+import { resolveSeasons } from "~/shared/utils/progress";
 import type {
   EpisodeFeedback,
   EpisodeReaction
@@ -38,6 +41,7 @@ import type {
 export interface UseDetailsProgressArgs {
   baseItem: Accessor<WatchlistItem | null>;
   vaultItem: Accessor<WatchlistItem | null>;
+  details: Accessor<TMDBDetails | null>;
   watchlist: Accessor<WatchlistItem[]>;
   setSelectedItem: Setter<{
     baseItem: WatchlistItem;
@@ -146,16 +150,30 @@ export function useDetailsProgress(
           : "Planned";
 
     try {
-      await updateStatusInSupabase(uid, v.id, v.media_type, nextStatus);
+      const state = await setSeriesStatusInSupabase(
+        uid,
+        v.id,
+        v.media_type,
+        nextStatus as WatchlistItem["status"],
+        resolveSeasons(v, args.details())
+      );
       const updated: WatchlistItem = {
         ...v,
-        status: nextStatus as WatchlistItem["status"]
+        status: state.status,
+        season: state.season,
+        episode: state.episode,
+        watchProgress: {
+          ...(v.watchProgress ?? { currentTime: 0, duration: 0 }),
+          season: state.season,
+          episode: state.episode,
+          updatedAt: new Date().toISOString()
+        }
       };
       args.setSelectedItem({
         baseItem: { ...args.baseItem()!, ...updated },
         vaultItem: updated
       });
-      args.showToast(`Status: ${nextStatus}`, "success", 1500);
+      args.showToast(`Status: ${state.status}`, "success", 1500);
     } catch {
       args.showToast("Failed to update status.", "error");
     }
@@ -167,28 +185,26 @@ export function useDetailsProgress(
     if (!uid || !v) return;
 
     try {
-      // Phase 7.3 — persists episode progress to the `episode_progress`
-      // table via EpisodeProgressRepository. If the item is Planned,
-      // upgrade to Watching first.
-      let updated: WatchlistItem;
-      if (v.status === "Planned" || v.status === "Plan to Watch") {
-        await updateStatusInSupabase(uid, v.id, v.media_type, "Watching");
-        updated = {
-          ...v,
-          status: "Watching",
-          season: newSeason,
-          episode: newEpisode
-        };
-      } else {
-        updated = { ...v, season: newSeason, episode: newEpisode };
-      }
-      await updateSeasonEpisodeInSupabase(
+      const state = await markEpisodeWatchedAndSync(
         uid,
         v.id,
         v.media_type,
         newSeason,
-        newEpisode
+        newEpisode,
+        resolveSeasons(v, args.details())
       );
+      const updated: WatchlistItem = {
+        ...v,
+        status: state.status,
+        season: state.season,
+        episode: state.episode,
+        watchProgress: {
+          ...(v.watchProgress ?? { currentTime: 0, duration: 0 }),
+          season: state.season,
+          episode: state.episode,
+          updatedAt: new Date().toISOString()
+        }
+      };
       args.setSelectedItem({
         baseItem: { ...args.baseItem()!, ...updated },
         vaultItem: updated
@@ -233,31 +249,26 @@ export function useDetailsProgress(
     if (!uid || !v) return;
 
     try {
-      // Step 1: delete episode_progress records from the unmarked
-      // position onward. This is the key step that the old
-      // handleEpisodeChange-based rewind was missing — without it,
-      // the next vault refresh would re-pick a later episode as
-      // "latest watched" and silently undo the rewind.
-      await unmarkEpisodeInSupabase(
+      const state = await unwatchEpisodeAndSync(
         uid,
         v.id,
         v.media_type,
         unmarkSeason,
-        unmarkEpisode
+        unmarkEpisode,
+        { season: newTrackerSeason, episode: newTrackerEpisode },
+        resolveSeasons(v, args.details())
       );
-
-      // Step 2: update the vault row's tracker position to the
-      // rewound episode. We do NOT call updateSeasonEpisodeInSupabase
-      // here — that would UPSERT a new episode_progress record for
-      // the rewound episode, which already exists from when it was
-      // originally watched. The vault row's season/episode columns
-      // are updated via the optimistic local update below; the next
-      // vault refresh will pick up the latest episode_progress record
-      // (which is now the rewound episode) and re-confirm the tracker.
       const updated: WatchlistItem = {
         ...v,
-        season: newTrackerSeason,
-        episode: newTrackerEpisode
+        status: state.status,
+        season: state.season,
+        episode: state.episode,
+        watchProgress: {
+          ...(v.watchProgress ?? { currentTime: 0, duration: 0 }),
+          season: state.season,
+          episode: state.episode,
+          updatedAt: new Date().toISOString()
+        }
       };
       args.setSelectedItem({
         baseItem: { ...args.baseItem()!, ...updated },
@@ -275,8 +286,25 @@ export function useDetailsProgress(
     if (!uid || !v) return;
 
     try {
-      await updateStatusInSupabase(uid, v.id, v.media_type, "Completed");
-      const updated: WatchlistItem = { ...v, status: "Completed" };
+      const state = await setSeriesStatusInSupabase(
+        uid,
+        v.id,
+        v.media_type,
+        "Completed",
+        resolveSeasons(v, args.details())
+      );
+      const updated: WatchlistItem = {
+        ...v,
+        status: state.status,
+        season: state.season,
+        episode: state.episode,
+        watchProgress: {
+          ...(v.watchProgress ?? { currentTime: 0, duration: 0 }),
+          season: state.season,
+          episode: state.episode,
+          updatedAt: new Date().toISOString()
+        }
+      };
       args.setSelectedItem({
         baseItem: { ...args.baseItem()!, ...updated },
         vaultItem: updated
@@ -317,13 +345,30 @@ export function useDetailsProgress(
     if (v.status === nextStatus) return;
 
     try {
-      await updateStatusInSupabase(uid, v.id, v.media_type, nextStatus);
-      const updated: WatchlistItem = { ...v, status: nextStatus };
+      const state = await setSeriesStatusInSupabase(
+        uid,
+        v.id,
+        v.media_type,
+        nextStatus,
+        resolveSeasons(v, args.details())
+      );
+      const updated: WatchlistItem = {
+        ...v,
+        status: state.status,
+        season: state.season,
+        episode: state.episode,
+        watchProgress: {
+          ...(v.watchProgress ?? { currentTime: 0, duration: 0 }),
+          season: state.season,
+          episode: state.episode,
+          updatedAt: new Date().toISOString()
+        }
+      };
       args.setSelectedItem({
         baseItem: { ...args.baseItem()!, ...updated },
         vaultItem: updated
       });
-      args.showToast(`Status: ${nextStatus}`, "success", 1500);
+      args.showToast(`Status: ${state.status}`, "success", 1500);
     } catch {
       args.showToast("Failed to update status.", "error");
     }

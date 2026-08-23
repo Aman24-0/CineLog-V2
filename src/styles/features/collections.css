@@ -3979,15 +3979,21 @@
   gap: 12px;
   padding: 10px 12px;
   border-radius: var(--radius-md, 0.75rem);
-  background: var(--glass-bg-strong, rgba(255, 255, 255, 0.02));
-  border: 1px solid var(--hairline, rgba(255, 255, 255, 0.06));
+  background: var(--glass-default-bg, var(--glass-bg));
+  backdrop-filter: var(--glass-default-blur)
+    saturate(var(--glass-default-saturate));
+  -webkit-backdrop-filter: var(--glass-default-blur)
+    saturate(var(--glass-default-saturate));
+  border: 1px solid var(--glass-default-border, var(--hairline));
+  box-shadow: var(--glass-default-shadow), var(--glass-highlight);
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .entry-list-row:hover {
-  background: var(--glass-bg, rgba(255, 255, 255, 0.06));
-  border-color: var(--hairline-2, rgba(255, 255, 255, 0.12));
+  background: var(--glass-medium-bg, var(--glass-bg));
+  border-color: var(--glass-medium-border, var(--hairline-2));
+  box-shadow: var(--glass-medium-shadow), var(--glass-highlight-hover);
 }
 
 .entry-list-row.is-dragging {

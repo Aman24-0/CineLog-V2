@@ -19,7 +19,6 @@ import {
   updateRatingInSupabase,
   updateRewatchInSupabase,
   updateSeasonDatesInSupabase,
-  updateStatusInSupabase,
   updateWatchDateInSupabase
 } from "~/features/watchlist/vaultAdapter";
 import { cacheMetadataEntries, buildCacheKey } from "~/shared/utils/tmdbCache";
@@ -30,6 +29,8 @@ import type {
   EpisodeReaction
 } from "~/lib/supabase/repositories";
 import { useDetailsProgress } from "./useDetailsProgress";
+import { setSeriesStatusInSupabase } from "~/features/watchlist/seriesEpisodeStateAdapter";
+import { resolveSeasons } from "~/shared/utils/progress";
 
 /**
  * useDetailsActions — owns all user-action handlers for the Details modal.
@@ -269,10 +270,17 @@ export function useDetailsActions(
     setIsSaving(true);
     try {
       const updates: Promise<unknown>[] = [];
+      let statusSync: ReturnType<typeof setSeriesStatusInSupabase> | null =
+        null;
       if (args.form().status !== (v.status || "Planned")) {
-        updates.push(
-          updateStatusInSupabase(uid, v.id, v.media_type, args.form().status)
+        statusSync = setSeriesStatusInSupabase(
+          uid,
+          v.id,
+          v.media_type,
+          args.form().status as WatchlistItem["status"],
+          resolveSeasons(v, args.details())
         );
+        updates.push(statusSync);
       }
       if (Number(args.form().rating) !== (v.rating || 0)) {
         updates.push(
@@ -369,12 +377,29 @@ export function useDetailsActions(
       } else {
         showToast("Saved successfully!", "success");
       }
+      const statusState = statusSync
+        ? await statusSync.catch(() => null)
+        : null;
+      const resolvedStatus =
+        statusState?.status ?? (args.form().status as WatchlistItem["status"]);
       // Cast form().status to the WatchlistItem status union — the form is
       // typed as string because DetailsEditForm uses a <select>, but the
       // values are always one of the 4 valid statuses.
       const updatedVault: WatchlistItem = {
         ...v,
-        status: args.form().status as WatchlistItem["status"],
+        status: resolvedStatus,
+        ...(statusState
+          ? {
+              season: statusState.season,
+              episode: statusState.episode,
+              watchProgress: {
+                ...(v.watchProgress ?? { currentTime: 0, duration: 0 }),
+                season: statusState.season,
+                episode: statusState.episode,
+                updatedAt: new Date().toISOString()
+              }
+            }
+          : {}),
         rating: Number(args.form().rating) || v.rating,
         watchDate: args.form().watchDate,
         notes: args.form().notes,
@@ -450,6 +475,7 @@ export function useDetailsActions(
   const progress = useDetailsProgress({
     baseItem: args.baseItem,
     vaultItem: args.vaultItem,
+    details: args.details,
     watchlist: args.watchlist,
     setSelectedItem: args.setSelectedItem,
     onSelectRelatedItem: args.onSelectRelatedItem,

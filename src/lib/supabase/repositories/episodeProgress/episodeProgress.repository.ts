@@ -17,6 +17,7 @@ import {
 } from "./episodeProgress.read";
 import {
   clearEpisodeProgress,
+  resetEpisodeProgress,
   deleteEpisodeProgressFrom,
   markEpisodeCompleted,
   updateEpisodeFeedback,
@@ -89,6 +90,10 @@ export class EpisodeProgressRepository {
 
   clearEpisodeProgress(vaultId: string): Promise<EpisodeProgressWriteResult> {
     return clearEpisodeProgress(this.supabase, vaultId);
+  }
+
+  resetEpisodeProgress(vaultId: string): Promise<EpisodeProgressWriteResult> {
+    return resetEpisodeProgress(this.supabase, vaultId);
   }
 
   /**

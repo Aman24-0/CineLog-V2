@@ -274,6 +274,15 @@ const SeasonNavigator: Component<SeasonNavigatorProps> = (props) => {
     const ce = currentEpisode();
     const seasonData = seasonList().find((s) => s.number === seasonNumber);
     if (!seasonData) return null;
+    if (
+      props.vaultItem.status === "Planned" ||
+      props.vaultItem.status === "Plan to Watch"
+    ) {
+      return { watched: 0, total: seasonData.count };
+    }
+    if (props.vaultItem.status === "Completed") {
+      return { watched: seasonData.count, total: seasonData.count };
+    }
     if (seasonNumber < cs)
       return { watched: seasonData.count, total: seasonData.count };
     if (seasonNumber === cs)
@@ -495,9 +504,12 @@ const SeasonNavigator: Component<SeasonNavigatorProps> = (props) => {
                             }
                             isWatched={
                               !!props.vaultItem &&
-                              (currentSeason() > ep.season_number ||
-                                (currentSeason() === ep.season_number &&
-                                  currentEpisode() > ep.episode_number))
+                              (props.vaultItem.status === "Completed" ||
+                                (props.vaultItem.status !== "Planned" &&
+                                  props.vaultItem.status !== "Plan to Watch" &&
+                                  (currentSeason() > ep.season_number ||
+                                    (currentSeason() === ep.season_number &&
+                                      currentEpisode() >= ep.episode_number))))
                             }
                             inVault={!!props.vaultItem}
                             rating={

@@ -185,9 +185,42 @@ describe("getEpisodeProgress", () => {
     expect(getEpisodeProgress(null)).toBeNull();
   });
 
-  it("returns null for non-Watching status", () => {
-    const item = makeTVSeries({ status: "Planned" });
-    expect(getEpisodeProgress(item)).toBeNull();
+  it("returns 0% for Planned status", () => {
+    const item = makeTVSeries({
+      status: "Planned",
+      seasons: makeSeasons([
+        { number: 1, count: 3 },
+        { number: 2, count: 4 }
+      ]),
+      season: 2,
+      episode: 2
+    });
+    expect(getEpisodeProgress(item)).toMatchObject({
+      pct: 0,
+      seriesCompletedEps: 0,
+      seriesTotalEps: 7,
+      isAtEnd: false
+    });
+  });
+
+  it("returns 100% and the final position for Completed status", () => {
+    const item = makeTVSeries({
+      status: "Completed",
+      seasons: makeSeasons([
+        { number: 1, count: 3 },
+        { number: 2, count: 4 }
+      ]),
+      season: 1,
+      episode: 1
+    });
+    expect(getEpisodeProgress(item)).toMatchObject({
+      pct: 100,
+      season: 2,
+      episode: 4,
+      seriesCompletedEps: 7,
+      seriesTotalEps: 7,
+      isAtEnd: true
+    });
   });
 
   it("returns null for movies (media_type !== 'tv')", () => {
