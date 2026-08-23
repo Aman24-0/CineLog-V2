@@ -16,7 +16,6 @@ import { useVault } from "~/features/watchlist/useVault";
 import { createVaultItemInSupabase } from "~/features/watchlist/vaultAdapter";
 import { getCurrentUid } from "~/shared/hooks/useAuth";
 import { useCollections } from "./hooks/useCollections";
-import { useModalState } from "~/shared/hooks/useModalState";
 import { useToast } from "~/shared/hooks/useToast";
 import {
   fetchCuratedUniverseBySlug,
@@ -51,6 +50,7 @@ import type {
   TimelineProvider,
   WatchlistItem
 } from "~/shared/types";
+import { titleDetailPath } from "~/shared/utils/titleRoutes";
 
 /**
  * CollectionDetailPage — renders a single collection or curated universe.
@@ -115,9 +115,9 @@ export default function CollectionDetailPage() {
     resolveSmartCollection,
     removeUniverseFromPrefs
   } = useCollections();
-  const { openTitle } = useModalState();
   const { showToast } = useToast();
-  const { refresh: refreshUniverses, removeSubscribedUniverse } = useCuratedUniverses();
+  const { refresh: refreshUniverses, removeSubscribedUniverse } =
+    useCuratedUniverses();
 
   const [activeOrder, setActiveOrder] =
     createSignal<ViewingOrder>("chronological");
@@ -559,7 +559,7 @@ export default function CollectionDetailPage() {
       release_date: entry.release_date,
       first_air_date: entry.first_air_date
     };
-    openTitle(baseItem, watchlist());
+    navigate(titleDetailPath(baseItem));
   };
 
   // Add a universe entry that isn't in the user's vault to the vault.
@@ -627,7 +627,11 @@ export default function CollectionDetailPage() {
     // automatically as the user adds/removes vault items — no manual
     // refresh needed. The "Refresh" button on the action bar pulls a
     // fresh vault from Supabase to catch changes from other devices.
-    if (col.isSmart && Array.isArray(col.smartRules) && col.smartRules.length > 0) {
+    if (
+      col.isSmart &&
+      Array.isArray(col.smartRules) &&
+      col.smartRules.length > 0
+    ) {
       return resolveSmartCollection(col, watchlist());
     }
     return col.entries ?? [];
@@ -875,14 +879,15 @@ export default function CollectionDetailPage() {
             <Show
               when={
                 collection()?.type === "curated" &&
-                (
-                  collection()?.lore ||
+                (collection()?.lore ||
                   collection()?.viewingOrderGuide ||
                   (collection()?.customViewingOrders ?? []).length > 0 ||
                   (collection()?.entries ?? []).some(
-                    (e) => e.storyNote || (e.keyEvents && e.keyEvents.length > 0) || e.isEntryPoint
-                  )
-                )
+                    (e) =>
+                      e.storyNote ||
+                      (e.keyEvents && e.keyEvents.length > 0) ||
+                      e.isEntryPoint
+                  ))
               }
             >
               <RichUniverseHub collection={collection()!} />

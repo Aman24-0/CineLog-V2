@@ -50,6 +50,8 @@ export interface UseDetailsActionsArgs {
     baseItem: WatchlistItem;
     vaultItem: WatchlistItem | null;
   } | null>;
+  /** Optional route-aware related-title navigation for dedicated pages. */
+  onSelectRelatedItem?: (item: WatchlistItem) => void;
   /** Called after a successful remove to close the modal. */
   onRemoved: () => void;
 }
@@ -227,7 +229,10 @@ export function useDetailsActions(
           media_type: b.media_type,
           data: cacheData
         }
-      ]).catch((err) => { if (import.meta.env.DEV) console.warn("[details] cache write failed:", err); });
+      ]).catch((err) => {
+        if (import.meta.env.DEV)
+          console.warn("[details] cache write failed:", err);
+      });
       const name = b.title || b.name || "Title";
       showToast(`Added "${name}" to your vault`, "success", 1800);
     } catch (err) {
@@ -436,6 +441,7 @@ export function useDetailsActions(
     vaultItem: args.vaultItem,
     watchlist: args.watchlist,
     setSelectedItem: args.setSelectedItem,
+    onSelectRelatedItem: args.onSelectRelatedItem,
     showToast
   });
 

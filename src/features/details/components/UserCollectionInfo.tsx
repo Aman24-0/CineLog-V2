@@ -4,11 +4,12 @@ import { useNavigate } from "@solidjs/router";
 import DetailSection from "./DetailSection";
 import { useCollections } from "~/features/collections/hooks/useCollections";
 import { useCuratedUniverses } from "~/features/collections/hooks/useCuratedUniverses";
-import { closeTitle } from "~/shared/hooks/useModalState";
 import type { WatchlistItem } from "~/shared/types";
 
 interface UserCollectionInfoProps {
   currentItem: WatchlistItem;
+  /** Close a legacy detail modal before leaving for the collection route. */
+  onBeforeNavigate?: () => void;
 }
 
 /**
@@ -69,10 +70,10 @@ const UserCollectionInfo: Component<UserCollectionInfoProps> = (props) => {
                 type="button"
                 class="franchise-trigger"
                 onClick={() => {
-                  // Close the DetailsModal FIRST so the user lands on
-                  // the collection page seamlessly — no backdrop navigation
-                  // bug where the collection page renders *behind* the modal.
-                  closeTitle();
+                  // Only the legacy modal needs cleanup before leaving.
+                  // Dedicated title pages must keep their browser history
+                  // intact and simply navigate to the collection route.
+                  props.onBeforeNavigate?.();
                   navigate(`/collections/${col.id}`);
                 }}
                 aria-label={`Open ${col.name} collection`}

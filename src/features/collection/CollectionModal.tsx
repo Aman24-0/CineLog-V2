@@ -1,6 +1,14 @@
 // src/features/collection/CollectionModal.tsx
 import { normalizeGenres } from "~/shared/utils/genres";
-import { Show, onMount, onCleanup, createMemo, createResource, createSignal } from "solid-js";
+import {
+  Show,
+  onMount,
+  onCleanup,
+  createMemo,
+  createResource,
+  createSignal
+} from "solid-js";
+import { useNavigate } from "@solidjs/router";
 
 import { Portal } from "solid-js/web";
 
@@ -9,8 +17,6 @@ import { tmdbImage } from "~/core/tmdb/tmdb";
 import { findInVault } from "~/shared/utils/vaultMatch";
 
 import { useCollectionModal } from "~/shared/hooks/useCollectionModal";
-
-import { useModalState } from "~/shared/hooks/useModalState";
 
 import { useVault } from "~/features/watchlist/useVault";
 
@@ -21,6 +27,7 @@ import { useToast } from "~/shared/hooks/useToast";
 import { createVaultItemInSupabase } from "~/features/watchlist/vaultAdapter";
 
 import type { TMDBTitle, WatchlistItem } from "~/shared/types";
+import { titleDetailPath } from "~/shared/utils/titleRoutes";
 
 import { fetchFranchiseTitles } from "./collectionFetcher";
 
@@ -47,7 +54,7 @@ import CollectionSkeleton from "./components/CollectionSkeleton";
  */
 export default function CollectionModal() {
   const { collectionSelectedItem, closeCollection } = useCollectionModal();
-  const { openTitle } = useModalState();
+  const navigate = useNavigate();
   const { watchlist } = useVault();
 
   const franchise = createMemo(
@@ -117,7 +124,7 @@ export default function CollectionModal() {
       first_air_date: title.first_air_date,
       genresList: normalizeGenres(title.genres as unknown[])
     };
-    openTitle(baseItem, watchlist());
+    navigate(titleDetailPath(baseItem));
   };
 
   // ── Phase 6.2 Task 2b — "Add all to vault" bulk action ──────────────

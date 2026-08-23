@@ -32,6 +32,96 @@
   }
 }
 
+/* Dedicated title pages use the document as their scroll surface. These
+   selectors intentionally scope every override to page mode so the legacy
+   modal retains its fixed frame, nested scroll, and focus behavior. */
+.details-page-shell {
+  width: 100%;
+  min-height: 100%;
+  padding: clamp(0.75rem, 2vw, 1.5rem) clamp(0.75rem, 3vw, 2rem) 3rem;
+}
+
+.details-page-content {
+  width: min(100%, 1000px);
+  margin: 0 auto;
+}
+
+.details-page-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-height: 44px;
+  margin: 0 0 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-pill);
+  background: var(--glass-bg);
+  color: var(--text-soft);
+  font-family: "Outfit", sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+}
+.details-page-back:hover {
+  color: var(--text-strong);
+  background: var(--glass-bg-strong);
+  border-color: var(--hairline-2);
+}
+.details-page-back:active {
+  transform: scale(0.97);
+}
+.details-page-back .material-symbols-outlined {
+  font-size: 18px;
+}
+
+.details-page-modal {
+  max-height: none;
+  overflow: visible;
+  display: block;
+  border: 1px solid var(--glass-border-warm-strong);
+  border-radius: var(--radius-modal);
+  box-shadow:
+    var(--shadow-glass-elevated),
+    0 0 32px var(--p-glow),
+    inset 0 1px 0 rgba(232, 183, 74, 0.1);
+}
+.details-page-scroll,
+.cinematic-scroll.details-page-scroll {
+  overflow: visible;
+  overflow-y: visible;
+  contain: none;
+  padding-bottom: 2.5rem;
+}
+.details-page-opening {
+  display: grid;
+  min-height: min(45vh, 24rem);
+  place-items: center;
+  padding: 2rem;
+  color: var(--text-soft);
+  font-family: "Azeret Mono", monospace;
+  font-size: 0.6875rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 639px) {
+  .details-page-shell {
+    padding-right: 0.5rem;
+    padding-left: 0.5rem;
+  }
+
+  .details-page-modal {
+    border-right: 0;
+    border-left: 0;
+    border-radius: var(--radius-lg);
+  }
+}
+
 /* Cinematic hero — full-bleed backdrop with multi-layer gradients */
 .cinematic-hero {
   position: relative;
@@ -1013,6 +1103,92 @@
   transition: color var(--dur-fast) var(--ease-out);
 }
 .episode-card-expand:hover {
+  color: var(--text-strong);
+}
+
+/* Per-episode ratings — distribute every configured star evenly across the
+   available row. The tracker continues to use its existing 5-star or
+   10-star scale; this is presentation-only. */
+.episode-card-rating {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  gap: 0.375rem;
+  margin-top: 0.375rem;
+}
+.episode-card-rating-stars {
+  display: grid;
+  flex: 1 1 auto;
+  min-width: 0;
+  gap: 0.125rem;
+}
+.episode-card-rating-stars--5 {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+.episode-card-rating-stars--10 {
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+}
+.episode-card-star {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-width: 36px;
+  min-height: 40px;
+  padding: 0.25rem;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  line-height: 1;
+  transition:
+    color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
+}
+.episode-card-star:hover,
+.episode-card-star.is-active {
+  color: #f5c518;
+}
+.episode-card-star:hover {
+  background: color-mix(in srgb, #f5c518 10%, transparent);
+}
+.episode-card-star:active {
+  transform: scale(0.94);
+}
+.episode-card-star .material-symbols-outlined {
+  font-size: 16px;
+  font-variation-settings:
+    "FILL" 0,
+    "wght" 400,
+    "GRAD" 0,
+    "opsz" 16;
+}
+.episode-card-star .material-symbols-outlined.is-active {
+  font-variation-settings:
+    "FILL" 1,
+    "wght" 400,
+    "GRAD" 0,
+    "opsz" 16;
+}
+.episode-card-rating-clear {
+  flex: 0 0 auto;
+  min-width: 44px;
+  min-height: 40px;
+  padding: 0.375rem 0.5rem;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-family: "Outfit", sans-serif;
+  font-size: 0.625rem;
+}
+.episode-card-rating-clear:hover {
+  background: var(--glass-bg);
   color: var(--text-strong);
 }
 
@@ -3204,7 +3380,9 @@
   letter-spacing: 0.12em;
   text-transform: uppercase;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
 }
 .audio-lang-retry:hover {
   background: rgba(74, 222, 128, 0.18);
@@ -3321,7 +3499,9 @@
   color: var(--p, #4ade80);
   opacity: 0.6;
   font-size: 11px !important;
-  transition: opacity 0.15s ease, transform 0.15s ease;
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease;
 }
 .metadata-cell-language:hover .metadata-cell-language-icon {
   opacity: 1;
@@ -3539,5 +3719,3 @@
     min-width: 44px;
   }
 }
-
-

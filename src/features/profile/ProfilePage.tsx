@@ -58,7 +58,8 @@ const ProfilePage: Component = () => {
   const uid = () => user()?.uid;
   const oauthAvatarUrl = () => user()?.photoURL ?? null;
 
-  const { data, loading, refreshing, error, refetch, watchlist } = useProfileData();
+  const { data, loading, refreshing, error, refetch, watchlist } =
+    useProfileData();
   const { stats } = useStats();
   const { activeTab, setActiveTab } = useProfileTabs();
 
@@ -85,9 +86,7 @@ const ProfilePage: Component = () => {
           (import.meta as { env?: { VITE_APP_URL?: string } }).env
             ?.VITE_APP_URL) ||
         (typeof window !== "undefined" ? window.location.origin : "");
-      const url = username
-        ? `${origin}/profile`
-        : `${origin}/profile`;
+      const url = username ? `${origin}/profile` : `${origin}/profile`;
       if (typeof navigator !== "undefined" && navigator.share) {
         await navigator.share({ title: `${name} — CineLog`, url });
       } else {
@@ -194,22 +193,24 @@ const ProfilePage: Component = () => {
                 data={data()}
                 isEditing={false}
                 onChooseBanner={() => setEditModalOpen(true)}
-              />
+              >
+                {/* Identity and actions live inside the same filled banner as
+                    the image, so the profile no longer exposes a detached
+                    header gap between the hero and stats. */}
+                <ProfileHeader
+                  profile={() => data()?.profile ?? null}
+                  user={user}
+                  isOwnProfile={() => true}
+                  onEdit={() => setEditModalOpen(true)}
+                  onShare={handleShare}
+                />
+              </ProfileBanner>
             </section>
 
-            {/* 2. Header — avatar, name, @username, member since, bio, actions. */}
-            <ProfileHeader
-              profile={() => data()?.profile ?? null}
-              user={user}
-              isOwnProfile={() => true}
-              onEdit={() => setEditModalOpen(true)}
-              onShare={handleShare}
-            />
-
-            {/* 3. Stats row — 5 GlassCards: titles, movies, series, hours, avg rating. */}
+            {/* 2. Stats row — 5 GlassCards: titles, movies, series, hours, avg rating. */}
             <ProfileStatsRow stats={stats} />
 
-            {/* 4. Tabs + content */}
+            {/* 3. Tabs + content */}
             <ProfileTabs activeTab={activeTab()} onTabChange={setActiveTab} />
 
             <div

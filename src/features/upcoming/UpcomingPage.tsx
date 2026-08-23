@@ -53,13 +53,13 @@ import { GlassButton, GlassEmptyState, GlassSkeleton } from "~/shared/ui/glass";
 import { useUserLibrary } from "~/shared/hooks/useUserLibrary";
 import { useAuth } from "~/shared/hooks/useAuth";
 import { useToast } from "~/shared/hooks/useToast";
-import { useModalState } from "~/shared/hooks/useModalState";
 import { normalizeGenres } from "~/shared/utils/genres";
 import { createVaultItemInSupabase } from "~/features/watchlist/vaultAdapter";
 import { getCurrentUid } from "~/shared/hooks/useAuth";
 import { cacheMetadataEntries, buildCacheKey } from "~/shared/utils/tmdbCache";
 import { useProfileData } from "~/features/profile/useProfileData";
 import type { TMDBTitle, WatchlistItem } from "~/shared/types";
+import { titleDetailPath } from "~/shared/utils/titleRoutes";
 
 import { useUpcomingData } from "./hooks/useUpcomingData";
 import { useNotifications } from "./hooks/useNotifications";
@@ -99,7 +99,6 @@ const UpcomingPage: Component = () => {
   const library = useUserLibrary();
   const { isSignedIn } = useAuth();
   const toast = useToast();
-  const { openTitle } = useModalState();
   const profileData = useProfileData();
 
   // ── Region derived from the user's profile ─────────────────────
@@ -152,7 +151,10 @@ const UpcomingPage: Component = () => {
   const DEFAULT_UPCOMING_DAYS = 30;
   const buildDefaultFilters = (): UpcomingFilters => ({
     region: effectiveRegion(),
-    dateRange: { start: todayStr(), end: addDays(todayStr(), DEFAULT_UPCOMING_DAYS) },
+    dateRange: {
+      start: todayStr(),
+      end: addDays(todayStr(), DEFAULT_UPCOMING_DAYS)
+    },
     genres: [],
     platforms: [],
     minRating: 0,
@@ -168,7 +170,8 @@ const UpcomingPage: Component = () => {
   // (otherwise user edits would be clobbered when the
   // effectiveRegion-sync createEffect updates `filters`).
   // eslint-disable-next-line solid/reactivity
-  const [draftFilters, setDraftFilters] = createSignal<UpcomingFilters>(filters());
+  const [draftFilters, setDraftFilters] =
+    createSignal<UpcomingFilters>(filters());
   const [filterSheetOpen, setFilterSheetOpen] = createSignal(false);
   const [sort, setSort] = createSignal(loadUpcomingSort());
   const [view, setView] = createSignal(loadUpcomingView());
@@ -239,7 +242,7 @@ const UpcomingPage: Component = () => {
       genresList: normalizeGenres(title.genres as unknown[]),
       director: title.director
     };
-    openTitle(baseItem, watchlist());
+    navigate(titleDetailPath(baseItem));
   };
 
   const handleTrailer = async (title: TMDBTitle) => {
@@ -295,7 +298,10 @@ const UpcomingPage: Component = () => {
           media_type: title.media_type,
           data: title
         }
-      ]).catch((err) => { if (import.meta.env.DEV) console.warn("[upcoming] cache write failed:", err); });
+      ]).catch((err) => {
+        if (import.meta.env.DEV)
+          console.warn("[upcoming] cache write failed:", err);
+      });
       const name = title.title || title.name || "Title";
       toast.showToast(`Added "${name}" to your vault`, "success");
       void library?.refresh?.();
@@ -325,7 +331,13 @@ const UpcomingPage: Component = () => {
       // TMDBTitle uses "movie" | "tv". Map here so the repo stays clean.
       const reminderType: "movie" | "series" =
         title.media_type === "tv" ? "series" : "movie";
-      await notif.scheduleReminder(id, reminderType, releaseDate, name, title.poster_path ?? null);
+      await notif.scheduleReminder(
+        id,
+        reminderType,
+        releaseDate,
+        name,
+        title.poster_path ?? null
+      );
     }
   };
 
@@ -512,16 +524,26 @@ const UpcomingPage: Component = () => {
                 onChange={handleDateRangeChange}
               />
               {/* Media type filter chips — All / Movies / Series */}
-              <div class="upcoming-media-type-chips" role="group" aria-label="Media type filter">
-                <For each={(["all", "movie", "tv"] as const)}>
+              <div
+                class="upcoming-media-type-chips"
+                role="group"
+                aria-label="Media type filter"
+              >
+                <For each={["all", "movie", "tv"] as const}>
                   {(mt) => (
                     <button
                       type="button"
                       class={`upcoming-media-type-chip ${filters().mediaType === mt ? "is-active" : ""}`}
-                      onClick={() => setFilters((prev) => ({ ...prev, mediaType: mt }))}
+                      onClick={() =>
+                        setFilters((prev) => ({ ...prev, mediaType: mt }))
+                      }
                       aria-pressed={filters().mediaType === mt}
                     >
-                      {mt === "all" ? "All" : mt === "movie" ? "Movies" : "Series"}
+                      {mt === "all"
+                        ? "All"
+                        : mt === "movie"
+                          ? "Movies"
+                          : "Series"}
                     </button>
                   )}
                 </For>

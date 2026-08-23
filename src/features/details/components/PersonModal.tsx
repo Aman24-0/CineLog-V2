@@ -14,8 +14,8 @@ import {
   fetchPersonDetails,
   fetchPersonCombinedCredits
 } from "~/core/tmdb/tmdb";
-import { openTitle } from "~/shared/hooks/useModalState";
-import { useVault } from "~/features/watchlist/useVault";
+import { useNavigate } from "@solidjs/router";
+import { titleDetailPath } from "~/shared/utils/titleRoutes";
 import type {
   TMDBPerson,
   TMDBPersonCombinedCredits,
@@ -51,17 +51,17 @@ type SortMode = "new-to-old" | "old-to-new" | "popular";
  *   Grid:
  *     • Poster + title + year + character/job — for each credit in the
  *       person's combined_credits cast array (deduplicated by id).
- *     • Tapping a credit opens the title's Details modal.
+ *     • Tapping a credit navigates to the title's dedicated detail page.
  *
  * Data:
  *   - /person/{id}         → person details (biography, birthday, etc.)
  *   - /person/{id}/combined_credits → filmography (movies + TV combined)
  *
  * Architecture:
- *   DetailsCast → PersonModal → useVault (for in-vault check) → openTitle
+ *   DetailsCast → PersonModal → canonical title route
  */
 const PersonModal: Component<PersonModalProps> = (props) => {
-  const { watchlist } = useVault();
+  const navigate = useNavigate();
 
   const [person, setPerson] = createSignal<TMDBPerson | null>(null);
   const [credits, setCredits] = createSignal<TMDBPersonCombinedCredits | null>(
@@ -170,8 +170,8 @@ const PersonModal: Component<PersonModalProps> = (props) => {
   };
 
   const handleClickCredit = (credit: TMDBPersonCredit) => {
-    // Build a WatchlistItem-shaped baseItem and open the details modal.
-    // openTitle handles the in-vault check via findInVault.
+    // Build a WatchlistItem-shaped base item so the route can preserve the
+    // correct movie/TV namespace before the page resolves vault metadata.
     const baseItem: WatchlistItem = {
       id: String(credit.id),
       title: credit.title,
@@ -183,7 +183,8 @@ const PersonModal: Component<PersonModalProps> = (props) => {
       first_air_date: credit.first_air_date,
       status: "Planned"
     };
-    openTitle(baseItem, watchlist());
+    props.onClose();
+    navigate(titleDetailPath(baseItem));
   };
 
   const profileUrl = createMemo(() => {

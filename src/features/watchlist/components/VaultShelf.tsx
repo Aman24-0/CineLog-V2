@@ -147,6 +147,7 @@ const VaultShelf: Component<VaultShelfProps> = (props) => {
                     variant="compact"
                     search={props.search()}
                     showCompactEpisodeMeta={!showWatchNext()}
+                    reserveWatchNextBadge={showWatchNext()}
                     onClick={() => props.onOpenMovie(m.id)}
                   />
                   <Show when={showWatchNext()}>
@@ -162,7 +163,11 @@ const VaultShelf: Component<VaultShelfProps> = (props) => {
         <div class="vault-shelf-rail" role="list">
           <For each={railItems()}>
             {(m) => (
-              <div class="vault-shelf-card" role="listitem" style={{ position: "relative" }}>
+              <div
+                class="vault-shelf-card"
+                role="listitem"
+                style={{ position: "relative" }}
+              >
                 <MovieCard
                   movie={m}
                   variant="compact"

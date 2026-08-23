@@ -14,10 +14,11 @@
 import { Show, For, createMemo, createSignal, type Component } from "solid-js";
 import { useUserLibrary } from "~/shared/hooks/useUserLibrary";
 import { useAuth } from "~/shared/hooks/useAuth";
-import { useModalState } from "~/shared/hooks/useModalState";
+import { useNavigate } from "@solidjs/router";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import PageContainer from "~/shared/ui/PageContainer";
 import type { WatchlistItem } from "~/shared/types";
+import { titleDetailPath } from "~/shared/utils/titleRoutes";
 
 interface HistoryGroup {
   id: string;
@@ -28,30 +29,22 @@ interface HistoryGroup {
 const HistoryPage: Component = () => {
   const library = useUserLibrary();
   const { isSignedIn, authReady } = useAuth();
-  const modalState = useModalState();
+  const navigate = useNavigate();
   const [search, setSearch] = createSignal("");
   const [statusFilter, setStatusFilter] = createSignal<
     "all" | "completed" | "watching" | "planned"
   >("all");
 
   /**
-   * Open the Details modal for a history item.
+   * Open a history item on its dedicated detail page.
    *
-   * The item IS in the user's vault (history is built from the vault),
-   * so `openTitle` will resolve it via findInVault and the modal will
-   * render with full user-owned UI (status, rating, episode progress).
-   *
-   * For TV items, the Details modal opens at the series level — the
-   * user can then navigate seasons via the SeasonNavigator inside the
-   * modal. We deliberately don't try to deep-link to a specific season
-   * here because (a) the history item's `season` field reflects the
-   * user's LAST-WATCHED episode, which is a per-series concept that
-   * the modal already surfaces via the episode tracker, and (b) the
-   * Details modal URL is `/movie/{id}` or `/tv/{id}` (no season query
-   * param exists today).
+   * The item is already in the user's vault, so the route page resolves
+   * the same user-owned state and renders status, rating, and episode
+   * progress. TV items open at the series level; the episode tracker
+   * remains available on the series detail page.
    */
   const handleItemClick = (item: WatchlistItem) => {
-    modalState.openTitle(item, library.watchlist());
+    navigate(titleDetailPath(item));
   };
 
   const handleItemKeyDown = (e: KeyboardEvent, item: WatchlistItem) => {

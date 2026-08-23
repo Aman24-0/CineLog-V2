@@ -75,13 +75,18 @@ export interface EpisodeCardProps {
 }
 
 export function canRateEpisode(
-  props: Pick<EpisodeCardProps, "inVault" | "isWatched" | "isCurrent" | "onRate">,
+  props: Pick<
+    EpisodeCardProps,
+    "inVault" | "isWatched" | "isCurrent" | "onRate"
+  >,
   scale: string
 ): boolean {
-  return props.inVault &&
+  return (
+    props.inVault &&
     (props.isWatched || props.isCurrent) &&
     scale !== "thumbs" &&
-    typeof props.onRate === "function";
+    typeof props.onRate === "function"
+  );
 }
 
 const EpisodeCard: Component<EpisodeCardProps> = (props) => {
@@ -116,8 +121,7 @@ const EpisodeCard: Component<EpisodeCardProps> = (props) => {
   // Whether to show the rating row at all. The current tracker episode is
   // also a completed/watched episode in CineLog's model (the toggle already
   // uses the same `isWatched || isCurrent` rule), so it must remain rateable.
-  const showRatingRow = (): boolean =>
-    canRateEpisode(props, ratingScale());
+  const showRatingRow = (): boolean => canRateEpisode(props, ratingScale());
 
   // The max value for the rating scale — 5 for "5star", 10 for "10star".
   const ratingMax = (): number => (ratingScale() === "5star" ? 5 : 10);
@@ -247,7 +251,7 @@ const EpisodeCard: Component<EpisodeCardProps> = (props) => {
           </button>
         </Show>
 
-          {/* Phase 6 Task 2 — Per-episode rating row.
+        {/* Phase 6 Task 2 — Per-episode rating row.
             Renders only when: in vault + watched/current + scale != "thumbs" +
             onRate callback is provided. Each star is a button so the row is
             keyboard-accessible. Tapping a star sets the rating;
@@ -257,60 +261,42 @@ const EpisodeCard: Component<EpisodeCardProps> = (props) => {
             class="episode-card-rating"
             role="radiogroup"
             aria-label={`Rating for episode ${props.episode.episode_number}`}
-            style={{
-              display: "flex",
-              "align-items": "center",
-              gap: "2px",
-              "margin-top": "6px"
-            }}
           >
-            <For each={Array.from({ length: ratingMax() }, (_, i) => i + 1)}>
-              {(star) => {
-                const isActive = () =>
-                  (currentRating() ?? 0) >= star;
-                return (
-                  <button
-                    type="button"
-                    class="episode-card-star focus-ring"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleStarClick(star);
-                    }}
-                    aria-label={
-                      currentRating() === star
-                        ? `Clear rating`
-                        : `Rate ${star} of ${ratingMax()}`
-                    }
-                    aria-checked={currentRating() === star}
-                    role="radio"
-                    style={{
-                      background: "none",
-                      border: "none",
-                      cursor: "pointer",
-                      padding: "2px",
-                      "font-size": "16px",
-                      "line-height": "1",
-                      color: isActive() ? "#f5c518" : "var(--text-dim)",
-                      transition: "color 0.15s ease"
-                    }}
-                    title={`Rate ${star} of ${ratingMax()}`}
-                  >
-                    <span
-                      class="material-symbols-outlined"
-                      style={{
-                        "font-size": "16px",
-                        "font-variation-settings": isActive()
-                          ? "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 16"
-                          : "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 16"
+            <div
+              class={`episode-card-rating-stars episode-card-rating-stars--${ratingMax()}`}
+              role="presentation"
+            >
+              <For each={Array.from({ length: ratingMax() }, (_, i) => i + 1)}>
+                {(star) => {
+                  const isActive = () => (currentRating() ?? 0) >= star;
+                  return (
+                    <button
+                      type="button"
+                      class={`episode-card-star focus-ring${isActive() ? " is-active" : ""}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleStarClick(star);
                       }}
-                      aria-hidden="true"
+                      aria-label={
+                        currentRating() === star
+                          ? `Clear rating`
+                          : `Rate ${star} of ${ratingMax()}`
+                      }
+                      aria-checked={currentRating() === star}
+                      role="radio"
+                      title={`Rate ${star} of ${ratingMax()}`}
                     >
-                      star
-                    </span>
-                  </button>
-                );
-              }}
-            </For>
+                      <span
+                        class={`material-symbols-outlined${isActive() ? " is-active" : ""}`}
+                        aria-hidden="true"
+                      >
+                        star
+                      </span>
+                    </button>
+                  );
+                }}
+              </For>
+            </div>
             <Show when={currentRating() != null}>
               <button
                 type="button"
@@ -318,16 +304,6 @@ const EpisodeCard: Component<EpisodeCardProps> = (props) => {
                 onClick={(e) => {
                   e.stopPropagation();
                   handleStarClick(currentRating()!);
-                }}
-                style={{
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  padding: "2px 4px",
-                  "margin-left": "4px",
-                  "font-size": "0.625rem",
-                  color: "var(--text-dim)",
-                  "font-family": "'Outfit', sans-serif"
                 }}
                 aria-label="Clear episode rating"
                 title="Clear rating"

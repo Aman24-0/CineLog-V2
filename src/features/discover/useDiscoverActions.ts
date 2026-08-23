@@ -4,8 +4,6 @@ import { getCurrentUid } from "~/shared/hooks/useAuth";
 
 import { useToast } from "~/shared/hooks/useToast";
 
-import { useModalState } from "~/shared/hooks/useModalState";
-
 import { useAuthModal } from "~/shared/hooks/useAuthModal";
 
 import { createVaultItemInSupabase } from "~/features/watchlist/vaultAdapter";
@@ -15,15 +13,17 @@ import { defaultVaultStatus } from "~/core/preferences";
 import { cacheMetadataEntries, buildCacheKey } from "~/shared/utils/tmdbCache";
 
 import type { Accessor } from "solid-js";
+import { useNavigate } from "@solidjs/router";
 
 import type { TMDBTitle, WatchlistItem } from "~/shared/types";
+import { titleDetailPath } from "~/shared/utils/titleRoutes";
 
 /**
  * useDiscoverActions — action handlers for the Discover page.
  *
  * Extracted from DiscoverPage.tsx to keep that file under the 250-line
  * limit. Owns:
- *   - handleOpenTitle: open the Details modal for a TMDB title
+ *   - handleOpenTitle: navigate to the dedicated detail page for a TMDB title
  *   - addToVault: one-tap save as "Planned" (with guest → auth modal)
  *   - handleLogin: open the auth modal for the guest nudge
  */
@@ -42,7 +42,7 @@ export function useDiscoverActions(
   args: UseDiscoverActionsArgs
 ): UseDiscoverActionsResult {
   const { showToast } = useToast();
-  const { openTitle } = useModalState();
+  const navigate = useNavigate();
   const { openAuthModal } = useAuthModal();
 
   const handleOpenTitle = (title: TMDBTitle) => {
@@ -59,7 +59,7 @@ export function useDiscoverActions(
       genresList: normalizeGenres(title.genres as unknown[]),
       director: title.director
     };
-    openTitle(baseItem, args.watchlist());
+    navigate(titleDetailPath(baseItem));
   };
 
   const addToVault = async (title: TMDBTitle) => {
@@ -92,7 +92,10 @@ export function useDiscoverActions(
           media_type: title.media_type,
           data: title
         }
-      ]).catch((err) => { if (import.meta.env.DEV) console.warn("[discover] cache write failed:", err); });
+      ]).catch((err) => {
+        if (import.meta.env.DEV)
+          console.warn("[discover] cache write failed:", err);
+      });
       const name = title.title || title.name || "Title";
       showToast(`Added "${name}" to your vault`, "success", 1800);
     } catch (err) {

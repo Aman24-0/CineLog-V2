@@ -43,10 +43,10 @@ import { useLocation, useNavigate } from "@solidjs/router";
 import { useAuth } from "~/shared/hooks/useAuth";
 import { useUserLibrary } from "~/shared/hooks/useUserLibrary";
 import { useNotifications } from "~/features/upcoming/hooks/useNotifications";
-import { useModalState } from "~/shared/hooks/useModalState";
 import { GlassCard, GlassEmptyState } from "~/shared/ui/glass";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import type { WatchlistItem } from "~/shared/types";
+import { titleDetailPath } from "~/shared/utils/titleRoutes";
 import type { UserReminderRow } from "~/lib/supabase/repositories/upcoming";
 
 // Helper to get TMDB image URL for a reminder poster
@@ -160,7 +160,6 @@ const DesktopUtilityPanel: Component = () => {
   const { isSignedIn } = useAuth();
   const { watchlist } = useUserLibrary();
   const notif = useNotifications();
-  const { openTitle } = useModalState();
   const [panelCollapsed, setPanelCollapsed] = createSignal(false);
   // Auth can resolve differently on the server and client. Keep the
   // sign-in branch stable through hydration, then reveal the real panel.
@@ -209,9 +208,7 @@ const DesktopUtilityPanel: Component = () => {
     m.title || m.name || m.original_title || m.original_name || "Untitled";
 
   const openItem = (m: WatchlistItem) => {
-    // Open the Details modal directly — the item is already in the
-    // user's vault so openTitle can resolve the vaultItem.
-    openTitle(m, watchlist());
+    navigate(titleDetailPath(m));
   };
 
   const openReminder = (r: UserReminderRow) => {
@@ -223,13 +220,21 @@ const DesktopUtilityPanel: Component = () => {
       const d = new Date(dateStr + "T00:00:00");
       const now = new Date();
       const diffDays = Math.round(
-        (d.getTime() - new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()) /
+        (d.getTime() -
+          new Date(
+            now.getFullYear(),
+            now.getMonth(),
+            now.getDate()
+          ).getTime()) /
           86400000
       );
       if (diffDays === 0) return "Today";
       if (diffDays === 1) return "Tomorrow";
       if (diffDays > 1 && diffDays <= 7) return `In ${diffDays} days`;
-      return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+      return d.toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric"
+      });
     } catch {
       return dateStr;
     }
@@ -277,69 +282,69 @@ const DesktopUtilityPanel: Component = () => {
       </button>
       <Show when={!panelCollapsed()}>
         <Switch>
-        {/* ── Signed-out: show a single sign-in prompt ──────── */}
-        <Match when={!authHydrated() || !isSignedIn()}>
-          <GlassCard variant="glass" size="default" padding="default">
-            <h3 style={SECTION_HEADING_STYLE}>
-              <span
-                class="material-symbols-outlined"
-                style={HEADING_ICON_STYLE}
-                aria-hidden="true"
+          {/* ── Signed-out: show a single sign-in prompt ──────── */}
+          <Match when={!authHydrated() || !isSignedIn()}>
+            <GlassCard variant="glass" size="default" padding="default">
+              <h3 style={SECTION_HEADING_STYLE}>
+                <span
+                  class="material-symbols-outlined"
+                  style={HEADING_ICON_STYLE}
+                  aria-hidden="true"
+                >
+                  login
+                </span>
+                Sign in
+              </h3>
+              <p
+                style={{
+                  "font-size": "0.8125rem",
+                  "line-height": "1.5",
+                  color: "var(--text-soft)",
+                  margin: "0"
+                }}
               >
-                login
-              </span>
-              Sign in
-            </h3>
-            <p
-              style={{
-                "font-size": "0.8125rem",
-                "line-height": "1.5",
-                color: "var(--text-soft)",
-                margin: "0"
-              }}
-            >
-              Sign in to see your Continue Watching shelf and upcoming
-              release reminders here.
-            </p>
-          </GlassCard>
-        </Match>
+                Sign in to see your Continue Watching shelf and upcoming release
+                reminders here.
+              </p>
+            </GlassCard>
+          </Match>
 
-        {/* ── Signed-in: show contextual shelves ────────────── */}
-        <Match when={authHydrated() && isSignedIn()}>
-          <Show
-            when={!remindersFirst()}
-            fallback={
-              <>
-                <RemindersSection
-                  reminders={upcomingReminders()}
-                  onOpen={openReminder}
-                  formatDate={formatReminderDate}
-                />
-                <ContinueWatchingSection
-                  items={continueWatching()}
-                  onOpen={openItem}
-                  titleOf={titleOf}
-                  progressLabel={progressLabel}
-                  posterUrl={(m) => tmdbImage(m.poster_path, "w92")}
-                />
-              </>
-            }
-          >
-            <ContinueWatchingSection
-              items={continueWatching()}
-              onOpen={openItem}
-              titleOf={titleOf}
-              progressLabel={progressLabel}
-              posterUrl={(m) => tmdbImage(m.poster_path, "w92")}
-            />
-            <RemindersSection
-              reminders={upcomingReminders()}
-              onOpen={openReminder}
-              formatDate={formatReminderDate}
-            />
-          </Show>
-        </Match>
-      </Switch>
+          {/* ── Signed-in: show contextual shelves ────────────── */}
+          <Match when={authHydrated() && isSignedIn()}>
+            <Show
+              when={!remindersFirst()}
+              fallback={
+                <>
+                  <RemindersSection
+                    reminders={upcomingReminders()}
+                    onOpen={openReminder}
+                    formatDate={formatReminderDate}
+                  />
+                  <ContinueWatchingSection
+                    items={continueWatching()}
+                    onOpen={openItem}
+                    titleOf={titleOf}
+                    progressLabel={progressLabel}
+                    posterUrl={(m) => tmdbImage(m.poster_path, "w92")}
+                  />
+                </>
+              }
+            >
+              <ContinueWatchingSection
+                items={continueWatching()}
+                onOpen={openItem}
+                titleOf={titleOf}
+                progressLabel={progressLabel}
+                posterUrl={(m) => tmdbImage(m.poster_path, "w92")}
+              />
+              <RemindersSection
+                reminders={upcomingReminders()}
+                onOpen={openReminder}
+                formatDate={formatReminderDate}
+              />
+            </Show>
+          </Match>
+        </Switch>
       </Show>
     </aside>
   );
@@ -421,9 +426,7 @@ function ContinueWatchingSection(props: ContinueWatchingProps) {
                   }}
                 >
                   <span style={ITEM_TITLE_STYLE}>{props.titleOf(m)}</span>
-                  <span style={ITEM_META_STYLE}>
-                    {props.progressLabel(m)}
-                  </span>
+                  <span style={ITEM_META_STYLE}>{props.progressLabel(m)}</span>
                 </span>
                 <span
                   class="material-symbols-outlined"
@@ -542,9 +545,7 @@ function RemindersSection(props: RemindersProps) {
                     "min-width": "0"
                   }}
                 >
-                  <span style={ITEM_TITLE_STYLE}>
-                    {reminderTitle(r)}
-                  </span>
+                  <span style={ITEM_TITLE_STYLE}>{reminderTitle(r)}</span>
                   <span style={ITEM_META_STYLE}>{r.release_date}</span>
                 </span>
                 <span style={ITEM_BADGE_STYLE}>

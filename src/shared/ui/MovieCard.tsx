@@ -142,6 +142,10 @@ const BOTTOM_INFO_DEFAULT_PADDING: JSX.CSSProperties = {
   "z-index": 3,
   padding: "0.625rem"
 };
+const BOTTOM_INFO_COMPACT_WATCH_NEXT_PADDING: JSX.CSSProperties = {
+  ...BOTTOM_INFO_COMPACT_PADDING,
+  "padding-bottom": "2.25rem"
+};
 
 export function shouldShowCompactEpisodeMeta(
   variant: "default" | "compact" | "featured",
@@ -170,6 +174,8 @@ interface MovieCardProps {
   onToggleSelect?: () => void;
   /** Hide compact TV episode metadata when a shelf supplies its own badge. */
   showCompactEpisodeMeta?: boolean;
+  /** Reserve space above an external Continue Watching Next badge. */
+  reserveWatchNextBadge?: boolean;
 }
 
 const MovieCard: Component<MovieCardProps> = (props) => {
@@ -546,7 +552,9 @@ const MovieCard: Component<MovieCardProps> = (props) => {
           class="absolute bottom-0 left-0 w-full"
           style={
             variant() === "compact"
-              ? BOTTOM_INFO_COMPACT_PADDING
+              ? props.reserveWatchNextBadge
+                ? BOTTOM_INFO_COMPACT_WATCH_NEXT_PADDING
+                : BOTTOM_INFO_COMPACT_PADDING
               : BOTTOM_INFO_DEFAULT_PADDING
           }
         >

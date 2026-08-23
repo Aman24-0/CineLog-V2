@@ -5,7 +5,8 @@ import {
   createMemo,
   createEffect,
   on,
-  type Component
+  type Component,
+  type JSX
 } from "solid-js";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import type { ProfileData } from "../useProfileData";
@@ -22,6 +23,8 @@ interface ProfileBannerProps {
    * invoked from the banner itself. V3.1 cleanup.
    */
   onChooseBanner?: () => void;
+  /** Optional content rendered above the image/gradient overlay. */
+  children?: JSX.Element;
 }
 
 /**
@@ -179,6 +182,8 @@ const ProfileBanner: Component<ProfileBannerProps> = (props) => {
 
       {/* Multi-layer gradient overlay */}
       <div class="profile-banner-overlay" aria-hidden="true" />
+
+      <div class="profile-banner-content">{props.children}</div>
 
       {/* Banner-edit overlay REMOVED in V3.1 cleanup.
           The banner is now editable exclusively via the Edit Profile

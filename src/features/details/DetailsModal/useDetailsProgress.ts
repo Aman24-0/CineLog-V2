@@ -38,6 +38,8 @@ export interface UseDetailsProgressArgs {
     baseItem: WatchlistItem;
     vaultItem: WatchlistItem | null;
   } | null>;
+  /** Optional route-aware related-title navigation for dedicated pages. */
+  onSelectRelatedItem?: (item: WatchlistItem) => void;
   showToast: (msg: string, type: ToastType, duration?: number) => void;
 }
 
@@ -276,7 +278,12 @@ export function useDetailsProgress(
     // ownership boundary AND avoid TMDB ID namespace collisions (movie/1398
     // vs tv/1398 are different titles).
     const existing = findInVault(args.watchlist(), item);
-    args.setSelectedItem({ baseItem: existing ?? item, vaultItem: existing });
+    const resolved = existing ?? item;
+    if (args.onSelectRelatedItem) {
+      args.onSelectRelatedItem(resolved);
+      return;
+    }
+    args.setSelectedItem({ baseItem: resolved, vaultItem: existing });
     const container = document.querySelector(".cinematic-scroll");
     if (container) container.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -343,15 +350,11 @@ export function useDetailsProgress(
       // episode_progress rows. We use the repository directly (rather
       // than the adapter) because the adapter only exposes the latest
       // progress, not the full per-episode list.
-      const { getVaultRepository } = await import(
-        "~/lib/supabase/repositories"
-      );
+      const { getVaultRepository } =
+        await import("~/lib/supabase/repositories");
       const vaultRepo = getVaultRepository();
-      const { data: vaultRow, error: vaultErr } = await vaultRepo.getVaultByTmdbId(
-        uid,
-        Number(v.id),
-        v.media_type
-      );
+      const { data: vaultRow, error: vaultErr } =
+        await vaultRepo.getVaultByTmdbId(uid, Number(v.id), v.media_type);
       if (vaultErr || !vaultRow) {
         setEpisodeRatings(new Map());
         return;

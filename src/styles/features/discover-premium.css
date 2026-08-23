@@ -1101,8 +1101,12 @@
 }
 
 /* Premium genre chip — bigger, glassy, with golden glow on active */
-.discover-folds .genre-chip,
-.discover-folds .genre-explorer .quick-filter-tab {
+.discover-folds .genre-explorer-chips .genre-chip,
+.discover-folds .genre-explorer-chips .quick-filter-tab {
+  flex: 0 0 auto;
+  width: max-content;
+  min-width: max-content;
+  max-width: max-content;
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;

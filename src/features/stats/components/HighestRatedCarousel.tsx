@@ -3,7 +3,7 @@
 // HighestRatedCarousel — a horizontally-scrollable list of the user's
 // top-rated titles. Each card shows the poster, the title, the year,
 // and a gold star rating badge. Clicking a card opens the title
-// detail modal via the shared `openTitle` helper.
+// detail page via the shared canonical route helper.
 //
 // The carousel is touch-friendly: native horizontal scroll on mobile
 // (with momentum), and the scrollbar is hidden for a clean look.
@@ -23,8 +23,8 @@ import {
   type Accessor
 } from "solid-js";
 import { tmdbImage } from "~/core/tmdb/tmdb";
-import { openTitle } from "~/shared/hooks/useModalState";
-import { useUserLibrary } from "~/shared/hooks/useUserLibrary";
+import { useNavigate } from "@solidjs/router";
+import { titleDetailPath } from "~/shared/utils/titleRoutes";
 import type { HighestRatedItem } from "~/lib/supabase/repositories/stats";
 
 interface HighestRatedCarouselProps {
@@ -32,21 +32,16 @@ interface HighestRatedCarouselProps {
 }
 
 const HighestRatedCarousel: Component<HighestRatedCarouselProps> = (props) => {
-  const library = useUserLibrary();
+  const navigate = useNavigate();
   const [scroller, setScroller] = createSignal<HTMLDivElement | null>(null);
   const [canScrollLeft, setCanScrollLeft] = createSignal(false);
   const [canScrollRight, setCanScrollRight] = createSignal(false);
 
   const handleOpen = (item: HighestRatedItem) => {
-    // Defensive: openTitle needs the current watchlist so it can
-    // find the matching item by id. We wrap in a try/catch and
-    // validate library.watchlist is callable to avoid breaking the
-    // carousel if the library context is mid-teardown.
     try {
-      if (!library || typeof library.watchlist !== "function") return;
-      openTitle(item.item, library.watchlist());
+      navigate(titleDetailPath(item.item));
     } catch (err) {
-      console.error("[HighestRatedCarousel] openTitle failed:", err);
+      console.error("[HighestRatedCarousel] detail navigation failed:", err);
     }
   };
 

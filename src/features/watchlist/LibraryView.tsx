@@ -7,11 +7,11 @@ import {
   batch,
   createEffect
 } from "solid-js";
+import { useNavigate } from "@solidjs/router";
 import {
   readLibraryViewState,
   writeLibraryViewState
 } from "./libraryViewState";
-import { useModalState } from "~/shared/hooks/useModalState";
 import { useAuthModal } from "~/shared/hooks/useAuthModal";
 import { useOnlineStatus } from "~/shared/hooks/useOnlineStatus";
 import PageContainer from "~/shared/ui/PageContainer";
@@ -21,6 +21,7 @@ import { useVault } from "./useVault";
 import { useVaultSections } from "./useVaultSections";
 import { useVaultFiltering } from "./useVaultFiltering";
 import { resolveStatusToggle } from "./vaultFilterUtils";
+import { titleDetailPath } from "~/shared/utils/titleRoutes";
 import LibraryHeader from "./components/LibraryHeader";
 import LibraryGrid from "./components/LibraryGrid";
 import LibraryDialogs from "./components/LibraryDialogs";
@@ -45,7 +46,7 @@ import LoadingSkeleton from "./components/LoadingSkeleton";
  * drawer visibility) and composes the section components.
  */
 export default function LibraryView() {
-  const { openTitle } = useModalState();
+  const navigate = useNavigate();
   const { openAuthModal } = useAuthModal();
   const { isOffline } = useOnlineStatus();
   const {
@@ -169,7 +170,7 @@ export default function LibraryView() {
 
   const openMovie = (id: string) => {
     const item = watchlist().find((m) => m.id === id);
-    if (item) openTitle(item, watchlist());
+    if (item) navigate(titleDetailPath(item));
   };
 
   const handleLogin = () => {

@@ -1,6 +1,6 @@
 // src/features/profile/components/ProfileHeader.tsx
 //
-// ProfileHeader — the identity block that sits BELOW the banner.
+// ProfileHeader — the identity block layered inside the profile banner.
 //
 // Renders:
 //   • Avatar (80px circle) — Google OAuth avatar OR profile.avatar_url

@@ -580,12 +580,20 @@
   margin: 0;
 }
 
+/* The dedicated Search page must not inherit the shared form's rectangular
+   sticky background, side bleed, border, or shadow. The inner `.search-bar`
+   remains the rounded, themed input surface. */
 .search-page-form {
-  position: relative;
+  position: static;
   top: auto;
   z-index: 1;
-  margin-bottom: var(--sp-4);
+  margin: 0 0 var(--sp-4);
   padding: 0;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: 0;
+  box-shadow: none;
 }
 
 .search-page-form .search-bar-input-wrapper {
