@@ -3195,3 +3195,64 @@
   border-top: 1px solid var(--hairline, rgba(255, 255, 255, 0.06));
   flex-shrink: 0;
 }
+
+/* ─── Final UI pass: page-level profile hero ───────────────────────────── */
+.profile-page-region {
+  width: 100%;
+  max-width: none !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+.profile-page-region .profile-layout-v3,
+.profile-page-region .profile-content-v3 {
+  width: 100%;
+  max-width: none;
+}
+
+.profile-page-region .profile-content-v3 > :not(.profile-v3-banner-section) {
+  width: auto;
+  margin-left: clamp(1rem, 5vw, 4.5rem);
+  margin-right: clamp(1rem, 5vw, 4.5rem);
+}
+
+.profile-page-region .profile-banner {
+  border-top: 0;
+  border-left: 0;
+  border-right: 0;
+  border-radius: 0 0 var(--radius-xl, 1.25rem) var(--radius-xl, 1.25rem);
+  box-shadow:
+    0 18px 48px rgba(0, 0, 0, 0.28),
+    0 0 28px color-mix(in srgb, var(--p-glow) 55%, transparent);
+}
+
+.profile-page-region .profile-banner-overlay {
+  background:
+    linear-gradient(to bottom, rgba(8, 8, 13, 0.08) 0%, transparent 28%),
+    linear-gradient(
+      to bottom,
+      transparent 26%,
+      color-mix(in srgb, var(--void-ambient) 56%, transparent) 66%,
+      color-mix(in srgb, var(--void-ambient) 96%, var(--p) 4%) 100%
+    );
+}
+
+.profile-page-region .profile-banner-content {
+  padding-inline: clamp(1rem, 5vw, 4.5rem);
+}
+
+.profile-page-region .profile-banner-content .profile-header-v3-name {
+  max-width: none;
+  line-height: 1.08;
+}
+
+@media (max-width: 639px) {
+  .profile-page-region .profile-banner {
+    border-radius: 0 0 var(--radius-lg, 1rem) var(--radius-lg, 1rem);
+  }
+
+  .profile-page-region .profile-content-v3 > :not(.profile-v3-banner-section) {
+    margin-left: 1rem;
+    margin-right: 1rem;
+  }
+}

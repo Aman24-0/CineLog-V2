@@ -5080,3 +5080,58 @@
   /* Pills wrap to a second line on mobile — already handled by
      flex-wrap on the row container, no extra rule needed. */
 }
+
+/* ─── Final UI pass: themed collection glass ───────────────────────────── */
+.collection-card {
+  background: var(--glass-default-bg);
+  backdrop-filter: var(--glass-default-blur)
+    saturate(var(--glass-default-saturate));
+  -webkit-backdrop-filter: var(--glass-default-blur)
+    saturate(var(--glass-default-saturate));
+  border-color: var(--glass-default-border);
+  box-shadow: var(--glass-default-shadow), var(--glass-highlight);
+}
+
+.collection-card-collage-area {
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--glass-bg) 82%, var(--p) 18%),
+    var(--glass-bg-strong)
+  );
+}
+
+.collection-card-empty-art {
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--glass-bg) 84%, var(--p) 16%),
+    color-mix(in srgb, var(--glass-bg-strong) 90%, var(--p) 10%)
+  );
+}
+
+.collection-card-collage-area::after {
+  background: linear-gradient(
+    to top,
+    color-mix(in srgb, var(--void-ambient) 78%, transparent) 0%,
+    color-mix(in srgb, var(--p) 8%, transparent) 58%,
+    transparent 100%
+  );
+}
+
+.collection-card-info {
+  background: color-mix(in srgb, var(--glass-bg) 90%, var(--p) 10%);
+  border-top: 1px solid var(--glass-default-border);
+}
+
+.collection-badge {
+  background: var(--glass-subtle-bg);
+  border-color: var(--glass-subtle-border);
+}
+
+.collection-card-backdrop-overlay {
+  background: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--void-ambient) 22%, transparent) 0%,
+    color-mix(in srgb, var(--p) 6%, transparent) 42%,
+    color-mix(in srgb, var(--void-ambient) 76%, transparent) 100%
+  );
+}

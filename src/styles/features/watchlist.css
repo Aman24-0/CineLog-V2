@@ -1547,3 +1547,24 @@
     gap: 0.25rem;
   }
 }
+
+/* ─── Final UI pass: themed Library search glass ──────────────────────── */
+.library-search-row {
+  background: color-mix(in srgb, var(--glass-subtle-bg) 82%, var(--p) 18%);
+  backdrop-filter: blur(var(--blur-md)) saturate(var(--glass-subtle-saturate));
+  -webkit-backdrop-filter: blur(var(--blur-md))
+    saturate(var(--glass-subtle-saturate));
+  border-color: var(--glass-subtle-border);
+  box-shadow: var(--glass-default-shadow), var(--glass-highlight);
+}
+
+.library-search-row:focus-within {
+  border-color: var(--active-border);
+  box-shadow:
+    0 0 0 3px var(--p-glow),
+    var(--glass-highlight);
+}
+
+.library-search-clear:hover {
+  background: var(--glass-default-bg);
+}
