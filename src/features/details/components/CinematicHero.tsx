@@ -27,8 +27,8 @@ interface CinematicHeroProps {
  *  - Full-bleed backdrop fills the top 50vh (max 480px)
  *  - Multi-layer gradients: bottom fade into content (no hard cut-off),
  *    top fade for status bar legibility, left fade for text legibility
- *  - Floating poster overlaps the hero/content boundary
- *  - Title + tagline + quick-meta pills sit below the poster
+ *  - Poster and title metadata follow the hero in a stable document-flow cluster
+ *  - Title + tagline + quick-meta pills sit beside the poster
  *  - The backdrop visually continues into the content via the
  *    cinematic-ambient blurred layer (rendered in DetailsModal)
  *

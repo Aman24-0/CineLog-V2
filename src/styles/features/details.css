@@ -263,7 +263,7 @@
   -webkit-mask-image: linear-gradient(to bottom, black 0%, transparent 100%);
 }
 
-/* Floating poster — overlaps hero and content
+/* Poster — stable below-hero composition
  *
  * ASPECT-RATIO FIX (v2.6):
  *   The width and height are NO LONGER set here. They are owned by the
@@ -306,20 +306,9 @@
 
 /* Hero content cluster — title + tagline + quick metadata.
  *
- * ARCHITECTURE FIX (overlap bug):
- * Previously this had margin-top: -60px (pulling it up into the hero),
- * z-index: 2, and overflow: visible. A long title (3+ lines of Bebas
- * Neue at 2.25rem) would extend past the cluster's bottom edge and
- * paint over the Collection section below — because the cluster had
- * z-index: 2 (higher than the sections below) and overflow: visible
- * (content could escape the container).
- *
- * Fix: Remove the negative margin entirely. The poster overlap with
- * the hero is achieved by the hero's own gradient (which fades to
- * transparent at the bottom), not by pulling content up. The cluster
- * now flows naturally below the hero as a normal block element.
- * No z-index, no negative margin, no overflow tricks — the layout
- * is impossible to overlap.
+ * The cluster stays in normal document flow in both Trailer OFF and Trailer
+ * ON states. The hero fade is independent, so the trailer media can fill the
+ * hero without hiding or clipping the poster and metadata below it.
  */
 .hero-content-cluster {
   padding: 1rem 1.5rem 0.5rem;
@@ -4048,7 +4037,7 @@
   right: -4%;
   bottom: -0.75rem;
   height: 48%;
-  z-index: 2;
+  z-index: 10;
   pointer-events: none;
   background: linear-gradient(
     to top,
@@ -4071,10 +4060,10 @@
 .details-page-modal .hero-content-cluster {
   position: relative;
   z-index: 3;
-  margin-top: clamp(-7rem, -12vw, -4.5rem);
-  padding: 0 1.5rem 0.75rem;
-  overflow: visible;
-  contain: none;
+  margin-top: 0;
+  padding: 1rem 1.5rem 0.5rem;
+  overflow: hidden;
+  contain: content;
 }
 
 .details-page-modal .floating-poster {
@@ -4098,8 +4087,8 @@
 
 @media (min-width: 640px) {
   .details-page-modal .hero-content-cluster {
-    margin-top: clamp(-8.5rem, -10vw, -6rem);
-    padding: 0 2rem 1rem;
+    margin-top: 0;
+    padding: 1.25rem 2rem 0.5rem;
   }
 
   .details-page-modal .action-dock {
@@ -4110,8 +4099,8 @@
 @media (max-width: 639px) {
   .details-page-modal .hero-content-cluster {
     gap: 0.875rem;
-    padding-right: 1rem;
-    padding-left: 1rem;
+    margin-top: 0;
+    padding: 1rem;
   }
 }
 

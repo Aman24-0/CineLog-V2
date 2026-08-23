@@ -2857,9 +2857,9 @@
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  background: color-mix(in srgb, var(--p) 4%, var(--bg-modal-backdrop));
-  backdrop-filter: var(--elevation-backdrop-blur) saturate(125%);
-  -webkit-backdrop-filter: var(--elevation-backdrop-blur) saturate(125%);
+  background: color-mix(in srgb, var(--p) 8%, var(--bg-modal-backdrop));
+  backdrop-filter: blur(var(--elevation-backdrop-blur)) saturate(125%);
+  -webkit-backdrop-filter: blur(var(--elevation-backdrop-blur)) saturate(125%);
   animation: profile-edit-fade-in 0.18s ease;
 }
 @keyframes profile-edit-fade-in {
@@ -2879,13 +2879,13 @@
   flex-direction: column;
   background: linear-gradient(
     155deg,
-    color-mix(in srgb, var(--p) 8%, var(--glass-strong-bg)),
-    var(--glass-strong-bg) 58%,
-    color-mix(in srgb, var(--p2) 5%, var(--glass-strong-bg))
+    color-mix(in srgb, var(--p) 18%, var(--glass-bg)),
+    color-mix(in srgb, var(--p2) 10%, var(--glass-bg)) 62%,
+    color-mix(in srgb, var(--p) 12%, var(--glass-bg))
   );
-  backdrop-filter: var(--glass-strong-blur)
+  backdrop-filter: blur(var(--glass-strong-blur))
     saturate(var(--glass-strong-saturate));
-  -webkit-backdrop-filter: var(--glass-strong-blur)
+  -webkit-backdrop-filter: blur(var(--glass-strong-blur))
     saturate(var(--glass-strong-saturate));
   border: 1px solid var(--glass-strong-border, var(--hairline-2));
   border-bottom: none;
@@ -3272,21 +3272,21 @@
 
 /* Banner customization modal — scoped to the nested Profile editor sheet. */
 .profile-banner-editor-backdrop {
-  background: color-mix(in srgb, var(--p) 4%, var(--bg-modal-backdrop));
-  backdrop-filter: var(--elevation-backdrop-blur) saturate(125%);
-  -webkit-backdrop-filter: var(--elevation-backdrop-blur) saturate(125%);
+  background: color-mix(in srgb, var(--p) 8%, var(--bg-modal-backdrop));
+  backdrop-filter: blur(var(--elevation-backdrop-blur)) saturate(125%);
+  -webkit-backdrop-filter: blur(var(--elevation-backdrop-blur)) saturate(125%);
 }
 
 .profile-banner-editor-modal {
   background: linear-gradient(
     155deg,
-    color-mix(in srgb, var(--p) 8%, var(--glass-strong-bg)),
-    var(--glass-strong-bg) 58%,
-    color-mix(in srgb, var(--p2) 5%, var(--glass-strong-bg))
+    color-mix(in srgb, var(--p) 18%, var(--glass-bg)),
+    color-mix(in srgb, var(--p2) 10%, var(--glass-bg)) 62%,
+    color-mix(in srgb, var(--p) 12%, var(--glass-bg))
   );
-  backdrop-filter: var(--glass-strong-blur)
+  backdrop-filter: blur(var(--glass-strong-blur))
     saturate(var(--glass-strong-saturate));
-  -webkit-backdrop-filter: var(--glass-strong-blur)
+  -webkit-backdrop-filter: blur(var(--glass-strong-blur))
     saturate(var(--glass-strong-saturate));
   border: 1px solid var(--glass-strong-border);
   box-shadow:
