@@ -334,6 +334,12 @@ for (const viewport of [
       );
       await expect(page.locator(".hero-content-cluster")).toBeVisible();
       await expect(page.locator(".action-dock")).toBeVisible();
+      const primaryAction = page.locator(".action-dock-btn-primary");
+      await expect(primaryAction).toBeVisible();
+      const primaryActionBackground = await primaryAction.evaluate(
+        (element) => getComputedStyle(element).backgroundColor
+      );
+      expect(primaryActionBackground).not.toBe("rgba(5, 7, 12, 0.34)");
       await expect(page.locator(".bottom-nav-glass:visible")).toHaveCount(0);
       await expectNoHorizontalOverflow(page);
 
@@ -385,6 +391,7 @@ for (const viewport of [
           brightness: number;
           veilBottom: number;
           surfaceMix: number;
+          surfaceBackground: string;
         }
       > = {};
 
@@ -408,6 +415,9 @@ for (const viewport of [
           .toBe("1");
         profiles[title] = await shell.evaluate((element) => {
           const styles = getComputedStyle(element);
+          const surface = element.querySelector(
+            '[aria-label="Aggregate ratings from IMDb, Rotten Tomatoes, and Metacritic"]'
+          );
           return {
             primary: styles.getPropertyValue("--detail-ambient-primary").trim(),
             neutral: styles.getPropertyValue("--detail-ambient-neutral").trim(),
@@ -422,7 +432,10 @@ for (const viewport of [
             ),
             surfaceMix: Number.parseFloat(
               styles.getPropertyValue("--detail-ambient-surface-mix")
-            )
+            ),
+            surfaceBackground: surface
+              ? getComputedStyle(surface).backgroundColor
+              : ""
           };
         });
       }
@@ -441,6 +454,9 @@ for (const viewport of [
       );
       expect(profiles["The Devil Wears Prada 2"].surfaceMix).toBeGreaterThan(
         profiles["A Dark Night"].surfaceMix
+      );
+      expect(profiles["The Devil Wears Prada 2"].surfaceBackground).not.toBe(
+        profiles["A Dark Night"].surfaceBackground
       );
       expect(profiles["In the Grey"].primary).not.toBe(
         profiles["House of the Dragon Movie"].primary

@@ -161,15 +161,15 @@ function paletteFromProfile(profile: {
       scaleRgb(profile.averageRgb, 0.7 + luminance * 0.18)
     ),
     highlight: toRgbVariable(scaleRgb(highlight, 0.72 + luminance * 0.22)),
-    imageOpacity: clamp(0.26 + luminance * 0.14, 0.26, 0.4).toFixed(3),
-    imageBrightness: clamp(0.7 + (luminance - 0.5) * 0.42, 0.64, 0.94).toFixed(
+    imageOpacity: clamp(0.48 + luminance * 0.24, 0.48, 0.72).toFixed(3),
+    imageBrightness: clamp(0.88 + (luminance - 0.5) * 0.34, 0.78, 1.06).toFixed(
       3
     ),
-    imageSaturation: clamp(0.78 + saturation * 0.24, 0.78, 1).toFixed(3),
-    surfaceMix: clamp(7 + luminance * 18, 7, 22).toFixed(1) + "%",
-    veilTop: clamp(0.1 + (1 - luminance) * 0.1, 0.1, 0.2).toFixed(3),
-    veilMid: clamp(0.17 + (1 - luminance) * 0.14, 0.17, 0.31).toFixed(3),
-    veilBottom: clamp(0.44 + (1 - luminance) * 0.2, 0.44, 0.64).toFixed(3)
+    imageSaturation: clamp(0.94 + saturation * 0.3, 0.94, 1.16).toFixed(3),
+    surfaceMix: clamp(18 + luminance * 18, 18, 36).toFixed(1) + "%",
+    veilTop: clamp(0.04 + (1 - luminance) * 0.03, 0.04, 0.07).toFixed(3),
+    veilMid: clamp(0.07 + (1 - luminance) * 0.06, 0.07, 0.13).toFixed(3),
+    veilBottom: clamp(0.18 + (1 - luminance) * 0.1, 0.18, 0.28).toFixed(3)
   };
 }
 
