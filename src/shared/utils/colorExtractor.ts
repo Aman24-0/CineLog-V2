@@ -325,9 +325,7 @@ function findVibrantColor(pixels: Uint8ClampedArray): string {
     // completely ignore large low-saturation regions (which might be
     // the only colors present), but we still strongly prefer vibrancy.
     const score =
-      bucket.count *
-      Math.max(0.15, satFactor) *
-      Math.max(0.1, lightnessFactor);
+      bucket.count * Math.max(0.15, satFactor) * Math.max(0.1, lightnessFactor);
 
     if (score > bestScore) {
       bestScore = score;
@@ -381,11 +379,7 @@ function adjustForVisibility(r: number, g: number, b: number): string {
 }
 
 /** Convert RGB [0-255] to HSL [0-1, 0-1, 0-1]. */
-function rgbToHsl(
-  r: number,
-  g: number,
-  b: number
-): [number, number, number] {
+function rgbToHsl(r: number, g: number, b: number): [number, number, number] {
   const rN = r / 255;
   const gN = g / 255;
   const bN = b / 255;
@@ -419,11 +413,7 @@ function rgbToHsl(
 }
 
 /** Convert HSL [0-1, 0-1, 0-1] to RGB [0-255, 0-255, 0-255]. */
-function hslToRgb(
-  h: number,
-  s: number,
-  l: number
-): [number, number, number] {
+function hslToRgb(h: number, s: number, l: number): [number, number, number] {
   let r: number;
   let g: number;
   let b: number;
@@ -667,9 +657,7 @@ function findVibrantPalette(
       4 * avgLight * (1 - avgLight) * (1 - Math.abs(avgLight - 0.55) * 0.5);
     const satFactor = Math.min(1, avgSat / 0.7);
     const score =
-      bucket.count *
-      Math.max(0.15, satFactor) *
-      Math.max(0.1, lightnessFactor);
+      bucket.count * Math.max(0.15, satFactor) * Math.max(0.1, lightnessFactor);
 
     scored.push({
       avgHue: bucket.sumHue / bucket.count,
@@ -712,4 +700,143 @@ function findVibrantPalette(
   );
   while (result.length < target) result.push(FALLBACK_COLOR);
   return result;
+}
+
+// ─── Backdrop profile (Detail ambient blending) ───────────────────────
+//
+// Detail pages need more than a single accent: the ambient surface should
+// respond to the artwork's overall luminance as well as its dominant colors.
+// This profile deliberately reuses the existing CORS-safe image loader and
+// palette extractor. The small second sample pass reads the complete image
+// average, including bright whites and dark neutrals that the vibrant-palette
+// heuristic intentionally filters out.
+
+export interface BackdropProfile {
+  palette: string[];
+  averageRgb: [number, number, number];
+  luminance: number;
+  saturation: number;
+}
+
+const FALLBACK_BACKDROP_PROFILE: BackdropProfile = {
+  palette: [],
+  averageRgb: [24, 32, 44],
+  luminance: 0.14,
+  saturation: 0.12
+};
+
+const backdropProfileCache = new Map<string, Promise<BackdropProfile>>();
+
+/**
+ * Extract the dominant palette and overall visual character of a backdrop.
+ *
+ * Failure is intentionally graceful: Detail keeps its neutral dark fallback
+ * and the existing CSS backdrop remains available as the visual source.
+ */
+export function extractBackdropProfile(
+  imageUrl: string,
+  count: number = 3
+): Promise<BackdropProfile> {
+  if (!imageUrl || imageUrl.trim().length === 0) {
+    return Promise.resolve(FALLBACK_BACKDROP_PROFILE);
+  }
+
+  const cached = backdropProfileCache.get(imageUrl);
+  if (cached) return cached;
+
+  const profilePromise = sampleBackdropProfile(imageUrl, count);
+  backdropProfileCache.set(imageUrl, profilePromise);
+  void profilePromise.catch(() => backdropProfileCache.delete(imageUrl));
+  return profilePromise;
+}
+
+async function sampleBackdropProfile(
+  imageUrl: string,
+  count: number
+): Promise<BackdropProfile> {
+  if (typeof document === "undefined" || typeof Image === "undefined") {
+    return FALLBACK_BACKDROP_PROFILE;
+  }
+
+  try {
+    const image = await loadImageWithCORS(imageUrl);
+    if (image.naturalWidth === 0 || image.naturalHeight === 0) {
+      return FALLBACK_BACKDROP_PROFILE;
+    }
+
+    const sampleSize = 96;
+    const canvas = document.createElement("canvas");
+    canvas.width = sampleSize;
+    canvas.height = sampleSize;
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    if (!context) return FALLBACK_BACKDROP_PROFILE;
+
+    context.drawImage(image, 0, 0, sampleSize, sampleSize);
+    const pixels = context.getImageData(0, 0, sampleSize, sampleSize).data;
+    const palette = findVibrantPalette(
+      pixels,
+      Math.max(1, Math.min(6, Math.floor(count)))
+    );
+    const stats = calculateBackdropStats(pixels);
+
+    canvas.width = 0;
+    canvas.height = 0;
+    if (!stats) return FALLBACK_BACKDROP_PROFILE;
+
+    return {
+      palette: palette.every(
+        (color) => color.toLowerCase() === FALLBACK_COLOR.toLowerCase()
+      )
+        ? []
+        : palette,
+      averageRgb: stats.averageRgb,
+      luminance: stats.luminance,
+      saturation: stats.saturation
+    };
+  } catch {
+    return FALLBACK_BACKDROP_PROFILE;
+  }
+}
+
+function calculateBackdropStats(pixels: Uint8ClampedArray): {
+  averageRgb: [number, number, number];
+  luminance: number;
+  saturation: number;
+} | null {
+  let redTotal = 0;
+  let greenTotal = 0;
+  let blueTotal = 0;
+  let luminanceTotal = 0;
+  let saturationTotal = 0;
+  let weightTotal = 0;
+
+  for (let index = 0; index < pixels.length; index += 4) {
+    const weight = pixels[index + 3] / 255;
+    if (weight < 0.2) continue;
+
+    const red = pixels[index];
+    const green = pixels[index + 1];
+    const blue = pixels[index + 2];
+    const max = Math.max(red, green, blue);
+    const min = Math.min(red, green, blue);
+    redTotal += red * weight;
+    greenTotal += green * weight;
+    blueTotal += blue * weight;
+    luminanceTotal +=
+      ((0.2126 * red + 0.7152 * green + 0.0722 * blue) / 255) * weight;
+    saturationTotal += ((max - min) / 255) * weight;
+    weightTotal += weight;
+  }
+
+  if (!weightTotal) return null;
+
+  return {
+    averageRgb: [
+      Math.round(redTotal / weightTotal),
+      Math.round(greenTotal / weightTotal),
+      Math.round(blueTotal / weightTotal)
+    ],
+    luminance: luminanceTotal / weightTotal,
+    saturation: saturationTotal / weightTotal
+  };
 }

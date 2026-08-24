@@ -17,6 +17,7 @@
 import { describe, it, expect } from "vitest";
 import {
   extractDominantColor,
+  extractBackdropProfile,
   DYNAMIC_ACCENT_FALLBACK
 } from "../colorExtractor";
 
@@ -24,6 +25,18 @@ describe("colorExtractor", () => {
   describe("DYNAMIC_ACCENT_FALLBACK", () => {
     it("is the Gold accent (#FFD700)", () => {
       expect(DYNAMIC_ACCENT_FALLBACK).toBe("#FFD700");
+    });
+  });
+
+  describe("extractBackdropProfile", () => {
+    it("returns the neutral dark Detail fallback for an empty URL", async () => {
+      const result = await extractBackdropProfile("");
+      expect(result).toEqual({
+        palette: [],
+        averageRgb: [24, 32, 44],
+        luminance: 0.14,
+        saturation: 0.12
+      });
     });
   });
 

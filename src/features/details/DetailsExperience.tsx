@@ -32,6 +32,7 @@ import {
 } from "~/shared/utils/share";
 import { useMdbListRatings } from "~/features/details/useMdbListRatings";
 import { tmdbImage } from "~/core/tmdb/tmdb";
+import { extractBackdropProfile } from "~/shared/utils/colorExtractor";
 
 import DetailsHero from "./DetailsModal/DetailsHero";
 import DetailsHeader from "./DetailsModal/DetailsHeader";
@@ -89,6 +90,89 @@ export interface DetailsExperienceProps {
   mode?: "modal" | "page";
 }
 
+type AmbientPalette = {
+  primary: string;
+  secondary: string;
+  neutral: string;
+  highlight: string;
+  imageOpacity: string;
+  imageBrightness: string;
+  imageSaturation: string;
+  surfaceMix: string;
+  veilTop: string;
+  veilMid: string;
+  veilBottom: string;
+};
+
+const DEFAULT_AMBIENT_PALETTE: AmbientPalette = {
+  primary: "24 32 44",
+  secondary: "18 25 36",
+  neutral: "28 34 44",
+  highlight: "42 50 62",
+  imageOpacity: "0.25",
+  imageBrightness: "0.7",
+  imageSaturation: "0.78",
+  surfaceMix: "8%",
+  veilTop: "0.14",
+  veilMid: "0.22",
+  veilBottom: "0.58"
+};
+
+const clamp = (value: number, min: number, max: number) =>
+  Math.min(max, Math.max(min, value));
+
+const hexToRgb = (hex: string): [number, number, number] | null => {
+  const normalized = hex.replace("#", "");
+  if (!/^[0-9a-f]{6}$/i.test(normalized)) return null;
+  return [
+    parseInt(normalized.slice(0, 2), 16),
+    parseInt(normalized.slice(2, 4), 16),
+    parseInt(normalized.slice(4, 6), 16)
+  ];
+};
+
+const toRgbVariable = (rgb: [number, number, number]) =>
+  rgb.map((channel) => Math.round(clamp(channel, 0, 255))).join(" ");
+
+const scaleRgb = (rgb: [number, number, number], scale: number) =>
+  rgb.map((channel) => channel * scale) as [number, number, number];
+
+function paletteFromProfile(profile: {
+  palette: string[];
+  averageRgb: [number, number, number];
+  luminance: number;
+  saturation: number;
+}): AmbientPalette {
+  const colors = profile.palette
+    .filter((color) => color.toLowerCase() !== "#ffd700")
+    .map(hexToRgb)
+    .filter((color): color is [number, number, number] => color !== null);
+  const primary = colors[0] ?? profile.averageRgb;
+  const secondary = colors[1] ?? profile.averageRgb;
+  const highlight = profile.averageRgb;
+  const luminance = clamp(profile.luminance, 0, 1);
+  const saturation = clamp(profile.saturation, 0, 1);
+  const toneScale = 0.62 + luminance * 0.2;
+
+  return {
+    primary: toRgbVariable(scaleRgb(primary, toneScale)),
+    secondary: toRgbVariable(scaleRgb(secondary, toneScale * 0.92)),
+    neutral: toRgbVariable(
+      scaleRgb(profile.averageRgb, 0.7 + luminance * 0.18)
+    ),
+    highlight: toRgbVariable(scaleRgb(highlight, 0.72 + luminance * 0.22)),
+    imageOpacity: clamp(0.26 + luminance * 0.14, 0.26, 0.4).toFixed(3),
+    imageBrightness: clamp(0.7 + (luminance - 0.5) * 0.42, 0.64, 0.94).toFixed(
+      3
+    ),
+    imageSaturation: clamp(0.78 + saturation * 0.24, 0.78, 1).toFixed(3),
+    surfaceMix: clamp(7 + luminance * 18, 7, 22).toFixed(1) + "%",
+    veilTop: clamp(0.1 + (1 - luminance) * 0.1, 0.1, 0.2).toFixed(3),
+    veilMid: clamp(0.17 + (1 - luminance) * 0.14, 0.17, 0.31).toFixed(3),
+    veilBottom: clamp(0.44 + (1 - luminance) * 0.2, 0.44, 0.64).toFixed(3)
+  };
+}
+
 export default function DetailsExperience(props: DetailsExperienceProps) {
   const { watchlist } = useVault();
   const library = useUserLibrary();
@@ -109,6 +193,42 @@ export default function DetailsExperience(props: DetailsExperienceProps) {
   const ambientBackdropUrl = createMemo(() => {
     const path = baseItem()?.backdrop_path || tmdb()?.backdrop_path;
     return path ? tmdbImage(path, "w1280") : "";
+  });
+  const [ambientPalette, setAmbientPalette] = createSignal(
+    DEFAULT_AMBIENT_PALETTE
+  );
+  const [ambientProfileReady, setAmbientProfileReady] = createSignal(false);
+
+  // Sample the same TMDB backdrop already used by the Detail page. The
+  // sampling is intentionally tiny and best-effort: the CSS artwork layer
+  // remains the source of truth, while these values make the surrounding
+  // surface adapt to the title's dominant color and luminance. Modal mode
+  // never mounts this page-owned palette.
+  createEffect(() => {
+    const url = ambientBackdropUrl();
+    if (props.mode !== "page" || !url) {
+      setAmbientProfileReady(false);
+      setAmbientPalette(DEFAULT_AMBIENT_PALETTE);
+      return;
+    }
+
+    setAmbientProfileReady(false);
+    let cancelled = false;
+    void extractBackdropProfile(url, 3).then((profile) => {
+      if (!cancelled) {
+        setAmbientPalette(
+          profile.palette.length
+            ? paletteFromProfile(profile)
+            : profile.averageRgb.join(" ") !== DEFAULT_AMBIENT_PALETTE.neutral
+              ? paletteFromProfile(profile)
+              : DEFAULT_AMBIENT_PALETTE
+        );
+        setAmbientProfileReady(true);
+      }
+    });
+    onCleanup(() => {
+      cancelled = true;
+    });
   });
 
   // Derived values for the ShareSheet — the TMDB id, media_type, and
@@ -311,7 +431,23 @@ export default function DetailsExperience(props: DetailsExperienceProps) {
           ? ({
               "--detail-ambient-image": ambientBackdropUrl()
                 ? `url("${ambientBackdropUrl()}")`
-                : "none"
+                : "none",
+              "--detail-ambient-primary": ambientPalette().primary,
+              "--detail-ambient-secondary": ambientPalette().secondary,
+              "--detail-ambient-neutral": ambientPalette().neutral,
+              "--detail-ambient-highlight": ambientPalette().highlight,
+              "--detail-ambient-image-opacity": ambientPalette().imageOpacity,
+              "--detail-ambient-image-brightness":
+                ambientPalette().imageBrightness,
+              "--detail-ambient-image-saturation":
+                ambientPalette().imageSaturation,
+              "--detail-ambient-surface-mix": ambientPalette().surfaceMix,
+              "--detail-ambient-veil-top": ambientPalette().veilTop,
+              "--detail-ambient-veil-mid": ambientPalette().veilMid,
+              "--detail-ambient-veil-bottom": ambientPalette().veilBottom,
+              "--detail-ambient-profile-ready": ambientProfileReady()
+                ? "1"
+                : "0"
             } as Record<string, string>)
           : undefined
       }
