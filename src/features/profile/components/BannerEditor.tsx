@@ -21,6 +21,9 @@ interface BannerEditorProps {
   onSave: (type: BannerType, url: string | null) => Promise<boolean>;
 }
 
+type BannerSavePhase =
+  "idle" | "processing" | "ready" | "fetching" | "uploading" | "applying";
+
 /**
  * BannerEditor — a bottom sheet modal for customizing the profile banner.
  *
@@ -38,6 +41,7 @@ const BannerEditor: Component<BannerEditorProps> = (props) => {
   const [uploading, setUploading] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
   const [saving, setSaving] = createSignal(false);
+  const [phase, setPhase] = createSignal<BannerSavePhase>("idle");
   // Store the selected File so we can re-compress + upload on save
   // without re-reading from the DOM (which is fragile — the file input
   // might have been cleared or might not have the expected ID).
@@ -60,8 +64,12 @@ const BannerEditor: Component<BannerEditorProps> = (props) => {
 
   // Current preview based on tab + selections
   const currentPreview = (): { url: string | null; type: BannerType } => {
-    if (tab() === "upload" && previewUrl()) {
-      return { url: previewUrl(), type: "upload" };
+    if (tab() === "upload") {
+      if (previewUrl()) return { url: previewUrl(), type: "upload" };
+      if (props.currentBannerType === "upload" && props.currentBannerUrl) {
+        return { url: props.currentBannerUrl, type: "upload" };
+      }
+      return { url: null, type: "upload" };
     }
     if (tab() === "url" && urlInput().trim()) {
       return { url: urlInput().trim(), type: "url" };
@@ -74,6 +82,23 @@ const BannerEditor: Component<BannerEditorProps> = (props) => {
       url: backdrop ? tmdbImage(backdrop, "w1280") : null,
       type: "favorite_movie"
     };
+  };
+
+  const statusMessage = () => {
+    switch (phase()) {
+      case "processing":
+        return "Preparing your image…";
+      case "ready":
+        return "Image ready. Press Save Banner to upload it.";
+      case "fetching":
+        return "Fetching image and checking the URL…";
+      case "uploading":
+        return "Uploading image to secure storage…";
+      case "applying":
+        return "Updating banner selection…";
+      default:
+        return null;
+    }
   };
 
   const handleFileSelect = async (e: Event) => {
@@ -94,6 +119,7 @@ const BannerEditor: Component<BannerEditorProps> = (props) => {
     }
 
     setError(null);
+    setPhase("processing");
     setUploading(true);
     try {
       // Store the file for the save handler.
@@ -107,11 +133,13 @@ const BannerEditor: Component<BannerEditorProps> = (props) => {
         reader.readAsDataURL(blob);
       });
       setPreviewUrl(dataUrl);
+      setPhase("ready");
       // Switch to the "upload" tab so currentPreview() returns the
       // uploaded image (otherwise it stays on "auto" and the preview
       // doesn't update — the "banner preview doesn't change" bug).
       setTab("upload");
     } catch (err) {
+      setPhase("idle");
       setError("Failed to process image. Try a different file.");
       console.error("[BannerEditor] Image processing failed:", err);
     } finally {
@@ -122,6 +150,7 @@ const BannerEditor: Component<BannerEditorProps> = (props) => {
   const handleUrlInput = (value: string) => {
     setUrlInput(value);
     setError(null);
+    setPhase("idle");
   };
 
   const validateUrl = (url: string): boolean => {
@@ -137,41 +166,55 @@ const BannerEditor: Component<BannerEditorProps> = (props) => {
     const preview = currentPreview();
     setSaving(true);
     setError(null);
+    setPhase("idle");
 
     try {
       if (preview.type === "url") {
         if (!validateUrl(preview.url!)) {
+          setPhase("idle");
           setError("Please enter a valid image URL (https://...).");
           setSaving(false);
           return;
         }
       }
 
-      if (preview.type === "upload" && previewUrl()) {
+      if (preview.type === "upload") {
         // Upload the selected file to Supabase Storage.
         // We use the stored selectedFile (set in handleFileSelect) so
         // we don't have to re-read from the DOM (which is fragile).
         try {
           if (selectedFile) {
+            setPhase("uploading");
             const blob = await compressBannerImage(selectedFile);
             const storageUrl = await uploadBannerToSupabase(props.userId, blob);
+            setPhase("applying");
             const ok = await props.onSave("upload", storageUrl);
             if (!ok) {
+              setPhase("idle");
+              setError("Failed to save banner. Try again.");
+              return;
+            }
+          } else if (
+            props.currentBannerType === "upload" &&
+            props.currentBannerUrl
+          ) {
+            // Re-saving an existing upload without selecting a new file is a
+            // no-op for Storage; preserve its URL rather than falling through
+            // to Automatic or attempting to persist a data URL.
+            setPhase("applying");
+            const ok = await props.onSave("upload", props.currentBannerUrl);
+            if (!ok) {
+              setPhase("idle");
               setError("Failed to save banner. Try again.");
               return;
             }
           } else {
-            // Fallback: save the data URL directly (no file selected —
-            // shouldn't happen because currentPreview() requires
-            // previewUrl() to be set, which only happens after a file
-            // is selected. But defensive.)
-            const ok = await props.onSave("upload", previewUrl());
-            if (!ok) {
-              setError("Failed to save banner. Try again.");
-              return;
-            }
+            setPhase("idle");
+            setError("Choose an image to upload first.");
+            return;
           }
         } catch (err) {
+          setPhase("idle");
           console.error("[BannerEditor] Upload failed:", err);
           setError(
             err instanceof Error
@@ -194,6 +237,7 @@ const BannerEditor: Component<BannerEditorProps> = (props) => {
         // cross-origin images — notably wallpaperflare.com URLs in the
         // Lemur browser.
         try {
+          setPhase("fetching");
           const resp = await fetch("/api/profile/banner-from-url", {
             method: "POST",
             headers: {
@@ -203,6 +247,7 @@ const BannerEditor: Component<BannerEditorProps> = (props) => {
             body: JSON.stringify({ url: preview.url })
           });
           if (!resp.ok) {
+            setPhase("idle");
             const body = (await resp.json().catch(() => ({}))) as {
               error?: string;
               hint?: string;
@@ -212,13 +257,21 @@ const BannerEditor: Component<BannerEditorProps> = (props) => {
             );
             return;
           }
-          const body = (await resp.json()) as { url: string };
+          const body = (await resp.json()) as { url?: string };
+          if (!body.url) {
+            setPhase("idle");
+            setError("Image service did not return a saved image URL.");
+            return;
+          }
+          setPhase("applying");
           const ok = await props.onSave("upload", body.url);
           if (!ok) {
+            setPhase("idle");
             setError("Failed to save banner. Try again.");
             return;
           }
         } catch (err) {
+          setPhase("idle");
           console.error("[BannerEditor] banner-from-url proxy failed:", err);
           setError(
             err instanceof Error
@@ -229,8 +282,10 @@ const BannerEditor: Component<BannerEditorProps> = (props) => {
         }
       } else {
         // favorite_movie or default
+        setPhase("applying");
         const ok = await props.onSave(preview.type, null);
         if (!ok) {
+          setPhase("idle");
           setError("Failed to save banner. Try again.");
           return;
         }
@@ -334,7 +389,10 @@ const BannerEditor: Component<BannerEditorProps> = (props) => {
                   type="button"
                   class={`quick-filter-tab focus-ring${tab() === "auto" ? "" : ""}`}
                   data-active={tab() === "auto"}
-                  onClick={() => setTab("auto")}
+                  onClick={() => {
+                    setTab("auto");
+                    setPhase("idle");
+                  }}
                 >
                   Automatic
                 </button>
@@ -342,7 +400,10 @@ const BannerEditor: Component<BannerEditorProps> = (props) => {
                   type="button"
                   class={`quick-filter-tab focus-ring${tab() === "upload" ? "" : ""}`}
                   data-active={tab() === "upload"}
-                  onClick={() => setTab("upload")}
+                  onClick={() => {
+                    setTab("upload");
+                    setPhase(previewUrl() ? "ready" : "idle");
+                  }}
                 >
                   Upload
                 </button>
@@ -350,7 +411,10 @@ const BannerEditor: Component<BannerEditorProps> = (props) => {
                   type="button"
                   class={`quick-filter-tab focus-ring${tab() === "url" ? "" : ""}`}
                   data-active={tab() === "url"}
-                  onClick={() => setTab("url")}
+                  onClick={() => {
+                    setTab("url");
+                    setPhase("idle");
+                  }}
                 >
                   Image URL
                 </button>
@@ -493,6 +557,23 @@ const BannerEditor: Component<BannerEditorProps> = (props) => {
                   }}
                 >
                   Paste a direct image URL (https://...)
+                </p>
+              </Show>
+
+              <Show when={statusMessage()}>
+                <p
+                  role="status"
+                  aria-live="polite"
+                  style={{
+                    color: "var(--p)",
+                    "font-size": "0.75rem",
+                    "text-align": "center",
+                    margin: "0 0 var(--sp-2)",
+                    "font-family": "'Outfit', sans-serif",
+                    "font-weight": 600
+                  }}
+                >
+                  {statusMessage()}
                 </p>
               </Show>
 

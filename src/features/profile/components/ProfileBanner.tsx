@@ -9,6 +9,7 @@ import {
   type JSX
 } from "solid-js";
 import { tmdbImage } from "~/core/tmdb/tmdb";
+import { withImageCacheBust } from "~/shared/utils/imageUrl";
 import type { ProfileData } from "../useProfileData";
 import type { BannerType } from "./BannerEditor";
 
@@ -40,94 +41,71 @@ interface ProfileBannerProps {
  * If banner_type is null/missing (legacy users), defaults to
  * 'favorite_movie' behavior for backward compatibility.
  *
- * Error handling:
- *   If a custom image URL fails to load, the banner automatically
- *   falls back to the favorite movie backdrop, then to the gradient.
- *
- * UI:
- *   A camera/edit icon appears on the banner in edit mode, opening
- *   the BannerEditor. Images fade in smoothly on load.
+ * Image URLs are cache-busted at render time using the profile updated_at
+ * timestamp because Storage uploads intentionally reuse one per-user path.
+ * No cache-busting query is written to profiles.banner_url.
  */
 const ProfileBanner: Component<ProfileBannerProps> = (props) => {
   const [imgLoaded, setImgLoaded] = createSignal(false);
-  const [imgError, setImgError] = createSignal(false);
+  const [failedCandidateIndex, setFailedCandidateIndex] = createSignal(0);
 
   // Determine the banner type from the profile data.
   // Legacy users (null banner_type) default to 'favorite_movie'.
   const bannerType = createMemo<BannerType>(() => {
     const type = props.data?.profile?.banner_type;
     if (type === "upload" || type === "url" || type === "default") return type;
-    return "favorite_movie"; // default + legacy fallback
+    return "favorite_movie";
   });
 
-  const bannerUrl = (): string | null => {
-    return props.data?.profile?.banner_url ?? null;
-  };
+  const bannerUrl = () => props.data?.profile?.banner_url ?? null;
 
-  // Resolve the primary image URL based on banner_type.
-  const primaryUrl = (): string | null => {
-    if (imgError()) return null; // fallback path after error
-
+  /**
+   * Build an ordered candidate list. Custom banners get the first attempt,
+   * followed by favorite artwork as a recovery path. Automatic banners try
+   * movie artwork before series artwork. Default mode intentionally remains a
+   * gradient and does not consult favorites.
+   */
+  const candidateUrls = createMemo(() => {
     const type = bannerType();
     const d = props.data;
+    if (type === "default") return [] as string[];
 
-    if (type === "upload" || type === "url") {
-      const url = bannerUrl();
-      return url || null; // if URL is missing, fall through to fallback
+    const candidates: string[] = [];
+    if ((type === "upload" || type === "url") && bannerUrl()) {
+      candidates.push(bannerUrl()!);
     }
 
-    if (type === "favorite_movie") {
-      // Try favorite movie backdrop, then series backdrop
-      const path =
-        d?.favoriteMovie?.backdrop_path ?? d?.favoriteSeries?.backdrop_path;
-      return path ? tmdbImage(path, "w1280") : null;
+    const favoritePaths = [
+      d?.favoriteMovie?.backdrop_path,
+      d?.favoriteSeries?.backdrop_path
+    ].filter((path): path is string => Boolean(path));
+
+    for (const path of favoritePaths) {
+      const url = tmdbImage(path, "w1280");
+      if (!candidates.includes(url)) candidates.push(url);
     }
+    return candidates;
+  });
 
-    // 'default' → no image, just gradient
-    return null;
+  const renderUrl = () => {
+    const rawUrl = candidateUrls()[failedCandidateIndex()] ?? null;
+    return withImageCacheBust(rawUrl, props.data?.profile?.updated_at);
   };
 
-  // Fallback URL — used when the primary image fails to load.
-  // Falls back to favorite movie backdrop (even if banner_type is
-  // 'upload' or 'url'), then to gradient.
-  const fallbackUrl = (): string | null => {
-    const d = props.data;
-    const path =
-      d?.favoriteMovie?.backdrop_path ?? d?.favoriteSeries?.backdrop_path;
-    return path ? tmdbImage(path, "w1280") : null;
-  };
-
-  // The URL to actually render — primary, or fallback if primary failed.
-  const renderUrl = (): string | null => {
-    const primary = primaryUrl();
-    if (primary) return primary;
-    // If primary failed (imgError), try fallback
-    if (imgError()) return fallbackUrl();
-    return null;
-  };
-
-  // Whether to show the gradient (no image at all)
-  const showGradient = createMemo(() => renderUrl() === null);
-
-  // Reset error state when the banner type or URL changes
-  // (e.g., user saves a new banner in the editor).
-  // IMPORTANT: This MUST be a createEffect, not a createMemo. Writing to
-  // signals inside a memo is a Solid anti-pattern that breaks DOM
-  // reconciliation and causes "Cannot read properties of null (reading
-  // 'nextSibling')" errors when the banner image / fallback swaps.
-  const resetState = () => {
-    setImgLoaded(false);
-    setImgError(false);
-  };
-
-  // Track changes to banner type/url to reset error state. Using on() so
-  // the effect only fires when one of these dependencies actually changes,
-  // not on every render of the parent.
+  // Reset image state when the selected source or its favorite artwork changes.
   createEffect(
     on(
-      () => [bannerType(), bannerUrl()] as const,
+      () =>
+        [
+          bannerType(),
+          bannerUrl(),
+          props.data?.profile?.updated_at,
+          props.data?.favoriteMovie?.backdrop_path,
+          props.data?.favoriteSeries?.backdrop_path
+        ] as const,
       () => {
-        resetState();
+        setImgLoaded(false);
+        setFailedCandidateIndex(0);
       },
       { defer: true }
     )
@@ -136,13 +114,8 @@ const ProfileBanner: Component<ProfileBannerProps> = (props) => {
   return (
     <div class="profile-banner">
       <Show
-        when={!showGradient() && renderUrl() !== null}
-        fallback={
-          /* Abstract gradient — on-brand, NOT a gray box.
-             Also used as the final fallback if renderUrl somehow
-             becomes null mid-render (defensive — prevents <img src="null">). */
-          <div class="profile-banner-gradient" aria-hidden="true" />
-        }
+        when={renderUrl() !== null}
+        fallback={<div class="profile-banner-gradient" aria-hidden="true" />}
       >
         <img
           src={renderUrl() as string}
@@ -152,26 +125,11 @@ const ProfileBanner: Component<ProfileBannerProps> = (props) => {
           alt="Profile banner"
           width="1200"
           height="400"
-          // Phase 18 deep-fix v2: crossorigin="anonymous" so the
-          // browser's preload scanner matches the actual <img> fetch's
-          // credentials mode. Without this, the browser logs a
-          // spurious "A preload for '<URL>' is found, but is not used
-          // because the request credentials mode does not match"
-          // warning for cross-origin images (e.g. Supabase Storage
-          // URLs). The anonymous mode is correct because we never
-          // send cookies to the image host — Supabase Storage is a
-          // public bucket that doesn't need them.
           crossorigin="anonymous"
           onLoad={() => setImgLoaded(true)}
           onError={() => {
-            if (!imgError()) {
-              // First error — try fallback
-              setImgError(true);
-              setImgLoaded(false);
-            } else {
-              // Fallback also failed — hide image, show gradient
-              setImgLoaded(false);
-            }
+            setImgLoaded(false);
+            setFailedCandidateIndex((index) => index + 1);
           }}
         />
         {/* Skeleton shimmer while image loads */}
@@ -184,13 +142,6 @@ const ProfileBanner: Component<ProfileBannerProps> = (props) => {
       <div class="profile-banner-overlay" aria-hidden="true" />
 
       <div class="profile-banner-content">{props.children}</div>
-
-      {/* Banner-edit overlay REMOVED in V3.1 cleanup.
-          The banner is now editable exclusively via the Edit Profile
-          modal (Banner section), reached through the pencil icon next
-          to the display name. Keeping the `onChooseBanner` prop in the
-          interface for backwards compatibility, but it is no longer
-          invoked from this component. */}
     </div>
   );
 };

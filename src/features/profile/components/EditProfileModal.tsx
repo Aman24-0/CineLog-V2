@@ -14,10 +14,8 @@
 // the profile so the UI reflects the new state immediately.
 //
 // Image uploads go to Supabase Storage buckets `avatars` and `banners`.
-// If a bucket doesn't exist (or the upload fails for any reason), we
-// fall back to a data URL — graceful degradation that doesn't require
-// admin intervention. (The banner path reuses the existing
-// `uploadBannerToSupabase` helper which already has this fallback.)
+// Storage failures are surfaced to the user; the UI never reports a local
+// data URL as a successful durable upload.
 
 import {
   Show,
@@ -31,12 +29,15 @@ import { Portal } from "solid-js/web";
 import { GlassButton, GlassInput } from "~/shared/ui/glass";
 import { useToast } from "~/shared/hooks/useToast";
 import { getClient } from "~/lib/supabase/client";
+import { tmdbImage } from "~/core/tmdb/tmdb";
 import {
   compressBannerImage,
   uploadBannerToSupabase
 } from "~/shared/utils/imageCompress";
 import { updateProfileMetadata } from "~/lib/supabase/repositories/profile";
 import type { ProfileRow } from "~/lib/supabase/repositories";
+import { withImageCacheBust } from "~/shared/utils/imageUrl";
+import type { ProfileData } from "../useProfileData";
 import BannerEditor, { type BannerType } from "./BannerEditor";
 
 export interface EditProfileModalProps {
@@ -44,18 +45,21 @@ export interface EditProfileModalProps {
   onClose: () => void;
   /** The current profile row (used to seed the form fields). */
   profile: ProfileRow | null;
+  /** Enriched profile data used by Automatic banner preview. */
+  data?: ProfileData | null;
   /** The user's auth uid (used for storage upload paths). */
   userId: string;
   /** The OAuth avatar URL (Google profile photo). "Use Google Avatar"
    *  button resets avatar_url to null so the OAuth photo is used. */
   oauthAvatarUrl?: string | null;
   /** Called after a successful save — parent refetches the profile. */
-  onSaved?: () => void;
+  onSaved?: () => void | Promise<void>;
 }
 
 type AvatarSource = "google" | "url" | "upload";
 
 const MAX_BIO_LENGTH = 160;
+const MAX_PROFILE_IMAGE_BYTES = 10 * 1024 * 1024;
 
 const EditProfileModal: Component<EditProfileModalProps> = (props) => {
   const { showToast } = useToast();
@@ -72,7 +76,24 @@ const EditProfileModal: Component<EditProfileModalProps> = (props) => {
   // isPublic signal removed — social features removed
   const [saving, setSaving] = createSignal(false);
   const [uploadingAvatar, setUploadingAvatar] = createSignal(false);
+  const [checkingAvatarUrl, setCheckingAvatarUrl] = createSignal(false);
   const [bannerEditorOpen, setBannerEditorOpen] = createSignal(false);
+  // Version tokens are local render metadata only. They prevent a CDN/browser
+  // from serving old bytes after a stable Storage object is overwritten.
+  const [avatarVersion, setAvatarVersion] = createSignal<number | null>(null);
+  const [bannerVersion, setBannerVersion] = createSignal<number | null>(null);
+
+  const bannerPreviewUrl = () => {
+    const type = bannerType();
+    if (type === "upload" || type === "url") return bannerUrl();
+    if (type === "favorite_movie") {
+      const path =
+        props.data?.favoriteMovie?.backdrop_path ??
+        props.data?.favoriteSeries?.backdrop_path;
+      return path ? tmdbImage(path, "w1280") : null;
+    }
+    return null;
+  };
 
   // ── ESC key + body scroll lock ───────────────────────────────────────
   const handleEsc = (e: KeyboardEvent) => {
@@ -108,6 +129,8 @@ const EditProfileModal: Component<EditProfileModalProps> = (props) => {
       setAvatarSource(p.avatar_url ? "url" : "google");
       setBannerType((p.banner_type as BannerType) ?? "favorite_movie");
       setBannerUrl(p.banner_url ?? null);
+      setAvatarVersion(null);
+      setBannerVersion(null);
       // is_public removed — social features removed
     }
   });
@@ -119,6 +142,10 @@ const EditProfileModal: Component<EditProfileModalProps> = (props) => {
       showToast("Please select an image file.", "error");
       return;
     }
+    if (file.size > MAX_PROFILE_IMAGE_BYTES) {
+      showToast("Image must be under 10MB.", "error");
+      return;
+    }
     setUploadingAvatar(true);
     try {
       // Compress to a small square avatar (200×200) using a canvas.
@@ -127,29 +154,67 @@ const EditProfileModal: Component<EditProfileModalProps> = (props) => {
       setAvatarUrl(url);
       setAvatarSource("upload");
       setAvatarUrlInput(url);
-      showToast("Avatar uploaded.", "success", 1500);
+      setAvatarVersion(Date.now());
+      showToast("Avatar uploaded. Save profile to apply it.", "success", 2200);
     } catch (err) {
       console.error("[EditProfileModal] Avatar upload failed:", err);
-      showToast("Failed to upload avatar. Try a URL instead.", "error");
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Failed to upload avatar. Try a URL instead.";
+      showToast(message, "error");
     } finally {
       setUploadingAvatar(false);
     }
   };
 
-  const handleAvatarUrlApply = () => {
+  const handleAvatarUrlApply = async () => {
     const url = avatarUrlInput().trim();
     if (!url) {
       showToast("Enter an image URL.", "error");
       return;
     }
-    setAvatarUrl(url);
-    setAvatarSource("url");
+
+    try {
+      const parsed = new URL(url);
+      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+        throw new Error("Use an http(s) image URL.");
+      }
+    } catch (err) {
+      showToast(
+        err instanceof Error ? err.message : "Enter a valid image URL.",
+        "error"
+      );
+      return;
+    }
+
+    setCheckingAvatarUrl(true);
+    try {
+      await preloadImage(url);
+      setAvatarUrl(url);
+      setAvatarSource("url");
+      setAvatarVersion(Date.now());
+      showToast(
+        "Avatar URL verified. Save profile to apply it.",
+        "success",
+        2200
+      );
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Avatar image could not be loaded.";
+      showToast(message, "error");
+    } finally {
+      setCheckingAvatarUrl(false);
+    }
   };
 
   const handleUseGoogleAvatar = () => {
     setAvatarUrl(null);
     setAvatarUrlInput("");
     setAvatarSource("google");
+    setAvatarVersion(Date.now());
   };
 
   // ── Save ────────────────────────────────────────────────────────────
@@ -172,14 +237,17 @@ const EditProfileModal: Component<EditProfileModalProps> = (props) => {
         displayName: name,
         bio: trimmedBio || null,
         avatarUrl: avatarUrl(),
+        bannerType: bannerType(),
         bannerUrl: bannerUrl()
       });
       if (result.error) throw result.error;
 
       // is_public update removed — social features removed
 
-      showToast("Profile saved.", "success", 1500);
-      props.onSaved?.();
+      // Wait for the parent read to complete so the visible profile receives
+      // the new row and updated_at cache version before closing.
+      await props.onSaved?.();
+      showToast("Profile saved and updated.", "success", 1800);
       props.onClose();
     } catch (err) {
       console.error("[EditProfileModal] Save failed:", err);
@@ -198,7 +266,15 @@ const EditProfileModal: Component<EditProfileModalProps> = (props) => {
   ): Promise<boolean> => {
     setBannerType(type);
     setBannerUrl(url);
+    setBannerVersion(Date.now());
     setBannerEditorOpen(false);
+    showToast(
+      type === "default" || type === "favorite_movie"
+        ? "Banner selection ready. Save profile to apply it."
+        : "Banner uploaded. Save profile to apply it.",
+      "info",
+      2600
+    );
     return true;
   };
 
@@ -286,7 +362,12 @@ const EditProfileModal: Component<EditProfileModalProps> = (props) => {
                     }
                   >
                     <img
-                      src={avatarUrl() ?? props.oauthAvatarUrl ?? ""}
+                      src={
+                        withImageCacheBust(
+                          avatarUrl() ?? props.oauthAvatarUrl,
+                          avatarVersion() ?? props.profile?.updated_at
+                        ) ?? ""
+                      }
                       alt="Avatar preview"
                       class="edit-profile-modal-avatar-img"
                       loading="lazy"
@@ -348,7 +429,9 @@ const EditProfileModal: Component<EditProfileModalProps> = (props) => {
                   <GlassButton
                     variant="secondary"
                     size="compact"
-                    onClick={handleAvatarUrlApply}
+                    onClick={() => void handleAvatarUrlApply()}
+                    loading={checkingAvatarUrl()}
+                    disabled={checkingAvatarUrl()}
                     aria-label="Apply avatar URL"
                   >
                     Apply
@@ -366,8 +449,10 @@ const EditProfileModal: Component<EditProfileModalProps> = (props) => {
                     type="button"
                     class="edit-profile-modal-remove-banner focus-ring"
                     onClick={() => {
-                      setBannerType("default");
-                      setBannerUrl(null);
+                                              setBannerType("default");
+                        setBannerUrl(null);
+                        setBannerVersion(Date.now());
+
                     }}
                     aria-label="Remove banner"
                   >
@@ -376,9 +461,10 @@ const EditProfileModal: Component<EditProfileModalProps> = (props) => {
                 </Show>
               </div>
               <div class="edit-profile-modal-banner-preview">
-                <Show
-                  when={bannerUrl()}
-                  fallback={
+                                  <Show
+                    when={bannerPreviewUrl()}
+                    fallback={
+
                     <div class="edit-profile-modal-banner-placeholder">
                       <span
                         class="material-symbols-outlined"
@@ -391,7 +477,12 @@ const EditProfileModal: Component<EditProfileModalProps> = (props) => {
                   }
                 >
                   <img
-                    src={bannerUrl()!}
+                    src={
+                      withImageCacheBust(
+                        bannerPreviewUrl(),
+                        bannerVersion() ?? props.profile?.updated_at
+                      ) ?? ""
+                    }
                     alt="Banner preview"
                     class="edit-profile-modal-banner-img"
                     loading="lazy"
@@ -447,7 +538,7 @@ const EditProfileModal: Component<EditProfileModalProps> = (props) => {
       <Show when={bannerEditorOpen()}>
         <BannerEditor
           open={bannerEditorOpen()}
-          data={null}
+          data={props.data ?? null}
           currentBannerType={bannerType()}
           currentBannerUrl={bannerUrl()}
           userId={props.userId}
@@ -526,13 +617,10 @@ async function uploadAvatarToSupabase(
     .upload(filePath, blob, { contentType: "image/jpeg", upsert: true });
 
   if (uploadError) {
-    // Bucket missing or permission denied — fall back to data URL so
-    // the user can still save their avatar (graceful degradation).
-    console.warn(
-      "[uploadAvatar] Storage upload failed, falling back to data URL:",
-      uploadError
-    );
-    return blobToDataUrl(blob);
+    // Surface the real Storage failure instead of silently persisting a large
+    // data URL that hides broken bucket or RLS configuration.
+    console.error("[uploadAvatar] Storage upload failed:", uploadError);
+    throw new Error(`Avatar upload failed: ${uploadError.message}`);
   }
 
   const { data: urlData } = supabase.storage
@@ -541,13 +629,28 @@ async function uploadAvatarToSupabase(
   return urlData.publicUrl;
 }
 
-function blobToDataUrl(blob: Blob): Promise<string> {
+function preloadImage(url: string, timeoutMs = 8000): Promise<void> {
   return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = () =>
-      reject(new Error("Failed to convert blob to data URL"));
-    reader.readAsDataURL(blob);
+    const image = new Image();
+    let settled = false;
+    const timeout = window.setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      reject(new Error("Avatar image timed out while loading."));
+    }, timeoutMs);
+
+    const finish = (error?: Error) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeout);
+      if (error) reject(error);
+      else resolve();
+    };
+
+    image.onload = () => finish();
+    image.onerror = () =>
+      finish(new Error("Avatar URL did not return a readable image."));
+    image.src = url;
   });
 }
 

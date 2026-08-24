@@ -64,6 +64,7 @@ const ProfilePage: Component = () => {
   const { activeTab, setActiveTab } = useProfileTabs();
 
   const [editModalOpen, setEditModalOpen] = createSignal(false);
+  const handleProfileSaved = () => refetch();
 
   onMount(() => {
     if (isSignedIn() && uid()) refetch();
@@ -263,9 +264,10 @@ const ProfilePage: Component = () => {
         open={editModalOpen()}
         onClose={() => setEditModalOpen(false)}
         profile={data()?.profile ?? null}
+        data={data()}
         userId={uid() ?? ""}
         oauthAvatarUrl={oauthAvatarUrl()}
-        onSaved={() => refetch()}
+        onSaved={handleProfileSaved}
       />
     </PageContainer>
   );

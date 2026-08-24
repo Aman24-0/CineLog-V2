@@ -170,6 +170,7 @@ export async function updateProfileMetadata(
     displayName?: string;
     bio?: string | null;
     avatarUrl?: string | null;
+    bannerType?: "upload" | "url" | "favorite_movie" | "default";
     bannerUrl?: string | null;
   }
 ): Promise<ProfileResult<ProfileRow>> {

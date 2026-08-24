@@ -22,6 +22,7 @@ import { Show, createMemo, type Component, type Accessor } from "solid-js";
 import { GlassAvatar, GlassIconButton } from "~/shared/ui/glass";
 import type { ProfileRow } from "~/lib/supabase/repositories";
 import type { User } from "~/shared/types";
+import { withImageCacheBust } from "~/shared/utils/imageUrl";
 
 export interface ProfileHeaderProps {
   /** The user's profile row (display_name, username, bio, avatar_url, created_at). */
@@ -43,9 +44,13 @@ const ProfileHeader: Component<ProfileHeaderProps> = (props) => {
   );
   const username = createMemo(() => props.profile()?.username ?? "");
   // Avatar priority: profile.avatar_url → OAuth (Google) photoURL → initials.
-  const avatarUrl = createMemo(
-    () => props.profile()?.avatar_url ?? props.user()?.photoURL ?? null
-  );
+  const avatarUrl = createMemo(() => {
+    const profile = props.profile();
+    return withImageCacheBust(
+      profile?.avatar_url ?? props.user()?.photoURL ?? null,
+      profile?.updated_at
+    );
+  });
   const bio = createMemo(() => props.profile()?.bio ?? "");
 
   const memberSince = createMemo(() => {

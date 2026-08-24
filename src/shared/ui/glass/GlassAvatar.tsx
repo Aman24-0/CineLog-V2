@@ -5,7 +5,9 @@ import {
   Show,
   splitProps,
   mergeProps,
-  createSignal
+  createSignal,
+  createEffect,
+  on
 } from "solid-js";
 
 // ─── Size Types ────────────────────────────────────────────────
@@ -64,6 +66,16 @@ const GlassAvatar: Component<GlassAvatarProps> = (rawProps) => {
 
   const [imgError, setImgError] = createSignal(false);
 
+  // A previous URL can fail and switch the avatar to initials. Reset that
+  // state when the source changes so a newly saved/uploaded image gets a fresh
+  // load attempt.
+  createEffect(
+    on(
+      () => local.src,
+      () => setImgError(false)
+    )
+  );
+
   /**
    * Derive up to two uppercase initials from a name.
    *
@@ -96,9 +108,7 @@ const GlassAvatar: Component<GlassAvatarProps> = (rawProps) => {
       // (e.g. "John" → "JO"). If the word is a single character
       // (e.g. an initial "J"), we'd get "J" with no padding.
       const w = words[0];
-      return w.length === 1
-        ? w.toUpperCase()
-        : (w.slice(0, 2).toUpperCase());
+      return w.length === 1 ? w.toUpperCase() : w.slice(0, 2).toUpperCase();
     }
     // Two-or-more-word name → first letter of each of the first two words.
     const first = words[0].charAt(0);

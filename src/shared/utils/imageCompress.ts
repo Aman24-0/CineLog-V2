@@ -114,10 +114,9 @@ function loadImage(file: File): Promise<HTMLImageElement> {
  * @param blob The compressed image blob.
  * @returns The public URL of the uploaded image.
  *
- * On upload failure (bucket missing, RLS rejection, network error),
- * falls back to a base64 data URL so the user's banner still updates
- * locally — the data URL is stored in profiles.banner_url. This is
- * larger than a Storage URL but avoids blocking the user's edit.
+ * On upload failure (bucket missing, RLS rejection, network error), throws
+ * an explicit error so the editor can show the user the real failure instead
+ * of persisting a large data URL that hides a broken Storage configuration.
  */
 export async function uploadBannerToSupabase(
   userId: string,
@@ -139,20 +138,10 @@ export async function uploadBannerToSupabase(
     });
 
   if (uploadError) {
-    // Log the full error so the actual cause is visible in the
-    // browser console. Common causes:
-    //   • "Bucket not found" — the banners bucket doesn't exist
-    //     (fixed by migration 20260805_create_banners_bucket.sql)
-    //   • "new row violates row-level security policy" — RLS rejected
-    //     the write because the path doesn't start with the caller's uid
-    //   • "Payload too large" — the blob exceeds the bucket's
-    //     file_size_limit (5 MB for banners)
-    console.warn(
-      "[uploadBanner] Storage upload failed, falling back to data URL:",
-      uploadError.message,
-      uploadError
-    );
-    return blobToDataUrl(blob);
+    // Do not fall back to a data URL. A fallback would make the UI appear to
+    // succeed while hiding a missing bucket, RLS rejection, or size problem.
+    console.error("[uploadBanner] Storage upload failed:", uploadError);
+    throw new Error(`Banner upload failed: ${uploadError.message}`);
   }
 
   // Get the public URL — banners is a public bucket so the URL is
@@ -162,18 +151,4 @@ export async function uploadBannerToSupabase(
     .getPublicUrl(filePath);
 
   return urlData.publicUrl;
-}
-
-/**
- * Convert a Blob to a data URL (base64). Used as a fallback when
- * Supabase Storage is unavailable.
- */
-function blobToDataUrl(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = () =>
-      reject(new Error("Failed to convert blob to data URL"));
-    reader.readAsDataURL(blob);
-  });
 }

@@ -268,6 +268,27 @@ describe("profile.utils", () => {
       const result = toProfileUpdate({ bio: "New" } as UpdateProfilePayload);
       expect(result.bio).toBe("New");
     });
+
+    it("persists the selected banner type together with its URL", () => {
+      const result = toProfileUpdate({
+        bannerType: "upload",
+        bannerUrl:
+          "https://example.supabase.co/storage/v1/object/public/banners/u/banner.jpg"
+      });
+      expect(result.banner_type).toBe("upload");
+      expect(result.banner_url).toBe(
+        "https://example.supabase.co/storage/v1/object/public/banners/u/banner.jpg"
+      );
+    });
+
+    it("can clear the URL when switching to an automatic banner", () => {
+      const result = toProfileUpdate({
+        bannerType: "favorite_movie",
+        bannerUrl: null
+      });
+      expect(result.banner_type).toBe("favorite_movie");
+      expect(result.banner_url).toBeNull();
+    });
   });
 
   describe("toPreferencesUpdate", () => {
