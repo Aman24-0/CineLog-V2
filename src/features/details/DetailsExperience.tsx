@@ -31,6 +31,7 @@ import {
   resolveTitle
 } from "~/shared/utils/share";
 import { useMdbListRatings } from "~/features/details/useMdbListRatings";
+import { tmdbImage } from "~/core/tmdb/tmdb";
 
 import DetailsHero from "./DetailsModal/DetailsHero";
 import DetailsHeader from "./DetailsModal/DetailsHeader";
@@ -105,6 +106,10 @@ export default function DetailsExperience(props: DetailsExperienceProps) {
   const baseItem = createMemo(() => props.selectedItem()?.baseItem ?? null);
   const vaultItem = createMemo(() => props.selectedItem()?.vaultItem ?? null);
   const inVault = createMemo(() => vaultItem() !== null);
+  const ambientBackdropUrl = createMemo(() => {
+    const path = baseItem()?.backdrop_path || tmdb()?.backdrop_path;
+    return path ? tmdbImage(path, "w1280") : "";
+  });
 
   // Derived values for the ShareSheet — the TMDB id, media_type, and
   // the rich details payload (genres, vote_average, seasons, etc.).
@@ -300,6 +305,16 @@ export default function DetailsExperience(props: DetailsExperienceProps) {
           ? "details-page-shell"
           : "animate-fade-in fixed inset-0 z-[999999] flex items-end justify-center p-0 sm:items-center sm:p-4"
       }
+      data-detail-mode={props.mode ?? "modal"}
+      style={
+        props.mode === "page"
+          ? ({
+              "--detail-ambient-image": ambientBackdropUrl()
+                ? `url("${ambientBackdropUrl()}")`
+                : "none"
+            } as Record<string, string>)
+          : undefined
+      }
       onClick={props.mode === "page" ? undefined : close}
       role={props.mode === "page" ? "region" : "dialog"}
       aria-modal={props.mode === "page" ? undefined : "true"}
@@ -342,20 +357,6 @@ export default function DetailsExperience(props: DetailsExperienceProps) {
           props.mode === "page" ? undefined : (event) => event.stopPropagation()
         }
       >
-        <Show when={props.mode === "page"}>
-          <button
-            type="button"
-            class="details-page-back focus-ring"
-            onClick={close}
-            aria-label="Back to previous page"
-          >
-            <span class="material-symbols-outlined" aria-hidden="true">
-              arrow_back
-            </span>
-            <span>Back</span>
-          </button>
-        </Show>
-
         <Show when={props.mode !== "page" && !showTrailer()}>
           <button
             onClick={close}
@@ -390,6 +391,7 @@ export default function DetailsExperience(props: DetailsExperienceProps) {
                   onPlayTrailer={() => setShowTrailer(true)}
                   onClose={close}
                   onCloseTrailer={() => setShowTrailer(false)}
+                  pageMode={props.mode === "page"}
                 />
                 <DetailsHeader
                   baseItem={baseItem}

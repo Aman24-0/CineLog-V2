@@ -18,6 +18,8 @@ interface CinematicHeroProps {
   hasTrailer?: boolean;
   /** Called when the user turns the trailer on. */
   onPlayTrailer?: () => void;
+  /** Dedicated page mode places Back in the hero safe area. */
+  pageMode?: boolean;
 }
 
 /**
@@ -43,9 +45,9 @@ interface CinematicHeroProps {
  *  close button (z-index: 20). When the trailer is active, the overlay
  *  is hidden so the video is fully visible.
  *
- *  A single top-right Trailer toggle controls both states. Turning the
- *  trailer off unmounts the iframe, releasing the player and restoring the
- *  artwork without introducing a second close control.
+ *  The dedicated page uses an artwork-integrated Watch Trailer CTA. When the
+ *  player is active, a compact exit control unmounts the iframe and restores
+ *  the same hero artwork without changing the hero dimensions.
  *
  * SSR-safe: all data from props, no client-only APIs.
  */
@@ -195,32 +197,52 @@ export default function CinematicHero(props: CinematicHeroProps) {
         </Show>
       </div>
 
-      {/* One control for both trailer states. It stays in the hero corner
-          above the media and fade layer, so ON → OFF cleanly unmounts the
-          player and restores the artwork without a second close control. */}
-      <Show when={props.hasTrailer && !!props.onPlayTrailer}>
+      <Show when={props.pageMode}>
         <button
           type="button"
-          class="cinematic-hero-trailer-toggle"
-          onClick={() =>
-            props.trailerActive
-              ? props.onCloseTrailer?.()
-              : props.onPlayTrailer?.()
-          }
-          aria-pressed={props.trailerActive}
-          aria-label={
-            props.trailerActive ? "Turn trailer off" : "Turn trailer on"
-          }
-          title={
-            props.trailerActive
-              ? "Trailer On — turn off"
-              : "Trailer Off — turn on"
-          }
+          class="cinematic-hero-back focus-ring"
+          onClick={() => props.onClose()}
+          aria-label="Back to previous page"
         >
           <span class="material-symbols-outlined" aria-hidden="true">
-            {props.trailerActive ? "pause" : "play_arrow"}
+            arrow_back
           </span>
-          <span>{props.trailerActive ? "Trailer On" : "Trailer Off"}</span>
+          <span>Back</span>
+        </button>
+      </Show>
+
+      {/* Trailer entry belongs to the artwork. It is intentionally absent
+          when no trailer is available and disappears into the same hero box
+          when the native player is active. */}
+      <Show
+        when={props.hasTrailer && !!props.onPlayTrailer && !props.trailerActive}
+      >
+        <button
+          type="button"
+          class="cinematic-hero-watch-cta focus-ring"
+          onClick={() => props.onPlayTrailer?.()}
+          aria-label="Watch trailer"
+        >
+          <span class="material-symbols-outlined" aria-hidden="true">
+            play_arrow
+          </span>
+          <span>Watch Trailer</span>
+        </button>
+      </Show>
+
+      {/* The player needs a way back to the artwork, but this is a secondary
+          player control rather than the former Trailer On/Off toggle. */}
+      <Show when={props.trailerActive && props.onCloseTrailer}>
+        <button
+          type="button"
+          class="cinematic-hero-player-close focus-ring"
+          onClick={() => props.onCloseTrailer?.()}
+          aria-label="Close trailer"
+        >
+          <span class="material-symbols-outlined" aria-hidden="true">
+            close
+          </span>
+          <span>Close trailer</span>
         </button>
       </Show>
     </div>

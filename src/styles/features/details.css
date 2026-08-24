@@ -47,43 +47,6 @@
   margin: 0 auto;
 }
 
-.details-page-back {
-  position: absolute;
-  top: 1rem;
-  left: clamp(0.75rem, 3vw, 2rem);
-  z-index: 8;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  min-height: 44px;
-  margin: 0;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius-pill);
-  background: var(--glass-bg);
-  color: var(--text-soft);
-  font-family: "Outfit", sans-serif;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition:
-    color var(--dur-fast) var(--ease-out),
-    background var(--dur-fast) var(--ease-out),
-    border-color var(--dur-fast) var(--ease-out),
-    transform var(--dur-fast) var(--ease-out);
-}
-.details-page-back:hover {
-  color: var(--text-strong);
-  background: var(--glass-bg-strong);
-  border-color: var(--hairline-2);
-}
-.details-page-back:active {
-  transform: scale(0.97);
-}
-.details-page-back .material-symbols-outlined {
-  font-size: 18px;
-}
-
 .details-page-modal {
   max-height: none;
   overflow: visible;
@@ -190,61 +153,6 @@
       ),
     /* Left fade for text legibility on wide screens */
     linear-gradient(to right, rgba(8, 8, 13, 0.5) 0%, transparent 50%);
-}
-
-/* One top-right control owns both trailer states. It remains above the
-   iframe when active and reads as an explicit toggle rather than a second
-   close action. */
-.cinematic-hero-trailer-toggle {
-  position: absolute;
-  top: var(--sp-4);
-  right: var(--sp-4);
-  z-index: 20;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  min-height: 2.5rem;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  border-radius: var(--radius-pill);
-  background: rgba(8, 8, 13, 0.68);
-  backdrop-filter: blur(var(--blur-md));
-  -webkit-backdrop-filter: blur(var(--blur-md));
-  color: var(--text-strong);
-  font-family: "Outfit", sans-serif;
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  white-space: nowrap;
-  cursor: pointer;
-  transition:
-    transform var(--dur-fast) var(--ease-spring),
-    background var(--dur-fast) var(--ease-out),
-    border-color var(--dur-fast) var(--ease-out),
-    color var(--dur-fast) var(--ease-out);
-}
-.cinematic-hero-trailer-toggle:hover {
-  background: rgba(8, 8, 13, 0.88);
-  border-color: var(--p);
-}
-.cinematic-hero-trailer-toggle:active {
-  transform: scale(0.97);
-}
-.cinematic-hero-trailer-toggle[aria-pressed="true"] {
-  background: color-mix(in srgb, var(--p) 82%, #081013);
-  border-color: var(--p);
-  color: var(--on-primary, #081013);
-}
-.cinematic-hero-trailer-toggle .material-symbols-outlined {
-  font-size: 1.125rem;
-}
-@media (max-width: 639px) {
-  .cinematic-hero-trailer-toggle {
-    top: 0.75rem;
-    right: 0.75rem;
-    padding-inline: 0.625rem;
-    font-size: 0.6875rem;
-  }
 }
 
 /* Ambient backdrop continuation — blurred tint that bleeds into content */
@@ -3928,21 +3836,61 @@
   }
 }
 
-/* ─── Final UI pass: dedicated detail pages are true page surfaces ─────── */
+/* ============================================================================
+   CINEMATIC DETAIL EXPERIENCE — dedicated page mode
+   The page is a single atmospheric surface. Media stays crisp inside the hero;
+   only the boundary feather crosses into the page background.
+   ============================================================================ */
 .details-page-shell {
+  position: relative;
   width: 100%;
   min-height: 100%;
   padding: 0 0 3rem;
+  isolation: isolate;
+  overflow: clip;
   background:
     radial-gradient(
-      ellipse 100% 42% at 50% 0%,
-      color-mix(in srgb, var(--p) 5%, transparent),
+      ellipse 92% 40% at 50% 0%,
+      color-mix(in srgb, var(--p) 7%, transparent),
       transparent 72%
     ),
-    var(--void-ambient);
+    var(--void);
+}
+
+.details-page-shell::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: min(52rem, 78vh);
+  pointer-events: none;
+  background-image:
+    linear-gradient(
+      to bottom,
+      rgba(5, 7, 12, 0.24) 0%,
+      rgba(5, 7, 12, 0.72) 48%,
+      var(--void) 100%
+    ),
+    var(--detail-ambient-image, none);
+  background-position: center top;
+  background-size: cover;
+  background-repeat: no-repeat;
+  opacity: 0.32;
+  filter: saturate(0.72) brightness(0.62);
+  mask-image: linear-gradient(to bottom, black 0%, black 46%, transparent 100%);
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    black 0%,
+    black 46%,
+    transparent 100%
+  );
 }
 
 .details-page-content {
+  position: relative;
+  z-index: 1;
   width: 100%;
   max-width: 1280px;
   margin: 0 auto;
@@ -3969,34 +3917,349 @@
   background: var(--void-ambient);
 }
 
-.details-page-modal .cinematic-hero {
-  width: 100%;
-  border-radius: 0;
-}
-
 .details-page-modal .details-page-scroll > :not(.cinematic-hero) {
   width: min(100%, 1120px);
-  margin-left: auto;
   margin-right: auto;
+  margin-left: auto;
 }
 
 .details-page-modal .details-page-scroll > .detail-section {
-  padding-left: clamp(1rem, 4vw, 2rem);
   padding-right: clamp(1rem, 4vw, 2rem);
+  padding-left: clamp(1rem, 4vw, 2rem);
+}
+
+.details-page-modal .cinematic-hero {
+  width: 100%;
+  border-radius: 0;
+  height: clamp(24rem, 102vw, 34rem);
+  min-height: 24rem;
+  max-height: 34rem;
+  overflow: visible;
+  background:
+    linear-gradient(180deg, rgba(5, 7, 12, 0.22), rgba(5, 7, 12, 0.08)), #10141b;
+  isolation: isolate;
+}
+
+.details-page-modal .cinematic-hero-media {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  isolation: isolate;
+  border-radius: inherit;
+  background: #10141b;
+}
+
+.details-page-modal .cinematic-backdrop {
+  filter: brightness(0.68) saturate(0.9);
+  transform: scale(1.035);
 }
 
 .details-page-modal .cinematic-hero-overlay {
-  /* Keep the artwork clean in page mode. The top/left layers preserve
-     control and text legibility; the boundary transition is owned by the
-     external `.cinematic-hero::before` feather below. */
   background:
     linear-gradient(
       to bottom,
-      rgba(8, 8, 13, 0.62) 0%,
-      rgba(8, 8, 13, 0.18) 18%,
-      transparent 32%
+      rgba(5, 7, 12, 0.7) 0%,
+      rgba(5, 7, 12, 0.2) 20%,
+      transparent 42%
     ),
-    linear-gradient(to right, rgba(8, 8, 13, 0.52) 0%, transparent 54%);
+    linear-gradient(to right, rgba(5, 7, 12, 0.5) 0%, transparent 58%);
+}
+
+/* The fade is outside the clipped media surface. Only its first 2rem kisses
+   the hero edge, so the artwork itself is never painted with a blur. */
+.details-page-modal .cinematic-hero::before {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  right: -8%;
+  bottom: -9rem;
+  left: -8%;
+  height: 10.5rem;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      ellipse 72% 60% at 50% 0%,
+      color-mix(in srgb, var(--p) 7%, transparent),
+      transparent 72%
+    ),
+    linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--void) 4%, transparent) 0%,
+      color-mix(in srgb, var(--void) 44%, transparent) 26%,
+      color-mix(in srgb, var(--void) 86%, transparent) 68%,
+      var(--void) 100%
+    );
+  filter: blur(12px);
+  opacity: 0.98;
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    black 13%,
+    black 84%,
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    black 13%,
+    black 84%,
+    transparent 100%
+  );
+}
+
+.details-page-modal .cinematic-hero-back,
+.details-page-modal .cinematic-hero-player-close {
+  position: absolute;
+  z-index: 10;
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  gap: 0.45rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-pill);
+  background: rgba(5, 7, 12, 0.5);
+  backdrop-filter: blur(16px) saturate(130%);
+  -webkit-backdrop-filter: blur(16px) saturate(130%);
+  color: var(--text-strong);
+  font-family: "Outfit", sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.015em;
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-spring);
+}
+.details-page-modal .cinematic-hero-back {
+  top: clamp(0.75rem, 3vw, 1.5rem);
+  left: clamp(0.75rem, 4vw, 2rem);
+  padding: 0.5rem 0.85rem 0.5rem 0.65rem;
+}
+.details-page-modal .cinematic-hero-player-close {
+  top: clamp(0.75rem, 3vw, 1.5rem);
+  right: clamp(0.75rem, 4vw, 2rem);
+  padding: 0.5rem 0.8rem;
+}
+.details-page-modal .cinematic-hero-back:hover,
+.details-page-modal .cinematic-hero-player-close:hover {
+  background: rgba(5, 7, 12, 0.82);
+  border-color: color-mix(in srgb, var(--p) 62%, white 12%);
+  color: var(--text-strong);
+}
+.details-page-modal .cinematic-hero-back:active,
+.details-page-modal .cinematic-hero-player-close:active {
+  transform: scale(0.97);
+}
+.details-page-modal .cinematic-hero-back .material-symbols-outlined,
+.details-page-modal .cinematic-hero-player-close .material-symbols-outlined {
+  font-size: 1.2rem;
+}
+
+.details-page-modal .cinematic-hero-watch-cta {
+  position: absolute;
+  z-index: 10;
+  top: 50%;
+  left: 50%;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 3rem;
+  padding: 0.7rem 1.15rem 0.7rem 0.85rem;
+  border: 1px solid color-mix(in srgb, var(--p) 54%, white 18%);
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--void) 68%, var(--p) 32%);
+  box-shadow:
+    0 10px 28px rgba(0, 0, 0, 0.35),
+    0 0 26px color-mix(in srgb, var(--p-glow) 62%, transparent);
+  color: var(--text-strong);
+  font-family: "Outfit", sans-serif;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  transform: translate(-50%, -50%);
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-spring);
+}
+.details-page-modal .cinematic-hero-watch-cta:hover {
+  background: color-mix(in srgb, var(--p) 72%, var(--void) 28%);
+  border-color: var(--p);
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, 0.42),
+    0 0 34px var(--p-glow);
+  transform: translate(-50%, calc(-50% - 2px));
+}
+.details-page-modal .cinematic-hero-watch-cta:active {
+  transform: translate(-50%, -50%) scale(0.97);
+}
+.details-page-modal .cinematic-hero-watch-cta .material-symbols-outlined {
+  font-size: 1.35rem;
+  font-variation-settings:
+    "FILL" 1,
+    "wght" 600,
+    "GRAD" 0,
+    "opsz" 24;
+}
+
+.details-page-modal .hero-content-cluster {
+  position: relative;
+  z-index: 4;
+  align-items: flex-start;
+  gap: clamp(0.8rem, 3vw, 1.5rem);
+  margin-top: clamp(-6.75rem, -16vw, -4rem);
+  padding: 0 clamp(1rem, 5vw, 3rem) 1.35rem;
+  overflow: visible;
+  contain: none;
+}
+.details-page-modal .floating-poster {
+  width: clamp(7.25rem, 27vw, 11rem);
+  height: auto;
+  aspect-ratio: 2 / 3;
+  margin-top: 0.35rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: clamp(1rem, 3vw, 1.4rem);
+  box-shadow:
+    0 18px 38px rgba(0, 0, 0, 0.46),
+    0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+.details-page-modal .hero-content-cluster > .min-w-0 {
+  padding-top: clamp(0.35rem, 1.5vw, 1rem);
+}
+.details-page-modal .hero-title {
+  max-width: 19ch;
+  font-size: clamp(2.25rem, 9vw, 4.4rem);
+  line-height: 0.92;
+  letter-spacing: 0.015em;
+  text-wrap: balance;
+}
+.details-page-modal .hero-tagline {
+  max-width: 34ch;
+  margin-top: 0.7rem;
+  font-size: clamp(0.9rem, 2vw, 1.1rem);
+  line-height: 1.35;
+}
+.details-page-modal .hero-quick-meta {
+  gap: 0.4rem;
+  margin-top: 0.8rem;
+}
+.details-page-modal .hero-quick-meta .v2-pill {
+  min-height: 2rem;
+  padding: 0.42rem 0.7rem;
+  border-color: color-mix(in srgb, var(--p) 30%, var(--hairline-2));
+  background: rgba(5, 7, 12, 0.46);
+  font-size: 0.57rem;
+  letter-spacing: 0.1em;
+}
+.details-page-modal .hero-quick-meta + .hero-quick-meta {
+  margin-top: 0.45rem;
+}
+
+.details-page-modal .action-dock {
+  position: relative;
+  z-index: 5;
+  width: calc(100% - clamp(2rem, 10vw, 6rem));
+  margin-top: 0.1rem;
+  margin-bottom: 0;
+  padding: 0.55rem;
+  border-color: color-mix(
+    in srgb,
+    var(--p) 26%,
+    var(--glass-border-warm-strong)
+  );
+  border-radius: 1.35rem;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--p) 8%, var(--glass-bg-strong)),
+    var(--glass-bg-strong) 48%,
+    color-mix(in srgb, var(--void) 76%, var(--glass-bg-strong))
+  );
+  box-shadow:
+    0 20px 42px rgba(0, 0, 0, 0.28),
+    0 0 28px color-mix(in srgb, var(--p-glow) 34%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+.details-page-modal .action-dock-btn {
+  background: rgba(5, 7, 12, 0.34);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+.details-page-modal .action-dock-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+.details-page-modal .detail-section {
+  width: min(100% - clamp(2rem, 10vw, 6rem), 1120px);
+  margin-top: clamp(2rem, 5vw, 3.25rem);
+  padding-right: 0;
+  padding-left: 0;
+}
+.details-page-modal .detail-section-label {
+  margin-bottom: 1rem;
+  color: color-mix(in srgb, var(--text-soft) 88%, var(--p));
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+}
+.details-page-modal .detail-section-label::before {
+  width: 4px;
+  height: 1rem;
+  box-shadow: 0 0 12px var(--p-glow);
+}
+.details-page-modal .rating-cluster,
+.details-page-modal .metadata-cell,
+.details-page-modal .season-card {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(5, 7, 12, 0.32);
+}
+.details-page-modal .cinematic-trailer-player {
+  background: #000;
+}
+
+@media (min-width: 640px) {
+  .details-page-modal .cinematic-hero {
+    height: clamp(27rem, 40vw, 36rem);
+    min-height: 27rem;
+    max-height: 36rem;
+  }
+
+  .details-page-modal .hero-content-cluster {
+    margin-top: clamp(-8rem, -9vw, -5rem);
+    padding-right: clamp(2rem, 7vw, 5rem);
+    padding-left: clamp(2rem, 7vw, 5rem);
+  }
+
+  .details-page-modal .floating-poster {
+    width: clamp(9rem, 17vw, 11rem);
+  }
+
+  .details-page-modal .hero-title {
+    max-width: 16ch;
+    font-size: clamp(3rem, 5vw, 4.4rem);
+  }
+
+  .details-page-modal .hero-tagline {
+    font-size: 1.05rem;
+  }
+
+  .details-page-modal .action-dock {
+    width: min(calc(100% - 8rem), 1120px);
+    margin-top: 0.35rem;
+  }
+
+  .details-page-modal .detail-section {
+    width: min(calc(100% - 8rem), 1120px);
+  }
+}
+
+@media (min-width: 1024px) {
+  .details-page-shell::before {
+    height: min(58rem, 92vh);
+  }
 }
 
 @media (max-width: 639px) {
@@ -4013,119 +4276,28 @@
   .details-page-modal .details-page-scroll > :not(.cinematic-hero) {
     width: 100%;
   }
+
+  .details-page-modal .detail-section {
+    width: calc(100% - 2rem);
+  }
+
+  .details-page-modal .action-dock {
+    width: calc(100% - 1rem);
+  }
 }
 
 @media (min-width: 1024px) {
   .app-shell-bg > #main-content > .details-page-shell {
     max-width: none;
-    padding-left: 0 !important;
     padding-right: 0 !important;
+    padding-left: 0 !important;
   }
 }
 
-/* ─── Final screenshot pass: external atmospheric hero transition ───────── */
-.details-page-modal .cinematic-hero {
-  overflow: visible;
-  isolation: isolate;
-}
-
-.details-page-modal .cinematic-hero-media {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  overflow: hidden;
-  isolation: isolate;
-  border-radius: inherit;
-}
-
-/* The feather lives outside the clipped media layer. It only kisses the
-   final 1.5rem of the hero, then continues for a full 10rem into the page so
-   the artwork stays clean while the rectangular boundary disappears. */
-.details-page-modal .cinematic-hero::before {
-  content: "";
-  position: absolute;
-  left: -10%;
-  right: -10%;
-  bottom: -10rem;
-  height: 11.5rem;
-  z-index: 1;
-  pointer-events: none;
-  background:
-    radial-gradient(
-      ellipse 70% 58% at 50% 0%,
-      color-mix(in srgb, var(--p) 8%, transparent) 0%,
-      transparent 72%
-    ),
-    linear-gradient(
-      to bottom,
-      color-mix(in srgb, var(--void-ambient) 5%, transparent) 0%,
-      color-mix(in srgb, var(--void-ambient) 24%, transparent) 18%,
-      color-mix(in srgb, var(--void-ambient) 68%, transparent) 56%,
-      var(--void-ambient) 100%
-    );
-  filter: blur(14px);
-  opacity: 0.98;
-  mask-image: linear-gradient(
-    to bottom,
-    transparent 0%,
-    black 12%,
-    black 86%,
-    transparent 100%
-  );
-  -webkit-mask-image: linear-gradient(
-    to bottom,
-    transparent 0%,
-    black 12%,
-    black 86%,
-    transparent 100%
-  );
-}
-
-.details-page-modal .hero-content-cluster {
-  position: relative;
-  z-index: 3;
-  margin-top: 0;
-  padding: 1rem 1.5rem 0.5rem;
-  overflow: hidden;
-  contain: content;
-}
-
-.details-page-modal .floating-poster {
-  box-shadow:
-    var(--shadow-premium),
-    0 0 0 1px var(--hairline-2),
-    0 12px 28px rgba(0, 0, 0, 0.42);
-}
-
-.details-page-modal .action-dock,
-.details-page-modal .detail-section,
-.details-page-modal .season-navigator {
-  width: min(100%, 1000px);
-  margin-right: auto;
-  margin-left: auto;
-}
-
-.details-page-modal .action-dock {
-  margin-top: 1rem;
-}
-
-@media (min-width: 640px) {
-  .details-page-modal .hero-content-cluster {
-    margin-top: 0;
-    padding: 1.25rem 2rem 0.5rem;
-  }
-
-  .details-page-modal .action-dock {
-    margin-top: 1.25rem;
+@media (prefers-reduced-motion: reduce) {
+  .details-page-modal .cinematic-hero-watch-cta,
+  .details-page-modal .cinematic-hero-back,
+  .details-page-modal .cinematic-hero-player-close {
+    transition: none;
   }
 }
-
-@media (max-width: 639px) {
-  .details-page-modal .hero-content-cluster {
-    gap: 0.875rem;
-    margin-top: 0;
-    padding: 1rem;
-  }
-}
-
-/* ─── End page-mode cinematic composition ───────────────────────────────── */

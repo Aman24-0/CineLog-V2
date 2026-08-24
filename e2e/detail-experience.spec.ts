@@ -1,0 +1,347 @@
+import { expect, test, type Page } from "@playwright/test";
+
+const movieDetail = {
+  id: 101,
+  title: "House of the Dragon",
+  original_title: "House of the Dragon",
+  tagline: "The history of the Targaryen civil war.",
+  overview:
+    "The Targaryen dynasty is at the absolute apex of its power, with more than 15 dragons under their yoke.",
+  poster_path: "/house-poster.jpg",
+  backdrop_path: "/house-backdrop.jpg",
+  release_date: "2022-01-01",
+  runtime: 67,
+  media_type: "movie",
+  genres: [
+    { id: 1, name: "Sci-Fi & Fantasy" },
+    { id: 2, name: "Drama" },
+    { id: 3, name: "Action & Adventure" }
+  ],
+  vote_average: 8.4,
+  vote_count: 1000,
+  videos: {
+    results: [
+      {
+        key: "house-trailer",
+        site: "YouTube",
+        type: "Trailer",
+        official: true,
+        name: "House of the Dragon Official Trailer",
+        published_at: "2022-01-01T00:00:00.000Z"
+      }
+    ]
+  },
+  credits: { cast: [], crew: [] },
+  production_countries: [
+    { iso_3166_1: "US", name: "United States of America" }
+  ],
+  production_companies: [{ id: 1, name: "HBO" }],
+  spoken_languages: [
+    { english_name: "English", iso_639_1: "en", name: "English" }
+  ]
+};
+
+const tvDetail = {
+  ...movieDetail,
+  id: 202,
+  title: undefined,
+  original_title: undefined,
+  name: "House of the Dragon",
+  original_name: "House of the Dragon",
+  first_air_date: "2022-01-01",
+  release_date: undefined,
+  runtime: undefined,
+  episode_run_time: [60],
+  media_type: "tv",
+  number_of_seasons: 3,
+  number_of_episodes: 26,
+  seasons: [
+    {
+      id: 1,
+      name: "Season 1",
+      season_number: 1,
+      episode_count: 10,
+      air_date: "2022-01-01",
+      poster_path: null
+    },
+    {
+      id: 2,
+      name: "Season 2",
+      season_number: 2,
+      episode_count: 8,
+      air_date: "2024-01-01",
+      poster_path: null
+    }
+  ],
+  status: "Returning Series"
+};
+
+const noTrailerDetail = {
+  ...movieDetail,
+  id: 303,
+  title: "A Film Without a Trailer",
+  backdrop_path: null,
+  videos: { results: [] }
+};
+
+const complexDetail = {
+  ...movieDetail,
+  id: 404,
+  title:
+    "The Incredibly Long International Title That Must Stay Readable on Every Screen",
+  tagline: "",
+  poster_path: null,
+  backdrop_path: null,
+  videos: { results: [] },
+  genres: [
+    { id: 1, name: "Action & Adventure" },
+    { id: 2, name: "Sci-Fi & Fantasy" },
+    { id: 3, name: "Drama" },
+    { id: 4, name: "Mystery" },
+    { id: 5, name: "Thriller" },
+    { id: 6, name: "War" }
+  ]
+};
+
+async function mockDetailApi(page: Page) {
+  await page.route("https://image.tmdb.org/**", async (route) => {
+    const isPoster = new URL(route.request().url()).pathname.includes("w342");
+    const artwork = isPoster
+      ? `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 342 513"><defs><linearGradient id="poster" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#173b3a"/><stop offset="0.52" stop-color="#6d4a2b"/><stop offset="1" stop-color="#080b11"/></linearGradient></defs><rect width="342" height="513" fill="url(#poster)"/><circle cx="220" cy="188" r="98" fill="#c2a269" fill-opacity=".28"/><path d="M42 424c70-132 142-132 258 0" fill="none" stroke="#e8d7ad" stroke-opacity=".4" stroke-width="12"/></svg>`
+      : `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720"><defs><linearGradient id="backdrop" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#10242d"/><stop offset="0.48" stop-color="#4f5137"/><stop offset="1" stop-color="#130f13"/></linearGradient></defs><rect width="1280" height="720" fill="url(#backdrop)"/><circle cx="870" cy="250" r="170" fill="#d6bb7b" fill-opacity=".2"/><path d="M0 560c220-150 390-110 620 8s410 94 660-62v214H0z" fill="#05080d" fill-opacity=".62"/></svg>`;
+    await route.fulfill({
+      contentType: "image/svg+xml",
+      body: artwork
+    });
+  });
+
+  await page.route("**/api/media/**", async (route) => {
+    const url = new URL(route.request().url());
+    const path = url.pathname;
+
+    if (path.endsWith("/search/multi")) {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          results: [
+            {
+              ...movieDetail,
+              title: "House of the Dragon Movie",
+              media_type: "movie"
+            },
+            {
+              ...noTrailerDetail,
+              media_type: "movie"
+            },
+            {
+              ...tvDetail,
+              title: undefined,
+              name: "House of the Dragon TV",
+              media_type: "tv"
+            },
+            {
+              ...complexDetail,
+              media_type: "movie"
+            }
+          ],
+          total_results: 4
+        })
+      });
+      return;
+    }
+
+    if (path.endsWith("/search/person")) {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({ results: [] })
+      });
+      return;
+    }
+
+    if (path.includes("/ratings")) {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({})
+      });
+      return;
+    }
+
+    if (path.endsWith("/movie/101")) {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify(movieDetail)
+      });
+      return;
+    }
+
+    if (path.endsWith("/tv/202")) {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify(tvDetail)
+      });
+      return;
+    }
+
+    if (path.endsWith("/movie/303")) {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify(noTrailerDetail)
+      });
+      return;
+    }
+
+    if (path.endsWith("/movie/404")) {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify(complexDetail)
+      });
+      return;
+    }
+
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ results: [] })
+    });
+  });
+}
+
+async function openFixtureFromSearch(page: Page, titlePattern: RegExp) {
+  await page.goto("/search?q=House");
+  const results = page.locator(".search-result-main");
+  const result = page.getByRole("button", {
+    name: new RegExp(`${titlePattern.source}.*open details`, titlePattern.flags)
+  });
+  await expect(results).toHaveCount(4);
+  await result.click();
+}
+
+async function expectNoHorizontalOverflow(page: Page) {
+  const dimensions = await page.evaluate(() => ({
+    documentWidth: document.documentElement.scrollWidth,
+    viewportWidth: window.innerWidth
+  }));
+  expect(dimensions.documentWidth).toBeLessThanOrEqual(
+    dimensions.viewportWidth + 1
+  );
+}
+
+for (const viewport of [
+  { width: 390, height: 844 },
+  { width: 1440, height: 900 }
+]) {
+  test.describe(`Dedicated detail experience at ${viewport.width}x${viewport.height}`, () => {
+    test.beforeEach(async ({ page }) => {
+      await page.setViewportSize(viewport);
+      await mockDetailApi(page);
+    });
+
+    test("renders an artwork-led movie hero with stable trailer swap", async ({
+      page
+    }) => {
+      await openFixtureFromSearch(page, /House of the Dragon Movie/);
+
+      const shell = page.locator(".details-page-shell");
+      const hero = page.locator(".cinematic-hero");
+      await expect(shell).toBeVisible();
+      await expect(hero).toBeVisible();
+      await expect(page.locator(".cinematic-hero-back")).toHaveAccessibleName(
+        "Back to previous page"
+      );
+      await expect(
+        page.getByRole("button", { name: "Watch trailer" })
+      ).toBeVisible();
+      await expect(page.locator(".cinematic-hero-trailer-toggle")).toHaveCount(
+        0
+      );
+      await expect(page.locator(".hero-content-cluster")).toBeVisible();
+      await expect(page.locator(".action-dock")).toBeVisible();
+      await expect(page.locator(".bottom-nav-glass:visible")).toHaveCount(0);
+      await expectNoHorizontalOverflow(page);
+
+      const ambientImage = await shell.evaluate((element) =>
+        getComputedStyle(element).getPropertyValue("--detail-ambient-image")
+      );
+      expect(ambientImage).toContain("url(");
+
+      const heroBefore = await hero.boundingBox();
+      await page.getByRole("button", { name: "Watch trailer" }).click();
+      await expect(page.locator(".cinematic-trailer-player")).toBeVisible();
+      await expect(page.locator(".cinematic-trailer-iframe")).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: "Watch trailer" })
+      ).toHaveCount(0);
+      await expect(
+        page.getByRole("button", { name: "Close trailer" })
+      ).toBeVisible();
+
+      const heroDuring = await hero.boundingBox();
+      expect(heroDuring?.height).toBe(heroBefore?.height);
+
+      await page.getByRole("button", { name: "Close trailer" }).click();
+      await expect(page.locator(".cinematic-trailer-player")).toHaveCount(0);
+      await expect(
+        page.getByRole("button", { name: "Watch trailer" })
+      ).toBeVisible();
+      await expectNoHorizontalOverflow(page);
+
+      await page.screenshot({
+        path: `test-results/detail-movie-${viewport.width}x${viewport.height}.png`,
+        fullPage: true
+      });
+    });
+
+    test("keeps TV episodes and responsive page structure intact", async ({
+      page
+    }) => {
+      await openFixtureFromSearch(page, /House of the Dragon TV/);
+
+      await expect(page.locator(".details-page-shell")).toBeVisible();
+      await expect(page.locator(".hero-content-cluster")).toContainText(
+        "House of the Dragon"
+      );
+      await expect(
+        page.locator(".detail-section").filter({ hasText: "Episode Guide" })
+      ).toBeVisible();
+      await expect(page.locator(".cinematic-hero-back")).toBeVisible();
+      await expectNoHorizontalOverflow(page);
+    });
+
+    test("keeps long titles, sparse metadata, many genres, and missing posters safe", async ({
+      page
+    }) => {
+      await openFixtureFromSearch(
+        page,
+        /The Incredibly Long International Title/
+      );
+
+      await expect(page.locator(".details-page-shell")).toBeVisible();
+      await expect(page.locator(".hero-title")).toContainText(
+        "The Incredibly Long International Title"
+      );
+      await expect(page.locator(".hero-tagline")).toHaveCount(0);
+      await expect(page.locator(".floating-poster img")).toHaveCount(0);
+      await expect(
+        page.locator(".floating-poster .material-symbols-outlined")
+      ).toBeVisible();
+      await expect(page.locator(".hero-title")).toHaveCSS("overflow", "hidden");
+      await expect(page.locator(".hero-quick-meta .v2-pill")).toHaveCount(6);
+      await expectNoHorizontalOverflow(page);
+    });
+
+    test("renders a clean no-trailer hero when backdrop and trailer data are missing", async ({
+      page
+    }) => {
+      await openFixtureFromSearch(page, /A Film Without a Trailer/);
+
+      await expect(page.locator(".details-page-shell")).toBeVisible();
+      await expect(page.locator(".cinematic-hero-media")).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: "Watch trailer" })
+      ).toHaveCount(0);
+      await expect(page.locator(".cinematic-hero-trailer-toggle")).toHaveCount(
+        0
+      );
+      await expectNoHorizontalOverflow(page);
+    });
+  });
+}

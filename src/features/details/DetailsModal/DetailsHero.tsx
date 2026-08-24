@@ -23,6 +23,8 @@ export interface DetailsHeroProps {
   onPlayTrailer: () => void;
   onClose: () => void;
   onCloseTrailer: () => void;
+  /** Dedicated pages render Back inside the hero safe area. */
+  pageMode?: boolean;
 }
 
 export default function DetailsHero(props: DetailsHeroProps) {
@@ -36,6 +38,7 @@ export default function DetailsHero(props: DetailsHeroProps) {
       hasTrailer={props.hasTrailer()}
       onPlayTrailer={props.onPlayTrailer}
       onCloseTrailer={props.onCloseTrailer}
+      pageMode={props.pageMode}
     />
   );
 }
