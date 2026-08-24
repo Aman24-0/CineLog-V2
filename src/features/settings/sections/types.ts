@@ -133,19 +133,6 @@ export interface SettingsState {
    */
   refreshHasPassword: () => Promise<void>;
 
-  // ── Appearance state ────────────────────────────────────────────
-  dynamicAccentColor: Accessor<string>;
-  extractingColor: Accessor<boolean>;
-  bannerUrl: Accessor<string | null>;
-  bannerType: Accessor<string>;
-
-  // ── Appearance handlers ─────────────────────────────────────────
-  isPresetActive: (presetId: import("~/core/theme").Theme) => boolean;
-  isDynamicActive: () => boolean;
-  handlePresetClick: (presetId: import("~/core/theme").Theme) => void;
-  handleDynamicClick: () => Promise<void>;
-  handleReextractDynamic: () => Promise<void>;
-
   // ── Content state ───────────────────────────────────────────────
   providers: Accessor<JustWatchProviderItem[]>;
   providersLoading: Accessor<boolean>;

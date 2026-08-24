@@ -7,13 +7,13 @@
    1. Glass primitives — GlassSurface, GlassCard, GlassButton, etc.
       (overrides/supplements the Tailwind classes used in those components)
    2. New Glass containers — GlassSheet, GlassModal, GlassTabs
-   3. Global glass tokens — strengthened blur, golden highlights, layered shadows
+   3. Global glass tokens — strengthened blur, profile-derived highlights, layered shadows
 
    Visual language:
    - Strong frosted glass blur (backdrop-blur 20-32px)
    - Layered translucent surfaces (tier-0/1/2/3 + glass overlays)
-   - Soft golden highlights (top inner border, accent glow)
-   - Thin glass borders (1px hairline-2 with gold tint)
+   - Soft profile-derived highlights (top inner border, accent glow)
+   - Thin glass borders (1px hairline-2 with banner tint)
    - Deep layered shadows (premium + elevated + glow)
    - Consistent radius (rounded-lg = 12px default)
    - Smooth spring-based transitions on hover/tap
@@ -41,17 +41,19 @@
   /* Premium layered shadows — used by GlassCard, GlassSheet, GlassModal */
   --shadow-glass-card:
     0 8px 24px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.35),
-    inset 0 1px 0 rgba(232, 183, 74, 0.06);
+    inset 0 1px 0 rgb(var(--profile-ambient-primary, 96 112 128) / 0.06);
   --shadow-glass-elevated:
     0 16px 48px rgba(0, 0, 0, 0.65), 0 4px 16px rgba(0, 0, 0, 0.45),
-    inset 0 1px 0 rgba(232, 183, 74, 0.08);
+    inset 0 1px 0 rgb(var(--profile-ambient-primary, 96 112 128) / 0.08);
   --shadow-glass-glow:
     0 0 0 1px color-mix(in srgb, var(--p) 22%, transparent),
     0 0 24px var(--p-glow), 0 8px 24px rgba(0, 0, 0, 0.45);
 
-  /* Glass border with golden tint */
-  --glass-border-warm: rgba(232, 183, 74, 0.1);
-  --glass-border-warm-strong: rgba(232, 183, 74, 0.18);
+  /* Glass border with the resolved Profile banner tint */
+  --glass-border-warm: rgb(var(--profile-ambient-primary, 96 112 128) / 0.1);
+  --glass-border-warm-strong: rgb(
+    var(--profile-ambient-primary, 96 112 128) / 0.18
+  );
 }
 
 /* ============================================================
@@ -77,8 +79,10 @@
 
 .app-header-glass {
   background: var(--glass-bg);
-  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-medium-saturate));
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-medium-saturate));
+  backdrop-filter: blur(var(--glass-blur))
+    saturate(var(--glass-medium-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur))
+    saturate(var(--glass-medium-saturate));
   border-bottom: 1px solid var(--glass-medium-border);
   box-shadow:
     0 4px 16px rgba(0, 0, 0, 0.25),
@@ -91,14 +95,14 @@
 
 .app-header-avatar {
   background: var(--glass-default-bg);
-  backdrop-filter: var(--glass-default-blur) saturate(var(--glass-default-saturate));
-  -webkit-backdrop-filter: var(--glass-default-blur) saturate(var(--glass-default-saturate));
+  backdrop-filter: var(--glass-default-blur)
+    saturate(var(--glass-default-saturate));
+  -webkit-backdrop-filter: var(--glass-default-blur)
+    saturate(var(--glass-default-saturate));
   border: 1px solid var(--glass-default-border);
   padding: 0.25rem;
   padding-right: 0.625rem;
-  box-shadow:
-    var(--glass-default-shadow),
-    var(--glass-highlight);
+  box-shadow: var(--glass-default-shadow), var(--glass-highlight);
   transition:
     background var(--dur-fast) var(--ease-out),
     border-color var(--dur-fast) var(--ease-out),
@@ -219,7 +223,7 @@
   justify-content: center;
 }
 
-/* Active genre option icon — gold */
+/* Active genre option icon — profile-derived accent */
 .ott-dropdown-option[data-active="true"] .genre-dropdown-option-icon {
   color: var(--p);
 }
@@ -239,8 +243,10 @@
   height: var(--nav-height);
   z-index: var(--z-dropdown);
   background: var(--glass-strong-bg);
-  backdrop-filter: var(--glass-strong-blur) saturate(var(--glass-strong-saturate));
-  -webkit-backdrop-filter: var(--glass-strong-blur) saturate(var(--glass-strong-saturate));
+  backdrop-filter: var(--glass-strong-blur)
+    saturate(var(--glass-strong-saturate));
+  -webkit-backdrop-filter: var(--glass-strong-blur)
+    saturate(var(--glass-strong-saturate));
   border: 1px solid var(--glass-strong-border);
   border-radius: 2rem;
   box-shadow:
@@ -258,8 +264,10 @@
 
 .glass-panel {
   background: var(--glass-subtle-bg);
-  backdrop-filter: var(--glass-subtle-blur) saturate(var(--glass-subtle-saturate));
-  -webkit-backdrop-filter: var(--glass-subtle-blur) saturate(var(--glass-subtle-saturate));
+  backdrop-filter: var(--glass-subtle-blur)
+    saturate(var(--glass-subtle-saturate));
+  -webkit-backdrop-filter: var(--glass-subtle-blur)
+    saturate(var(--glass-subtle-saturate));
   border: 1px solid var(--glass-subtle-border);
   box-shadow: var(--glass-subtle-shadow);
 }
@@ -278,8 +286,10 @@
 
 .glass-sheet-surface-premium {
   background: var(--glass-strong-bg);
-  backdrop-filter: var(--glass-strong-blur) saturate(var(--glass-strong-saturate));
-  -webkit-backdrop-filter: var(--glass-strong-blur) saturate(var(--glass-strong-saturate));
+  backdrop-filter: var(--glass-strong-blur)
+    saturate(var(--glass-strong-saturate));
+  -webkit-backdrop-filter: var(--glass-strong-blur)
+    saturate(var(--glass-strong-saturate));
   border: 1px solid var(--glass-strong-border);
   box-shadow:
     var(--glass-strong-shadow),
@@ -389,8 +399,10 @@
   border-radius: var(--radius-pill);
   background: var(--glass-subtle-bg);
   border: 1px solid var(--glass-subtle-border);
-  backdrop-filter: var(--glass-default-blur) saturate(var(--glass-default-saturate));
-  -webkit-backdrop-filter: var(--glass-default-blur) saturate(var(--glass-default-saturate));
+  backdrop-filter: var(--glass-default-blur)
+    saturate(var(--glass-default-saturate));
+  -webkit-backdrop-filter: var(--glass-default-blur)
+    saturate(var(--glass-default-saturate));
   gap: 2px;
 }
 .glass-tab-pill {
@@ -464,8 +476,10 @@
   border-radius: var(--radius-md);
   background: var(--glass-subtle-bg);
   border: 1px solid var(--glass-subtle-border);
-  backdrop-filter: var(--glass-default-blur) saturate(var(--glass-default-saturate));
-  -webkit-backdrop-filter: var(--glass-default-blur) saturate(var(--glass-default-saturate));
+  backdrop-filter: var(--glass-default-blur)
+    saturate(var(--glass-default-saturate));
+  -webkit-backdrop-filter: var(--glass-default-blur)
+    saturate(var(--glass-default-saturate));
   gap: 2px;
 }
 .glass-tab-segmented {
@@ -507,9 +521,7 @@
   border-top-right-radius: var(--radius-2xl, 24px);
   border: 1px solid var(--glass-strong-border);
   border-bottom: none;
-  box-shadow:
-    var(--glass-strong-shadow),
-    var(--glass-highlight-hover);
+  box-shadow: var(--glass-strong-shadow), var(--glass-highlight-hover);
   overflow: hidden;
   /* Slide-up origin */
   transform-origin: bottom center;
@@ -624,8 +636,7 @@
 }
 
 .sheet-backdrop-closing {
-  animation: sheet-backdrop-fade-out var(--dur-modal, 320ms) ease-out
-    forwards;
+  animation: sheet-backdrop-fade-out var(--dur-modal, 320ms) ease-out forwards;
 }
 
 /* ============================================================
@@ -735,77 +746,71 @@
 /* Search bar — full glass treatment */
 .search-bar {
   background: var(--glass-default-bg) !important;
-  backdrop-filter: var(--glass-default-blur) saturate(var(--glass-default-saturate)) !important;
-  -webkit-backdrop-filter: var(--glass-default-blur) saturate(var(--glass-default-saturate)) !important;
+  backdrop-filter: var(--glass-default-blur)
+    saturate(var(--glass-default-saturate)) !important;
+  -webkit-backdrop-filter: var(--glass-default-blur)
+    saturate(var(--glass-default-saturate)) !important;
   border: 1px solid var(--glass-default-border) !important;
-  box-shadow:
-    var(--glass-default-shadow),
-    var(--glass-highlight) !important;
+  box-shadow: var(--glass-default-shadow), var(--glass-highlight) !important;
 }
 
 /* Filter chip — stronger glass + HIGH CONTRAST text.
    Now: visible gold-tinted background + white text so the active-filter
    pills (e.g. "INDIAN x") are always legible. */
 .filter-chip {
-  background: rgba(232, 183, 74, 0.2) !important;
-  border: 1px solid var(--p, #e8b74a) !important;
+  background: rgb(var(--profile-ambient-primary, 96 112 128) / 0.2) !important;
+  border: 1px solid var(--p, var(--p, #607080)) !important;
   color: #ffffff !important;
   backdrop-filter: var(--blur-md) saturate(var(--glass-subtle-saturate));
   -webkit-backdrop-filter: var(--blur-md) saturate(var(--glass-subtle-saturate));
-  box-shadow:
-    var(--shadow-xs),
-    var(--glass-highlight);
+  box-shadow: var(--shadow-xs), var(--glass-highlight);
 }
 
 /* View toggle — glass default variant */
 .view-toggle {
   background: var(--glass-default-bg) !important;
-  backdrop-filter: var(--glass-default-blur) saturate(var(--glass-default-saturate)) !important;
-  -webkit-backdrop-filter: var(--glass-default-blur) saturate(var(--glass-default-saturate)) !important;
+  backdrop-filter: var(--glass-default-blur)
+    saturate(var(--glass-default-saturate)) !important;
+  -webkit-backdrop-filter: var(--glass-default-blur)
+    saturate(var(--glass-default-saturate)) !important;
   border: 1px solid var(--glass-default-border) !important;
-  box-shadow:
-    var(--glass-default-shadow),
-    var(--glass-highlight);
+  box-shadow: var(--glass-default-shadow), var(--glass-highlight);
 }
 
 /* Filter button — glass default variant */
 .filter-button {
   background: var(--glass-default-bg) !important;
-  backdrop-filter: var(--glass-default-blur) saturate(var(--glass-default-saturate)) !important;
-  -webkit-backdrop-filter: var(--glass-default-blur) saturate(var(--glass-default-saturate)) !important;
+  backdrop-filter: var(--glass-default-blur)
+    saturate(var(--glass-default-saturate)) !important;
+  -webkit-backdrop-filter: var(--glass-default-blur)
+    saturate(var(--glass-default-saturate)) !important;
   border: 1px solid var(--glass-default-border) !important;
-  box-shadow:
-    var(--glass-default-shadow),
-    var(--glass-highlight);
+  box-shadow: var(--glass-default-shadow), var(--glass-highlight);
 }
 .filter-button[data-active="true"] {
   background: var(--active-bg) !important;
   border-color: var(--active-border) !important;
   color: var(--active-text) !important;
   box-shadow:
-    var(--active-glow),
-    var(--glass-default-shadow),
-    var(--glass-highlight) !important;
+    var(--active-glow), var(--glass-default-shadow), var(--glass-highlight) !important;
 }
 
 /* Quick filter tab — glass default variant */
 .quick-filter-tab {
   background: var(--glass-default-bg) !important;
-  backdrop-filter: var(--glass-default-blur) saturate(var(--glass-default-saturate)) !important;
-  -webkit-backdrop-filter: var(--glass-default-blur) saturate(var(--glass-default-saturate)) !important;
+  backdrop-filter: var(--glass-default-blur)
+    saturate(var(--glass-default-saturate)) !important;
+  -webkit-backdrop-filter: var(--glass-default-blur)
+    saturate(var(--glass-default-saturate)) !important;
   border: 1px solid var(--glass-default-border) !important;
-  box-shadow:
-    var(--glass-default-shadow),
-    var(--glass-highlight);
+  box-shadow: var(--glass-default-shadow), var(--glass-highlight);
 }
 .quick-filter-tab[data-active="true"] {
   background: var(--active-bg) !important;
   border-color: var(--active-border) !important;
   color: var(--active-text) !important;
   box-shadow:
-    var(--active-glow),
-    var(--glass-default-shadow),
-    var(--glass-highlight) !important;
+    var(--active-glow), var(--glass-default-shadow), var(--glass-highlight) !important;
 }
 
 /* ============================================================
@@ -816,9 +821,7 @@
 .search-rail-poster {
   background: var(--glass-bg) !important;
   border: 1px solid var(--glass-default-border) !important;
-  box-shadow:
-    var(--glass-default-shadow),
-    var(--glass-highlight) !important;
+  box-shadow: var(--glass-default-shadow), var(--glass-highlight) !important;
   transition:
     transform var(--dur-base) var(--ease-spring),
     box-shadow var(--dur-base) var(--ease-out);
@@ -833,9 +836,7 @@
 /* Vault card inner — stronger premium feel */
 .vault-card-inner {
   border: 1px solid var(--glass-default-border) !important;
-  box-shadow:
-    var(--shadow-premium),
-    var(--glass-highlight) !important;
+  box-shadow: var(--shadow-premium), var(--glass-highlight) !important;
 }
 
 /* ============================================================
@@ -857,8 +858,8 @@
   border-radius: inherit;
   background: linear-gradient(
     180deg,
-    rgba(232, 183, 74, 0.06) 0%,
-    rgba(232, 183, 74, 0) 18%
+    rgb(var(--profile-ambient-primary, 96 112 128) / 0.06) 0%,
+    rgb(var(--profile-ambient-primary, 96 112 128) / 0) 18%
   );
   z-index: 1;
 }
@@ -945,8 +946,10 @@
 /* Rating chips — glass subtle variant */
 .rating-chip {
   background: var(--glass-subtle-bg) !important;
-  backdrop-filter: var(--glass-subtle-blur) saturate(var(--glass-subtle-saturate)) !important;
-  -webkit-backdrop-filter: var(--glass-subtle-blur) saturate(var(--glass-subtle-saturate)) !important;
+  backdrop-filter: var(--glass-subtle-blur)
+    saturate(var(--glass-subtle-saturate)) !important;
+  -webkit-backdrop-filter: var(--glass-subtle-blur)
+    saturate(var(--glass-subtle-saturate)) !important;
   box-shadow: var(--glass-subtle-shadow), var(--glass-highlight);
 }
 
@@ -956,8 +959,10 @@
 
 .tag-chip {
   background: var(--glass-subtle-bg) !important;
-  backdrop-filter: var(--glass-subtle-blur) saturate(var(--glass-subtle-saturate)) !important;
-  -webkit-backdrop-filter: var(--glass-subtle-blur) saturate(var(--glass-subtle-saturate)) !important;
+  backdrop-filter: var(--glass-subtle-blur)
+    saturate(var(--glass-subtle-saturate)) !important;
+  -webkit-backdrop-filter: var(--glass-subtle-blur)
+    saturate(var(--glass-subtle-saturate)) !important;
   box-shadow: var(--glass-subtle-shadow), var(--glass-highlight);
 }
 

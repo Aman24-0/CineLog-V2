@@ -64,12 +64,12 @@
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(232, 183, 74, 0.08);
+  background: rgb(var(--profile-ambient-primary, 96 112 128) / 0.08);
   border-radius: 4px;
   transition: background 160ms ease-out;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(232, 183, 74, 0.18);
+  background: rgb(var(--profile-ambient-primary, 96 112 128) / 0.18);
 }
 ::-webkit-scrollbar-corner {
   background: transparent;
@@ -78,7 +78,8 @@
 /* Firefox scrollbar */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(232, 183, 74, 0.1) transparent;
+  scrollbar-color: rgb(var(--profile-ambient-primary, 96 112 128) / 0.1)
+    transparent;
 }
 
 .hide-scrollbar::-webkit-scrollbar {
@@ -109,7 +110,9 @@
      Variable' (with the "Variable" suffix), so we reference that name
      here. The variable font includes all four axes (FILL, GRAD, opsz,
      wght) so the font-variation-settings rules below continue to work. */
-  font-family: "Material Symbols Outlined Variable", "Material Symbols Outlined", sans-serif;
+  font-family:
+    "Material Symbols Outlined Variable", "Material Symbols Outlined",
+    sans-serif;
   font-variation-settings:
     "FILL" 0,
     "wght" 400,

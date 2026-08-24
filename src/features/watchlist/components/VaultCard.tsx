@@ -27,7 +27,7 @@ const PROGRESS_TRACK_STYLE: JSX.CSSProperties = {
   background: "rgba(255,255,255,0.20)"
 };
 const PROGRESS_FILL_BASE_STYLE: JSX.CSSProperties = {
-  background: "var(--p, #e8b74a)",
+  background: "var(--p)",
   transition: "width 400ms ease-out"
 };
 const SELECTION_BASE_STYLE: JSX.CSSProperties = {

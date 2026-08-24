@@ -40,7 +40,7 @@
   display: inline-flex;
   align-items: center;
   padding: 0.625rem 1rem;
-  background: var(--p, #e8b74a);
+  background: var(--p);
   color: var(--void, #0a0a0a);
   font-family: "Outfit", sans-serif;
   font-size: 0.875rem;
@@ -50,7 +50,9 @@
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
   /* Transition only on focus — never animate the off-screen position
      so the link doesn't slide across the screen on page load. */
-  transition: left 0.15s ease-out, top 0.15s ease-out;
+  transition:
+    left 0.15s ease-out,
+    top 0.15s ease-out;
 }
 
 .skip-link:focus,

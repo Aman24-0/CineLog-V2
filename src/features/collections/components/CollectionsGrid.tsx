@@ -41,7 +41,11 @@ export default function CollectionsGrid(props: CollectionsGridProps) {
           when={!props.loading()}
           fallback={<div class="collections-folder-skeleton" />}
         >
-          <div class="collections-empty-folders" role="status" aria-live="polite">
+          <div
+            class="collections-empty-folders"
+            role="status"
+            aria-live="polite"
+          >
             <div class="collections-empty-icon" aria-hidden="true">
               <span
                 class="material-symbols-outlined"

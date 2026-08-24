@@ -27,7 +27,7 @@
   background: var(--glass-bg, rgba(20, 22, 30, 0.6));
   backdrop-filter: blur(16px) saturate(140%);
   -webkit-backdrop-filter: blur(16px) saturate(140%);
-  border: 1px solid var(--glass-border-warm-strong, rgba(232, 183, 74, 0.16));
+  border: 1px solid var(--glass-border-warm-strong);
   border-radius: 14px;
 }
 
@@ -43,11 +43,13 @@
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--on-primary, #0a0a0a);
-  background: var(--p, #f5c518);
+  background: var(--p);
   border: none;
   border-radius: 9999px;
   cursor: pointer;
-  transition: opacity var(--dur-fast, 120ms), transform var(--dur-fast, 120ms);
+  transition:
+    opacity var(--dur-fast, 120ms),
+    transform var(--dur-fast, 120ms);
 }
 .upcoming-notify-all:hover {
   opacity: 0.9;
@@ -68,7 +70,7 @@
   padding: 0 5px;
   font-size: 0.625rem;
   font-weight: 700;
-  color: var(--p, #f5c518);
+  color: var(--p);
   background: rgba(0, 0, 0, 0.5);
   border-radius: 9999px;
   font-family: "Azeret Mono", monospace;
@@ -100,7 +102,8 @@
   font-weight: 600;
   padding: 0.25rem 0.625rem;
   border-radius: var(--radius-pill, 999px);
-  border: 1px solid var(--hairline-2, rgba(232, 183, 74, 0.09));
+  border: 1px solid
+    var(--hairline-2, rgb(var(--profile-ambient-primary, 96 112 128) / 0.09));
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
@@ -114,7 +117,10 @@
 .upcoming-media-type-chip:hover {
   background: var(--raised);
   color: var(--text-body);
-  border-color: var(--hairline-3, rgba(232, 183, 74, 0.15));
+  border-color: var(
+    --hairline-3,
+    rgb(var(--profile-ambient-primary, 96 112 128) / 0.15)
+  );
 }
 
 .upcoming-media-type-chip.is-active {
@@ -166,14 +172,14 @@
     color var(--dur-fast, 120ms);
 }
 .upcoming-date-preset:hover {
-  background: rgba(232, 183, 74, 0.08);
-  border-color: rgba(232, 183, 74, 0.2);
+  background: rgb(var(--profile-ambient-primary, 96 112 128) / 0.08);
+  border-color: rgb(var(--profile-ambient-primary, 96 112 128) / 0.2);
   color: var(--text-strong, #fff);
 }
 .upcoming-date-preset.is-active {
   background: var(--p-dim, rgba(245, 197, 24, 0.16));
-  border-color: var(--p, #f5c518);
-  color: var(--p, #f5c518);
+  border-color: var(--p);
+  color: var(--p);
 }
 
 .upcoming-date-inputs {
@@ -221,7 +227,7 @@
   color-scheme: dark;
 }
 .upcoming-date-input:focus {
-  border-color: var(--p, #f5c518);
+  border-color: var(--p);
   background: rgba(245, 197, 24, 0.06);
 }
 
@@ -288,16 +294,16 @@
     border-color var(--dur-fast, 120ms);
 }
 .upcoming-filter-btn:hover {
-  background: rgba(232, 183, 74, 0.08);
-  border-color: rgba(232, 183, 74, 0.2);
+  background: rgb(var(--profile-ambient-primary, 96 112 128) / 0.08);
+  border-color: rgb(var(--profile-ambient-primary, 96 112 128) / 0.2);
   color: var(--text-strong, #fff);
 }
 .upcoming-filter-btn .material-symbols-outlined {
   font-size: 18px;
 }
 .upcoming-filter-btn.has-active {
-  border-color: var(--p, #f5c518);
-  color: var(--p, #f5c518);
+  border-color: var(--p);
+  color: var(--p);
 }
 
 .upcoming-filter-badge {
@@ -308,7 +314,7 @@
   height: 16px;
   padding: 0 4px;
   border-radius: 9999px;
-  background: var(--p, #f5c518);
+  background: var(--p);
   color: #000;
   font-family: "Azeret Mono", monospace;
   font-size: 9px;
@@ -368,7 +374,7 @@
 }
 .upcoming-view-toggle-btn.is-active {
   background: var(--p-dim, rgba(245, 197, 24, 0.18));
-  color: var(--p, #f5c518);
+  color: var(--p);
 }
 
 /* v4: on very narrow viewports (≤ 360px), hide the text labels and
@@ -420,7 +426,7 @@
 
 .upcoming-countdown-soon {
   background: rgba(245, 197, 24, 0.16);
-  color: var(--p, #f5c518);
+  color: var(--p);
   border: 1px solid rgba(245, 197, 24, 0.35);
 }
 
@@ -496,14 +502,14 @@
   background: var(--glass-bg, rgba(20, 22, 30, 0.6));
   backdrop-filter: blur(12px) saturate(130%);
   -webkit-backdrop-filter: blur(12px) saturate(130%);
-  border: 1px solid var(--glass-border-warm-strong, rgba(232, 183, 74, 0.16));
+  border: 1px solid var(--glass-border-warm-strong);
   border-radius: 12px;
   transition:
     border-color var(--dur-fast, 120ms),
     transform var(--dur-fast, 120ms);
 }
 .upcoming-card:hover {
-  border-color: rgba(232, 183, 74, 0.3);
+  border-color: rgb(var(--profile-ambient-primary, 96 112 128) / 0.3);
   transform: translateY(-1px);
 }
 
@@ -618,7 +624,7 @@
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  color: var(--p, #f5c518);
+  color: var(--p);
   font-weight: 600;
 }
 
@@ -633,7 +639,7 @@
 }
 .upcoming-card-release .material-symbols-outlined {
   font-size: 14px;
-  color: var(--p, #f5c518);
+  color: var(--p);
 }
 
 .upcoming-card-vault-badge {
@@ -662,7 +668,7 @@
   font-size: 0.6875rem;
   font-weight: 700;
   letter-spacing: 0.04em;
-  color: var(--p, #f5c518);
+  color: var(--p);
   background: rgba(245, 197, 24, 0.12);
   border: 1px solid rgba(245, 197, 24, 0.25);
   border-radius: 4px;
@@ -692,13 +698,13 @@
 }
 .upcoming-card-episode-row .material-symbols-outlined {
   font-size: 14px;
-  color: var(--p, #f5c518);
+  color: var(--p);
 }
 .upcoming-card-episode-tag {
   font-family: "Azeret Mono", monospace;
   font-weight: 700;
   letter-spacing: 0.04em;
-  color: var(--p, #f5c518);
+  color: var(--p);
   text-transform: uppercase;
 }
 .upcoming-card-episode-date {
@@ -791,7 +797,7 @@
 }
 .upcoming-card-action.is-active {
   background: rgba(245, 197, 24, 0.14);
-  color: var(--p, #f5c518);
+  color: var(--p);
 }
 
 /* ─── Calendar view ──────────────────────────────────────────────── */
@@ -806,7 +812,7 @@
   background: var(--glass-bg, rgba(20, 22, 30, 0.6));
   backdrop-filter: blur(12px) saturate(130%);
   -webkit-backdrop-filter: blur(12px) saturate(130%);
-  border: 1px solid var(--glass-border-warm-strong, rgba(232, 183, 74, 0.16));
+  border: 1px solid var(--glass-border-warm-strong);
   border-radius: 14px;
   padding: var(--sp-3, 0.75rem);
 }
@@ -831,7 +837,7 @@
   cursor: pointer;
 }
 .upcoming-calendar-nav:hover {
-  background: rgba(232, 183, 74, 0.08);
+  background: rgb(var(--profile-ambient-primary, 96 112 128) / 0.08);
   color: var(--text-strong, #fff);
 }
 .upcoming-calendar-nav .material-symbols-outlined {
@@ -896,8 +902,8 @@
     border-color var(--dur-fast, 120ms);
 }
 .upcoming-calendar-cell:hover:not(:disabled) {
-  background: rgba(232, 183, 74, 0.06);
-  border-color: rgba(232, 183, 74, 0.2);
+  background: rgb(var(--profile-ambient-primary, 96 112 128) / 0.06);
+  border-color: rgb(var(--profile-ambient-primary, 96 112 128) / 0.2);
 }
 .upcoming-calendar-cell:disabled {
   cursor: default;
@@ -907,8 +913,8 @@
   opacity: 0.35;
 }
 .upcoming-calendar-cell.is-today {
-  border-color: var(--p, #f5c518);
-  color: var(--p, #f5c518);
+  border-color: var(--p);
+  color: var(--p);
   font-weight: 700;
 }
 .upcoming-calendar-cell.has-releases {
@@ -927,7 +933,7 @@
   height: 14px;
   padding: 0 4px;
   border-radius: 9999px;
-  background: var(--p, #f5c518);
+  background: var(--p);
   color: #000;
   font-family: "Azeret Mono", monospace;
   font-size: 9px;
@@ -945,7 +951,7 @@
   background: var(--glass-bg, rgba(20, 22, 30, 0.6));
   backdrop-filter: blur(12px) saturate(130%);
   -webkit-backdrop-filter: blur(12px) saturate(130%);
-  border: 1px solid var(--glass-border-warm-strong, rgba(232, 183, 74, 0.16));
+  border: 1px solid var(--glass-border-warm-strong);
   border-radius: 12px;
 }
 
@@ -1025,8 +1031,8 @@
     color var(--dur-fast, 120ms);
 }
 .upcoming-filter-chip:hover:not(:disabled) {
-  background: rgba(232, 183, 74, 0.08);
-  border-color: rgba(232, 183, 74, 0.2);
+  background: rgb(var(--profile-ambient-primary, 96 112 128) / 0.08);
+  border-color: rgb(var(--profile-ambient-primary, 96 112 128) / 0.2);
   color: var(--text-strong, #fff);
 }
 .upcoming-filter-chip:disabled {
@@ -1035,8 +1041,8 @@
 }
 .upcoming-filter-chip.is-active {
   background: var(--p-dim, rgba(245, 197, 24, 0.16));
-  border-color: var(--p, #f5c518);
-  color: var(--p, #f5c518);
+  border-color: var(--p);
+  color: var(--p);
 }
 
 .upcoming-filter-select-wrap {
@@ -1098,14 +1104,14 @@
   appearance: none;
   width: 16px;
   height: 16px;
-  background: var(--p, #f5c518);
+  background: var(--p);
   border-radius: 9999px;
   cursor: pointer;
 }
 .upcoming-filter-slider::-moz-range-thumb {
   width: 16px;
   height: 16px;
-  background: var(--p, #f5c518);
+  background: var(--p);
   border: none;
   border-radius: 9999px;
   cursor: pointer;
@@ -1220,7 +1226,9 @@
   border: none;
   color: var(--text-soft, rgba(255, 255, 255, 0.7));
   cursor: pointer;
-  transition: background var(--dur-fast, 120ms), color var(--dur-fast, 120ms);
+  transition:
+    background var(--dur-fast, 120ms),
+    color var(--dur-fast, 120ms);
   padding: 0;
 }
 .upcoming-notif-action-btn .material-symbols-outlined {
@@ -1265,7 +1273,7 @@
 }
 .upcoming-notif-snooze-option:hover {
   background: rgba(245, 197, 24, 0.12);
-  color: var(--p, #f5c518);
+  color: var(--p);
 }
 .upcoming-notif-snooze-cancel {
   color: var(--text-soft, rgba(255, 255, 255, 0.7));
@@ -1280,7 +1288,7 @@
   gap: 4px;
   font-family: "Azeret Mono", monospace;
   font-size: 0.625rem;
-  color: var(--p, #f5c518);
+  color: var(--p);
   background: rgba(245, 197, 24, 0.08);
   border-radius: 4px;
   padding: 2px 6px;
@@ -1310,7 +1318,7 @@
   height: 36px;
   border-radius: 8px;
   background: rgba(245, 197, 24, 0.08);
-  color: var(--p, #f5c518);
+  color: var(--p);
 }
 .upcoming-notif-icon {
   font-size: 18px !important;
@@ -1323,7 +1331,7 @@
   width: 6px;
   height: 6px;
   border-radius: 9999px;
-  background: var(--p, #f5c518);
+  background: var(--p);
 }
 
 .upcoming-notif-content {
@@ -1378,7 +1386,7 @@
   font-family: "Outfit", sans-serif;
   font-size: 0.75rem;
   font-weight: 600;
-  color: var(--p, #f5c518);
+  color: var(--p);
   background: transparent;
   border: none;
   cursor: pointer;
@@ -1416,7 +1424,7 @@
     color var(--dur-fast, 120ms);
 }
 .upcoming-bell:hover {
-  background: rgba(232, 183, 74, 0.08);
+  background: rgb(var(--profile-ambient-primary, 96 112 128) / 0.08);
   color: var(--text-strong, #fff);
 }
 

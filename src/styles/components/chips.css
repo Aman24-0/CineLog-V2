@@ -34,7 +34,7 @@
   white-space: nowrap;
   box-shadow:
     0 1px 4px rgba(0, 0, 0, 0.35),
-    inset 0 1px 0 rgba(232, 183, 74, 0.06);
+    inset 0 1px 0 rgb(var(--profile-ambient-primary, 96 112 128) / 0.06);
 }
 .v2-pill-accent {
   background: var(--p-dim);
@@ -42,7 +42,7 @@
   color: var(--p);
   box-shadow:
     0 0 8px var(--p-glow),
-    inset 0 1px 0 rgba(232, 183, 74, 0.1);
+    inset 0 1px 0 rgb(var(--profile-ambient-primary, 96 112 128) / 0.1);
 }
 .v2-pill-success {
   background: rgba(74, 222, 128, 0.1);
@@ -65,8 +65,10 @@
 .tag-chip {
   background: var(--glass-subtle-bg);
   border: 1px solid var(--glass-subtle-border);
-  backdrop-filter: var(--glass-subtle-blur) saturate(var(--glass-subtle-saturate));
-  -webkit-backdrop-filter: var(--glass-subtle-blur) saturate(var(--glass-subtle-saturate));
+  backdrop-filter: var(--glass-subtle-blur)
+    saturate(var(--glass-subtle-saturate));
+  -webkit-backdrop-filter: var(--glass-subtle-blur)
+    saturate(var(--glass-subtle-saturate));
   padding: var(--sp-1) var(--sp-2);
   border-radius: var(--radius-6);
   font-family: var(--font-family-label);
@@ -85,8 +87,10 @@
 /* Rating Pills — glass subtle variant */
 .rating-pill {
   background: var(--glass-subtle-bg);
-  backdrop-filter: var(--glass-subtle-blur) saturate(var(--glass-subtle-saturate));
-  -webkit-backdrop-filter: var(--glass-subtle-blur) saturate(var(--glass-subtle-saturate));
+  backdrop-filter: var(--glass-subtle-blur)
+    saturate(var(--glass-subtle-saturate));
+  -webkit-backdrop-filter: var(--glass-subtle-blur)
+    saturate(var(--glass-subtle-saturate));
   border: 1px solid var(--hairline);
   padding: var(--sp-1) var(--sp-2);
   border-radius: var(--radius-sm);

@@ -106,7 +106,7 @@ const GlassEmptyState: Component<GlassEmptyStateProps> = (rawProps) => {
         class={`flex flex-shrink-0 items-center justify-center rounded-full border border-glass-border bg-glass text-primary backdrop-blur-md ${iconContainerSize[local.variant]}`}
         style={{
           "box-shadow":
-            "0 4px 16px rgba(0,0,0,0.35), inset 0 1px 0 rgba(232,183,74,0.10)"
+            "0 4px 16px rgba(0,0,0,0.35), inset 0 1px 0 rgb(var(--profile-ambient-primary, 96 112 128) / 0.10)"
         }}
       >
         <span

@@ -1,5 +1,5 @@
 /* src/styles/features/search.css — CineLog V2 Redesign
-   Glass cinema search experience with warm gold accents. */
+   Glass cinema search experience with profile-derived accents. */
 
 /* NOTE: dead classes removed after audit:
    search-eyebrow-block, search-eyebrow, search-page-title,
@@ -52,7 +52,7 @@
   border: 1px solid var(--glass-border-warm-strong);
   box-shadow:
     0 2px 12px rgba(0, 0, 0, 0.35),
-    inset 0 1px 0 rgba(232, 183, 74, 0.06);
+    inset 0 1px 0 rgb(var(--profile-ambient-primary, 96 112 128) / 0.06);
   transition:
     border-color var(--dur-fast) var(--ease-out),
     box-shadow var(--dur-fast) var(--ease-out),
@@ -63,7 +63,7 @@
   box-shadow:
     0 0 0 3px var(--p-dim),
     0 0 16px var(--p-glow),
-    inset 0 1px 0 rgba(232, 183, 74, 0.1);
+    inset 0 1px 0 rgb(var(--profile-ambient-primary, 96 112 128) / 0.1);
   background: var(--glass-bg-strong);
 }
 .search-bar-icon {
@@ -290,7 +290,7 @@
   border: 1px solid var(--glass-border-warm-strong);
   box-shadow:
     0 2px 8px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(232, 183, 74, 0.05);
+    inset 0 1px 0 rgb(var(--profile-ambient-primary, 96 112 128) / 0.05);
   transition:
     border-color var(--dur-fast) var(--ease-out),
     background var(--dur-fast) var(--ease-out),
@@ -303,12 +303,12 @@
   contain-intrinsic-size: auto 88px;
 }
 .search-result-row:hover {
-  border-color: rgba(232, 183, 74, 0.25);
+  border-color: rgb(var(--profile-ambient-primary, 96 112 128) / 0.25);
   background: var(--glass-bg-strong);
   box-shadow:
     0 4px 12px rgba(0, 0, 0, 0.4),
     0 0 12px var(--p-glow),
-    inset 0 1px 0 rgba(232, 183, 74, 0.08);
+    inset 0 1px 0 rgb(var(--profile-ambient-primary, 96 112 128) / 0.08);
 }
 .search-result-row:active {
   transform: scale(0.997);
@@ -319,7 +319,7 @@
   box-shadow:
     0 2px 8px rgba(0, 0, 0, 0.3),
     0 0 12px var(--p-glow),
-    inset 0 1px 0 rgba(232, 183, 74, 0.1);
+    inset 0 1px 0 rgb(var(--profile-ambient-primary, 96 112 128) / 0.1);
 }
 .search-result-main {
   display: flex;
@@ -416,9 +416,9 @@
   border-radius: var(--radius-md);
   background: linear-gradient(
     105deg,
-    rgba(232, 183, 74, 0.02) 25%,
-    rgba(232, 183, 74, 0.05) 50%,
-    rgba(232, 183, 74, 0.02) 75%
+    rgb(var(--profile-ambient-primary, 96 112 128) / 0.02) 25%,
+    rgb(var(--profile-ambient-primary, 96 112 128) / 0.05) 50%,
+    rgb(var(--profile-ambient-primary, 96 112 128) / 0.02) 75%
   );
   background-size: 300% 100%;
   animation: shimmer 1.6s ease-in-out infinite;
@@ -452,7 +452,7 @@
   border: 1px solid var(--glass-border-warm-strong);
   box-shadow:
     0 2px 8px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(232, 183, 74, 0.06);
+    inset 0 1px 0 rgb(var(--profile-ambient-primary, 96 112 128) / 0.06);
   cursor: pointer;
   transition:
     background var(--dur-fast) var(--ease-out),
@@ -461,12 +461,12 @@
     transform var(--dur-fast) var(--ease-spring);
 }
 .search-load-more:hover {
-  background: rgba(232, 183, 74, 0.08);
-  border-color: rgba(232, 183, 74, 0.3);
+  background: rgb(var(--profile-ambient-primary, 96 112 128) / 0.08);
+  border-color: rgb(var(--profile-ambient-primary, 96 112 128) / 0.3);
   box-shadow:
     0 4px 12px rgba(0, 0, 0, 0.4),
     0 0 12px var(--p-glow),
-    inset 0 1px 0 rgba(232, 183, 74, 0.1);
+    inset 0 1px 0 rgb(var(--profile-ambient-primary, 96 112 128) / 0.1);
   transform: translateY(-1px);
 }
 .search-load-more-text {
@@ -520,7 +520,7 @@
   border: 1px solid var(--glass-border-warm-strong);
   box-shadow:
     0 2px 8px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(232, 183, 74, 0.06);
+    inset 0 1px 0 rgb(var(--profile-ambient-primary, 96 112 128) / 0.06);
   transition:
     background var(--dur-fast) var(--ease-out),
     border-color var(--dur-fast) var(--ease-out),
@@ -528,12 +528,12 @@
     transform var(--dur-fast) var(--ease-spring);
 }
 .search-rail-show-more:hover .search-rail-show-more-inner {
-  background: rgba(232, 183, 74, 0.08);
-  border-color: rgba(232, 183, 74, 0.3);
+  background: rgb(var(--profile-ambient-primary, 96 112 128) / 0.08);
+  border-color: rgb(var(--profile-ambient-primary, 96 112 128) / 0.3);
   box-shadow:
     0 4px 12px rgba(0, 0, 0, 0.4),
     0 0 12px var(--p-glow),
-    inset 0 1px 0 rgba(232, 183, 74, 0.1);
+    inset 0 1px 0 rgb(var(--profile-ambient-primary, 96 112 128) / 0.1);
   transform: translateY(-2px);
 }
 .search-rail-show-more-inner .material-symbols-outlined {

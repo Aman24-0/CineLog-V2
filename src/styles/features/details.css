@@ -35,6 +35,19 @@
 /* Dedicated title pages use the document as their scroll surface. These
    selectors intentionally scope every override to page mode so the legacy
    modal retains its fixed frame, nested scroll, and focus behavior. */
+.app-shell-detail-page {
+  --p: #10b981;
+  --p2: #34d399;
+  --p-glow: rgba(16, 185, 129, 0.32);
+  --p-dim: rgba(16, 185, 129, 0.1);
+  --p-border: rgba(16, 185, 129, 0.4);
+  --p-hover: rgba(16, 185, 129, 0.12);
+  --active-bg: #10b981;
+  --active-text: #08080d;
+  --active-border: #10b981;
+  --active-glow: 0 0 12px rgba(16, 185, 129, 0.32);
+}
+
 .details-page-shell {
   position: relative;
   width: 100%;

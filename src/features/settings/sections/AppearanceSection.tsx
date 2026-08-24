@@ -1,21 +1,17 @@
 // src/features/settings/sections/AppearanceSection.tsx
 //
-// Appearance section — colour schemes (5 curated presets + Dynamic
-// accent), ambient intensity, density, font size, poster quality,
-// spoilers, accessibility.
+// Appearance section — profile-banner environment, ambient intensity,
+// density, font size, poster quality, spoilers, and accessibility.
 //
-// Pure JSX extractor: receives the `SettingsState` bag for local state
-// (dynamic accent, banner URL, etc.) and imports the global preference
-// signals/setters directly from `~/core/preferences`.
+// The profile banner is the single source of app-wide colour and ambient
+// identity. This section intentionally exposes only presentation preferences
+// that do not compete with that source of truth.
 //
 // What lives here:
 //   • The outer `<Show>` visibility filter.
 //   • The accordion header.
 //   • The inner panel:
-//       - Colour scheme swatch grid (5 curated presets + 1 Dynamic)
-//         [Phase 14 Chunk 4 — collapsed the old 12 accents into 5
-//          curated schemes that each repaint accent + ambient together]
-//       - Dynamic accent status line (3 states + Re-extract button)
+//       - Profile-banner environment explanation
 //       - Ambient intensity segmented control (Phase 14 Chunk 2)
 //       - Density segmented control
 //       - Font size segmented control
@@ -24,14 +20,10 @@
 //       - Reduced motion segmented control
 //       - High contrast toggle
 
-import { Show, For } from "solid-js";
+import { Show } from "solid-js";
 import type { SettingsState } from "./types";
-import AccentSwatch from "~/features/settings/components/AccentSwatch";
 import SectionResetButton from "~/features/settings/components/SectionResetButton";
-import {
-  ControlRow,
-  ToggleRow
-} from "~/features/settings/sharedControls";
+import { ControlRow, ToggleRow } from "~/features/settings/sharedControls";
 
 // Global preference signals/setters — imported directly.
 import {
@@ -53,7 +45,6 @@ import {
 
 // Static option lists — single source of truth.
 import {
-  THEMES_LIST,
   DENSITY_OPTIONS,
   FONT_SIZE_OPTIONS,
   POSTER_QUALITY_OPTIONS,
@@ -67,10 +58,7 @@ export function AppearanceSection(props: { state: SettingsState }) {
 
   return (
     <Show when={s.filteredSections().some((sec) => sec.id === "appearance")}>
-      <section
-        id="section-appearance"
-        class="settings-accordion-section"
-      >
+      <section id="section-appearance" class="settings-accordion-section">
         <button
           type="button"
           class="settings-accordion-header focus-ring"
@@ -89,16 +77,14 @@ export function AppearanceSection(props: { state: SettingsState }) {
               {s.highlightText("Appearance")}
             </span>
             <span class="settings-accordion-desc">
-              {s.highlightText("Theme, accent, density, font")}
+              {s.highlightText("Profile colour, ambient, density, font")}
             </span>
           </div>
           <span
             class="material-symbols-outlined settings-accordion-chevron"
             aria-hidden="true"
             style={{
-              transform: s.isExpanded("appearance")
-                ? "rotate(180deg)"
-                : "none",
+              transform: s.isExpanded("appearance") ? "rotate(180deg)" : "none",
               transition: "transform 200ms ease"
             }}
           >
@@ -107,142 +93,26 @@ export function AppearanceSection(props: { state: SettingsState }) {
         </button>
 
         <Show when={s.isExpanded("appearance")}>
-          <div
-            id="panel-appearance"
-            class="settings-accordion-panel"
-          >
-            {/* Colour scheme — 5 curated swatches + 1 Dynamic.
-                Phase 14 Chunk 4: collapsed the old 12 accent presets
-                into 5 curated schemes. Each scheme sets BOTH the
-                accent (`--p`) AND the ambient blob colors
-                (`--ambient-color-1/2/3`), so picking a scheme repaints
-                the entire UI in lockstep. */}
+          <div id="panel-appearance" class="settings-accordion-panel">
+            {/* ─── Colour environment ─────────────────────────────── */}
             <div class="setting-subsection">
-              <p class="setting-subsection-label">Colour scheme</p>
-              <div class="accent-swatch-row">
-                <For each={THEMES_LIST}>
-                  {(t) => (
-                    <AccentSwatch
-                      variant="preset"
-                      id={t.id}
-                      label={t.name}
-                      color={t.swatch}
-                      selected={s.isPresetActive(t.id)}
-                      onSelect={() => s.handlePresetClick(t.id)}
-                    />
-                  )}
-                </For>
-                {/* 9th swatch — Dynamic */}
-                <AccentSwatch
-                  variant="dynamic"
-                  id="dynamic"
-                  label={s.extractingColor() ? "Extracting…" : "Dynamic"}
-                  dynamicColor={s.dynamicAccentColor()}
-                  selected={s.isDynamicActive()}
-                  onSelect={() => void s.handleDynamicClick()}
-                />
+              <p class="setting-subsection-label">Colour environment</p>
+              <div class="settings-banner-theme-info">
+                <span
+                  class="material-symbols-outlined settings-accordion-icon"
+                  aria-hidden="true"
+                >
+                  auto_awesome
+                </span>
+                <div>
+                  <strong>Profile banner driven</strong>
+                  <p>
+                    CineLog automatically derives the app background, ambient
+                    color, accent, and readable active states from your profile
+                    banner. Change the banner from your Profile page.
+                  </p>
+                </div>
               </div>
-
-              {/* ─── Dynamic accent status line ──────────────
-                  Three states (per spec):
-                    1. No banner set: "No banner set — using Gold accent"
-                    2. Banner set, extracting: "Extracting color from banner…"
-                    3. Banner set, extracted: "Banner accent: #XXXXXX"
-                  Plus a Re-extract button (always shown when a
-                  banner is present so the user can refresh after
-                  changing their banner image).
-              */}
-              <Show
-                when={s.extractingColor()}
-                fallback={
-                  <Show
-                    when={s.bannerUrl()}
-                    fallback={
-                      /* State 1: No banner set */
-                      <p class="accent-dynamic-info accent-dynamic-info-muted">
-                        No banner set — using Gold accent.{" "}
-                        <a
-                          href="/profile"
-                          class="settings-link-btn focus-ring"
-                          aria-label="Set a banner on your profile"
-                        >
-                          Set a banner →
-                        </a>
-                      </p>
-                    }
-                  >
-                    <Show
-                      when={s.isDynamicActive() && s.dynamicAccentColor()}
-                      fallback={
-                        /* State with banner but not active */
-                        <Show
-                          when={s.dynamicAccentColor()}
-                          fallback={
-                            /* Banner set, never extracted */
-                            <p class="accent-dynamic-info accent-dynamic-info-muted">
-                              Banner detected. Tap "Dynamic" to
-                              extract an accent color from it.
-                            </p>
-                          }
-                        >
-                          {/* Previously extracted, not currently active */}
-                          <p class="accent-dynamic-info accent-dynamic-info-muted">
-                            Last extracted:{" "}
-                            <code>{s.dynamicAccentColor()}</code>
-                            <button
-                              type="button"
-                              class="settings-link-btn focus-ring accent-dynamic-refresh"
-                              onClick={() => void s.handleReextractDynamic()}
-                              aria-label="Re-extract banner color"
-                            >
-                              Re-extract
-                            </button>
-                          </p>
-                        </Show>
-                      }
-                    >
-                      {/* State 3: Active and extracted */}
-                      <div class="accent-dynamic-info">
-                        <span>
-                          Banner accent:{" "}
-                          <code>{s.dynamicAccentColor()}</code>
-                        </span>
-                        <button
-                          type="button"
-                          class="settings-link-btn focus-ring accent-dynamic-refresh"
-                          onClick={() => void s.handleReextractDynamic()}
-                          aria-label="Re-extract banner color"
-                          title="Re-extract color from your banner"
-                        >
-                          <span
-                            class="material-symbols-outlined"
-                            style={{ "font-size": "14px" }}
-                            aria-hidden="true"
-                          >
-                            refresh
-                          </span>
-                          Re-extract
-                        </button>
-                      </div>
-                    </Show>
-                  </Show>
-                }
-              >
-                {/* State 2: Extracting */}
-                <p class="accent-dynamic-info">
-                  <span
-                    class="material-symbols-outlined"
-                    style={{
-                      "font-size": "14px",
-                      animation: "spin 1s linear infinite"
-                    }}
-                    aria-hidden="true"
-                  >
-                    progress_activity
-                  </span>
-                  Extracting color from banner…
-                </p>
-              </Show>
             </div>
 
             {/* ─── Phase 14 Chunk 2 — Ambient Intensity ──────────────

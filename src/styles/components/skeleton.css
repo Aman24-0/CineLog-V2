@@ -12,9 +12,9 @@
 .skeleton-base {
   background: linear-gradient(
     105deg,
-    rgba(232, 183, 74, 0.02) 25%,
-    rgba(232, 183, 74, 0.06) 50%,
-    rgba(232, 183, 74, 0.02) 75%
+    rgb(var(--profile-ambient-primary, 96 112 128) / 0.02) 25%,
+    rgb(var(--profile-ambient-primary, 96 112 128) / 0.06) 50%,
+    rgb(var(--profile-ambient-primary, 96 112 128) / 0.02) 75%
   );
   background-size: 300% 100%;
   animation: shimmer 1.6s ease-in-out infinite;
@@ -25,9 +25,9 @@
   border-radius: var(--radius-sm);
   background: linear-gradient(
     105deg,
-    rgba(232, 183, 74, 0.03) 25%,
-    rgba(232, 183, 74, 0.07) 50%,
-    rgba(232, 183, 74, 0.03) 75%
+    rgb(var(--profile-ambient-primary, 96 112 128) / 0.03) 25%,
+    rgb(var(--profile-ambient-primary, 96 112 128) / 0.07) 50%,
+    rgb(var(--profile-ambient-primary, 96 112 128) / 0.03) 75%
   );
   background-size: 300% 100%;
   animation: shimmer 1.6s ease-in-out infinite;

@@ -41,14 +41,9 @@ import "@fontsource/azeret-mono/500.css";
 import "@fontsource/azeret-mono/700.css";
 import "@fontsource-variable/material-symbols-outlined/full.css";
 
-// Side-effect import: wires the theme module. Reading `theme()` here
-// forces the createEffect in theme.ts to register, which applies
-// `document.body.className = "theme-<name>"` on the client. Without
-// this, no theme class is ever applied to <body>, so `--p`, `--p2`,
-// `--active-bg`, `--active-text`, etc. all resolve to empty strings
-// and every active-state control renders with no background color
-// (the root cause of "active state visibility is still broken").
-import { theme } from "./core/theme";
+// Global appearance is derived from the signed-in user's profile banner.
+// The controller is mounted by AppShell so the environment persists across
+// consumer route changes; the dedicated Detail route keeps its own stack.
 // Side-effect import: wires the preferences module — applies data-attributes
 // to <html> for density, font-size, hide-spoilers, reduced-motion,
 // high-contrast, and persists all preferences to localStorage. Reading
@@ -59,7 +54,6 @@ import {
   hideSpoilers,
   reducedMotion,
   highContrast,
-  customAccent,
   posterQuality
 } from "./core/preferences";
 import AppShell from "./app/AppShell";
@@ -74,13 +68,11 @@ import { GlassLoadingState } from "~/shared/ui/glass";
 
 // Read the signals so the createEffects are tracked. The return values are
 // discarded — the effects are what matter.
-void theme;
 void density;
 void fontSize;
 void hideSpoilers;
 void reducedMotion;
 void highContrast;
-void customAccent;
 void posterQuality;
 
 export default function App() {
@@ -95,16 +87,16 @@ export default function App() {
                 <CollectionsProvider>
                   <CuratedUniversesProvider>
                     <SearchProvider>
-                    <AppShell>
-                    <Suspense
-                      fallback={
-                        <GlassLoadingState fullHeight message="Loading" />
-                      }
-                    >
-                      {props.children}
-                    </Suspense>
-                  </AppShell>
-                  </SearchProvider>
+                      <AppShell>
+                        <Suspense
+                          fallback={
+                            <GlassLoadingState fullHeight message="Loading" />
+                          }
+                        >
+                          {props.children}
+                        </Suspense>
+                      </AppShell>
+                    </SearchProvider>
                   </CuratedUniversesProvider>
                 </CollectionsProvider>
               </VaultProvider>

@@ -29,6 +29,7 @@ import { getAuthHeaders } from "~/lib/supabase/session";
 import type { ProfileRow } from "~/lib/supabase/repositories";
 import type { TMDBTitle } from "~/shared/types";
 import type { UpdateProfilePayload } from "~/lib/supabase/repositories/profile";
+import { notifyProfileBannerChanged } from "~/core/theme/profileBannerTheme";
 
 // ---------------------------------------------------------------------------
 // Banner self-healing helpers (Phase 18 deep-fix v2)
@@ -260,10 +261,14 @@ export function useProfileData() {
           )
         : Promise.resolve(null),
       healedProfile.favorite_series_id
-        ? fetchTmdbMetadata("tv", healedProfile.favorite_series_id).catch(() => null)
+        ? fetchTmdbMetadata("tv", healedProfile.favorite_series_id).catch(
+            () => null
+          )
         : Promise.resolve(null),
       healedProfile.favorite_director_id
-        ? fetchFavoriteDirector(healedProfile.favorite_director_id).catch(() => null)
+        ? fetchFavoriteDirector(healedProfile.favorite_director_id).catch(
+            () => null
+          )
         : Promise.resolve(null)
     ]);
 
@@ -306,6 +311,7 @@ export function useProfileData() {
       // Discard stale result if user changed while fetch was in-flight
       if (uid() !== id) return;
       setData(result);
+      notifyProfileBannerChanged();
       setLoaded(true);
     } catch (err) {
       console.error("[useProfileData] Fetch failed:", err);
@@ -327,6 +333,7 @@ export function useProfileData() {
       } else {
         // Signed out — clear profile data and ensure loading is false
         setData(null);
+        notifyProfileBannerChanged();
         setFetchError(null);
         setFetching(false);
       }

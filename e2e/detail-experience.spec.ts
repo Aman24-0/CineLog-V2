@@ -302,6 +302,10 @@ for (const viewport of [
         "background-color",
         "rgba(0, 0, 0, 0)"
       );
+      await expect(page.locator(".ambient-background")).toHaveCSS(
+        "visibility",
+        "hidden"
+      );
       const ambientLayers = await shell.evaluate((element) => {
         const ambient = getComputedStyle(element, "::before");
         const veil = getComputedStyle(element, "::after");

@@ -11,7 +11,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // --- Hoisted mocks for every preference signal ---
 
 const setters = vi.hoisted(() => ({
-  setTheme: vi.fn(),
   setDensity: vi.fn(),
   setFontSize: vi.fn(),
   setPosterQuality: vi.fn(),
@@ -35,7 +34,6 @@ const setters = vi.hoisted(() => ({
 }));
 
 const getters = vi.hoisted(() => ({
-  theme: vi.fn(() => "minimal"),
   density: vi.fn(() => "compact"),
   fontSize: vi.fn(() => "small"),
   posterQuality: vi.fn(() => "low"),
@@ -81,7 +79,6 @@ const getters = vi.hoisted(() => ({
 vi.mock("~/core/preferences", () => ({
   ...setters,
   ...getters,
-  theme: getters.theme,
   density: getters.density,
   fontSize: getters.fontSize,
   posterQuality: getters.posterQuality,
@@ -99,14 +96,7 @@ vi.mock("~/core/preferences", () => ({
   notifPrefs: getters.notifPrefs,
   calPrefs: getters.calPrefs,
   syncCadence: getters.syncCadence,
-  mergeAndSortProviders: vi.fn(),
-  applyAccentToDocument: vi.fn(),
-  clearAccentFromDocument: vi.fn()
-}));
-
-vi.mock("~/core/theme", () => ({
-  theme: getters.theme,
-  setTheme: setters.setTheme
+  mergeAndSortProviders: vi.fn()
 }));
 
 vi.mock("~/core/preferences/language", () => ({
@@ -125,7 +115,9 @@ vi.mock("~/core/preferences/contentFilters", () => ({
 }));
 
 vi.mock("~/core/preferences/streamingProviders", () => ({
-  streamingProviders: vi.fn(() => [{ provider_id: 8, provider_name: "Netflix" }]),
+  streamingProviders: vi.fn(() => [
+    { provider_id: 8, provider_name: "Netflix" }
+  ]),
   setStreamingProviders: setters.setStreamingProviders
 }));
 
@@ -171,9 +163,8 @@ beforeEach(() => {
 // ---------------------------------------------------------------------------
 
 describe("resetSectionToDefaults — appearance", () => {
-  it("resets all 8 appearance preferences to their defaults", () => {
+  it("resets all banner-driven appearance preferences to their defaults", () => {
     expect(resetSectionToDefaults("appearance")).toBe(true);
-    expect(setters.setTheme).toHaveBeenCalledWith("cinematic");
     expect(setters.setDensity).toHaveBeenCalledWith("comfortable");
     expect(setters.setFontSize).toHaveBeenCalledWith("medium");
     expect(setters.setPosterQuality).toHaveBeenCalledWith("high");
@@ -277,7 +268,9 @@ describe("resetSectionToDefaults — account + danger", () => {
 
 describe("resetSectionToDefaults — unknown section", () => {
   it("returns false for an unknown section id", () => {
-    expect(resetSectionToDefaults("nonexistent" as SettingsSectionId)).toBe(false);
+    expect(resetSectionToDefaults("nonexistent" as SettingsSectionId)).toBe(
+      false
+    );
   });
 });
 
@@ -311,24 +304,32 @@ describe("exportSettingsToFile", () => {
         if (tag === "a") return fakeAnchor as unknown as HTMLAnchorElement;
         return realCreateElement(tag);
       });
-    const spyAppend = vi.spyOn(document.body, "appendChild").mockImplementation((node: Node) => {
-      fakeAnchor._parent = node;
-      return node;
-    });
-    const spyRemove = vi.spyOn(document.body, "removeChild").mockImplementation((node: Node) => {
-      fakeAnchor._parent = null;
-      return node;
-    });
+    const spyAppend = vi
+      .spyOn(document.body, "appendChild")
+      .mockImplementation((node: Node) => {
+        fakeAnchor._parent = node;
+        return node;
+      });
+    const spyRemove = vi
+      .spyOn(document.body, "removeChild")
+      .mockImplementation((node: Node) => {
+        fakeAnchor._parent = null;
+        return node;
+      });
     const spyCreateObjectURL = vi
       .spyOn(URL, "createObjectURL")
       .mockReturnValue("blob:fake-url");
-    const spyRevokeObjectURL = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+    const spyRevokeObjectURL = vi
+      .spyOn(URL, "revokeObjectURL")
+      .mockImplementation(() => {});
 
     const result = exportSettingsToFile();
     expect(result).toBe(true);
     expect(spyCreateObjectURL).toHaveBeenCalledTimes(1);
     expect(fakeAnchor.href).toBe("blob:fake-url");
-    expect(fakeAnchor.download).toMatch(/^cinelog-preferences-\d{4}-\d{2}-\d{2}\.json$/);
+    expect(fakeAnchor.download).toMatch(
+      /^cinelog-preferences-\d{4}-\d{2}-\d{2}\.json$/
+    );
     expect(fakeAnchor.click).toHaveBeenCalledTimes(1);
     expect(spyAppend).toHaveBeenCalledTimes(1);
 
@@ -343,13 +344,18 @@ describe("exportSettingsToFile", () => {
   it("includes the magic header + version + preferences snapshot in the download", () => {
     // Capture the blob content via URL.createObjectURL.
     let capturedBlob: Blob | null = null;
-    vi.spyOn(URL, "createObjectURL").mockImplementation((blob: Blob | MediaSource) => {
-      capturedBlob = blob as Blob;
-      return "blob:fake";
-    });
+    vi.spyOn(URL, "createObjectURL").mockImplementation(
+      (blob: Blob | MediaSource) => {
+        capturedBlob = blob as Blob;
+        return "blob:fake";
+      }
+    );
     vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
     vi.spyOn(document, "createElement").mockReturnValue({
-      href: "", download: "", style: { display: "" }, click: vi.fn()
+      href: "",
+      download: "",
+      style: { display: "" },
+      click: vi.fn()
     } as unknown as HTMLAnchorElement);
     vi.spyOn(document.body, "appendChild").mockImplementation((n: Node) => n);
     vi.spyOn(document.body, "removeChild").mockImplementation((n: Node) => n);
@@ -383,17 +389,18 @@ describe("importSettingsFromFile", () => {
       exported_at: "2026-01-01T00:00:00.000Z",
       version: 1,
       preferences: {
-        theme: "cinematic",
         density: "comfortable",
         fontSize: "medium",
         language: "en",
         notifPrefs: { newSeason: true }
       }
     };
-    const result = await importSettingsFromFile(makeFile(JSON.stringify(payload)));
+    const result = await importSettingsFromFile(
+      makeFile(JSON.stringify(payload))
+    );
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.applied).toBe(5); // 5 keys present in preferences
+      expect(result.applied).toBe(4); // 4 keys present in preferences
     }
     // Verify a few setters were called with the imported values.
     expect(setters.setLanguage).toHaveBeenCalledWith("en");
@@ -414,7 +421,9 @@ describe("importSettingsFromFile", () => {
       version: 1,
       preferences: {}
     };
-    const result = await importSettingsFromFile(makeFile(JSON.stringify(payload)));
+    const result = await importSettingsFromFile(
+      makeFile(JSON.stringify(payload))
+    );
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.error).toContain("magic header");
@@ -426,7 +435,9 @@ describe("importSettingsFromFile", () => {
       magic: "cineLog.preferences.v1",
       version: 1
     };
-    const result = await importSettingsFromFile(makeFile(JSON.stringify(payload)));
+    const result = await importSettingsFromFile(
+      makeFile(JSON.stringify(payload))
+    );
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.error).toContain("preferences");
@@ -462,7 +473,9 @@ describe("importSettingsFromFile", () => {
         // Only one key — all others should be skipped, not error.
       }
     };
-    const result = await importSettingsFromFile(makeFile(JSON.stringify(payload)));
+    const result = await importSettingsFromFile(
+      makeFile(JSON.stringify(payload))
+    );
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.applied).toBe(1);
@@ -482,7 +495,9 @@ describe("importSettingsFromFile", () => {
         highContrast: undefined // doesn't appear in JSON
       }
     };
-    const result = await importSettingsFromFile(makeFile(JSON.stringify(payload)));
+    const result = await importSettingsFromFile(
+      makeFile(JSON.stringify(payload))
+    );
     expect(result.ok).toBe(true);
     // hideSpoilers=false should be applied (the if-check uses typeof === "boolean").
     expect(setters.setHideSpoilers).toHaveBeenCalledWith(false);

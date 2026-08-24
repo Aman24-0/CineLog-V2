@@ -35,7 +35,7 @@
   box-shadow:
     var(--shadow-glass-card),
     0 0 24px var(--p-glow),
-    inset 0 1px 0 rgba(232, 183, 74, 0.1);
+    inset 0 1px 0 rgb(var(--profile-ambient-primary, 96 112 128) / 0.1);
   margin-bottom: 0;
   position: relative;
 }
@@ -56,17 +56,19 @@
   border: 1px solid var(--glass-border-warm-strong) !important;
   box-shadow:
     var(--shadow-glass-card),
-    0 0 0 1px rgba(232, 183, 74, 0.04),
-    inset 0 1px 0 rgba(232, 183, 74, 0.06) !important;
+    0 0 0 1px rgb(var(--profile-ambient-primary, 96 112 128) / 0.04),
+    inset 0 1px 0 rgb(var(--profile-ambient-primary, 96 112 128) / 0.06) !important;
   padding: var(--space-4) var(--space-2) !important;
 }
 
 .stats-glass-box:hover {
-  border-color: rgba(232, 183, 74, 0.3) !important;
+  border-color: rgb(
+    var(--profile-ambient-primary, 96 112 128) / 0.3
+  ) !important;
   box-shadow:
     var(--shadow-glass-elevated),
     0 0 16px var(--p-glow),
-    inset 0 1px 0 rgba(232, 183, 74, 0.1) !important;
+    inset 0 1px 0 rgb(var(--profile-ambient-primary, 96 112 128) / 0.1) !important;
 }
 
 /* Profile section — premium glass surface */
@@ -125,7 +127,7 @@
   width: 100%;
   height: clamp(17rem, 60vw, 22rem);
   overflow: hidden;
-  border: 1px solid var(--glass-border-warm-strong, rgba(232, 183, 74, 0.28));
+  border: 1px solid var(--glass-border-warm-strong);
   border-radius: var(--radius-xl, 1.25rem);
   background: var(--glass-bg-strong);
   box-shadow: var(--shadow-glass-elevated, 0 18px 60px rgba(0, 0, 0, 0.28));
@@ -2125,7 +2127,7 @@
   height: 32px;
   border-radius: 999px;
   background: rgba(245, 197, 24, 0.1);
-  color: var(--p, #f5c518);
+  color: var(--p);
 }
 
 .profile-stat-card-v3-icon-wrap .material-symbols-outlined {
@@ -2170,7 +2172,7 @@
 
 .profile-stat-card-v3-progress-fill {
   height: 100%;
-  background: var(--p, #f5c518);
+  background: var(--p);
   border-radius: 999px;
   transition: width 0.4s ease;
 }
@@ -2217,7 +2219,7 @@
 
 .profile-tab-v3.is-active {
   color: var(--text-strong, #fff);
-  border-bottom-color: var(--p, #f5c518);
+  border-bottom-color: var(--p);
 }
 
 .profile-tab-v3-icon {
@@ -2335,7 +2337,7 @@
 
 .profile-activity-feed-v3-action-icon {
   font-size: 13px;
-  color: var(--p, #f5c518);
+  color: var(--p);
 }
 
 .profile-activity-feed-v3-time {
@@ -2365,8 +2367,8 @@
 
 .profile-activity-feed-v3-show-more:hover {
   background: var(--glass-bg, rgba(255, 255, 255, 0.06));
-  border-color: var(--p, #f5c518);
-  color: var(--p, #f5c518);
+  border-color: var(--p);
+  color: var(--p);
 }
 
 /* ─── Favorites Grid (V3) ──────────────────────────────────────────────── */
@@ -2474,7 +2476,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.125rem;
-  color: var(--p, #f5c518);
+  color: var(--p);
 }
 
 .profile-favorites-grid-v3-rating .material-symbols-outlined {
@@ -2539,7 +2541,7 @@
 
 .profile-lists-preview-v3-card:hover {
   transform: translateY(-2px);
-  border-color: var(--p, #f5c518);
+  border-color: var(--p);
 }
 
 .profile-lists-preview-v3-cover,
@@ -2560,7 +2562,7 @@
     rgba(245, 197, 24, 0.15),
     rgba(0, 0, 0, 0.4)
   );
-  color: var(--p, #f5c518);
+  color: var(--p);
 }
 
 .profile-lists-preview-v3-cover-fallback .material-symbols-outlined {
@@ -2631,7 +2633,7 @@
 .profile-achievements-preview-v3-view-all {
   background: transparent;
   border: none;
-  color: var(--p, #f5c518);
+  color: var(--p);
   font-family: "Outfit", sans-serif;
   font-size: 0.75rem;
   font-weight: 600;
@@ -2707,7 +2709,7 @@
 .profile-achievements-preview-v3-badge.is-unlocked
   .profile-achievements-preview-v3-badge-icon-wrap {
   background: rgba(245, 197, 24, 0.15);
-  color: var(--p, #f5c518);
+  color: var(--p);
 }
 
 .profile-achievements-preview-v3-badge-icon-wrap .material-symbols-outlined {
@@ -2741,7 +2743,7 @@
 
 .profile-achievements-preview-v3-badge-progress-fill {
   height: 100%;
-  background: var(--p, #f5c518);
+  background: var(--p);
   border-radius: 999px;
   transition: width 0.4s ease;
 }
@@ -2775,13 +2777,13 @@
 
 .profile-quick-action-row-v3-item:hover {
   background: var(--glass-bg, rgba(255, 255, 255, 0.06));
-  border-color: var(--p, #f5c518);
+  border-color: var(--p);
   transform: translateY(-2px);
 }
 
 .profile-quick-action-row-v3-icon {
   font-size: 22px;
-  color: var(--p, #f5c518);
+  color: var(--p);
 }
 
 .profile-quick-action-row-v3-label {
@@ -3051,7 +3053,7 @@
 
 .edit-profile-modal-bio-input:focus {
   outline: none;
-  border-color: var(--p, #f5c518);
+  border-color: var(--p);
 }
 
 .edit-profile-modal-avatar-row {
@@ -3176,7 +3178,7 @@
 }
 
 .edit-profile-modal-toggle.is-on {
-  background: var(--p, #f5c518);
+  background: var(--p);
 }
 
 .edit-profile-modal-toggle-knob {

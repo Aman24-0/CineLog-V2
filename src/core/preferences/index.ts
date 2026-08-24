@@ -17,15 +17,6 @@
 // Storage helpers (rarely imported directly by consumers)
 export { readStored, writeStored, applyDataAttr } from "./_storage";
 
-// Custom accent (overrides --p tokens)
-export {
-  customAccent,
-  setCustomAccent,
-  contrastOn,
-  applyAccentToDocument,
-  clearAccentFromDocument
-} from "./customAccent";
-
 // Display density
 export { density, setDensity, type Density } from "./density";
 
@@ -44,11 +35,7 @@ export {
 export { hideSpoilers, setHideSpoilers } from "./hideSpoilers";
 
 // Date format
-export {
-  dateFormat,
-  setDateFormat,
-  type DateFormat
-} from "./dateFormat";
+export { dateFormat, setDateFormat, type DateFormat } from "./dateFormat";
 
 // Reduced motion
 export {

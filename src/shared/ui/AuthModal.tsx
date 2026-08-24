@@ -14,11 +14,7 @@
 // mode toggle, error display) is passed as `children` to GlassModal.
 // The close X is provided by GlassModal's `showCloseButton` (default true).
 
-import {
-  Component,
-  Show,
-  createSignal
-} from "solid-js";
+import { Component, Show, createSignal } from "solid-js";
 import { useAuthModal } from "~/shared/hooks/useAuthModal";
 import { getClient } from "~/lib/supabase/client";
 import { useToast } from "~/shared/hooks/useToast";
@@ -183,7 +179,7 @@ const AuthModal: Component = () => {
             background: "var(--glass-bg)",
             border: "1px solid var(--p)",
             "box-shadow":
-              "0 0 24px var(--p-glow), inset 0 1px 0 rgba(232, 183, 74, 0.2)",
+              "0 0 24px var(--p-glow), inset 0 1px 0 rgb(var(--profile-ambient-primary, 96 112 128) / 0.2)",
             color: "var(--p)",
             animation: "shimmer 3s ease-in-out infinite alternate"
           }}
@@ -389,10 +385,7 @@ const AuthModal: Component = () => {
 
       {/* Divider */}
       <div class="relative mb-2 mt-2 flex items-center justify-center">
-        <div
-          class="absolute inset-0 flex items-center"
-          aria-hidden="true"
-        >
+        <div class="absolute inset-0 flex items-center" aria-hidden="true">
           <div
             class="w-full border-t"
             style={{ "border-color": "var(--hairline-2)" }}
@@ -439,12 +432,7 @@ const AuthModal: Component = () => {
           }
         }}
       >
-        <svg
-          viewBox="0 0 24 24"
-          width="18"
-          height="18"
-          aria-hidden="true"
-        >
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
           <path
             fill="#4285F4"
             d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"

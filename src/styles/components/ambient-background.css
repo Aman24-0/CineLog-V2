@@ -9,9 +9,9 @@
    ─────────────────
    Three large, blurred radial-gradient blobs slowly drift across the
    screen. Their colors are driven by CSS variables (--ambient-color-1/2/3)
-   that the Discover page updates reactively from the Spotlight movie's
-   backdrop palette. When the Spotlight changes, the blobs morph to the
-   new palette over 1.5s — the background feels alive and content-aware.
+   that ProfileAmbientTheme derives from the signed-in user's resolved
+   Profile banner. The same banner is rendered as a subdued, blurred image
+   wash so the environment carries artwork identity as well as color.
 
    PERFORMANCE CONTRACT
    ────────────────────
@@ -22,8 +22,8 @@
    • `filter: blur()` is the only expensive property, and it's static
      (the blur radius never animates), so the browser caches the
      blurred texture on the GPU.
-   • On mobile (max-width: 768px), blur radius is halved (80px → 40px)
-     and `will-change` is dropped — mobile GPUs struggle with large
+   • On mobile (max-width: 768px), the blob blur radius is reduced and
+     `will-change` is dropped — mobile GPUs struggle with large
      blurred layers and `will-change` doubles the GPU memory cost.
    • `prefers-reduced-motion: reduce` disables the float animation
      entirely (accessibility — the blobs become a static gradient).
@@ -55,6 +55,7 @@
     z-index: 0;
     pointer-events: none;
     overflow: hidden;
+    isolation: isolate;
     contain: paint;
     /* The base tint — a near-black with a faint blue undertone that
        reads as "cinematic" rather than "dead black". This sits ABOVE
@@ -91,19 +92,52 @@
 
   /* ─── The three blobs ────────────────────────────────────────────
      Each blob is a radial gradient that fades to transparent at the
-     edge. The colors come from CSS variables so the Discover page
-     can swap them reactively.
+     edge. The colors come from CSS variables written by ProfileAmbientTheme.
 
      Position / size / animation differ per blob so they never sync:
-       • blob-1: top-left,  60vw square, 40s float
-       • blob-2: top-right, 50vw square, 55s float (reverse direction)
-       • blob-3: bottom-center, 70vw square, 70s float
+            • blob-1: top-left, 100vmax square, 40s float
+     • blob-2: top-right, 90vmax square, 55s float (reverse direction)
+     • blob-3: bottom-center, 110vmax square, 70s float
+
      The differing durations (40/55/70s — prime-ish ratios) mean the
      blobs never realign to the same position, so the background
      never "loops" visibly. */
 
+  /* Profile banner image wash. It is intentionally enlarged, heavily
+     blurred, masked, and low-opacity: the page inherits atmosphere, not a
+     recognizable duplicate of the user's banner. */
+  .ambient-backdrop {
+    position: absolute;
+    inset: -12%;
+    z-index: 0;
+    background-image: var(--profile-ambient-image, none);
+    background-position: center top;
+    background-size: cover;
+    background-repeat: no-repeat;
+    filter: blur(54px) saturate(var(--profile-ambient-image-saturation, 1))
+      brightness(var(--profile-ambient-image-brightness, 0.78));
+    transform: scale(1.12);
+    opacity: var(--profile-ambient-image-opacity, 0);
+    mask-image: linear-gradient(
+      180deg,
+      #000 0%,
+      rgba(0, 0, 0, 0.86) 48%,
+      transparent 100%
+    );
+    -webkit-mask-image: linear-gradient(
+      180deg,
+      #000 0%,
+      rgba(0, 0, 0, 0.86) 48%,
+      transparent 100%
+    );
+    transition:
+      opacity 900ms ease,
+      filter 900ms ease;
+  }
+
   .ambient-blob {
     position: absolute;
+    z-index: 1;
     border-radius: 50%;
     /* `will-change: transform` promotes the blob to its own GPU layer
        so the float animation doesn't trigger layout/paint on the
@@ -119,10 +153,9 @@
        Mobile keeps 60px (was 40px) — still smooth but halved for GPU
        memory budget on mid-range Android. */
     filter: blur(140px);
-    /* Smooth color morph when the CSS variables change (e.g. when the
-       Spotlight movie changes and the Discover page pushes new colors
-       to --ambient-color-1/2/3). 1.5s ease-out matches the Spotlight
-       reroll crossfade so the background and hero transition together.
+    /* Smooth color morph when the Profile banner environment changes.
+       The 1.5s ease-out transition keeps the app atmosphere stable while
+       the controller refreshes the resolved artwork profile.
        Also transitions opacity so toggling the Ambient Intensity
        preference (Subtle / Normal / Vibrant) feels smooth instead of
        stepwise. */
@@ -251,6 +284,12 @@
       transform: translate3d(-8vw, 4vh, 0) scale(0.97);
     }
   }
+}
+
+/* Detail owns a separate backdrop-driven ambient stack. Hide the global
+   profile layer beneath it so the approved Detail treatment remains stable. */
+.app-shell-detail-page > .ambient-background {
+  visibility: hidden;
 }
 
 /* ─── Mobile: halve the blur, drop will-change ─────────────────────

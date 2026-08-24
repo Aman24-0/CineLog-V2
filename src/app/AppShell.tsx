@@ -21,6 +21,7 @@ import DesktopUtilityPanel from "~/shared/ui/DesktopUtilityPanel";
 // Admin and Landing routes do NOT mount it (their wrappers keep solid
 // --void). See src/shared/ui/AmbientBackground.tsx for the full design.
 import AmbientBackground from "~/shared/ui/AmbientBackground";
+import ProfileAmbientTheme from "~/core/theme/profileBannerTheme";
 import { useModalState } from "~/shared/hooks/useModalState";
 import { useCollectionModal } from "~/shared/hooks/useCollectionModal";
 import { useAuthModal } from "~/shared/hooks/useAuthModal";
@@ -183,6 +184,9 @@ const AppShell: ParentComponent = (props) => {
                   position:fixed + z-index:0 means it never participates
                   in flow and never intercepts clicks. */}
               <AmbientBackground />
+              <Show when={!isDedicatedDetailRoute()}>
+                <ProfileAmbientTheme />
+              </Show>
 
               {/* Skip link (WCAG 2.4.1 — Bypass Blocks). First focusable
                   element in the DOM so keyboard users land on it before

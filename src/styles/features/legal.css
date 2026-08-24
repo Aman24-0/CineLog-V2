@@ -27,7 +27,7 @@
 }
 
 .legal-page__back:hover {
-  color: var(--p, #e8b74a);
+  color: var(--p);
 }
 
 .legal-page__back .material-symbols-outlined {
@@ -35,7 +35,7 @@
 }
 
 .legal-page__title {
-  font-family: var(--font-display, 'Space Grotesk', sans-serif);
+  font-family: var(--font-display, "Space Grotesk", sans-serif);
   font-size: 2rem;
   font-weight: 700;
   color: var(--text-strong, #fff);
@@ -54,7 +54,7 @@
 }
 
 .legal-page__section h2 {
-  font-family: var(--font-heading, 'Space Grotesk', sans-serif);
+  font-family: var(--font-heading, "Space Grotesk", sans-serif);
   font-size: 1.125rem;
   font-weight: 600;
   color: var(--text-strong, #fff);

@@ -72,7 +72,7 @@ import type { Component } from "solid-js";
  * glass ambient layer behind all app content.
  *
  * No props. No state. No effects. Pure presentational — the color
- * reactivity is driven by CSS variables that the Discover page sets
+ * reactivity is driven by CSS variables that ProfileAmbientTheme sets
  * on `document.documentElement`.
  *
  * @example
@@ -97,6 +97,10 @@ const AmbientBackground: Component = () => {
       // would force AT to announce it; adding role="presentation"
       // is redundant with aria-hidden. Better to emit no role.
     >
+      {/* Profile banner wash — intentionally blurred and low-opacity so it
+          carries title identity without becoming a recognizable backdrop. */}
+      <div class="ambient-backdrop" aria-hidden="true" />
+
       {/* Blob 1 — top-left, primary accent. Default: cinema gold. */}
       <div class="ambient-blob ambient-blob-1" aria-hidden="true" />
       {/* Blob 2 — top-right, secondary accent. Default: warm orange. */}

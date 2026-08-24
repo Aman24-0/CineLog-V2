@@ -40,7 +40,10 @@ import {
   defaultVaultStatus,
   setDefaultVaultStatus
 } from "~/core/preferences";
-import { UI_LANGUAGES, VAULT_STATUS_OPTIONS } from "~/shared/constants/settings";
+import {
+  UI_LANGUAGES,
+  VAULT_STATUS_OPTIONS
+} from "~/shared/constants/settings";
 
 const ProfilePreferencesRoute: Component = () => {
   const { user } = useAuth();
@@ -162,212 +165,216 @@ const ProfilePreferencesRoute: Component = () => {
       )}
     >
       <>
-      <Title>CineLog — Profile & Preferences</Title>
-      <PageContainer width="narrow" paddingTop="0" paddingBottom="var(--sp-12)">
-        <ScrollToTop />
-        <div class="sec-page sec-fade-in">
-          <div class="sec-header">
-            <a
-              href="/settings"
-              class="sec-back focus-ring"
-              aria-label="Back to settings"
-            >
-              <span
-                class="material-symbols-outlined"
-                style={{ "font-size": "14px" }}
-                aria-hidden="true"
+        <Title>CineLog — Profile & Preferences</Title>
+        <PageContainer
+          width="narrow"
+          paddingTop="0"
+          paddingBottom="var(--sp-12)"
+        >
+          <ScrollToTop />
+          <div class="sec-page sec-fade-in">
+            <div class="sec-header">
+              <a
+                href="/settings"
+                class="sec-back focus-ring"
+                aria-label="Back to settings"
               >
-                arrow_back
-              </span>
-              Settings
-            </a>
-            <p class="sec-eyebrow">Settings</p>
-            <h1 class="sec-title">Profile & Preferences</h1>
-            <p class="sec-subtitle">
-              How CineLog addresses you, and how content language is chosen.
-            </p>
-          </div>
+                <span
+                  class="material-symbols-outlined"
+                  style={{ "font-size": "14px" }}
+                  aria-hidden="true"
+                >
+                  arrow_back
+                </span>
+                Settings
+              </a>
+              <p class="sec-eyebrow">Settings</p>
+              <h1 class="sec-title">Profile & Preferences</h1>
+              <p class="sec-subtitle">
+                How CineLog addresses you, and how content language is chosen.
+              </p>
+            </div>
 
-          <div class="sec-body">
-            {/* Display name */}
-            <section class="sec-section" style={{ "margin-top": "0" }}>
-              <p class="sec-section-label">Display Name</p>
-              <div class="setting-group">
-                <div class="setting-row-control">
-                  <div class="setting-row-control-header">
-                    <div class="setting-row-icon" aria-hidden="true">
-                      <span
-                        class="material-symbols-outlined"
-                        style={{ "font-size": "16px" }}
-                        aria-hidden="true"
-                      >
-                        person
-                      </span>
-                    </div>
-                    <div class="setting-row-control-meta">
-                      <span class="setting-row-control-label">Your name</span>
-                      <span class="setting-row-control-desc">
-                        Shown on your profile.
-                      </span>
-                    </div>
-                  </div>
-                  <Show
-                    when={!editingName()}
-                    fallback={
-                      <div style={{ display: "flex", gap: "var(--sp-2)" }}>
-                        <input
-                          type="text"
-                          class="custom-hex-input focus-ring"
-                          style={{ flex: "1" }}
-                          value={nameInput()}
-                          onInput={(e) => setNameInput(e.currentTarget.value)}
-                          placeholder="Your display name"
-                          maxlength={50}
-                          aria-label="Display name"
-                        />
-                        <button
-                          type="button"
-                          class="settings-link-btn focus-ring"
-                          onClick={handleSaveName}
-                          disabled={savingName()}
+            <div class="sec-body">
+              {/* Display name */}
+              <section class="sec-section" style={{ "margin-top": "0" }}>
+                <p class="sec-section-label">Display Name</p>
+                <div class="setting-group">
+                  <div class="setting-row-control">
+                    <div class="setting-row-control-header">
+                      <div class="setting-row-icon" aria-hidden="true">
+                        <span
+                          class="material-symbols-outlined"
+                          style={{ "font-size": "16px" }}
+                          aria-hidden="true"
                         >
-                          <Show when={!savingName()} fallback="Saving…">
-                            <span
-                              class="material-symbols-outlined"
-                              style={{ "font-size": "14px" }}
-                              aria-hidden="true"
-                            >
-                              save
-                            </span>
-                            Save
-                          </Show>
-                        </button>
+                          person
+                        </span>
+                      </div>
+                      <div class="setting-row-control-meta">
+                        <span class="setting-row-control-label">Your name</span>
+                        <span class="setting-row-control-desc">
+                          Shown on your profile.
+                        </span>
+                      </div>
+                    </div>
+                    <Show
+                      when={!editingName()}
+                      fallback={
+                        <div style={{ display: "flex", gap: "var(--sp-2)" }}>
+                          <input
+                            type="text"
+                            class="settings-inline-input focus-ring"
+                            style={{ flex: "1" }}
+                            value={nameInput()}
+                            onInput={(e) => setNameInput(e.currentTarget.value)}
+                            placeholder="Your display name"
+                            maxlength={50}
+                            aria-label="Display name"
+                          />
+                          <button
+                            type="button"
+                            class="settings-link-btn focus-ring"
+                            onClick={handleSaveName}
+                            disabled={savingName()}
+                          >
+                            <Show when={!savingName()} fallback="Saving…">
+                              <span
+                                class="material-symbols-outlined"
+                                style={{ "font-size": "14px" }}
+                                aria-hidden="true"
+                              >
+                                save
+                              </span>
+                              Save
+                            </Show>
+                          </button>
+                          <button
+                            type="button"
+                            class="settings-link-btn focus-ring"
+                            onClick={() => {
+                              setEditingName(false);
+                              setNameInput(displayName());
+                            }}
+                            disabled={savingName()}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      }
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: "var(--sp-2)",
+                          "align-items": "center",
+                          "margin-top": "var(--sp-1)"
+                        }}
+                      >
+                        <span
+                          style={{
+                            "font-family": "'Outfit', sans-serif",
+                            "font-size": "0.9375rem",
+                            "font-weight": 600,
+                            color: "var(--text-strong)"
+                          }}
+                        >
+                          {displayName() || "Not set"}
+                        </span>
                         <button
                           type="button"
                           class="settings-link-btn focus-ring"
                           onClick={() => {
-                            setEditingName(false);
                             setNameInput(displayName());
+                            setEditingName(true);
                           }}
-                          disabled={savingName()}
                         >
-                          Cancel
+                          <span
+                            class="material-symbols-outlined"
+                            style={{ "font-size": "14px" }}
+                            aria-hidden="true"
+                          >
+                            edit
+                          </span>
+                          Edit
                         </button>
                       </div>
-                    }
-                  >
+                    </Show>
+                  </div>
+                </div>
+              </section>
+
+              {/* Country & Region */}
+              <section class="sec-section">
+                <p class="sec-section-label">Country & Region</p>
+                <div class="setting-group">
+                  <SelectRow
+                    icon="public"
+                    label="Country"
+                    desc="Affects Discover, Upcoming releases, and Where-to-watch."
+                    value={country}
+                    onChange={handleSaveCountry}
+                    options={countryOptions()}
+                  />
+                  <Show when={savingCountry()}>
                     <div
                       style={{
-                        display: "flex",
-                        gap: "var(--sp-2)",
-                        "align-items": "center",
-                        "margin-top": "var(--sp-1)"
+                        padding: "0 var(--sp-5)",
+                        color: "var(--text-muted)",
+                        "font-size": "0.75rem"
                       }}
                     >
-                      <span
-                        style={{
-                          "font-family": "'Outfit', sans-serif",
-                          "font-size": "0.9375rem",
-                          "font-weight": 600,
-                          color: "var(--text-strong)"
-                        }}
-                      >
-                        {displayName() || "Not set"}
-                      </span>
-                      <button
-                        type="button"
-                        class="settings-link-btn focus-ring"
-                        onClick={() => {
-                          setNameInput(displayName());
-                          setEditingName(true);
-                        }}
-                      >
-                        <span
-                          class="material-symbols-outlined"
-                          style={{ "font-size": "14px" }}
-                          aria-hidden="true"
-                        >
-                          edit
-                        </span>
-                        Edit
-                      </button>
+                      Saving…
                     </div>
                   </Show>
                 </div>
-              </div>
-            </section>
+              </section>
 
-            {/* Country & Region */}
-            <section class="sec-section">
-              <p class="sec-section-label">Country & Region</p>
-              <div class="setting-group">
-                <SelectRow
-                  icon="public"
-                  label="Country"
-                  desc="Affects Discover, Upcoming releases, and Where-to-watch."
-                  value={country}
-                  onChange={handleSaveCountry}
-                  options={countryOptions()}
-                />
-                <Show when={savingCountry()}>
-                  <div
-                    style={{
-                      padding: "0 var(--sp-5)",
-                      color: "var(--text-muted)",
-                      "font-size": "0.75rem"
-                    }}
-                  >
-                    Saving…
-                  </div>
-                </Show>
-              </div>
-            </section>
-
-            {/* Language */}
-            <section class="sec-section">
-              <p class="sec-section-label">Language</p>
-              <div class="setting-group">
-                <SelectRow
-                  icon="translate"
-                  label="Primary language"
-                  desc="Used for movie/TV metadata (overviews, posters with text)."
-                  value={language}
-                  onChange={(v) => setLanguage(v)}
-                  options={languageOptions()}
-                />
-                <SelectRow
-                  icon="swap_horiz"
-                  label="Fallback language"
-                  desc="Used when a title has no content in your primary language."
-                  value={fallbackLanguage}
-                  onChange={(v) => setFallbackLanguage(v)}
-                  options={fallbackOptions()}
-                />
-              </div>
-            </section>
-
-            {/* Default vault status */}
-            <section class="sec-section">
-              <p class="sec-section-label">Default Vault Status</p>
-              <div class="setting-group">
-                <ControlRow
-                  icon="bookmark_add"
-                  label="When you add a title to your vault"
-                  desc="Status assigned to new titles automatically."
-                >
-                  <Segmented
-                    options={VAULT_STATUS_OPTIONS}
-                    current={defaultVaultStatus}
-                    onChange={(id) => setDefaultVaultStatus(id)}
-                    name="Default vault status"
+              {/* Language */}
+              <section class="sec-section">
+                <p class="sec-section-label">Language</p>
+                <div class="setting-group">
+                  <SelectRow
+                    icon="translate"
+                    label="Primary language"
+                    desc="Used for movie/TV metadata (overviews, posters with text)."
+                    value={language}
+                    onChange={(v) => setLanguage(v)}
+                    options={languageOptions()}
                   />
-                </ControlRow>
-              </div>
-            </section>
+                  <SelectRow
+                    icon="swap_horiz"
+                    label="Fallback language"
+                    desc="Used when a title has no content in your primary language."
+                    value={fallbackLanguage}
+                    onChange={(v) => setFallbackLanguage(v)}
+                    options={fallbackOptions()}
+                  />
+                </div>
+              </section>
+
+              {/* Default vault status */}
+              <section class="sec-section">
+                <p class="sec-section-label">Default Vault Status</p>
+                <div class="setting-group">
+                  <ControlRow
+                    icon="bookmark_add"
+                    label="When you add a title to your vault"
+                    desc="Status assigned to new titles automatically."
+                  >
+                    <Segmented
+                      options={VAULT_STATUS_OPTIONS}
+                      current={defaultVaultStatus}
+                      onChange={(id) => setDefaultVaultStatus(id)}
+                      name="Default vault status"
+                    />
+                  </ControlRow>
+                </div>
+              </section>
+            </div>
           </div>
-        </div>
-      </PageContainer>
-    </>
+        </PageContainer>
+      </>
     </ErrorBoundary>
   );
 };

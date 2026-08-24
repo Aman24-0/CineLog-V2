@@ -175,7 +175,8 @@
   font-weight: 600;
   cursor: pointer;
   text-align: left;
-  transition: background var(--dur-fast) var(--ease-out),
+  transition:
+    background var(--dur-fast) var(--ease-out),
     color var(--dur-fast) var(--ease-out);
 }
 
@@ -227,7 +228,8 @@
   border: 1px solid var(--hairline-2);
   border-radius: var(--radius-md);
   overflow: hidden;
-  transition: border-color var(--dur-fast) var(--ease-out),
+  transition:
+    border-color var(--dur-fast) var(--ease-out),
     box-shadow var(--dur-fast) var(--ease-out);
 }
 
@@ -335,7 +337,10 @@
   border: 1px solid var(--hairline);
   border-radius: var(--radius-md, 8px);
   cursor: pointer;
-  transition: background var(--dur-fast, 120ms), color var(--dur-fast, 120ms), border-color var(--dur-fast, 120ms);
+  transition:
+    background var(--dur-fast, 120ms),
+    color var(--dur-fast, 120ms),
+    border-color var(--dur-fast, 120ms);
 }
 .settings-section-reset-btn:hover {
   background: rgba(239, 68, 68, 0.08);
@@ -356,7 +361,7 @@
    for backward compatibility (in case any other code path still uses
    the .settings-import-export-btn class) but now derives its colors
    from the --p / --p-dim / --p-border tokens so it adapts to the
-   active accent theme instead of the hardcoded #f5c518 yellow. */
+   active profile-derived accent instead of a fixed brand color. */
 .settings-import-export-btn {
   display: inline-flex;
   align-items: center;
@@ -394,7 +399,8 @@
   font-size: 0.8125rem;
   font-weight: 600;
   text-decoration: none;
-  transition: background var(--dur-fast) var(--ease-out),
+  transition:
+    background var(--dur-fast) var(--ease-out),
     border-color var(--dur-fast) var(--ease-out);
 }
 
@@ -1085,213 +1091,6 @@
   color: #f87171;
 }
 
-/* ─── Theme Card v2 (visual theme picker) ──────────────────────── */
-.theme-card-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--sp-2);
-  width: 100%;
-}
-
-.theme-card-v2 {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-2);
-  padding: var(--sp-2);
-  background: var(--glass-bg);
-  border: 2px solid var(--hairline-2);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  text-align: left;
-  transition: border-color var(--dur-fast) var(--ease-out),
-    background var(--dur-fast) var(--ease-out),
-    transform var(--dur-fast) var(--ease-out);
-  min-height: 44px;
-}
-
-.theme-card-v2:hover {
-  border-color: var(--hairline-3);
-  transform: translateY(-1px);
-}
-
-.theme-card-v2[data-active="true"] {
-  border-color: var(--p);
-  background: var(--p-dim);
-}
-
-.theme-card-v2-check {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  width: 22px;
-  height: 22px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--p);
-  color: var(--bg);
-  border-radius: 50%;
-  font-weight: 700;
-  z-index: 1;
-}
-
-.theme-card-v2-preview {
-  width: 100%;
-  height: 56px;
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  border: 1px solid var(--hairline);
-}
-
-.theme-card-v2-preview-surface {
-  width: 70%;
-  height: 70%;
-  border-radius: 4px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 6px;
-  border: 1px solid currentColor;
-}
-
-.theme-card-v2-preview-text {
-  width: 60%;
-  height: 4px;
-  border-radius: 2px;
-}
-
-.theme-card-v2-preview-accent {
-  width: 30%;
-  height: 4px;
-  border-radius: 2px;
-}
-
-.theme-card-v2-meta {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  align-items: center;
-  text-align: center;
-}
-
-.theme-card-v2-label {
-  font-family: "Outfit", sans-serif;
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--text-strong);
-}
-
-.theme-card-v2-desc {
-  font-size: 0.625rem;
-  color: var(--text-muted);
-  line-height: 1.2;
-}
-
-/* ─── Accent Swatch ────────────────────────────────────────────── */
-.accent-swatch-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
-  gap: var(--sp-2);
-  width: 100%;
-}
-
-.accent-swatch {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--sp-1);
-  padding: var(--sp-2) var(--sp-1);
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  min-height: 44px;
-  transition: transform var(--dur-fast) var(--ease-out);
-}
-
-.accent-swatch:hover {
-  transform: translateY(-1px);
-}
-
-.accent-swatch-circle {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  border: 2px solid var(--hairline-2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  transition: border-color var(--dur-fast) var(--ease-out),
-    box-shadow var(--dur-fast) var(--ease-out);
-}
-
-.accent-swatch[data-active="true"] .accent-swatch-circle {
-  border-color: var(--text-strong);
-  box-shadow: 0 0 0 3px var(--bg), 0 0 0 5px var(--p);
-}
-
-.accent-swatch-auto-icon {
-  font-size: 18px !important;
-  color: white;
-  text-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
-}
-
-.accent-swatch-check {
-  font-size: 16px !important;
-  color: white;
-  text-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
-}
-
-.accent-swatch-label {
-  font-family: "Outfit", sans-serif;
-  font-size: 0.625rem;
-  font-weight: 600;
-  color: var(--text-body);
-  text-align: center;
-  line-height: 1.2;
-  word-break: break-word;
-}
-
-.accent-dynamic-info {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  margin: var(--sp-2) 0 0 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-2);
-  flex-wrap: wrap;
-}
-
-.accent-dynamic-info code {
-  font-family: "Söhne Mono", "Courier New", monospace;
-  color: var(--p);
-  font-weight: 600;
-}
-
-.accent-dynamic-info-muted {
-  opacity: 0.7;
-}
-
-.accent-dynamic-refresh {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 0.25rem var(--sp-2);
-  font-size: 0.6875rem;
-  min-height: 28px;
-}
-
-.accent-dynamic-refresh:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
 /* ─── Sidebar danger link styling ──────────────────────────────── */
 .settings-sidebar-link[data-danger="true"] .settings-sidebar-icon,
 .settings-sidebar-link[data-danger="true"] .settings-sidebar-label {
@@ -1443,22 +1242,6 @@
   .settings-2fa-factor .btn-ghost {
     width: 100%;
     min-height: 44px;
-  }
-
-  /* Theme cards — keep 3-column grid on mobile, slightly smaller preview. */
-  .theme-card-v2-preview {
-    height: 44px;
-  }
-
-  /* Accent swatches — 4 per row on mobile. */
-  .accent-swatch-row {
-    grid-template-columns: repeat(4, 1fr);
-    gap: var(--sp-1);
-  }
-
-  .accent-swatch-circle {
-    width: 32px;
-    height: 32px;
   }
 
   /* Setting subsections — reduce vertical spacing on mobile. */
@@ -1742,7 +1525,9 @@
   cursor: pointer;
   color: var(--text-secondary);
   padding: 0;
-  transition: background 120ms ease, color 120ms ease;
+  transition:
+    background 120ms ease,
+    color 120ms ease;
 }
 
 .ott-reorder-btn:hover:not(:disabled) {
@@ -1768,7 +1553,10 @@
   font-size: 0.6875rem;
   font-weight: 700;
   cursor: pointer;
-  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+  transition:
+    background 120ms ease,
+    color 120ms ease,
+    border-color 120ms ease;
 }
 
 .ott-remove-btn:hover {
@@ -1783,4 +1571,3 @@
   font-size: 0.8125rem;
   padding: var(--sp-3);
 }
-

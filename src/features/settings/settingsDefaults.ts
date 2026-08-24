@@ -79,22 +79,13 @@ import {
   type AmbientIntensity
 } from "~/core/preferences";
 
-import { theme, setTheme, type Theme } from "~/core/theme";
-
 import { setFallbackLanguage } from "~/core/preferences/language";
 
-import {
-  dateFormat,
-  setDateFormat
-} from "~/core/preferences/dateFormat";
+import { dateFormat, setDateFormat } from "~/core/preferences/dateFormat";
 
-import {
-  setContentRatingCap
-} from "~/core/preferences/contentFilters";
+import { setContentRatingCap } from "~/core/preferences/contentFilters";
 
-import {
-  setStreamingProviders
-} from "~/core/preferences/streamingProviders";
+import { setStreamingProviders } from "~/core/preferences/streamingProviders";
 
 import type { PreferencesSnapshot } from "~/core/preferences/preferencesSync";
 
@@ -130,7 +121,6 @@ const DEFAULT_CAL_PREFS: CalendarPrefs = {
 
 const DEFAULT_SYNC_CADENCE: SyncCadence = "realtime";
 
-const DEFAULT_THEME: Theme = "cinematic";
 const DEFAULT_DENSITY: Density = "comfortable";
 const DEFAULT_FONT_SIZE: FontSize = "medium";
 const DEFAULT_POSTER_QUALITY: PosterQuality = "high";
@@ -154,13 +144,11 @@ const DEFAULT_CONTENT_RATING_CAP = "";
 // ─── Section resetters ──────────────────────────────────────────────
 
 /**
- * Reset the appearance section's preferences to their defaults.
- * Includes: theme (accent preset), density, fontSize,
- * posterQuality, hideSpoilers, reducedMotion, highContrast,
- * ambientIntensity (Phase 14 Chunk 2).
+ * Reset the appearance section's independent preferences to their defaults.
+ * The Profile banner environment is not a preference and is intentionally
+ * unaffected by this reset.
  */
 function resetAppearance(): void {
-  setTheme(DEFAULT_THEME);
   setDensity(DEFAULT_DENSITY);
   setFontSize(DEFAULT_FONT_SIZE);
   setPosterQuality(DEFAULT_POSTER_QUALITY);
@@ -227,10 +215,7 @@ function resetAccount(): void {
   // No-op — account section has no preferences.
 }
 
-const SECTION_RESETTERS: Record<
-  SettingsSectionId,
-  () => void
-> = {
+const SECTION_RESETTERS: Record<SettingsSectionId, () => void> = {
   account: resetAccount,
   appearance: resetAppearance,
   content: resetContent,
@@ -281,7 +266,6 @@ export interface ExportedSettings {
  */
 function collectSnapshot(): PreferencesSnapshot {
   return {
-    theme: theme(),
     density: density(),
     fontSize: fontSize(),
     posterQuality: posterQuality(),
@@ -310,14 +294,15 @@ function collectSnapshot(): PreferencesSnapshot {
  * preferencesSync.ts.
  */
 function applyImportedSnapshot(snap: PreferencesSnapshot): void {
-  if (snap.theme) setTheme(snap.theme);
   if (snap.density) setDensity(snap.density);
   if (snap.fontSize) setFontSize(snap.fontSize);
   if (snap.posterQuality) setPosterQuality(snap.posterQuality);
-  if (typeof snap.hideSpoilers === "boolean") setHideSpoilers(snap.hideSpoilers);
+  if (typeof snap.hideSpoilers === "boolean")
+    setHideSpoilers(snap.hideSpoilers);
   if (snap.dateFormat) setDateFormat(snap.dateFormat);
   if (snap.reducedMotion) setReducedMotion(snap.reducedMotion);
-  if (typeof snap.highContrast === "boolean") setHighContrast(snap.highContrast);
+  if (typeof snap.highContrast === "boolean")
+    setHighContrast(snap.highContrast);
   // Phase 14 Chunk 2: apply ambient intensity from the imported file.
   if (snap.ambientIntensity) setAmbientIntensity(snap.ambientIntensity);
   if (snap.language) setLanguage(snap.language);
@@ -404,10 +389,7 @@ export function exportSettingsToFile(): boolean {
  */
 export async function importSettingsFromFile(
   file: File
-): Promise<
-  | { ok: true; applied: number }
-  | { ok: false; error: string }
-> {
+): Promise<{ ok: true; applied: number } | { ok: false; error: string }> {
   if (isServer) {
     return { ok: false, error: "Import is only available in the browser." };
   }
@@ -430,9 +412,7 @@ export async function importSettingsFromFile(
   } catch (err) {
     return {
       ok: false,
-      error: `Invalid JSON: ${
-        err instanceof Error ? err.message : String(err)
-      }`
+      error: `Invalid JSON: ${err instanceof Error ? err.message : String(err)}`
     };
   }
 

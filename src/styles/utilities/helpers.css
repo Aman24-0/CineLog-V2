@@ -28,7 +28,7 @@
   width: 0;
   height: 0;
   border-radius: 50%;
-  background: rgba(232, 183, 74, 0.15);
+  background: rgb(var(--profile-ambient-primary, 96 112 128) / 0.15);
   transform: translate(-50%, -50%);
   transition:
     width 400ms var(--ease-out),
@@ -82,11 +82,11 @@
 
 /* ─── Accent utility classes ────────────────────────────────────
    These give components a stable, theme-aware way to apply the
-   active accent color without hardcoding `rgba(232, 183, 74, ...)`
+   profile-derived active accent without hardcoding a branded hue
    or relying on Tailwind's `text-primary` (which only covers --p).
 
-   Each utility pulls from the CSS variable that customAccent.ts
-   keeps in sync with the user's chosen accent (preset OR dynamic).
+   Each utility pulls from the CSS variables that ProfileAmbientTheme
+   keeps in sync with the user's resolved Profile banner.
 
    Usage:
      <button class="btn-accent">…</button>

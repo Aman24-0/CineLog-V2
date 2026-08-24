@@ -83,10 +83,9 @@ export default createHandler(() => (
               ---------------------------------------------------------------
               The browser uses this color for the URL bar / status bar
               tint on mobile (Chrome on Android, Safari on iOS 15+).
-              CineLog has TWO modes:
-                • Dark (default) — void black background (#0a0a0a) with
-                  cinema gold accent (#e8b74a). The URL bar should be
-                  void black so the app feels immersive.
+              CineLog has TWO browser color-mode declarations:
+                • Dark (default) — the immersive void background. Consumer
+                  accents are derived from the signed-in Profile banner.
                 • Light — warm cream background. The URL bar should be
                   the same cream so it blends with the page.
 
@@ -104,8 +103,16 @@ export default createHandler(() => (
               Chrome 93+, Firefox 91+, and Safari 15+ all support the
               `media` attribute on theme-color meta tags. Older
               browsers fall back to the manifest.json theme_color. */}
-          <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)" />
-          <meta name="theme-color" content="#faf7f0" media="(prefers-color-scheme: light)" />
+          <meta
+            name="theme-color"
+            content="#0a0a0a"
+            media="(prefers-color-scheme: dark)"
+          />
+          <meta
+            name="theme-color"
+            content="#faf7f0"
+            media="(prefers-color-scheme: light)"
+          />
           <meta name="theme-color" content="#0a0a0a" />
           <meta name="apple-mobile-web-app-capable" content="yes" />
           <meta name="mobile-web-app-capable" content="yes" />
@@ -185,8 +192,10 @@ export default createHandler(() => (
               'Material Symbols Outlined Variable' (the family name declared
               by @fontsource-variable/material-symbols-outlined) instead of
               the old Google Fonts family name. */}
-          { }
-          <script innerHTML={`(function(){try{var done=false;function mark(){if(done)return;done=true;document.documentElement.classList.add('mat-syms-loaded')}setTimeout(mark,800);if(document.fonts&&document.fonts.ready){document.fonts.ready.then(mark)}var f=new FontFace('Material Symbols Outlined Variable','local("Material Symbols Outlined Variable")');f.load().then(mark).catch(mark)}catch(e){document.documentElement.classList.add('mat-syms-loaded')}})();`} />
+          {}
+          <script
+            innerHTML={`(function(){try{var done=false;function mark(){if(done)return;done=true;document.documentElement.classList.add('mat-syms-loaded')}setTimeout(mark,800);if(document.fonts&&document.fonts.ready){document.fonts.ready.then(mark)}var f=new FontFace('Material Symbols Outlined Variable','local("Material Symbols Outlined Variable")');f.load().then(mark).catch(mark)}catch(e){document.documentElement.classList.add('mat-syms-loaded')}})();`}
+          />
 
           {assets}
         </head>

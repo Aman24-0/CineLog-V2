@@ -5,7 +5,7 @@
    Design philosophy:
    - Deeper void with warm undertone (not pure black)
    - Surface tiers tinted warm (not cool gray)
-   - Cinema gold accent (#E8B74A) as default brand color
+   - Runtime accent derived from the signed-in user's Profile banner
    - Warm cream text (not cold blue-white) for readability + warmth
    - Rich hairline borders with warm tint
    - All changes are purely visual — no structural or logic changes. */
@@ -13,12 +13,12 @@
 @layer base {
   :root {
     /* ─── Surface Tiers (redesigned — warm cinema depth) ─── */
-    --void: #0a0a0a;
-    --deep: #0a0a0a;
-    --surface: #0f0f16;
-    --raised: #181820;
-    --border: rgba(232, 183, 74, 0.06);
-    --border-active: rgba(232, 183, 74, 0.14);
+    --void: rgb(var(--profile-ambient-shell, 7 10 16));
+    --deep: rgb(var(--profile-ambient-shell, 7 10 16));
+    --surface: rgb(var(--profile-ambient-neutral, 24 30 40) / 0.62);
+    --raised: rgb(var(--profile-ambient-neutral, 24 30 40) / 0.78);
+    --border: rgb(var(--profile-ambient-primary, 96 112 128) / 0.08);
+    --border-active: rgb(var(--profile-ambient-primary, 96 112 128) / 0.18);
     --text: #f0ece2;
     /* Legacy muted/dim tokens — warm tinted for cinema feel */
     --muted: rgba(240, 236, 226, 0.62);
@@ -46,16 +46,37 @@
        Header/footer text that sits directly on the ambient is large
        and high-weight (--text-strong #fff8e8), maintaining AA.
 
-       --ambient-color-1/2/3: the three blob colors. Defaults are
-         the CineLog brand palette (cinema gold + warm orange + cool
-         blue) so the ambient looks intentional even before the
-         Discover page extracts a content-aware palette. The Discover
-         page overrides these on :root via JS when the Spotlight
-         movie changes — see useAmbientPalette in DiscoverPage.tsx. */
-    --void-ambient: rgba(6, 6, 10, 0.35);
-    --ambient-color-1: #e8b74a; /* cinema gold (matches --p) */
-    --ambient-color-2: #ff6b35; /* warm orange (matches --p2) */
-    --ambient-color-3: #1a1208; /* deep black-brown (matches .theme-cinematic) */
+       --ambient-color-1/2/3: the three blob colors. ProfileAmbientTheme
+         derives these from the resolved Profile banner and writes them on
+         :root. The neutral values above are only the signed-out and
+         unavailable-artwork fallback. */
+    --void-ambient: rgb(var(--profile-ambient-shell, 7 10 16) / 0.42);
+    --ambient-color-1: rgb(var(--profile-ambient-primary, 96 112 128));
+    --ambient-color-2: rgb(var(--profile-ambient-secondary, 64 80 96));
+    --ambient-color-3: rgb(var(--profile-ambient-shell, 18 24 32));
+
+    /* Profile-banner theme defaults. A signed-out user or a profile with
+       no usable artwork stays neutral; a resolved banner replaces these
+       values through ProfileAmbientTheme. */
+    --profile-ambient-primary: 96 112 128;
+    --profile-ambient-secondary: 64 80 96;
+    --profile-ambient-neutral: 24 30 40;
+    --profile-ambient-highlight: 72 84 96;
+    --profile-ambient-shell: 7 10 16;
+    --profile-ambient-image: none;
+    --profile-ambient-image-opacity: 0;
+    --profile-ambient-image-brightness: 0.78;
+    --profile-ambient-image-saturation: 1;
+    --profile-ambient-ready: 0;
+
+    /* Runtime accent contract. These neutral defaults are replaced by the
+       resolved Profile banner; they intentionally contain no branded hue. */
+    --p: rgb(var(--profile-ambient-primary, 96 112 128));
+    --p2: rgb(var(--profile-ambient-secondary, 64 80 96));
+    --p-glow: rgb(var(--profile-ambient-primary, 96 112 128) / 0.24);
+    --p-dim: rgb(var(--profile-ambient-primary, 96 112 128) / 0.1);
+    --p-border: rgb(var(--profile-ambient-primary, 96 112 128) / 0.42);
+    --p-hover: rgb(var(--profile-ambient-primary, 96 112 128) / 0.14);
 
     /* ─── Phase 14 Chunk 2 — Ambient Intensity ──────────────────────
        --ambient-intensity: a multiplier (0…1) that scales the opacity
@@ -194,139 +215,23 @@
 
     /* ─── Active-state tokens ─── */
     --active-bg: var(--p);
-    --active-text: #08080d;
+    --active-text: #ffffff;
     --active-border: var(--p);
     --active-glow: 0 0 12px var(--p-glow);
 
     /* ─── Accent variant tokens ───
-       These provide stable handles for components that want a
-       specific alpha of the accent (border, hover background) without
-       having to call color-mix() or rgba() themselves. They are
-       overridden by `customAccent.ts` when a custom accent is set. */
+       These provide stable handles for components that want a specific
+       alpha of the profile-derived accent without having to call
+       color-mix() or rgba() themselves. */
     --p-border: color-mix(in srgb, var(--p) 40%, transparent);
     --p-hover: color-mix(in srgb, var(--p) 12%, transparent);
   }
 }
 
-/* ─── Phase 14 Chunk 4 — 5 curated Colour Schemes ───────────────────
-   Each scheme defines BOTH the accent tokens (--p, --p2, --p-glow,
-   --p-dim, --p-border, --p-hover, --active-text) AND the three ambient
-   blob colors (--ambient-color-1/2/3). Picking a scheme therefore
-   repaints the entire UI in lockstep — accent buttons, glow, ambient
-   wash, frosted glass tint all change together.
-
-   The :root defaults above (cinema gold + warm orange + cool blue)
-   match .theme-cinematic exactly, so the very first paint (before the
-   createEffect in theme.ts has applied a class) already looks
-   intentional. Subsequent scheme swaps re-define --ambient-color-*
-   here, which the AmbientBackground blobs consume via
-   `radial-gradient(circle at center, var(--ambient-color-N) 0%,
-   transparent 70%)` in ambient-background.css. The 1.5s
-   `transition: background` on .ambient-blob morphs the colors
-   smoothly when the user picks a new scheme.
-
-   SCHEME LIST (mirrors THEMES_LIST in src/shared/constants/settings.ts):
-     1. cinematic    — Cinematic Gold (default)
-     2. cyberpunk    — Cyberpunk Neon
-     3. interstellar — Interstellar Cyan
-     4. emerald      — Emerald Matrix
-     5. crimson      — Crimson Dusk
-
-   LEGACY NOTE: Phase 14 Chunk 4 collapsed the old 12 accent presets
-   (pearl, sage, matrix, netflix, neonhorizon, vibranium, neoncyan,
-   vibrupurple, hotpink) into these 5 schemes. Existing users whose
-   localStorage holds an old id fall through to the cinematic default
-   via the isTheme() type guard in theme.ts (the old id no longer
-   matches the union, so setTheme rejects it and the signal keeps its
-   initial cinematic value). */
-
-/* Scheme 1 — Cinematic Gold (the default identity)
-   Accent:    #e8b74a (cinema gold)
-   Ambient:   Deep Black base + Gold + Warm Orange
-   The CineLog brand identity. Warm, editorial, premium. */
-.theme-cinematic {
-  --p: #e8b74a;
-  --p2: #ff6b35;
-  --p-glow: rgba(232, 183, 74, 0.35);
-  --p-dim: rgba(232, 183, 74, 0.1);
-  --p-border: rgba(232, 183, 74, 0.4);
-  --p-hover: rgba(232, 183, 74, 0.12);
-  --active-text: #08080d;
-  --ambient-color-1: #e8b74a; /* gold */
-  --ambient-color-2: #ff6b35; /* warm orange */
-  --ambient-color-3: #1a1208; /* deep black-brown */
-}
-
-/* Scheme 2 — Cyberpunk Neon
-   Accent:    #a855f7 (neon purple)
-   Ambient:   Deep Indigo + Neon Purple + Hot Pink
-   DULO.TV-style vaporwave. Saturated jewel tones that pop hardest
-   against the now-very-transparent --void-ambient base. */
-.theme-cyberpunk {
-  --p: #a855f7;
-  --p2: #d946ef;
-  --p-glow: rgba(168, 85, 247, 0.32);
-  --p-dim: rgba(168, 85, 247, 0.1);
-  --p-border: rgba(168, 85, 247, 0.4);
-  --p-hover: rgba(168, 85, 247, 0.12);
-  --active-text: #ffffff;
-  --ambient-color-1: #a855f7; /* neon purple */
-  --ambient-color-2: #ec4899; /* hot pink */
-  --ambient-color-3: #1e1b4b; /* deep indigo */
-}
-
-/* Scheme 3 — Interstellar Cyan
-   Accent:    #22d3ee (electric cyan)
-   Ambient:   Deep Space Blue + Cyan + Teal
-   Cool, calm, futuristic. Evokes deep space + holographic UI. */
-.theme-interstellar {
-  --p: #22d3ee;
-  --p2: #06b6d4;
-  --p-glow: rgba(34, 211, 238, 0.32);
-  --p-dim: rgba(34, 211, 238, 0.1);
-  --p-border: rgba(34, 211, 238, 0.4);
-  --p-hover: rgba(34, 211, 238, 0.12);
-  --active-text: #08080d;
-  --ambient-color-1: #22d3ee; /* cyan */
-  --ambient-color-2: #14b8a6; /* teal */
-  --ambient-color-3: #0c1e3a; /* deep space blue */
-}
-
-/* Scheme 4 — Emerald Matrix
-   Accent:    #10b981 (emerald green)
-   Ambient:   Deep Black + Emerald Green + Lime
-   Nods to the old `matrix` + `emerald` presets. Dense, digital,
-   organic-meets-cyberpunk. */
-.theme-emerald {
-  --p: #10b981;
-  --p2: #34d399;
-  --p-glow: rgba(16, 185, 129, 0.32);
-  --p-dim: rgba(16, 185, 129, 0.1);
-  --p-border: rgba(16, 185, 129, 0.4);
-  --p-hover: rgba(16, 185, 129, 0.12);
-  --active-text: #08080d;
-  --ambient-color-1: #10b981; /* emerald green */
-  --ambient-color-2: #84cc16; /* lime */
-  --ambient-color-3: #0a0f0a; /* deep black-green */
-}
-
-/* Scheme 5 — Crimson Dusk
-   Accent:    #ef4444 (crimson)
-   Ambient:   Dark Maroon + Crimson + Sunset Orange
-   Warm, dramatic, end-of-the-world cinema. The most "Netflix at night"
-   of the five. */
-.theme-crimson {
-  --p: #ef4444;
-  --p2: #f97316;
-  --p-glow: rgba(239, 68, 68, 0.32);
-  --p-dim: rgba(239, 68, 68, 0.1);
-  --p-border: rgba(239, 68, 68, 0.4);
-  --p-hover: rgba(239, 68, 68, 0.12);
-  --active-text: #ffffff;
-  --ambient-color-1: #ef4444; /* crimson */
-  --ambient-color-2: #f97316; /* sunset orange */
-  --ambient-color-3: #2a0a0a; /* dark maroon */
-}
+/* ─── Profile-banner environment ─────────────────────────────────────
+   Fixed colour schemes are intentionally retired. ProfileAmbientTheme
+   writes the same semantic tokens from the user's resolved banner so the
+   complete consumer app shares one coherent, title-specific environment. */
 
 /* ─── Phase 14 Chunk 2 — Ambient Intensity data-attribute rules ────
    The ambientIntensity preference (Subtle / Normal / Vibrant) sets
@@ -354,16 +259,16 @@
     /* Tier-based surface elevation — warm cinema depth
        Each tier steps warmer and slightly lighter, creating
        a layered cinema auditorium feel. */
-    --tier-0: #0a0a0a;
-    --tier-1: #0d0d14;
-    --tier-2: #12121b;
-    --tier-3: #1a1a25;
-    --tier-4: #24243a;
+    --tier-0: rgb(var(--profile-ambient-shell, 7 10 16));
+    --tier-1: rgb(var(--profile-ambient-shell, 7 10 16) / 0.88);
+    --tier-2: rgb(var(--profile-ambient-neutral, 24 30 40) / 0.46);
+    --tier-3: rgb(var(--profile-ambient-neutral, 24 30 40) / 0.64);
+    --tier-4: rgb(var(--profile-ambient-neutral, 24 30 40) / 0.82);
 
     /* Hairline borders — warm gold tint for cinematic cohesion */
-    --hairline: rgba(232, 183, 74, 0.05);
-    --hairline-2: rgba(232, 183, 74, 0.09);
-    --hairline-3: rgba(232, 183, 74, 0.15);
+    --hairline: rgb(var(--profile-ambient-primary, 96 112 128) / 0.06);
+    --hairline-2: rgb(var(--profile-ambient-primary, 96 112 128) / 0.1);
+    --hairline-3: rgb(var(--profile-ambient-primary, 96 112 128) / 0.16);
 
     /* Text scale — warm cream tones for editorial cinema feel
        ── WCAG 2.1 AA CONTRAST COMPLIANCE ─────────────────────────────
@@ -408,9 +313,9 @@
          tokens in blur.css are unchanged (they're consumed by other
          components like toasts and dropdowns that don't need this
          level of frost). */
-    --glass-bg: rgba(15, 15, 22, 0.45);
-    --glass-bg-strong: rgba(13, 13, 20, 0.86);
-    --glass-border: rgba(232, 183, 74, 0.06);
+    --glass-bg: rgb(var(--profile-ambient-shell, 7 10 16) / 0.56);
+    --glass-bg-strong: rgb(var(--profile-ambient-shell, 7 10 16) / 0.86);
+    --glass-border: rgb(var(--profile-ambient-primary, 96 112 128) / 0.07);
     --glass-blur: 32px;
   }
 }
@@ -419,9 +324,9 @@
 /* Requested by design spec: bg-cine-bg, bg-cine-glass, border-cine-border */
 @layer base {
   :root {
-    --cine-bg: #0a0a0a;
-    --cine-glass: rgba(30, 30, 30, 0.65);
-    --cine-border: rgba(255, 255, 255, 0.08);
+    --cine-bg: var(--void);
+    --cine-glass: var(--glass-bg);
+    --cine-border: var(--glass-border);
     --cine-blur: 16px;
 
     /* Floating nav — extra margin from bottom edge */

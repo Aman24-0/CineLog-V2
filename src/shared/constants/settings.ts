@@ -6,19 +6,17 @@
 // WHY THIS FILE EXISTS
 // ────────────────────
 // Before this module existed, every settings page re-declared its own copy
-// of `THEMES_LIST`, `UI_LANGUAGES`, `DENSITY_OPTIONS`, etc. The copies had
-// drifted — `UI_LANGUAGES` had 13 entries in one file and 20 in another,
-// `THEMES_LIST` had different descriptions for the same theme, and so on.
+// of the option lists. The copies had drifted — `UI_LANGUAGES` had 13 entries
+// in one file and 20 in another, with inconsistent descriptions and labels.
 //
-// This file consolidates them. New code should import from here; legacy
-// files are updated to import from here too. If you need to add a new
-// language, theme, or option, you make ONE change in this file.
+// This file consolidates the remaining independent Settings options. New code
+// should import from here; adding a language or presentation option should
+// require one change in this module. Theme identity is intentionally not an
+// option: the Profile banner owns the consumer environment at runtime.
 //
-// All option types (Theme, Density, etc.) come from
-// `~/core/preferences` and `~/core/theme`, which remain the canonical
-// sources for the SIGNALS that store the user's current choice.
+// Option types come from `~/core/preferences`, the canonical source for the
+// signals that store independent user preferences.
 
-import type { Theme } from "~/core/theme";
 import type {
   Density,
   FontSize,
@@ -37,47 +35,8 @@ import type {
 } from "~/core/preferences";
 
 // ────────────────────────────────────────────────────────────────────
-// Theme / appearance
+// Appearance
 // ────────────────────────────────────────────────────────────────────
-
-// Phase 14 Chunk 4 — 5 curated Colour Schemes.
-// Each scheme sets both the accent (`--p`) AND the ambient blob colors
-// (`--ambient-color-1/2/3`), so picking a scheme repaints the entire UI
-// in lockstep — accent buttons, glow, ambient wash, frosted glass tint.
-// See `src/styles/tokens/colors.css` for the CSS variable definitions
-// and `src/core/theme/themes.ts` for the `Theme` union.
-export const THEMES_LIST: { id: Theme; name: string; desc: string; swatch: string }[] = [
-  {
-    id: "cinematic",
-    name: "Cinematic Gold",
-    desc: "Gold + warm orange on deep black",
-    swatch: "#e8b74a"
-  },
-  {
-    id: "cyberpunk",
-    name: "Cyberpunk Neon",
-    desc: "Neon purple + hot pink on deep indigo",
-    swatch: "#a855f7"
-  },
-  {
-    id: "interstellar",
-    name: "Interstellar Cyan",
-    desc: "Cyan + teal on deep space blue",
-    swatch: "#22d3ee"
-  },
-  {
-    id: "emerald",
-    name: "Emerald Matrix",
-    desc: "Emerald + lime on deep black",
-    swatch: "#10b981"
-  },
-  {
-    id: "crimson",
-    name: "Crimson Dusk",
-    desc: "Crimson + sunset orange on dark maroon",
-    swatch: "#ef4444"
-  }
-];
 
 export const DENSITY_OPTIONS: { id: Density; label: string }[] = [
   { id: "compact", label: "Compact" },
@@ -109,7 +68,10 @@ export const DATE_FORMAT_OPTIONS: {
   { id: "ymd", label: "YYYY-MM-DD", short: "Y-M-D", example: "2026-07-15" }
 ];
 
-export const REDUCED_MOTION_OPTIONS: { id: ReducedMotionPref; label: string }[] = [
+export const REDUCED_MOTION_OPTIONS: {
+  id: ReducedMotionPref;
+  label: string;
+}[] = [
   { id: "off", label: "Off" },
   { id: "on", label: "On" },
   { id: "system", label: "System" }
@@ -118,7 +80,10 @@ export const REDUCED_MOTION_OPTIONS: { id: ReducedMotionPref; label: string }[] 
 // Phase 14 Chunk 2 — Ambient intensity (controls AmbientBackground blob
 // opacity via the --ambient-intensity CSS var on <html>+<body>).
 // Three curated levels — see src/core/preferences/ambientIntensity.ts.
-export const AMBIENT_INTENSITY_OPTIONS: { id: AmbientIntensity; label: string }[] = [
+export const AMBIENT_INTENSITY_OPTIONS: {
+  id: AmbientIntensity;
+  label: string;
+}[] = [
   { id: "subtle", label: "Subtle" },
   { id: "normal", label: "Normal" },
   { id: "vibrant", label: "Vibrant" }
@@ -133,7 +98,11 @@ export const AMBIENT_INTENSITY_OPTIONS: { id: AmbientIntensity; label: string }[
  * (or will be). For any other language, the UI stays English but TMDB
  * metadata is fetched in the chosen language.
  */
-export const UI_LANGUAGES: { code: LanguageCode; label: string; native: string }[] = [
+export const UI_LANGUAGES: {
+  code: LanguageCode;
+  label: string;
+  native: string;
+}[] = [
   { code: "en", label: "English", native: "English" },
   { code: "hi", label: "Hindi", native: "हिन्दी" },
   { code: "es", label: "Spanish", native: "Español" },

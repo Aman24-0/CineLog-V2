@@ -89,7 +89,7 @@ const EPISODE_PROGRESS_TRACK_STYLE: JSX.CSSProperties = {
   background: "rgba(0,0,0,0.5)"
 };
 const EPISODE_PROGRESS_FILL_STYLE: JSX.CSSProperties = {
-  background: "var(--p, #e8b74a)",
+  background: "var(--p)",
   transition: "width 400ms ease-out"
 };
 const TITLE_STYLE: JSX.CSSProperties = {

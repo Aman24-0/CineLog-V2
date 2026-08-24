@@ -52,7 +52,11 @@
 
     /* ─── Border State Colors ─── */
     --color-border-hover: var(--hairline-3);
-    --color-border-pressed: color-mix(in srgb, var(--text-body) 18%, transparent);
+    --color-border-pressed: color-mix(
+      in srgb,
+      var(--text-body) 18%,
+      transparent
+    );
     --color-border-focus: var(--p);
     --color-border-focus-ring: var(--p);
 
@@ -64,7 +68,11 @@
     --color-text-accent: var(--p);
     --color-text-inverse: var(--active-text);
     --color-text-link: var(--p);
-    --color-text-link-hover: color-mix(in srgb, var(--p) 80%, var(--text-strong));
+    --color-text-link-hover: color-mix(
+      in srgb,
+      var(--p) 80%,
+      var(--text-strong)
+    );
     --color-text-disabled: var(--text-dim);
     --color-text-on-accent: var(--active-text);
     --color-text-on-danger: #ffffff;
@@ -209,9 +217,12 @@
 
     /* ─── Glass Shared Tokens ───
        Used by glass-system.css for the golden highlight effect. */
-    --glass-highlight: inset 0 1px 0 rgba(232, 183, 74, 0.06);
-    --glass-highlight-hover: inset 0 1px 0 rgba(232, 183, 74, 0.1);
-    --glass-inner-glow: inset 0 0 20px rgba(232, 183, 74, 0.03);
+    --glass-highlight: inset 0 1px 0
+      rgb(var(--profile-ambient-primary, 96 112 128) / 0.07);
+    --glass-highlight-hover: inset 0 1px 0
+      rgb(var(--profile-ambient-primary, 96 112 128) / 0.12);
+    --glass-inner-glow: inset 0 0 20px
+      rgb(var(--profile-ambient-primary, 96 112 128) / 0.03);
 
     /* ==============================================================
        4. ELEVATION SYSTEM
@@ -243,8 +254,7 @@
     --elevation-1-z: var(--z-content);
     /* Composite shadow for elevation 1 */
     --elevation-1-shadow-composite:
-      var(--elevation-1-shadow),
-      var(--glass-highlight);
+      var(--elevation-1-shadow), var(--glass-highlight);
 
     /* ─── Elevation Level 2: Floating ───
        Dropdowns, popovers, tooltips, search bars, sticky headers.
@@ -256,8 +266,7 @@
     --elevation-2-z: var(--z-dropdown);
     /* Composite shadow for elevation 2 */
     --elevation-2-shadow-composite:
-      var(--elevation-2-shadow),
-      var(--glass-highlight);
+      var(--elevation-2-shadow), var(--glass-highlight);
 
     /* ─── Elevation Level 3: Overlay ───
        Modals, sheets, dialogs. Highest separation. Demands full
@@ -269,8 +278,7 @@
     --elevation-3-z: var(--z-modal);
     /* Composite shadow for elevation 3 */
     --elevation-3-shadow-composite:
-      var(--elevation-3-shadow),
-      var(--glass-highlight-hover),
+      var(--elevation-3-shadow), var(--glass-highlight-hover),
       0 0 0 1px var(--hairline);
 
     /* ─── Elevation Utility: Backdrop ───
@@ -540,8 +548,10 @@
   --glass-subtle-border: rgba(255, 255, 255, 0.14);
   --glass-default-border: rgba(255, 255, 255, 0.2);
 
-  --elevation-1-shadow: 0 1px 3px rgba(0, 0, 0, 0.6), 0 4px 12px rgba(0, 0, 0, 0.5);
-  --elevation-2-shadow: 0 4px 12px rgba(0, 0, 0, 0.7), 0 8px 24px rgba(0, 0, 0, 0.6);
-  --elevation-3-shadow: 0 8px 24px rgba(0, 0, 0, 0.8), 0 16px 48px rgba(0, 0, 0, 0.7);
+  --elevation-1-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.6), 0 4px 12px rgba(0, 0, 0, 0.5);
+  --elevation-2-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.7), 0 8px 24px rgba(0, 0, 0, 0.6);
+  --elevation-3-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.8), 0 16px 48px rgba(0, 0, 0, 0.7);
 }
-

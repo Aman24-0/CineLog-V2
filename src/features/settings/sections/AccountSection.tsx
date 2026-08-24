@@ -33,10 +33,7 @@ export function AccountSection(props: { state: SettingsState }) {
 
   return (
     <Show when={s.filteredSections().some((sec) => sec.id === "account")}>
-      <section
-        id="section-account"
-        class="settings-accordion-section"
-      >
+      <section id="section-account" class="settings-accordion-section">
         <button
           type="button"
           class="settings-accordion-header focus-ring"
@@ -62,9 +59,7 @@ export function AccountSection(props: { state: SettingsState }) {
             class="material-symbols-outlined settings-accordion-chevron"
             aria-hidden="true"
             style={{
-              transform: s.isExpanded("account")
-                ? "rotate(180deg)"
-                : "none",
+              transform: s.isExpanded("account") ? "rotate(180deg)" : "none",
               transition: "transform 200ms ease"
             }}
           >
@@ -97,10 +92,7 @@ export function AccountSection(props: { state: SettingsState }) {
                           gap: "var(--sp-3)"
                         }}
                       >
-                        <div
-                          class="setting-row-icon"
-                          aria-hidden="true"
-                        >
+                        <div class="setting-row-icon" aria-hidden="true">
                           <span
                             class="material-symbols-outlined"
                             style={{ "font-size": "18px" }}
@@ -113,9 +105,7 @@ export function AccountSection(props: { state: SettingsState }) {
                           class="setting-row-text"
                           style={{ flex: 1, "min-width": 0 }}
                         >
-                          <span class="setting-row-label">
-                            Profile
-                          </span>
+                          <span class="setting-row-label">Profile</span>
                           <span class="setting-row-desc">
                             Name, bio, and avatar.
                           </span>
@@ -132,23 +122,19 @@ export function AccountSection(props: { state: SettingsState }) {
                         <input
                           type="text"
                           value={s.nameInput()}
-                          onInput={(e) =>
-                            s.setNameInput(e.currentTarget.value)
-                          }
+                          onInput={(e) => s.setNameInput(e.currentTarget.value)}
                           placeholder="Display name"
                           maxlength={60}
-                          class="custom-hex-input focus-ring"
+                          class="settings-inline-input focus-ring"
                           aria-label="Display name"
                         />
                         <textarea
                           value={s.bioInput()}
-                          onInput={(e) =>
-                            s.setBioInput(e.currentTarget.value)
-                          }
+                          onInput={(e) => s.setBioInput(e.currentTarget.value)}
                           placeholder="Bio (optional)"
                           maxlength={160}
                           rows={2}
-                          class="custom-hex-input focus-ring"
+                          class="settings-inline-input focus-ring"
                           style={{
                             resize: "vertical",
                             "font-family": "'Outfit', sans-serif"
@@ -189,10 +175,7 @@ export function AccountSection(props: { state: SettingsState }) {
                     onClick={s.handleStartEditProfile}
                     aria-label="Edit profile"
                   >
-                    <div
-                      class="setting-row-icon"
-                      aria-hidden="true"
-                    >
+                    <div class="setting-row-icon" aria-hidden="true">
                       <span
                         class="material-symbols-outlined"
                         style={{ "font-size": "18px" }}
@@ -203,9 +186,7 @@ export function AccountSection(props: { state: SettingsState }) {
                     </div>
                     <div class="setting-row-text">
                       <span class="setting-row-label">Profile</span>
-                      <span class="setting-row-desc">
-                        {s.nameDisplay()}
-                      </span>
+                      <span class="setting-row-desc">{s.nameDisplay()}</span>
                     </div>
                     <span
                       class="material-symbols-outlined setting-row-chevron"
@@ -223,10 +204,7 @@ export function AccountSection(props: { state: SettingsState }) {
                   onClick={() => s.setShowEmailSheet(true)}
                   aria-label="Update email"
                 >
-                  <div
-                    class="setting-row-icon"
-                    aria-hidden="true"
-                  >
+                  <div class="setting-row-icon" aria-hidden="true">
                     <span
                       class="material-symbols-outlined"
                       style={{ "font-size": "18px" }}
@@ -237,9 +215,7 @@ export function AccountSection(props: { state: SettingsState }) {
                   </div>
                   <div class="setting-row-text">
                     <span class="setting-row-label">Email</span>
-                    <span class="setting-row-desc">
-                      {s.emailDisplay()}
-                    </span>
+                    <span class="setting-row-desc">{s.emailDisplay()}</span>
                   </div>
                   <span
                     class="material-symbols-outlined setting-row-chevron"
@@ -260,10 +236,7 @@ export function AccountSection(props: { state: SettingsState }) {
                   }
                   aria-label="Password settings"
                 >
-                  <div
-                    class="setting-row-icon"
-                    aria-hidden="true"
-                  >
+                  <div class="setting-row-icon" aria-hidden="true">
                     <span
                       class="material-symbols-outlined"
                       style={{ "font-size": "18px" }}
@@ -281,9 +254,7 @@ export function AccountSection(props: { state: SettingsState }) {
                   <span
                     class="setting-row-value"
                     style={{
-                      color: s.hasPassword()
-                        ? "#4ade80"
-                        : "var(--text-muted)"
+                      color: s.hasPassword() ? "#4ade80" : "var(--text-muted)"
                     }}
                   >
                     {s.hasPassword() ? "Connected" : "Set"}
@@ -301,14 +272,8 @@ export function AccountSection(props: { state: SettingsState }) {
                 />
 
                 {/* Joined — read-only */}
-                <div
-                  class="setting-row"
-                  style={{ cursor: "default" }}
-                >
-                  <div
-                    class="setting-row-icon"
-                    aria-hidden="true"
-                  >
+                <div class="setting-row" style={{ cursor: "default" }}>
+                  <div class="setting-row-icon" aria-hidden="true">
                     <span
                       class="material-symbols-outlined"
                       style={{ "font-size": "18px" }}
@@ -319,9 +284,7 @@ export function AccountSection(props: { state: SettingsState }) {
                   </div>
                   <div class="setting-row-text">
                     <span class="setting-row-label">Joined</span>
-                    <span class="setting-row-desc">
-                      {s.joinDate()}
-                    </span>
+                    <span class="setting-row-desc">{s.joinDate()}</span>
                   </div>
                 </div>
 
@@ -329,16 +292,11 @@ export function AccountSection(props: { state: SettingsState }) {
                 <button
                   type="button"
                   class="setting-row focus-ring"
-                  onClick={() =>
-                    s.setShow2FAPanel(!s.show2FAPanel())
-                  }
+                  onClick={() => s.setShow2FAPanel(!s.show2FAPanel())}
                   aria-expanded={s.show2FAPanel()}
                   aria-label="Two-factor authentication"
                 >
-                  <div
-                    class="setting-row-icon"
-                    aria-hidden="true"
-                  >
+                  <div class="setting-row-icon" aria-hidden="true">
                     <span
                       class="material-symbols-outlined"
                       style={{ "font-size": "18px" }}
@@ -359,9 +317,7 @@ export function AccountSection(props: { state: SettingsState }) {
                     class="material-symbols-outlined setting-row-chevron"
                     aria-hidden="true"
                     style={{
-                      transform: s.show2FAPanel()
-                        ? "rotate(180deg)"
-                        : "none",
+                      transform: s.show2FAPanel() ? "rotate(180deg)" : "none",
                       transition: "transform 200ms ease"
                     }}
                   >
@@ -379,17 +335,12 @@ export function AccountSection(props: { state: SettingsState }) {
                   type="button"
                   class="setting-row focus-ring"
                   onClick={() =>
-                    s.setShowLoginMethodsPanel(
-                      !s.showLoginMethodsPanel()
-                    )
+                    s.setShowLoginMethodsPanel(!s.showLoginMethodsPanel())
                   }
                   aria-expanded={s.showLoginMethodsPanel()}
                   aria-label="Login methods"
                 >
-                  <div
-                    class="setting-row-icon"
-                    aria-hidden="true"
-                  >
+                  <div class="setting-row-icon" aria-hidden="true">
                     <span
                       class="material-symbols-outlined"
                       style={{ "font-size": "18px" }}
@@ -399,9 +350,7 @@ export function AccountSection(props: { state: SettingsState }) {
                     </span>
                   </div>
                   <div class="setting-row-text">
-                    <span class="setting-row-label">
-                      Login methods
-                    </span>
+                    <span class="setting-row-label">Login methods</span>
                     <span class="setting-row-desc">
                       Connect Google or Apple for one-tap sign-in.
                     </span>
@@ -424,10 +373,7 @@ export function AccountSection(props: { state: SettingsState }) {
                     <div class="setting-group">
                       {/* Google */}
                       <div class="setting-row" style={{ cursor: "default" }}>
-                        <div
-                          class="setting-row-icon"
-                          aria-hidden="true"
-                        >
+                        <div class="setting-row-icon" aria-hidden="true">
                           <span
                             class="material-symbols-outlined"
                             style={{ "font-size": "18px" }}
@@ -437,9 +383,7 @@ export function AccountSection(props: { state: SettingsState }) {
                           </span>
                         </div>
                         <div class="setting-row-text">
-                          <span class="setting-row-label">
-                            Google
-                          </span>
+                          <span class="setting-row-label">Google</span>
                           <span class="setting-row-desc">
                             {s.linkedProviders().has("google")
                               ? "Connected — sign in with Google."
@@ -472,14 +416,10 @@ export function AccountSection(props: { state: SettingsState }) {
                             onClick={() =>
                               void s.handleUnlinkProvider("google")
                             }
-                            disabled={
-                              s.unlinkingProvider() !== null
-                            }
+                            disabled={s.unlinkingProvider() !== null}
                           >
                             <Show
-                              when={
-                                s.unlinkingProvider() === "google"
-                              }
+                              when={s.unlinkingProvider() === "google"}
                               fallback="Disconnect"
                             >
                               Removing…
@@ -502,16 +442,11 @@ export function AccountSection(props: { state: SettingsState }) {
                 <button
                   type="button"
                   class="setting-row focus-ring"
-                  onClick={() =>
-                    s.setShowSessionsPanel(!s.showSessionsPanel())
-                  }
+                  onClick={() => s.setShowSessionsPanel(!s.showSessionsPanel())}
                   aria-expanded={s.showSessionsPanel()}
                   aria-label="Sessions and devices"
                 >
-                  <div
-                    class="setting-row-icon"
-                    aria-hidden="true"
-                  >
+                  <div class="setting-row-icon" aria-hidden="true">
                     <span
                       class="material-symbols-outlined"
                       style={{ "font-size": "18px" }}
@@ -524,9 +459,7 @@ export function AccountSection(props: { state: SettingsState }) {
                     <span class="setting-row-label">
                       Sessions &amp; devices
                     </span>
-                    <span class="setting-row-desc">
-                      Sign out everywhere.
-                    </span>
+                    <span class="setting-row-desc">Sign out everywhere.</span>
                   </div>
                   <span
                     class="material-symbols-outlined setting-row-chevron"
@@ -552,17 +485,12 @@ export function AccountSection(props: { state: SettingsState }) {
                   type="button"
                   class="setting-row focus-ring"
                   onClick={() =>
-                    s.setShowLoginHistoryPanel(
-                      !s.showLoginHistoryPanel()
-                    )
+                    s.setShowLoginHistoryPanel(!s.showLoginHistoryPanel())
                   }
                   aria-expanded={s.showLoginHistoryPanel()}
                   aria-label="Login history"
                 >
-                  <div
-                    class="setting-row-icon"
-                    aria-hidden="true"
-                  >
+                  <div class="setting-row-icon" aria-hidden="true">
                     <span
                       class="material-symbols-outlined"
                       style={{ "font-size": "18px" }}
@@ -572,12 +500,8 @@ export function AccountSection(props: { state: SettingsState }) {
                     </span>
                   </div>
                   <div class="setting-row-text">
-                    <span class="setting-row-label">
-                      Login history
-                    </span>
-                    <span class="setting-row-desc">
-                      Recent sign-ins.
-                    </span>
+                    <span class="setting-row-label">Login history</span>
+                    <span class="setting-row-desc">Recent sign-ins.</span>
                   </div>
                   <span
                     class="material-symbols-outlined setting-row-chevron"
@@ -605,10 +529,7 @@ export function AccountSection(props: { state: SettingsState }) {
                   onClick={s.handleSignOut}
                   aria-label="Sign out of this device"
                 >
-                  <div
-                    class="setting-row-icon"
-                    aria-hidden="true"
-                  >
+                  <div class="setting-row-icon" aria-hidden="true">
                     <span
                       class="material-symbols-outlined"
                       style={{ "font-size": "18px" }}
@@ -633,10 +554,7 @@ export function AccountSection(props: { state: SettingsState }) {
               </Show>
 
               <Show when={!s.isSignedIn()}>
-                <div
-                  class="settings-empty-section"
-                  role="status"
-                >
+                <div class="settings-empty-section" role="status">
                   <span
                     class="material-symbols-outlined"
                     aria-hidden="true"

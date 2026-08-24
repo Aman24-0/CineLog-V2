@@ -62,11 +62,7 @@ import {
   type PosterQuality
 } from "./posterQuality";
 import { hideSpoilers, setHideSpoilers } from "./hideSpoilers";
-import {
-  dateFormat,
-  setDateFormat,
-  type DateFormat
-} from "./dateFormat";
+import { dateFormat, setDateFormat, type DateFormat } from "./dateFormat";
 import {
   reducedMotion,
   setReducedMotion,
@@ -121,26 +117,20 @@ import {
   setDefaultDiscoverTab,
   type DiscoverTab
 } from "./discoverTab";
+import { ratingScale, setRatingScale, type RatingScale } from "./ratingScale";
 import {
-  ratingScale,
-  setRatingScale,
-  type RatingScale
-} from "./ratingScale";
-import { notifPrefs, setNotifPrefs, type NotificationPrefs } from "./notifications";
+  notifPrefs,
+  setNotifPrefs,
+  type NotificationPrefs
+} from "./notifications";
+import { calPrefs, setCalPrefs, type CalendarPrefs } from "./calendar";
+import { syncCadence, setSyncCadence, type SyncCadence } from "./syncCadence";
 import {
-  calPrefs,
-  setCalPrefs,
-  type CalendarPrefs
-} from "./calendar";
-import {
-  syncCadence,
-  setSyncCadence,
-  type SyncCadence
-} from "./syncCadence";
-import { hideRatingsInScreenshots, setHideRatingsInScreenshots } from "./hideRatingsScreenshots";
-// Phase 4 Task 7: theme (the 8 accent presets) is now synced to Supabase
-// instead of only persisting locally to cinelog_theme localStorage.
-import { theme, setTheme, type Theme } from "~/core/theme";
+  hideRatingsInScreenshots,
+  setHideRatingsInScreenshots
+} from "./hideRatingsScreenshots";
+// Theme identity is not persisted here. Legacy snapshots may still carry
+// an unknown `theme` key; read/apply intentionally ignore unknown fields.
 
 // ─── Types ────────────────────────────────────────────────────────
 
@@ -149,10 +139,9 @@ import { theme, setTheme, type Theme } from "~/core/theme";
  * JSONB object. The keys are stable identifiers (not the signal names)
  * so we can rename signals without breaking old snapshots.
  *
- * Phase 4 Task 7: added `theme` (the 8 accent presets: cinematic, pearl,
- * sage, matrix, netflix, interstellar, neonhorizon, vibranium). This was
- * previously localStorage-only (`cinelog_theme`) — it now syncs to
- * Supabase so a user's accent choice travels across devices.
+ * The retired legacy `theme` key is intentionally absent from this type.
+ * Older JSONB snapshots can still be read safely because unknown keys are
+ * ignored during application.
  *
  * Bug #28 (Phase 13 Chunk 3): added `fallbackLanguage`, `streamingProviders`,
  * and `contentRatingCap`. All three were defined as signals + persisted
@@ -163,8 +152,6 @@ import { theme, setTheme, type Theme } from "~/core/theme";
  * other device they signed in on.
  */
 export interface PreferencesSnapshot {
-  /** Phase 4 Task 7: accent preset (8 themes). Synced to prefs_json. */
-  theme?: Theme;
   density?: Density;
   fontSize?: FontSize;
   posterQuality?: PosterQuality;
@@ -221,8 +208,6 @@ function writeSyncedAt(ts: number): void {
  */
 function readSnapshot(): PreferencesSnapshot {
   return {
-    // Phase 4 Task 7: include the accent theme in the snapshot.
-    theme: theme(),
     density: density(),
     fontSize: fontSize(),
     posterQuality: posterQuality(),
@@ -255,17 +240,15 @@ function readSnapshot(): PreferencesSnapshot {
  * server has an older snapshot from before a new pref was added).
  */
 function applySnapshot(snap: PreferencesSnapshot): void {
-  // Phase 4 Task 7: apply the accent theme from the server snapshot.
-  // setTheme also writes to localStorage (`cinelog_theme`) and updates
-  // the document's theme-* class, so the UI picks it up immediately.
-  if (snap.theme) setTheme(snap.theme);
   if (snap.density) setDensity(snap.density);
   if (snap.fontSize) setFontSize(snap.fontSize);
   if (snap.posterQuality) setPosterQuality(snap.posterQuality);
-  if (typeof snap.hideSpoilers === "boolean") setHideSpoilers(snap.hideSpoilers);
+  if (typeof snap.hideSpoilers === "boolean")
+    setHideSpoilers(snap.hideSpoilers);
   if (snap.dateFormat) setDateFormat(snap.dateFormat);
   if (snap.reducedMotion) setReducedMotion(snap.reducedMotion);
-  if (typeof snap.highContrast === "boolean") setHighContrast(snap.highContrast);
+  if (typeof snap.highContrast === "boolean")
+    setHighContrast(snap.highContrast);
   // Phase 14 Chunk 2: apply the ambient intensity from the snapshot.
   // Truthy check is safe — the value is a non-empty string union
   // ("subtle" | "normal" | "vibrant"), and the setter's createEffect
@@ -306,8 +289,7 @@ function applySnapshot(snap: PreferencesSnapshot): void {
     // dropped. The next push will overwrite the server with the
     // filtered array, cleaning the server-side state over time.
     const cleaned = snap.streamingProviders.filter(
-      (v): v is string =>
-        typeof v === "string" && !isLegacyProviderId(v)
+      (v): v is string => typeof v === "string" && !isLegacyProviderId(v)
     );
     setStreamingProviders(cleaned);
   }
@@ -343,9 +325,7 @@ export async function syncPreferencesFromSupabase(
     return false;
   }
 
-  const serverUpdatedAt = data.updated_at
-    ? Date.parse(data.updated_at)
-    : 0;
+  const serverUpdatedAt = data.updated_at ? Date.parse(data.updated_at) : 0;
   const localSyncedAt = readSyncedAt();
 
   if (serverUpdatedAt > localSyncedAt) {
@@ -371,9 +351,7 @@ export async function syncPreferencesFromSupabase(
  * Also updates `cinelog_prefs_synced_at` so the next sync knows the
  * local state was just persisted.
  */
-export async function pushPreferencesToSupabase(
-  userId: string
-): Promise<void> {
+export async function pushPreferencesToSupabase(userId: string): Promise<void> {
   if (isServer) return;
 
   const snapshot = readSnapshot();
@@ -385,7 +363,9 @@ export async function pushPreferencesToSupabase(
   // just can't verify that automatically because PreferencesSnapshot
   // has optional fields with union types.
   const { error } = await saveUserSettings(userId, {
-    prefs_json: snapshot as unknown as Parameters<typeof saveUserSettings>[1]["prefs_json"]
+    prefs_json: snapshot as unknown as Parameters<
+      typeof saveUserSettings
+    >[1]["prefs_json"]
   });
 
   if (error) {

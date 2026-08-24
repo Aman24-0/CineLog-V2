@@ -137,7 +137,7 @@ const ProgressRing: Component<{ value: number }> = (props) => {
           cy={center}
           r={radius}
           fill="none"
-          stroke="var(--p, #f5c518)"
+          stroke="var(--p)"
           stroke-width="3"
           stroke-linecap="round"
           stroke-dasharray={`${circumference}`}

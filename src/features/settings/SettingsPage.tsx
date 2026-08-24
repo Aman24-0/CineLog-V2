@@ -12,7 +12,7 @@
 //
 // SECTIONS (6 + Danger Zone):
 //   1. Account          — profile, email, password, 2FA, sessions
-//   2. Appearance       — theme cards, accent swatches (incl Dynamic), density, font, poster, spoilers
+//   2. Appearance       — profile-banner environment, ambient intensity, density, font, poster, spoilers
 //   3. Content & Language — language, region, date format, vault status, adult filter, rating cap, rating scale, discover tab, streaming providers
 //   4. Notifications    — push, 5 categories, quiet hours, lead time
 //   5. Calendar         — first day of week, time format, timezone, default view
@@ -108,17 +108,31 @@ const SettingsPage: Component = () => {
           <div class="sec-page sec-fade-in" aria-busy="true" aria-live="polite">
             <div class="sec-header">
               <GlassSkeleton class="h-4 w-16 rounded" />
-              <GlassSkeleton class="h-6 w-32 rounded mt-2" />
-              <GlassSkeleton class="h-4 w-64 rounded mt-2" />
+              <GlassSkeleton class="mt-2 h-6 w-32 rounded" />
+              <GlassSkeleton class="mt-2 h-4 w-64 rounded" />
             </div>
-            <div class="settings-skeleton-grid" style={{ display: "grid", "grid-template-columns": "1fr", gap: "var(--sp-4)", "margin-top": "var(--sp-6)" }}>
+            <div
+              class="settings-skeleton-grid"
+              style={{
+                display: "grid",
+                "grid-template-columns": "1fr",
+                gap: "var(--sp-4)",
+                "margin-top": "var(--sp-6)"
+              }}
+            >
               <For each={Array.from({ length: 6 })}>
                 {() => (
-                  <div style={{ display: "flex", gap: "var(--sp-3)", "align-items": "center" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: "var(--sp-3)",
+                      "align-items": "center"
+                    }}
+                  >
                     <GlassSkeleton class="h-10 w-10 rounded-lg" />
                     <div style={{ flex: "1" }}>
                       <GlassSkeleton class="h-4 w-40 rounded" />
-                      <GlassSkeleton class="h-3 w-56 rounded mt-1" />
+                      <GlassSkeleton class="mt-1 h-3 w-56 rounded" />
                     </div>
                   </div>
                 )}
@@ -142,164 +156,167 @@ const SettingsPage: Component = () => {
 
         {/* Main content — only show once initial load is done */}
         <Show when={!s.settingsLoading() && !s.settingsError()}>
-        <div class="sec-page sec-fade-in">
-          {/* Header */}
-          <div class="sec-header">
-            <a
-              href="/profile"
-              class="sec-back focus-ring"
-              aria-label="Back to profile"
-            >
-              <span
-                class="material-symbols-outlined"
-                style={{ "font-size": "14px" }}
-                aria-hidden="true"
+          <div class="sec-page sec-fade-in">
+            {/* Header */}
+            <div class="sec-header">
+              <a
+                href="/profile"
+                class="sec-back focus-ring"
+                aria-label="Back to profile"
               >
-                arrow_back
-              </span>
-              Profile
-            </a>
-            <p class="sec-eyebrow">Settings</p>
-            <h1 class="sec-title">Preferences</h1>
-            <p class="sec-subtitle">
-              Account, appearance, content, sync, and more — all in one place.
-            </p>
+                <span
+                  class="material-symbols-outlined"
+                  style={{ "font-size": "14px" }}
+                  aria-hidden="true"
+                >
+                  arrow_back
+                </span>
+                Profile
+              </a>
+              <p class="sec-eyebrow">Settings</p>
+              <h1 class="sec-title">Preferences</h1>
+              <p class="sec-subtitle">
+                Account, appearance, content, sync, and more — all in one place.
+              </p>
 
-            {/* Phase 6 Part 3 — Task 3: Import / Export buttons.
+              {/* Phase 6 Part 3 — Task 3: Import / Export buttons.
                 Phase 14 Chunk 5 fix — switched from custom
                 .settings-import-export-btn (hardcoded #f5c518 yellow)
                 to <GlassButton> variants that adapt to var(--p):
                   • Export → variant="primary" (filled accent, main action)
                   • Import → variant="ghost"   (transparent w/ accent text)
                 size="compact" matches the previous visual density. */}
-            <div class="settings-import-export-row">
-              <GlassButton
-                variant="primary"
-                size="compact"
-                icon="download"
-                onClick={s.handleExportSettings}
-                aria-label="Export preferences to a JSON file"
-              >
-                Export
-              </GlassButton>
-              <GlassButton
-                variant="ghost"
-                size="compact"
-                icon="upload"
-                onClick={handleImportClick}
-                aria-label="Import preferences from a JSON file"
-              >
-                Import
-              </GlassButton>
-              <input
-                ref={importInputRef}
-                type="file"
-                accept="application/json,.json"
-                style={{ display: "none" }}
-                onChange={handleImportFileChosen}
-              />
-            </div>
-          </div>
-
-          {/* Search bar — sticky on mobile, inline on desktop */}
-          <div class="settings-search-wrapper">
-            <div class="settings-search">
-              <span
-                class="material-symbols-outlined settings-search-icon"
-                aria-hidden="true"
-              >
-                search
-              </span>
-              <input
-                type="search"
-                class="settings-search-input"
-                placeholder="Search settings…"
-                value={s.query()}
-                onInput={(e) => s.setQuery(e.currentTarget.value)}
-                aria-label="Search settings"
-              />
-              <Show when={s.query()}>
-                <button
-                  type="button"
-                  class="settings-search-clear focus-ring"
-                  onClick={() => s.setQuery("")}
-                  aria-label="Clear search"
+              <div class="settings-import-export-row">
+                <GlassButton
+                  variant="primary"
+                  size="compact"
+                  icon="download"
+                  onClick={s.handleExportSettings}
+                  aria-label="Export preferences to a JSON file"
                 >
-                  <span class="material-symbols-outlined" aria-hidden="true">
-                    close
-                  </span>
-                </button>
-              </Show>
+                  Export
+                </GlassButton>
+                <GlassButton
+                  variant="ghost"
+                  size="compact"
+                  icon="upload"
+                  onClick={handleImportClick}
+                  aria-label="Import preferences from a JSON file"
+                >
+                  Import
+                </GlassButton>
+                <input
+                  ref={importInputRef}
+                  type="file"
+                  accept="application/json,.json"
+                  style={{ display: "none" }}
+                  onChange={handleImportFileChosen}
+                />
+              </div>
             </div>
-          </div>
 
-          {/* Two-column layout: sidebar (desktop) + sections */}
-          <div class="settings-layout">
-            {/* Sidebar — desktop only */}
-            <aside class="settings-sidebar" aria-label="Settings sections">
-              <nav>
-                <ul class="settings-sidebar-list">
-                  <For each={[...SECTIONS, DANGER_ZONE_META]}>
-                    {(section) => (
-                      <li>
-                        <button
-                          type="button"
-                          class="settings-sidebar-link focus-ring"
-                          data-danger={section.id === "danger"}
-                          onClick={() => s.handleSidebarClick(section.id)}
-                        >
-                          <span
-                            class="material-symbols-outlined settings-sidebar-icon"
-                            aria-hidden="true"
-                          >
-                            {section.icon}
-                          </span>
-                          <span class="settings-sidebar-label">
-                            {section.title}
-                          </span>
-                        </button>
-                      </li>
-                    )}
-                  </For>
-                </ul>
-              </nav>
-            </aside>
-
-            {/* Sections — accordion on mobile, expanded on desktop */}
-            <div class="settings-content">
-              <Show
-                when={s.filteredSections().length > 0}
-                fallback={
-                  <div class="settings-search-empty">
-                    <span
-                      class="material-symbols-outlined"
-                      aria-hidden="true"
-                      style={{ "font-size": "40px", color: "var(--text-soft)" }}
-                    >
-                      search_off
+            {/* Search bar — sticky on mobile, inline on desktop */}
+            <div class="settings-search-wrapper">
+              <div class="settings-search">
+                <span
+                  class="material-symbols-outlined settings-search-icon"
+                  aria-hidden="true"
+                >
+                  search
+                </span>
+                <input
+                  type="search"
+                  class="settings-search-input"
+                  placeholder="Search settings…"
+                  value={s.query()}
+                  onInput={(e) => s.setQuery(e.currentTarget.value)}
+                  aria-label="Search settings"
+                />
+                <Show when={s.query()}>
+                  <button
+                    type="button"
+                    class="settings-search-clear focus-ring"
+                    onClick={() => s.setQuery("")}
+                    aria-label="Clear search"
+                  >
+                    <span class="material-symbols-outlined" aria-hidden="true">
+                      close
                     </span>
-                    <p>No settings match "{s.query()}"</p>
-                    <button
-                      type="button"
-                      class="btn-ghost focus-ring"
-                      onClick={() => s.setQuery("")}
-                    >
-                      Clear search
-                    </button>
-                  </div>
-                }
-              >
-                <AccountSection state={s} />
-                <AppearanceSection state={s} />
-                <ContentDiscoverSection state={s} />
-                <NotificationSection state={s} />
-                <CalendarSection state={s} />
-                <SyncSection state={s} />
-                <DangerZoneSection state={s} />
-              </Show>
+                  </button>
+                </Show>
+              </div>
+            </div>
+
+            {/* Two-column layout: sidebar (desktop) + sections */}
+            <div class="settings-layout">
+              {/* Sidebar — desktop only */}
+              <aside class="settings-sidebar" aria-label="Settings sections">
+                <nav>
+                  <ul class="settings-sidebar-list">
+                    <For each={[...SECTIONS, DANGER_ZONE_META]}>
+                      {(section) => (
+                        <li>
+                          <button
+                            type="button"
+                            class="settings-sidebar-link focus-ring"
+                            data-danger={section.id === "danger"}
+                            onClick={() => s.handleSidebarClick(section.id)}
+                          >
+                            <span
+                              class="material-symbols-outlined settings-sidebar-icon"
+                              aria-hidden="true"
+                            >
+                              {section.icon}
+                            </span>
+                            <span class="settings-sidebar-label">
+                              {section.title}
+                            </span>
+                          </button>
+                        </li>
+                      )}
+                    </For>
+                  </ul>
+                </nav>
+              </aside>
+
+              {/* Sections — accordion on mobile, expanded on desktop */}
+              <div class="settings-content">
+                <Show
+                  when={s.filteredSections().length > 0}
+                  fallback={
+                    <div class="settings-search-empty">
+                      <span
+                        class="material-symbols-outlined"
+                        aria-hidden="true"
+                        style={{
+                          "font-size": "40px",
+                          color: "var(--text-soft)"
+                        }}
+                      >
+                        search_off
+                      </span>
+                      <p>No settings match "{s.query()}"</p>
+                      <button
+                        type="button"
+                        class="btn-ghost focus-ring"
+                        onClick={() => s.setQuery("")}
+                      >
+                        Clear search
+                      </button>
+                    </div>
+                  }
+                >
+                  <AccountSection state={s} />
+                  <AppearanceSection state={s} />
+                  <ContentDiscoverSection state={s} />
+                  <NotificationSection state={s} />
+                  <CalendarSection state={s} />
+                  <SyncSection state={s} />
+                  <DangerZoneSection state={s} />
+                </Show>
+              </div>
             </div>
           </div>
-        </div>
         </Show>
       </PageContainer>
 

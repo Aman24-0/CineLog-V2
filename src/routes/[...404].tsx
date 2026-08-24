@@ -43,7 +43,7 @@ const NotFoundPage: Component = () => {
             "line-height": "1",
             "letter-spacing": "0.04em",
             color: "var(--text-strong)",
-            "text-shadow": "0 0 32px var(--p-glow, rgba(232, 183, 74, 0.3))"
+            "text-shadow": "0 0 32px var(--p-glow)"
           }}
         >
           404
@@ -77,7 +77,10 @@ const NotFoundPage: Component = () => {
           </p>
         </div>
 
-        <div class="flex flex-wrap items-center justify-center" style={{ gap: "var(--sp-3)" }}>
+        <div
+          class="flex flex-wrap items-center justify-center"
+          style={{ gap: "var(--sp-3)" }}
+        >
           <button
             type="button"
             class="btn-primary focus-ring"
@@ -91,7 +94,7 @@ const NotFoundPage: Component = () => {
               "border-radius": "var(--radius-lg)",
               border: "none",
               cursor: "pointer",
-              "box-shadow": "0 0 20px var(--p-glow, rgba(232, 183, 74, 0.4))"
+              "box-shadow": "0 0 20px var(--p-glow)"
             }}
           >
             Back to Discover
