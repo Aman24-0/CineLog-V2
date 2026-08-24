@@ -103,6 +103,27 @@ const complexDetail = {
   ]
 };
 
+const ambientVariantDetails = [
+  {
+    ...movieDetail,
+    id: 505,
+    title: "In the Grey",
+    backdrop_path: "/in-the-grey-blue-backdrop.jpg"
+  },
+  {
+    ...movieDetail,
+    id: 606,
+    title: "Prismatic Color",
+    backdrop_path: "/prismatic-color-backdrop.jpg"
+  },
+  {
+    ...movieDetail,
+    id: 707,
+    title: "A Dark Night",
+    backdrop_path: "/a-dark-night-backdrop.jpg"
+  }
+];
+
 async function mockDetailApi(page: Page) {
   await page.route("https://image.tmdb.org/**", async (route) => {
     const isPoster = new URL(route.request().url()).pathname.includes("w342");
@@ -142,9 +163,13 @@ async function mockDetailApi(page: Page) {
             {
               ...complexDetail,
               media_type: "movie"
-            }
+            },
+            ...ambientVariantDetails.map((detail) => ({
+              ...detail,
+              media_type: "movie"
+            }))
           ],
-          total_results: 4
+          total_results: 7
         })
       });
       return;
@@ -198,6 +223,17 @@ async function mockDetailApi(page: Page) {
       return;
     }
 
+    const ambientVariant = ambientVariantDetails.find((detail) =>
+      path.endsWith(`/movie/${detail.id}`)
+    );
+    if (ambientVariant) {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify(ambientVariant)
+      });
+      return;
+    }
+
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({ results: [] })
@@ -211,7 +247,7 @@ async function openFixtureFromSearch(page: Page, titlePattern: RegExp) {
   const result = page.getByRole("button", {
     name: new RegExp(`${titlePattern.source}.*open details`, titlePattern.flags)
   });
-  await expect(results).toHaveCount(4);
+  await expect(results).toHaveCount(7);
   await result.click();
 }
 
@@ -244,6 +280,31 @@ for (const viewport of [
       const hero = page.locator(".cinematic-hero");
       await expect(shell).toBeVisible();
       await expect(hero).toBeVisible();
+      await expect(page.locator(".app-shell-bg")).toHaveCSS(
+        "background-color",
+        "rgba(0, 0, 0, 0)"
+      );
+      const ambientLayers = await shell.evaluate((element) => {
+        const ambient = getComputedStyle(element, "::before");
+        const veil = getComputedStyle(element, "::after");
+        const scroll = getComputedStyle(
+          element.querySelector(".details-page-scroll")
+        );
+        return {
+          ambientImage: ambient.backgroundImage,
+          ambientFilter: ambient.filter,
+          ambientTop: ambient.top,
+          ambientBottom: ambient.bottom,
+          veilImage: veil.backgroundImage,
+          scrollBackground: scroll.backgroundColor
+        };
+      });
+      expect(ambientLayers.ambientImage).toContain("url(");
+      expect(ambientLayers.ambientFilter).toContain("blur(52px)");
+      expect(ambientLayers.ambientTop).toBe("0px");
+      expect(ambientLayers.ambientBottom).toBe("0px");
+      expect(ambientLayers.veilImage).toContain("linear-gradient");
+      expect(ambientLayers.scrollBackground).toBe("rgba(0, 0, 0, 0)");
       await expect(page.locator(".cinematic-hero-back")).toHaveAccessibleName(
         "Back to previous page"
       );
@@ -267,6 +328,10 @@ for (const viewport of [
       await page.getByRole("button", { name: "Watch trailer" }).click();
       await expect(page.locator(".cinematic-trailer-player")).toBeVisible();
       await expect(page.locator(".cinematic-trailer-iframe")).toBeVisible();
+      const ambientImageDuringTrailer = await shell.evaluate(
+        (element) => getComputedStyle(element, "::before").backgroundImage
+      );
+      expect(ambientImageDuringTrailer).toBe(ambientLayers.ambientImage);
       await expect(
         page.getByRole("button", { name: "Watch trailer" })
       ).toHaveCount(0);
@@ -288,6 +353,27 @@ for (const viewport of [
         path: `test-results/detail-movie-${viewport.width}x${viewport.height}.png`,
         fullPage: true
       });
+    });
+
+    test("keeps ambient source title-specific across backdrop variants", async ({
+      page
+    }) => {
+      for (const variant of ambientVariantDetails) {
+        await openFixtureFromSearch(page, new RegExp(variant.title));
+
+        const shell = page.locator(".details-page-shell");
+        await expect(shell).toBeVisible();
+        const ambientImage = await shell.evaluate(
+          (element) => getComputedStyle(element, "::before").backgroundImage
+        );
+        expect(ambientImage).toContain(variant.backdrop_path);
+        expect(
+          await shell.evaluate(
+            (element) => getComputedStyle(element).backgroundColor
+          )
+        ).toBe("rgb(7, 10, 16)");
+        await expectNoHorizontalOverflow(page);
+      }
     });
 
     test("keeps TV episodes and responsive page structure intact", async ({
@@ -333,14 +419,29 @@ for (const viewport of [
     }) => {
       await openFixtureFromSearch(page, /A Film Without a Trailer/);
 
-      await expect(page.locator(".details-page-shell")).toBeVisible();
+      const shell = page.locator(".details-page-shell");
+      await expect(shell).toBeVisible();
       await expect(page.locator(".cinematic-hero-media")).toBeVisible();
+      await expect(page.locator(".app-shell-bg")).toHaveCSS(
+        "background-color",
+        "rgba(0, 0, 0, 0)"
+      );
       await expect(
         page.getByRole("button", { name: "Watch trailer" })
       ).toHaveCount(0);
       await expect(page.locator(".cinematic-hero-trailer-toggle")).toHaveCount(
         0
       );
+      const fallbackLayers = await shell.evaluate((element) => ({
+        shellBackground: getComputedStyle(element).backgroundColor,
+        ambientImage: getComputedStyle(element, "::before").backgroundImage,
+        scrollBackground: getComputedStyle(
+          element.querySelector(".details-page-scroll")
+        ).backgroundColor
+      }));
+      expect(fallbackLayers.shellBackground).toBe("rgb(7, 10, 16)");
+      expect(fallbackLayers.ambientImage).toBe("none");
+      expect(fallbackLayers.scrollBackground).toBe("rgba(0, 0, 0, 0)");
       await expectNoHorizontalOverflow(page);
     });
   });

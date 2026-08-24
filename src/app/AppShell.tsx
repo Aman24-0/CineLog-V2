@@ -167,11 +167,13 @@ const AppShell: ParentComponent = (props) => {
                 "padding-bottom": isDedicatedDetailRoute()
                   ? "0"
                   : "calc(var(--nav-total-height) + var(--nav-float-margin, 1rem) + 0.5rem)",
-                // Phase 14: switched from solid --void to translucent
-                // --void-ambient so the AmbientBackground blobs show
-                // through. Solid --void is still used by body + admin +
-                // landing routes where the ambient is hidden.
-                background: "var(--void-ambient)",
+                // Dedicated Detail pages own their complete background stack.
+                // Keep the consumer shell transparent there so the title
+                // backdrop is not composited over the global theme surface.
+                // Other consumer routes retain the existing ambient shell.
+                background: isDedicatedDetailRoute()
+                  ? "transparent"
+                  : "var(--void-ambient)",
                 color: "var(--text)"
               }}
             >

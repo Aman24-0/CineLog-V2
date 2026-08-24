@@ -3848,43 +3848,57 @@
   padding: 0 0 3rem;
   isolation: isolate;
   overflow: clip;
-  background:
-    radial-gradient(
-      ellipse 92% 40% at 50% 0%,
-      color-mix(in srgb, var(--p) 7%, transparent),
-      transparent 72%
-    ),
-    var(--void);
+  background: #070a10;
 }
 
+/* Layer 2: one title-owned artwork field spanning the entire Detail page.
+   The heavy blur and scale happen only on this atmospheric duplicate, never
+   inside the sharp hero artwork. Keeping it on the page root means the color
+   influence continues behind every section instead of stopping at the hero. */
 .details-page-shell::before {
   content: "";
   position: absolute;
   z-index: 0;
-  top: 0;
-  right: 0;
-  left: 0;
-  height: min(52rem, 78vh);
+  inset: 0;
   pointer-events: none;
-  background-image:
-    linear-gradient(
-      to bottom,
-      rgba(5, 7, 12, 0.24) 0%,
-      rgba(5, 7, 12, 0.72) 48%,
-      var(--void) 100%
-    ),
-    var(--detail-ambient-image, none);
+  background-image: var(--detail-ambient-image, none);
   background-position: center top;
   background-size: cover;
   background-repeat: no-repeat;
-  opacity: 0.32;
-  filter: saturate(0.72) brightness(0.62);
-  mask-image: linear-gradient(to bottom, black 0%, black 46%, transparent 100%);
+  opacity: 0.28;
+  filter: blur(52px) saturate(0.72) brightness(0.72);
+  transform: scale(1.12);
+  transform-origin: top center;
+  mask-image: linear-gradient(
+    to bottom,
+    black 0%,
+    black 58%,
+    rgba(0, 0, 0, 0.72) 82%,
+    rgba(0, 0, 0, 0.38) 100%
+  );
   -webkit-mask-image: linear-gradient(
     to bottom,
     black 0%,
-    black 46%,
-    transparent 100%
+    black 58%,
+    rgba(0, 0, 0, 0.72) 82%,
+    rgba(0, 0, 0, 0.38) 100%
+  );
+}
+
+/* Layer 3: a readable, translucent veil. It darkens the artwork gradually
+   without substituting an opaque global theme surface. */
+.details-page-shell::after {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    rgba(7, 10, 16, 0.18) 0%,
+    rgba(7, 10, 16, 0.24) 32%,
+    rgba(7, 10, 16, 0.4) 62%,
+    rgba(7, 10, 16, 0.68) 100%
   );
 }
 
@@ -3914,7 +3928,7 @@
   overflow-y: visible;
   contain: none;
   padding-bottom: 2.5rem;
-  background: var(--void-ambient);
+  background: transparent;
 }
 
 .details-page-modal .details-page-scroll > :not(.cinematic-hero) {
@@ -3980,15 +3994,15 @@
   background:
     radial-gradient(
       ellipse 72% 60% at 50% 0%,
-      color-mix(in srgb, var(--p) 7%, transparent),
+      rgba(255, 255, 255, 0.04),
       transparent 72%
     ),
     linear-gradient(
       to bottom,
-      color-mix(in srgb, var(--void) 4%, transparent) 0%,
-      color-mix(in srgb, var(--void) 44%, transparent) 26%,
-      color-mix(in srgb, var(--void) 86%, transparent) 68%,
-      var(--void) 100%
+      rgba(7, 10, 16, 0.04) 0%,
+      rgba(7, 10, 16, 0.44) 26%,
+      rgba(7, 10, 16, 0.86) 68%,
+      #070a10 100%
     );
   filter: blur(12px);
   opacity: 0.98;
