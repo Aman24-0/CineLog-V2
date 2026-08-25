@@ -63,6 +63,7 @@ export interface UserReminderRow {
   release_date: string;
   is_scheduled: boolean;
   notification_sent: boolean;
+  notification_claimed_at?: string | null;
   created_at: string;
 }
 
