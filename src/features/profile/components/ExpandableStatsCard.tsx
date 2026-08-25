@@ -17,9 +17,7 @@ export interface ExpandableStatsCardProps {
 
 const ExpandableStatsCard: Component<ExpandableStatsCardProps> = (props) => {
   const [isExpanded, setIsExpanded] = createSignal(false);
-  const [movieFormat, setMovieFormat] = createSignal(0);
-  const [seriesFormat, setSeriesFormat] = createSignal(0);
-  const [animeFormat, setAnimeFormat] = createSignal(0);
+  const [sharedFormat, setSharedFormat] = createSignal(0);
 
   const stats = createMemo(() => calculateSeparatedStats(props.titles()));
   const categories = createMemo(() => [
@@ -31,6 +29,10 @@ const ExpandableStatsCard: Component<ExpandableStatsCardProps> = (props) => {
   const toggleExpand = () => {
     hapticTap();
     setIsExpanded((expanded) => !expanded);
+  };
+
+  const cycleAllFormats = () => {
+    setSharedFormat((format) => getNextFormat(format));
   };
 
   return (
@@ -66,20 +68,20 @@ const ExpandableStatsCard: Component<ExpandableStatsCardProps> = (props) => {
         <RuntimeValue
           category="Movies"
           seconds={stats().movieRuntime}
-          formatState={movieFormat}
-          onCycle={() => setMovieFormat((format) => getNextFormat(format))}
+          formatState={sharedFormat}
+          onCycle={cycleAllFormats}
         />
         <RuntimeValue
           category="Series"
           seconds={stats().seriesRuntime}
-          formatState={seriesFormat}
-          onCycle={() => setSeriesFormat((format) => getNextFormat(format))}
+          formatState={sharedFormat}
+          onCycle={cycleAllFormats}
         />
         <RuntimeValue
           category="Anime"
           seconds={stats().animeRuntime}
-          formatState={animeFormat}
-          onCycle={() => setAnimeFormat((format) => getNextFormat(format))}
+          formatState={sharedFormat}
+          onCycle={cycleAllFormats}
         />
       </div>
 

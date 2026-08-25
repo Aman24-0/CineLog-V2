@@ -15,11 +15,11 @@ function title(overrides: Partial<WatchlistItem> = {}): WatchlistItem {
 }
 
 describe("ExpandableStatsCard", () => {
-  it("renders separated counts, expands runtimes, and cycles each runtime independently", () => {
+  it("renders separated counts, expands runtimes, and cycles all runtimes together", () => {
     const { container } = render(() => (
       <ExpandableStatsCard
         titles={() => [
-          title({ runtime: 120, genresList: ["Drama"] }),
+          title({ runtime: 121, genresList: ["Drama"] }),
           title({
             id: "series",
             media_type: "tv",
@@ -52,10 +52,11 @@ describe("ExpandableStatsCard", () => {
       container.querySelectorAll<HTMLButtonElement>(".profile-runtime-value")
     );
     expect(runtimeButtons).toHaveLength(3);
-    expect(runtimeButtons[0].textContent).toContain("2:00");
+    expect(runtimeButtons[0].textContent).toContain("2:01");
 
     fireEvent.click(runtimeButtons[0]);
-    expect(runtimeButtons[0].textContent).toContain("7,200s");
-    expect(runtimeButtons[1].textContent).toContain("1:00");
+    expect(runtimeButtons[0].textContent).toContain("7,260s");
+    expect(runtimeButtons[1].textContent).toContain("3,600s");
+    expect(runtimeButtons[2].textContent).toContain("5,400s");
   });
 });

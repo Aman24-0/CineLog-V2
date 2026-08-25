@@ -16,8 +16,8 @@ function item(overrides: Partial<WatchlistItem> = {}): WatchlistItem {
 }
 
 describe("formatRuntime", () => {
-  it("cycles through hours:seconds, seconds, minutes, and hours", () => {
-    expect(formatRuntime(4_444_140, 0)).toBe("1,234:00");
+  it("cycles through hours:minutes, seconds, minutes, and hours", () => {
+    expect(formatRuntime(4_444_140, 0)).toBe("1,234:29");
     expect(formatRuntime(4_444_140, 1)).toBe("4,444,140s");
     expect(formatRuntime(4_444_140, 2)).toBe("74,069m");
     expect(formatRuntime(4_444_140, 3)).toBe("1,234h");
@@ -25,7 +25,7 @@ describe("formatRuntime", () => {
 
   it("clamps invalid runtime values and falls back to hours", () => {
     expect(formatRuntime(-1, 0)).toBe("0:00");
-    expect(formatRuntime(3_600, 99)).toBe("1h");
+    expect(formatRuntime(3_600, 99)).toBe("1:00");
   });
 
   it("wraps the format state after the fourth format", () => {

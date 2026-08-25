@@ -11,11 +11,11 @@ export const RUNTIME_FORMAT_COUNT = 4;
 export function formatRuntime(seconds: number, formatState: number): string {
   const safeSeconds = Math.max(0, Math.floor(seconds));
   const hours = Math.floor(safeSeconds / 3600);
-  const displaySeconds = safeSeconds % 60;
+  const displayMinutes = Math.floor((safeSeconds % 3600) / 60);
 
   switch (formatState) {
     case 0:
-      return `${hours.toLocaleString()}:${displaySeconds
+      return `${hours.toLocaleString()}:${displayMinutes
         .toString()
         .padStart(2, "0")}`;
     case 1:
@@ -25,7 +25,9 @@ export function formatRuntime(seconds: number, formatState: number): string {
     case 3:
       return `${hours.toLocaleString()}h`;
     default:
-      return `${hours.toLocaleString()}h`;
+      return `${hours.toLocaleString()}:${displayMinutes
+        .toString()
+        .padStart(2, "0")}`;
   }
 }
 
