@@ -65,6 +65,17 @@ const HorizontalRail = <T,>(props: HorizontalRailProps<T>): JSX.Element => {
     ) {
       return;
     }
+
+    const maxScrollLeft = element.scrollWidth - element.clientWidth;
+    const scrollingRight = event.deltaY > 0;
+    const canConsumeWheel = scrollingRight
+      ? element.scrollLeft < maxScrollLeft - 1
+      : element.scrollLeft > 1;
+
+    // At either horizontal edge, release the wheel event so the parent page
+    // can continue its normal vertical scroll instead of feeling stuck.
+    if (!canConsumeWheel) return;
+
     event.preventDefault();
     element.scrollBy({ left: event.deltaY, behavior: "auto" });
   };

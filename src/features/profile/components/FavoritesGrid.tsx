@@ -117,7 +117,7 @@ const FavoritesGrid: Component<FavoritesGridProps> = (props) => {
         emptyMessage={
           favoritesCollection() === null
             ? "Add titles to your Favorites collection to showcase them here."
-            : "Open a title and tap the heart icon to add it to your Favorites."
+            : "No favorites yet. Tap the heart icon on any title to add it!"
         }
         emptyAction="Discover Content"
         emptyActionLink="/discover"

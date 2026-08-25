@@ -84,7 +84,7 @@ const UserListsPreview: Component = () => {
         renderItem={listCard}
         loading={collections.loading()}
         emptyIcon="video_library"
-        emptyMessage="No lists yet. Go to Collections to create your first list."
+        emptyMessage="No lists yet. Go to Collections to create your first list!"
         emptyAction="Go to Collections"
         emptyActionLink="/collections"
       />

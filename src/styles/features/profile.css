@@ -4165,13 +4165,20 @@
 
 .horizontal-rail-scroll {
   display: flex;
-  gap: 0.75rem;
+  flex-wrap: nowrap;
+  width: 100% !important;
   min-width: 0;
-  padding: 0.2rem 0.15rem 0.5rem;
-  overflow-x: auto;
+  min-height: 200px;
+  gap: 1rem;
+  padding: 0.5rem 0.5rem 1rem;
+  overflow-x: auto !important;
+  overflow-y: hidden;
   scroll-behavior: smooth;
   scroll-snap-type: x mandatory;
+  touch-action: pan-x pan-y;
+  overscroll-behavior-x: contain;
   scrollbar-width: none;
+  -ms-overflow-style: none;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -4180,7 +4187,16 @@
 }
 
 .horizontal-rail-scroll > * {
-  flex: 0 0 auto;
+  flex: 0 0 auto !important;
+  flex-grow: 0 !important;
+  flex-shrink: 0 !important;
+  scroll-snap-align: start;
+}
+
+.horizontal-rail-item {
+  flex: 0 0 auto !important;
+  flex-grow: 0 !important;
+  flex-shrink: 0 !important;
   scroll-snap-align: start;
 }
 
@@ -4460,99 +4476,6 @@
   }
 }
 
-/* ─── Horizontal Rail Regression Fixes ──────────────────────────────────── */
-.horizontal-rail-scroll {
-  display: flex;
-  flex-wrap: nowrap;
-  width: 100% !important;
-  min-width: 0;
-  min-height: 200px;
-  overflow-x: auto !important;
-  overflow-y: hidden;
-  gap: 1rem;
-  padding: 0.5rem 0.5rem 1rem;
-  scroll-behavior: smooth;
-  scroll-snap-type: x mandatory;
-  touch-action: pan-x;
-  overscroll-behavior-x: contain;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-.horizontal-rail-scroll::-webkit-scrollbar {
-  display: none;
-}
-
-.horizontal-rail-item {
-  flex: 0 0 auto !important;
-  flex-grow: 0 !important;
-  flex-shrink: 0 !important;
-  scroll-snap-align: start;
-}
-
-.empty-rail-state {
-  display: flex;
-  flex: 0 0 100%;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 160px;
-  padding: 2rem;
-  border: 1px dashed var(--hairline, rgb(255 255 255 / 0.12));
-  border-radius: 0.85rem;
-  color: var(--text-dim, rgb(255 255 255 / 0.5));
-  gap: 0.75rem;
-  text-align: center;
-}
-
-.empty-rail-icon {
-  color: var(--p);
-  font-size: 2rem;
-  opacity: 0.75;
-}
-
-.empty-message {
-  max-width: 18rem;
-  margin: 0;
-  color: var(--text-dim, rgb(255 255 255 / 0.55));
-  font-size: 0.85rem;
-}
-
-.empty-action-link {
-  display: inline-flex;
-  align-items: center;
-  min-height: 2.25rem;
-  padding: 0.45rem 0.9rem;
-  border: 1px solid color-mix(in srgb, var(--p) 45%, transparent);
-  border-radius: 999px;
-  color: var(--p);
-  font-size: 0.78rem;
-  font-weight: 700;
-  text-decoration: none;
-  transition:
-    background 0.2s ease,
-    border-color 0.2s ease;
-}
-
-.empty-action-link:hover {
-  border-color: var(--p);
-  background: color-mix(in srgb, var(--p) 12%, transparent);
-}
-
-@media (max-width: 768px) {
-  .horizontal-rail-nav {
-    display: none !important;
-  }
-}
-
-@media (min-width: 768px) {
-  .horizontal-rail-scroll {
-    padding-inline: 1rem;
-  }
-}
-
-/* ─── Recent Activity Journal Page ───────────────────────────────────────── */
 .profile-recent-activity-page-list {
   display: grid;
   gap: 1.5rem;
@@ -4692,4 +4615,135 @@
 
 .profile-activity-detail-relative {
   display: none;
+}
+
+@media (min-width: 769px) {
+  .horizontal-rail-nav {
+    display: inline-flex;
+  }
+}
+
+@media (min-width: 1024px) {
+  .horizontal-rail-scroll {
+    gap: 1rem;
+  }
+
+  .profile-favorites-rail-card {
+    width: 11.25rem;
+    min-width: 11.25rem;
+  }
+
+  .profile-activity-rail-card {
+    width: 20rem;
+    min-width: 20rem;
+  }
+
+  .profile-achievements-preview-v3-badge {
+    width: 9.5rem;
+    min-width: 9.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .horizontal-rail-scroll,
+  .horizontal-rail-nav,
+  .profile-favorites-rail-card,
+  .profile-activity-rail-card,
+  .profile-activity-detail-card {
+    scroll-behavior: auto;
+    transition: none;
+  }
+}
+
+/* ─── Scroll ownership and rail empty states ────────────────────────────── */
+.profile-page-region,
+.profile-page-region .profile-layout-v3,
+.profile-page-region .profile-content-v3 {
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+}
+
+.empty-rail-state {
+  display: flex;
+  flex: 0 0 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 160px;
+  padding: 2rem;
+  border: 1px dashed var(--hairline, rgb(255 255 255 / 0.12));
+  border-radius: 0.85rem;
+  color: var(--text-dim, rgb(255 255 255 / 0.5));
+  gap: 0.75rem;
+  text-align: center;
+}
+
+.empty-rail-icon {
+  color: var(--p);
+  font-size: 2rem;
+  opacity: 0.75;
+}
+
+.empty-message {
+  max-width: 18rem;
+  margin: 0;
+  color: var(--text-dim, rgb(255 255 255 / 0.55));
+  font-size: 0.85rem;
+}
+
+.empty-action-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.25rem;
+  padding: 0.45rem 0.9rem;
+  border: 1px solid color-mix(in srgb, var(--p) 45%, transparent);
+  border-radius: 999px;
+  color: var(--p);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.empty-action-link:hover {
+  border-color: var(--p);
+  background: color-mix(in srgb, var(--p) 12%, transparent);
+}
+
+@media (max-width: 1023px) {
+  html,
+  body {
+    height: auto;
+    min-height: 100%;
+    overflow-y: auto;
+  }
+
+  .app-shell-bg,
+  .app-shell-bg > #main-content {
+    height: auto;
+    min-height: 100dvh;
+    overflow-y: visible;
+  }
+}
+
+@media (min-width: 1024px) {
+  .app-shell-bg > #main-content {
+    min-height: 0;
+    overflow-y: auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .horizontal-rail-nav {
+    display: none !important;
+  }
+}
+
+@media (min-width: 768px) {
+  .horizontal-rail-scroll {
+    padding-inline: 1rem;
+  }
 }
