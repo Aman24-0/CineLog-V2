@@ -9,10 +9,10 @@
 // Structure:
 //   +-- Banner          (ProfileBanner component)
 //   +-- Header          (ProfileHeader — avatar, name, bio, actions)
-//   +-- Stats Row       (ProfileStatsRow — 5 GlassCards: titles, movies, series, hours, avg rating)
+//   +-- Watching Stats  (clickable header + compact expandable summary)
 //   +-- Tabs            (ProfileTabs — Favorites / Lists / Achievements)
 //   |   +-- Tab Content (FavoritesGrid / UserListsPreview / AchievementsPreview)
-//   +-- Quick Action Row (QuickActionRow — Stats / Upcoming / Settings / Trash)
+//   +-- Quick Action Row (QuickActionRow — Upcoming / Settings / Trash)
 //
 // State management:
 //   • activeTab — owned by useProfileTabs hook (persisted in localStorage)
@@ -32,13 +32,13 @@ import { GlassButton, GlassEmptyState, GlassSkeleton } from "~/shared/ui/glass";
 import { ErrorState, RefreshingIndicator } from "~/shared/ui/states";
 
 import { useProfileData } from "./useProfileData";
-import { useStats } from "./useStats";
 import { useProfileTabs } from "./hooks/useProfileTabs";
 
 // Sub-components
 import ProfileBanner from "./components/ProfileBanner";
 import ProfileHeader from "./components/ProfileHeader";
-import ProfileStatsRow from "./components/ProfileStatsRow";
+import StatsHeader from "./components/StatsHeader";
+import ExpandableStatsCard from "./components/ExpandableStatsCard";
 import ProfileTabs from "./components/ProfileTabs";
 import FavoritesGrid from "./components/FavoritesGrid";
 import UserListsPreview from "./components/UserListsPreview";
@@ -60,7 +60,6 @@ const ProfilePage: Component = () => {
 
   const { data, loading, refreshing, error, refetch, watchlist } =
     useProfileData();
-  const { stats } = useStats();
   const { activeTab, setActiveTab } = useProfileTabs();
 
   const [editModalOpen, setEditModalOpen] = createSignal(false);
@@ -208,8 +207,11 @@ const ProfilePage: Component = () => {
               </ProfileBanner>
             </section>
 
-            {/* 2. Stats row — 5 GlassCards: titles, movies, series, hours, avg rating. */}
-            <ProfileStatsRow stats={stats} />
+            {/* 2. Watching stats — compact, expandable, and linked to details. */}
+            <section class="profile-watching-stats" aria-label="Watching stats">
+              <StatsHeader />
+              <ExpandableStatsCard titles={watchlist} />
+            </section>
 
             {/* 3. Tabs + content */}
             <ProfileTabs activeTab={activeTab()} onTabChange={setActiveTab} />
@@ -241,10 +243,10 @@ const ProfilePage: Component = () => {
               </Show>
             </div>
 
-            {/* 5. Quick action row — Stats / Upcoming / Settings / Trash */}
+            {/* 4. Quick action row — Upcoming / Settings / Trash */}
             <QuickActionRow />
 
-            {/* 6. Sign out */}
+            {/* 5. Sign out */}
             <button
               type="button"
               class="profile-v3-sign-out profile-v3-sign-out-danger focus-ring"
