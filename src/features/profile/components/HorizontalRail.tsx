@@ -30,6 +30,16 @@ const HorizontalRail = <T,>(props: HorizontalRailProps<T>): JSX.Element => {
   let scrollRef: HTMLDivElement | undefined;
   const [showLeftArrow, setShowLeftArrow] = createSignal(false);
   const [showRightArrow, setShowRightArrow] = createSignal(false);
+  const [isDragging, setIsDragging] = createSignal(false);
+  let pointerId: number | null = null;
+  let pointerStartX = 0;
+  let pointerStartY = 0;
+  let pointerStartScrollLeft = 0;
+  let touchActive = false;
+  let touchStartX = 0;
+  let touchStartY = 0;
+  let touchStartScrollLeft = 0;
+  let touchDragging = false;
 
   const items = createMemo(() =>
     typeof props.items === "function" ? props.items() : props.items
@@ -54,6 +64,99 @@ const HorizontalRail = <T,>(props: HorizontalRailProps<T>): JSX.Element => {
       left: direction === "left" ? -amount : amount,
       behavior: "smooth"
     });
+  };
+
+  // Desktop mouse dragging is kept separate from touch handling so a
+  // vertical page gesture is never hijacked by the rail.
+  const handlePointerDown = (event: PointerEvent) => {
+    const element = scrollRef;
+    if (
+      !element ||
+      element.scrollWidth <= element.clientWidth ||
+      event.pointerType === "touch" ||
+      (event.pointerType === "mouse" && event.button !== 0)
+    ) {
+      return;
+    }
+    pointerId = event.pointerId;
+    pointerStartX = event.clientX;
+    pointerStartY = event.clientY;
+    pointerStartScrollLeft = element.scrollLeft;
+    setIsDragging(false);
+  };
+
+  const handlePointerMove = (event: PointerEvent) => {
+    const element = scrollRef;
+    if (
+      !element ||
+      pointerId !== event.pointerId ||
+      event.pointerType === "touch"
+    ) {
+      return;
+    }
+
+    const deltaX = event.clientX - pointerStartX;
+    const deltaY = event.clientY - pointerStartY;
+    if (!isDragging()) {
+      if (Math.max(Math.abs(deltaX), Math.abs(deltaY)) < 8) return;
+      if (Math.abs(deltaY) >= Math.abs(deltaX)) {
+        pointerId = null;
+        return;
+      }
+      setIsDragging(true);
+      element.setPointerCapture?.(event.pointerId);
+    }
+    event.preventDefault();
+    element.scrollLeft = pointerStartScrollLeft - deltaX;
+  };
+
+  const endPointerDrag = (event: PointerEvent) => {
+    if (pointerId !== event.pointerId) return;
+    scrollRef?.releasePointerCapture?.(event.pointerId);
+    pointerId = null;
+    setIsDragging(false);
+  };
+
+  // Some mobile browsers expose touch gestures through TouchEvent rather
+  // than a draggable native overflow surface. Once horizontal intent is
+  // clear, take over the gesture and move the rail directly.
+  const handleTouchStart = (event: TouchEvent) => {
+    const element = scrollRef;
+    const touch = event.touches[0];
+    if (!element || !touch || element.scrollWidth <= element.clientWidth) {
+      return;
+    }
+    touchActive = true;
+    touchDragging = false;
+    touchStartX = touch.clientX;
+    touchStartY = touch.clientY;
+    touchStartScrollLeft = element.scrollLeft;
+  };
+
+  const handleTouchMove = (event: TouchEvent) => {
+    const element = scrollRef;
+    const touch = event.touches[0];
+    if (!element || !touch || !touchActive) return;
+
+    const deltaX = touch.clientX - touchStartX;
+    const deltaY = touch.clientY - touchStartY;
+    if (!touchDragging) {
+      if (Math.max(Math.abs(deltaX), Math.abs(deltaY)) < 8) return;
+      if (Math.abs(deltaY) >= Math.abs(deltaX)) {
+        touchActive = false;
+        return;
+      }
+      touchDragging = true;
+      setIsDragging(true);
+    }
+    event.preventDefault();
+    element.scrollLeft = touchStartScrollLeft - deltaX;
+  };
+
+  const endTouchDrag = () => {
+    touchActive = false;
+    touchDragging = false;
+    setIsDragging(false);
   };
 
   const handleWheel = (event: WheelEvent) => {
@@ -142,47 +245,63 @@ const HorizontalRail = <T,>(props: HorizontalRailProps<T>): JSX.Element => {
         <Show
           when={items().length > 0}
           fallback={
-            <Show
-              when={!props.loading}
-              fallback={
-                <div class="empty-rail-state" aria-busy="true">
+            <div class="horizontal-rail-empty-container">
+              <Show
+                when={!props.loading}
+                fallback={
+                  <div class="empty-rail-state" aria-busy="true">
+                    <span
+                      class="material-symbols-outlined empty-rail-icon"
+                      aria-hidden="true"
+                    >
+                      progress_activity
+                    </span>
+                    <p class="empty-message">Loading…</p>
+                  </div>
+                }
+              >
+                <div class="empty-rail-state">
                   <span
                     class="material-symbols-outlined empty-rail-icon"
                     aria-hidden="true"
                   >
-                    progress_activity
+                    {props.emptyIcon ?? "history"}
                   </span>
-                  <p class="empty-message">Loading…</p>
+                  <p class="empty-message">
+                    {props.emptyMessage ?? "Nothing here yet"}
+                  </p>
+                  <Show when={props.emptyAction && props.emptyActionLink}>
+                    <A
+                      href={props.emptyActionLink!}
+                      class="empty-action-link focus-ring"
+                    >
+                      {props.emptyAction}
+                    </A>
+                  </Show>
                 </div>
-              }
-            >
-              <div class="empty-rail-state">
-                <span
-                  class="material-symbols-outlined empty-rail-icon"
-                  aria-hidden="true"
-                >
-                  {props.emptyIcon ?? "history"}
-                </span>
-                <p class="empty-message">
-                  {props.emptyMessage ?? "Nothing here yet"}
-                </p>
-                <Show when={props.emptyAction && props.emptyActionLink}>
-                  <A
-                    href={props.emptyActionLink!}
-                    class="empty-action-link focus-ring"
-                  >
-                    {props.emptyAction}
-                  </A>
-                </Show>
-              </div>
-            </Show>
+              </Show>
+            </div>
           }
         >
           <div
             ref={scrollRef}
             class="horizontal-rail-scroll"
+            classList={{ "is-dragging": isDragging() }}
+            data-dragging={isDragging() ? "true" : "false"}
             onScroll={checkScrollPosition}
             onWheel={handleWheel}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={endPointerDrag}
+            onPointerCancel={endPointerDrag}
+            on:touchstart={handleTouchStart}
+            on:touchmove={handleTouchMove}
+            on:touchend={endTouchDrag}
+            on:touchcancel={endTouchDrag}
+            onPointerLeave={(event) => {
+              if (event.pointerType === "mouse") endPointerDrag(event);
+            }}
+            onDragStart={(event) => event.preventDefault()}
             role="list"
             tabindex={0}
             aria-label={`${props.title} items`}

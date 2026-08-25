@@ -4173,6 +4173,13 @@
   gap: 1rem;
   padding: 0.5rem 0.5rem 1rem;
   overflow-x: auto;
+  overflow-y: hidden;
+  /* Allow both gesture directions initially. The rail takes ownership only
+     after horizontal intent is clear; vertical intent stays with the page.
+     The TouchEvent fallback covers browsers that do not start native
+     overflow scrolling from a card surface. */
+  touch-action: pan-x pan-y;
+  overscroll-behavior-x: contain;
   scroll-snap-type: x proximity;
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -4181,6 +4188,12 @@
 
 .horizontal-rail-scroll::-webkit-scrollbar {
   display: none;
+}
+
+.horizontal-rail-scroll.is-dragging {
+  cursor: grabbing;
+  user-select: none;
+  scroll-snap-type: none;
 }
 
 .horizontal-rail-scroll > * {
@@ -4658,6 +4671,12 @@
 .profile-page-region .profile-content-v3 {
   height: auto;
   min-height: 0;
+  overflow: visible;
+}
+
+.horizontal-rail-empty-container {
+  width: 100%;
+  min-width: 0;
   overflow: visible;
 }
 

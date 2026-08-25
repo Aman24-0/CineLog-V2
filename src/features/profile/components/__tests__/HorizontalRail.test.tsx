@@ -95,6 +95,66 @@ describe("HorizontalRail", () => {
     expect(edgeEvent.defaultPrevented).toBe(false);
   });
 
+  it("moves an overflowing rail from a horizontal touch gesture", () => {
+    const { container } = render(() => (
+      <HorizontalRail
+        title="Favorites"
+        items={["One", "Two", "Three"]}
+        renderItem={(title) => <article>{title}</article>}
+      />
+    ));
+
+    const scroll = container.querySelector(
+      ".horizontal-rail-scroll"
+    ) as HTMLDivElement;
+    Object.defineProperties(scroll, {
+      scrollWidth: { configurable: true, value: 900 },
+      clientWidth: { configurable: true, value: 300 },
+      scrollLeft: { configurable: true, writable: true, value: 300 }
+    });
+
+    fireEvent.touchStart(scroll, {
+      touches: [{ clientX: 240, clientY: 120 }]
+    });
+    const moveEvent = fireEvent.touchMove(scroll, {
+      cancelable: true,
+      touches: [{ clientX: 120, clientY: 124 }]
+    });
+
+    expect(moveEvent).toBe(false);
+    expect(scroll.scrollLeft).toBe(420);
+  });
+
+  it("does not consume a vertical touch gesture", () => {
+    const { container } = render(() => (
+      <HorizontalRail
+        title="Favorites"
+        items={["One", "Two", "Three"]}
+        renderItem={(title) => <article>{title}</article>}
+      />
+    ));
+
+    const scroll = container.querySelector(
+      ".horizontal-rail-scroll"
+    ) as HTMLDivElement;
+    Object.defineProperties(scroll, {
+      scrollWidth: { configurable: true, value: 900 },
+      clientWidth: { configurable: true, value: 300 },
+      scrollLeft: { configurable: true, writable: true, value: 300 }
+    });
+
+    fireEvent.touchStart(scroll, {
+      touches: [{ clientX: 240, clientY: 120 }]
+    });
+    const moveEvent = fireEvent.touchMove(scroll, {
+      cancelable: true,
+      touches: [{ clientX: 244, clientY: 180 }]
+    });
+
+    expect(moveEvent).toBe(true);
+    expect(scroll.scrollLeft).toBe(300);
+  });
+
   it("uses the desktop rail arrow to advance an overflowing track", () => {
     const { container } = render(() => (
       <HorizontalRail
