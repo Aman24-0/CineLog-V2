@@ -17,6 +17,13 @@
   gap: var(--sp-3, 0.75rem);
 }
 
+/* Match the slightly lower top control position used by Trash on mobile. */
+@media (max-width: 639px) {
+  .upcoming-page > .sec-header {
+    padding-top: var(--sp-8, 2rem);
+  }
+}
+
 .upcoming-toolbar {
   display: flex;
   flex-wrap: wrap;

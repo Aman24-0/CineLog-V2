@@ -22,6 +22,10 @@
 import { getClient } from "~/lib/supabase/client";
 import type { TMDBTitle } from "~/shared/types";
 import { normalizeList, type TMDBRawItem } from "~/core/tmdb/discoverNormalize";
+import {
+  localCalendarDate,
+  reminderDateStatus
+} from "~/shared/utils/reminderDates";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -961,12 +965,7 @@ export async function getNotifications(
 async function insertNotification(
   row: Omit<
     NotificationRow,
-    | "id"
-    | "created_at"
-    | "is_read"
-    | "read_at"
-    | "sent_at"
-    | "snoozed_until"
+    "id" | "created_at" | "is_read" | "read_at" | "sent_at" | "snoozed_until"
   > &
     Partial<
       Pick<NotificationRow, "is_read" | "read_at" | "sent_at" | "snoozed_until">
@@ -1111,8 +1110,9 @@ export async function dismissNotification(
 // ---------------------------------------------------------------------------
 
 /**
- * Schedule a release-day reminder for a title. Inserts into user_reminders
- * (UNIQUE on user_id+tmdb_id means re-scheduling is a no-op).
+ * Schedule a release-day reminder for a title. Upserts the user's unique
+ * reminder row so a previously expired reminder can be scheduled again with
+ * fresh metadata instead of remaining a stale duplicate.
  * Also inserts a notification row of type 'reminder' with scheduled_for
  * set to the release date — the Notification Center will surface it.
  */
@@ -1128,8 +1128,8 @@ export async function scheduleReminder(
     const supabase = getClient();
     const idStr = String(tmdbId);
 
-    // 1. Upsert the reminder row. ON CONFLICT do nothing — the user
-    //    already asked to be reminded.
+    // 1. Upsert the reminder row. Re-scheduling intentionally refreshes
+    //    the date, poster, and sent state for this title.
     const { error: reminderError } = await supabase
       .from("user_reminders")
       .upsert(
@@ -1141,9 +1141,10 @@ export async function scheduleReminder(
           poster_path: posterPath,
           release_date: releaseDate,
           is_scheduled: true,
-          notification_sent: false
+          notification_sent: false,
+          notification_claimed_at: null
         },
-        { onConflict: "user_id,tmdb_id", ignoreDuplicates: true }
+        { onConflict: "user_id,tmdb_id" }
       );
     if (reminderError) {
       // If the error is the unique-constraint violation, that's fine —
@@ -1194,7 +1195,17 @@ export async function syncMovieReminder(
       title_name: titleName,
       poster_path: posterPath
     };
-    if (resetNotification) reminderUpdate.notification_sent = false;
+    const dateStatus = reminderDateStatus(releaseDate, localCalendarDate());
+    if (dateStatus === "expired") {
+      // A stale legacy row must never become due again after metadata sync.
+      reminderUpdate.is_scheduled = false;
+      reminderUpdate.notification_sent = true;
+      reminderUpdate.notification_claimed_at = null;
+    } else if (resetNotification) {
+      reminderUpdate.is_scheduled = true;
+      reminderUpdate.notification_sent = false;
+      reminderUpdate.notification_claimed_at = null;
+    }
 
     const { data, error } = await supabase
       .from("user_reminders")
@@ -1250,8 +1261,8 @@ export async function cancelReminder(
 }
 
 /**
- * Fetch all of the user's reminder rows. Used to mark the bell icon as
- * active on cards whose title the user has already subscribed to.
+ * Fetch active, non-expired reminder rows. Expired rows remain in the
+ * database for history/rescheduling but must not keep a bell active.
  */
 export async function getUserReminders(
   userId: string
@@ -1261,7 +1272,9 @@ export async function getUserReminders(
     const { data, error } = await supabase
       .from("user_reminders")
       .select("*")
-      .eq("user_id", userId);
+      .eq("user_id", userId)
+      .eq("is_scheduled", true)
+      .gte("release_date", localCalendarDate());
     if (error) return [];
     return (data ?? []) as unknown as UserReminderRow[];
   } catch {
@@ -1270,24 +1283,23 @@ export async function getUserReminders(
 }
 
 /**
- * Fetch any reminders whose release_date is today (or earlier) and
- * which haven't had their notification sent yet. Used by the
- * useNotifications hook on page load to fire browser notifications.
+ * Fetch reminders whose stored fire date is exactly today and which
+ * haven't had their notification sent yet. Past dates are expired rather
+ * than replayed, so an old reminder cannot wake up days late.
  */
 export async function getDueReminders(
   userId: string
 ): Promise<UserReminderRow[]> {
   try {
     const supabase = getClient();
-    const now = new Date();
-    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    const today = localCalendarDate();
     const { data, error } = await supabase
       .from("user_reminders")
       .select("*")
       .eq("user_id", userId)
       .eq("is_scheduled", true)
       .eq("notification_sent", false)
-      .lte("release_date", today);
+      .eq("release_date", today);
     if (error) return [];
     return (data ?? []) as unknown as UserReminderRow[];
   } catch {
@@ -1298,12 +1310,44 @@ export async function getDueReminders(
 /**
  * Mark a reminder as notification_sent=true so we don't fire it twice.
  */
+export type ReminderClaimResult =
+  | { status: "claimed"; reminder: UserReminderRow }
+  | { status: "busy" }
+  | { status: "unavailable" };
+
+/**
+ * Atomically claim one reminder for a short delivery lease. The RPC is
+ * optional during rolling deployments; unavailable falls back to the legacy
+ * path, while an empty result means another tab/server already claimed it.
+ */
+export async function claimDueReminder(
+  reminderId: string
+): Promise<ReminderClaimResult> {
+  try {
+    const supabase = getClient();
+    const { data, error } = await supabase.rpc(
+      "claim_due_user_reminder_for_user" as never,
+      { p_reminder_id: reminderId } as never
+    );
+    if (error) return { status: "unavailable" };
+    if (!Array.isArray(data) || data.length === 0) {
+      return { status: "busy" };
+    }
+    return {
+      status: "claimed",
+      reminder: data[0] as unknown as UserReminderRow
+    };
+  } catch {
+    return { status: "unavailable" };
+  }
+}
+
 export async function markReminderSent(reminderId: string): Promise<boolean> {
   try {
     const supabase = getClient();
     const { error } = await supabase
       .from("user_reminders")
-      .update({ notification_sent: true })
+      .update({ notification_sent: true, notification_claimed_at: null })
       .eq("id", reminderId);
     return !error;
   } catch {

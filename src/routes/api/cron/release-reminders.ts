@@ -19,6 +19,8 @@ import { isServer } from "solid-js/web";
 import { timingSafeEqual as nodeTimingSafeEqual } from "node:crypto";
 import { createAdminClient } from "~/lib/supabase/admin/adminClient";
 import { relatedTitleDetailPath } from "~/shared/utils/titleRoutes";
+import { reminderDateStatus } from "~/shared/utils/reminderDates";
+import { CINELOG_NOTIFICATION_ICON } from "~/shared/constants/notificationAssets";
 
 interface APIEvent {
   request: Request;
@@ -106,14 +108,17 @@ export function posterUrl(posterPath: string | null): string | undefined {
   return `https://image.tmdb.org/t/p/w342${posterPath}`;
 }
 
-function titleName(
-  reminder: Pick<ReminderRow, "title_name">
-): string {
+function titleName(reminder: Pick<ReminderRow, "title_name">): string {
   const name = reminder.title_name?.trim();
   return name || "Your tracked title";
 }
 
-export function buildNotification(reminder: Pick<ReminderRow, "id" | "tmdb_id" | "title_type" | "title_name" | "poster_path">) {
+export function buildNotification(
+  reminder: Pick<
+    ReminderRow,
+    "id" | "tmdb_id" | "title_type" | "title_name" | "poster_path"
+  >
+) {
   const name = titleName(reminder);
   const poster = posterUrl(reminder.poster_path);
   return {
@@ -121,8 +126,8 @@ export function buildNotification(reminder: Pick<ReminderRow, "id" | "tmdb_id" |
     body: `Tap to open ${name} in CineLog.`,
     url: relatedTitleDetailPath(reminder.tmdb_id, reminder.title_type),
     tag: `release-reminder-${reminder.id}`,
-    icon: poster ?? "/favicon.ico",
-    badge: "/favicon.ico",
+    icon: CINELOG_NOTIFICATION_ICON,
+    badge: CINELOG_NOTIFICATION_ICON,
     image: poster,
     requireInteraction: true
   };
@@ -163,6 +168,26 @@ async function claimReminder(
   );
   if (error || !Array.isArray(data) || data.length === 0) return null;
   return data[0] as ReminderRow;
+}
+
+async function retireExpiredReminders(
+  adminClient: ReturnType<typeof createAdminClient>,
+  reminders: ReminderRow[]
+): Promise<number> {
+  if (reminders.length === 0) return 0;
+  const { error } = await adminClient
+    .from("user_reminders")
+    .update({
+      is_scheduled: false,
+      notification_sent: true,
+      notification_claimed_at: null
+    })
+    .in(
+      "id",
+      reminders.map((reminder) => reminder.id)
+    )
+    .eq("notification_sent", false);
+  return error ? 0 : reminders.length;
 }
 
 async function releaseClaim(
@@ -246,10 +271,27 @@ export async function POST(event: APIEvent): Promise<Response> {
   const profilesById = new Map(
     ((profiles ?? []) as ProfileRow[]).map((profile) => [profile.id, profile])
   );
+  const expired = rows.filter((row) => {
+    const profile = profilesById.get(row.user_id);
+    if (!profile || profile.deleted_at) return false;
+    return (
+      reminderDateStatus(
+        row.release_date,
+        localDateString(profile.timezone)
+      ) === "expired"
+    );
+  });
+  const expiredCount = await retireExpiredReminders(adminClient, expired);
+
   const due = rows.filter((row) => {
     const profile = profilesById.get(row.user_id);
     if (!profile || profile.deleted_at) return false;
-    return row.release_date <= localDateString(profile.timezone);
+    return (
+      reminderDateStatus(
+        row.release_date,
+        localDateString(profile.timezone)
+      ) === "due"
+    );
   });
 
   let sent = 0;
@@ -277,7 +319,8 @@ export async function POST(event: APIEvent): Promise<Response> {
   }
 
   return jsonResponse({
-    processed: due.length,
+    processed: due.length + expiredCount,
+    expired: expiredCount,
     sent,
     skipped,
     failed

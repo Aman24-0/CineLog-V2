@@ -113,23 +113,34 @@ describe("HorizontalRail", () => {
 
     fireEvent.pointerDown(scroll, {
       pointerId: 7,
-      pointerType: "touch",
+      pointerType: "mouse",
+      button: 0,
       clientX: 300,
       clientY: 120
     });
     fireEvent.pointerMove(scroll, {
       pointerId: 7,
-      pointerType: "touch",
+      pointerType: "mouse",
       clientX: 180,
       clientY: 122
     });
     expect(scroll.scrollLeft).toBe(120);
 
-    fireEvent.pointerUp(scroll, { pointerId: 7, pointerType: "touch" });
+    fireEvent.pointerUp(scroll, { pointerId: 7, pointerType: "mouse" });
+
+    scroll.scrollLeft = 0;
+    fireEvent.touchStart(scroll, {
+      touches: [{ identifier: 9, clientX: 300, clientY: 120 }]
+    });
+    fireEvent.touchMove(scroll, {
+      touches: [{ identifier: 9, clientX: 180, clientY: 122 }]
+    });
+    expect(scroll.scrollLeft).toBe(120);
+    fireEvent.touchEnd(scroll);
 
     const verticalEvent = new PointerEvent("pointermove", {
       pointerId: 8,
-      pointerType: "touch",
+      pointerType: "mouse",
       clientX: 300,
       clientY: 120,
       bubbles: true,
@@ -137,7 +148,8 @@ describe("HorizontalRail", () => {
     });
     fireEvent.pointerDown(scroll, {
       pointerId: 8,
-      pointerType: "touch",
+      pointerType: "mouse",
+      button: 0,
       clientX: 300,
       clientY: 120
     });

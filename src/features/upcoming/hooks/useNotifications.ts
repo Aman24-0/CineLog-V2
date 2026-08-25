@@ -26,6 +26,7 @@ import {
   getNotifications,
   getUserReminders,
   getDueReminders,
+  claimDueReminder,
   markReminderSent,
   markNotificationRead,
   markAllNotificationsRead,
@@ -38,13 +39,15 @@ import {
   type UserReminderRow
 } from "~/lib/supabase/repositories/upcoming";
 import { useToast } from "~/shared/hooks/useToast";
-import {
-  isInQuietHours,
-  notifPrefs
-} from "~/core/preferences/notifications";
+import { isInQuietHours, notifPrefs } from "~/core/preferences/notifications";
 import { getBrowserSession } from "~/lib/supabase/session";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import { relatedTitleDetailPath } from "~/shared/utils/titleRoutes";
+import { localCalendarDate } from "~/shared/utils/reminderDates";
+import {
+  CINELOG_NOTIFICATION_BADGE,
+  CINELOG_NOTIFICATION_ICON
+} from "~/shared/constants/notificationAssets";
 import {
   renderEmailTemplate,
   type NotificationType
@@ -76,7 +79,10 @@ import {
  * Invalid input (non-YYYY-MM-DD, NaN lead) returns the input unchanged
  * so we never break the schedule call if the lead-time pref is corrupt.
  */
-export function applyLeadTime(releaseDate: string, leadMinutes: number): string {
+export function applyLeadTime(
+  releaseDate: string,
+  leadMinutes: number
+): string {
   // Validate the input is a YYYY-MM-DD string. Be lenient: accept any
   // string whose first 10 chars match the pattern, so ISO timestamps
   // (YYYY-MM-DDTHH:mm:ssZ) also work.
@@ -196,9 +202,9 @@ export function buildReminderNotification(
     body: "Tap to open the title in CineLog.",
     url: relatedTitleDetailPath(reminder.tmdb_id, reminder.title_type),
     tag: `reminder-${reminder.id}`,
-    icon: poster ?? "/favicon.ico",
+    icon: CINELOG_NOTIFICATION_ICON,
     image: poster,
-    badge: "/favicon.ico",
+    badge: CINELOG_NOTIFICATION_BADGE,
     requireInteraction: true
   };
 }
@@ -251,11 +257,12 @@ async function sendPushNotification(
       body,
       url,
       tag,
-      icon: image,
+      icon: CINELOG_NOTIFICATION_ICON,
       image,
+      badge: CINELOG_NOTIFICATION_BADGE,
       requireInteraction,
       accessToken
-    }),
+    })
   });
 
   if (!response.ok) {
@@ -317,7 +324,7 @@ async function sendEmailNotification(
     const html = renderEmailTemplate(notificationType, {
       title,
       message,
-      ...context,
+      ...context
     });
 
     const session = await getBrowserSession();
@@ -333,8 +340,8 @@ async function sendEmailNotification(
         text: message,
         userId,
         notificationType,
-        accessToken,
-      }),
+        accessToken
+      })
     });
 
     const result = (await response.json().catch(() => ({}))) as {
@@ -404,7 +411,8 @@ export function useNotifications() {
       setNotifications(notifs);
       setReminders(rems);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Failed to load notifications";
+      const msg =
+        err instanceof Error ? err.message : "Failed to load notifications";
       setError(msg);
       console.warn("[useNotifications] refresh failed:", err);
     } finally {
@@ -412,8 +420,9 @@ export function useNotifications() {
     }
   };
 
-  // Fire browser notifications for any reminders that are due today or
-  // earlier and haven't been sent yet. Permission is checked first; if
+  // Fire browser notifications for reminders whose stored fire date is
+  // today and which haven't been sent yet. Past dates are expired instead
+  // of replayed. Permission is checked first; if
   // not granted, we silently skip (the user can still see the in-app
   // notification row in the feed).
   //
@@ -477,7 +486,10 @@ export function useNotifications() {
     const emailFallbackEnabled = prefs.emailEnabled;
     const recipientEmail = user()?.email ?? "";
 
-    for (const r of due) {
+    for (const candidate of due) {
+      const claim = await claimDueReminder(candidate.id);
+      if (claim.status === "busy") continue;
+      const r = claim.status === "claimed" ? claim.reminder : candidate;
       const reminderNotification = buildReminderNotification(r);
       const notifTitle = reminderNotification.title;
       const notifBody = reminderNotification.body;
@@ -540,7 +552,12 @@ export function useNotifications() {
       // The notification is a "reminder" — release-day nudge. We
       // render it with the reminder template, which shows the title
       // + a CTA to open /upcoming.
-      if (!pushSucceeded && emailFallbackEnabled && recipientEmail && !inQuiet) {
+      if (
+        !pushSucceeded &&
+        emailFallbackEnabled &&
+        recipientEmail &&
+        !inQuiet
+      ) {
         void sendEmailNotification(
           id,
           recipientEmail,
@@ -557,7 +574,7 @@ export function useNotifications() {
                   undefined,
                   { year: "numeric", month: "long", day: "numeric" }
                 )
-              : "Today",
+              : "Today"
           }
         ).catch(() => {
           // Email send is fire-and-forget — we don't need to wait
@@ -607,8 +624,10 @@ export function useNotifications() {
   //   so sub-day precision is lost for series reminders. See
   //   `reminderDateForTitle` for the exact semantics.
   //
-  //   If a shifted series reminder date is already in the past, we still
-  //   schedule it — `getDueReminders` will pick it up on the next page load.
+  //   If a shifted series reminder date is already in the past, it is
+  //   clamped to today in the scheduling path so it cannot become a stale
+  //   replay candidate.
+
   const scheduleReminder = async (
     tmdbId: string | number,
     titleType: "movie" | "series",
@@ -627,12 +646,18 @@ export function useNotifications() {
       titleType,
       leadMinutes
     );
+    const today = localCalendarDate();
+    // If the user sets a reminder after the lead-time date has already
+    // passed, keep it due today rather than storing a past date that could
+    // be replayed by a later page load.
+    const scheduledReleaseDate =
+      shiftedReleaseDate < today ? today : shiftedReleaseDate;
 
     const ok = await repoScheduleReminder(
       id,
       tmdbId,
       titleType,
-      shiftedReleaseDate,
+      scheduledReleaseDate,
       titleName,
       posterPath
     );
@@ -721,8 +746,8 @@ export function useNotifications() {
         minutes < 60
           ? `${minutes} min`
           : minutes < 1440
-          ? `${Math.round(minutes / 60 * 10) / 10} hr`
-          : `${Math.round(minutes / 1440 * 10) / 10} days`;
+            ? `${Math.round((minutes / 60) * 10) / 10} hr`
+            : `${Math.round((minutes / 1440) * 10) / 10} days`;
       toast.showToast(`Snoozed for ${label}`, "info");
     } else {
       toast.showToast("Couldn't snooze notification.", "error");
@@ -791,7 +816,10 @@ export function useNotifications() {
     let failed = 0;
     let suppressed = 0;
 
-    for (const r of unsent) {
+    for (const candidate of unsent) {
+      const claim = await claimDueReminder(candidate.id);
+      if (claim.status === "busy") continue;
+      const r = claim.status === "claimed" ? claim.reminder : candidate;
       const reminderNotification = buildReminderNotification(r);
       const notifTitle = reminderNotification.title;
       const notifBody = reminderNotification.body;
@@ -813,13 +841,15 @@ export function useNotifications() {
         );
         pushSucceeded = pushResult.sent > 0;
       } catch (err) {
-        console.warn(
-          "[notifications] Push send failed during notifyAll:",
-          err
-        );
+        console.warn("[notifications] Push send failed during notifyAll:", err);
       }
 
-      if (!pushSucceeded && emailFallbackEnabled && recipientEmail && !inQuiet) {
+      if (
+        !pushSucceeded &&
+        emailFallbackEnabled &&
+        recipientEmail &&
+        !inQuiet
+      ) {
         const emailed = await sendEmailNotification(
           id,
           recipientEmail,

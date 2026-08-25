@@ -13,6 +13,11 @@ import {
   buildReminderNotification,
   reminderDateForTitle
 } from "../useNotifications";
+import {
+  CINELOG_NOTIFICATION_BADGE,
+  CINELOG_NOTIFICATION_ICON
+} from "~/shared/constants/notificationAssets";
+import { reminderDateStatus } from "~/shared/utils/reminderDates";
 
 describe("applyLeadTime", () => {
   it("returns the input unchanged for lead = 0", () => {
@@ -78,15 +83,11 @@ describe("applyLeadTime", () => {
   });
 
   it("keeps movie reminders on the actual release date", () => {
-    expect(reminderDateForTitle("2026-08-26", "movie", 60)).toBe(
-      "2026-08-26"
-    );
+    expect(reminderDateForTitle("2026-08-26", "movie", 60)).toBe("2026-08-26");
   });
 
   it("continues applying the episode lead preference to series reminders", () => {
-    expect(reminderDateForTitle("2026-08-26", "series", 60)).toBe(
-      "2026-08-25"
-    );
+    expect(reminderDateForTitle("2026-08-26", "series", 60)).toBe("2026-08-25");
   });
 
   it("builds a title-aware movie notification with poster and detail URL", () => {
@@ -98,12 +99,22 @@ describe("applyLeadTime", () => {
       poster_path: "/toxic-poster.jpg"
     });
 
-    expect(payload.title).toBe("Toxic: A Fairy Tale for Grown-ups is out today");
+    expect(payload.title).toBe(
+      "Toxic: A Fairy Tale for Grown-ups is out today"
+    );
     expect(payload.body).toContain("Tap to open");
     expect(payload.url).toBe("/movie/12345");
     expect(payload.image).toContain("/toxic-poster.jpg");
-    expect(payload.icon).toBe(payload.image);
+    expect(payload.icon).toBe(CINELOG_NOTIFICATION_ICON);
+    expect(payload.badge).toBe(CINELOG_NOTIFICATION_BADGE);
+    expect(payload.icon).not.toBe(payload.image);
     expect(payload.requireInteraction).toBe(true);
+  });
+
+  it("classifies past release dates as expired instead of due", () => {
+    expect(reminderDateStatus("2026-08-25", "2026-08-26")).toBe("expired");
+    expect(reminderDateStatus("2026-08-26", "2026-08-26")).toBe("due");
+    expect(reminderDateStatus("2026-08-27", "2026-08-26")).toBe("upcoming");
   });
 
   it("maps the stored series type to the canonical TV detail URL", () => {

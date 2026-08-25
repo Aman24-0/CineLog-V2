@@ -72,6 +72,10 @@ import { isServer } from "solid-js/web";
 import { timingSafeEqual as nodeTimingSafeEqual } from "node:crypto";
 import webPush from "web-push";
 import { createAdminClient } from "~/lib/supabase/admin/adminClient";
+import {
+  CINELOG_NOTIFICATION_BADGE,
+  CINELOG_NOTIFICATION_ICON
+} from "~/shared/constants/notificationAssets";
 
 interface APIEvent {
   request: Request;
@@ -125,7 +129,7 @@ interface PushSubscriptionRow {
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json" }
   });
 }
 
@@ -187,15 +191,15 @@ function configureVapid(): void {
   const privateKey = stripQuotes(rawPrivate, DQ, SQ);
 
   if (!publicKey || !privateKey) {
-    vapidConfigError = "VAPID_PUBLIC_KEY or VAPID_PRIVATE_KEY env var is not set.";
+    vapidConfigError =
+      "VAPID_PUBLIC_KEY or VAPID_PRIVATE_KEY env var is not set.";
     vapidConfigured = true;
     return;
   }
 
   // Normalize the contact email — web-push requires a mailto: or https:
   // URL. Auto-prepend mailto: to bare emails.
-  const rawContact =
-    process.env.VAPID_CONTACT_EMAIL ?? "admin@cinelog.app";
+  const rawContact = process.env.VAPID_CONTACT_EMAIL ?? "admin@cinelog.app";
   let contact: string;
   if (
     rawContact.startsWith("mailto:") ||
@@ -367,8 +371,9 @@ export async function POST(event: APIEvent): Promise<Response> {
   const notifBody = typeof body.body === "string" ? body.body : "";
   const url = typeof body.url === "string" ? body.url : "/";
   const tag = typeof body.tag === "string" ? body.tag : "default";
-  const icon = typeof body.icon === "string" ? body.icon : "/favicon.ico";
-  const badge = typeof body.badge === "string" ? body.badge : "/favicon.ico";
+  // Keep the small system identity branded; title artwork belongs in image.
+  const icon = CINELOG_NOTIFICATION_ICON;
+  const badge = CINELOG_NOTIFICATION_BADGE;
   const image = typeof body.image === "string" ? body.image : undefined;
   const requireInteraction = body.requireInteraction === true;
 
@@ -415,10 +420,7 @@ export async function POST(event: APIEvent): Promise<Response> {
       "[api/push/send-admin] Failed to fetch subscriptions:",
       subsError.message
     );
-    return jsonResponse(
-      { error: "Failed to fetch push subscriptions." },
-      500
-    );
+    return jsonResponse({ error: "Failed to fetch push subscriptions." }, 500);
   }
 
   if (!subs || subs.length === 0) {
@@ -470,7 +472,7 @@ export async function POST(event: APIEvent): Promise<Response> {
     icon,
     badge,
     image,
-    requireInteraction,
+    requireInteraction
   });
 
   let sent = 0;
@@ -482,7 +484,7 @@ export async function POST(event: APIEvent): Promise<Response> {
       try {
         const pushSubscription = {
           endpoint: sub.endpoint,
-          keys: sub.keys,
+          keys: sub.keys
         } as webPush.PushSubscription;
         await webPush.sendNotification(pushSubscription, payload);
         sent += 1;

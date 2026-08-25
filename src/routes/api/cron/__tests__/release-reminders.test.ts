@@ -4,6 +4,8 @@ import {
   localDateString,
   posterUrl
 } from "../release-reminders";
+import { CINELOG_NOTIFICATION_ICON } from "~/shared/constants/notificationAssets";
+import { reminderDateStatus } from "~/shared/utils/reminderDates";
 
 afterEach(() => {
   vi.useRealTimers();
@@ -50,9 +52,16 @@ describe("release-reminders helpers", () => {
     );
     expect(payload.body).toContain("Tap to open");
     expect(payload.url).toBe("/movie/1213243");
-    expect(payload.icon).toBe(payload.image);
+    expect(payload.icon).toBe(CINELOG_NOTIFICATION_ICON);
     expect(payload.image).toContain("/toxic-poster.jpg");
+    expect(payload.icon).not.toBe(payload.image);
     expect(payload.requireInteraction).toBe(true);
+  });
+
+  it("classifies old release dates as expired so they are not replayed", () => {
+    expect(reminderDateStatus("2026-08-24", "2026-08-26")).toBe("expired");
+    expect(reminderDateStatus("2026-08-26", "2026-08-26")).toBe("due");
+    expect(reminderDateStatus("2026-08-27", "2026-08-26")).toBe("upcoming");
   });
 
   it("maps the stored series type to the canonical TV route", () => {

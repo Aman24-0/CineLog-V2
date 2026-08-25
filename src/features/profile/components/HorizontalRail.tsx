@@ -35,6 +35,11 @@ const HorizontalRail = <T,>(props: HorizontalRailProps<T>): JSX.Element => {
   let pointerStartX = 0;
   let pointerStartY = 0;
   let pointerStartScrollLeft = 0;
+  let touchActive = false;
+  let touchStartX = 0;
+  let touchStartY = 0;
+  let touchStartScrollLeft = 0;
+  let touchDragging = false;
 
   const items = createMemo(() =>
     typeof props.items === "function" ? props.items() : props.items
@@ -66,6 +71,7 @@ const HorizontalRail = <T,>(props: HorizontalRailProps<T>): JSX.Element => {
     if (
       !element ||
       element.scrollWidth <= element.clientWidth ||
+      event.pointerType === "touch" ||
       (event.pointerType === "mouse" && event.button !== 0)
     ) {
       return;
@@ -80,7 +86,12 @@ const HorizontalRail = <T,>(props: HorizontalRailProps<T>): JSX.Element => {
 
   const handlePointerMove = (event: PointerEvent) => {
     const element = scrollRef;
-    if (!element || pointerId !== event.pointerId) return;
+    if (
+      !element ||
+      pointerId !== event.pointerId ||
+      event.pointerType === "touch"
+    )
+      return;
 
     const deltaX = event.clientX - pointerStartX;
     const deltaY = event.clientY - pointerStartY;
@@ -103,6 +114,47 @@ const HorizontalRail = <T,>(props: HorizontalRailProps<T>): JSX.Element => {
     if (pointerId !== event.pointerId) return;
     scrollRef?.releasePointerCapture?.(event.pointerId);
     pointerId = null;
+    setIsDragging(false);
+  };
+
+  const handleTouchStart = (event: TouchEvent) => {
+    const element = scrollRef;
+    const touch = event.touches[0];
+    if (!element || !touch || element.scrollWidth <= element.clientWidth) {
+      return;
+    }
+
+    touchActive = true;
+    touchDragging = false;
+    touchStartX = touch.clientX;
+    touchStartY = touch.clientY;
+    touchStartScrollLeft = element.scrollLeft;
+  };
+
+  const handleTouchMove = (event: TouchEvent) => {
+    const element = scrollRef;
+    const touch = event.touches[0];
+    if (!element || !touch || !touchActive) return;
+
+    const deltaX = touch.clientX - touchStartX;
+    const deltaY = touch.clientY - touchStartY;
+    if (!touchDragging) {
+      if (Math.max(Math.abs(deltaX), Math.abs(deltaY)) < 8) return;
+      if (Math.abs(deltaY) >= Math.abs(deltaX)) {
+        touchActive = false;
+        return;
+      }
+      touchDragging = true;
+      setIsDragging(true);
+    }
+
+    event.preventDefault();
+    element.scrollLeft = touchStartScrollLeft - deltaX;
+  };
+
+  const endTouchDrag = () => {
+    touchActive = false;
+    touchDragging = false;
     setIsDragging(false);
   };
 
@@ -215,6 +267,10 @@ const HorizontalRail = <T,>(props: HorizontalRailProps<T>): JSX.Element => {
           onPointerMove={handlePointerMove}
           onPointerUp={endPointerDrag}
           onPointerCancel={endPointerDrag}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={endTouchDrag}
+          onTouchCancel={endTouchDrag}
           onPointerLeave={(event) => {
             if (event.pointerType === "mouse") endPointerDrag(event);
           }}

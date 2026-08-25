@@ -68,6 +68,10 @@ import webPush from "web-push";
 import { createAdminClient } from "~/lib/supabase/admin/adminClient";
 import { getSupabaseAccessToken } from "~/lib/supabase/admin/sessionCookie";
 import { checkAndIncrement } from "~/lib/server/rateLimiter";
+import {
+  CINELOG_NOTIFICATION_BADGE,
+  CINELOG_NOTIFICATION_ICON
+} from "~/shared/constants/notificationAssets";
 
 interface APIEvent {
   request: Request;
@@ -111,7 +115,7 @@ interface PushSubscriptionRow {
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json" }
   });
 }
 
@@ -220,8 +224,7 @@ function configureVapid(): void {
   // "admin@example.com" without the "mailto:" prefix), normalize it by
   // prepending "mailto:" — otherwise webPush.setVapidDetails() throws
   // "Vapid subject is not a valid URL".
-  const rawContact =
-    process.env.VAPID_CONTACT_EMAIL ?? "admin@cinelog.app";
+  const rawContact = process.env.VAPID_CONTACT_EMAIL ?? "admin@cinelog.app";
   let contact: string;
   if (
     rawContact.startsWith("mailto:") ||
@@ -293,12 +296,12 @@ export async function POST(event: APIEvent): Promise<Response> {
     return jsonResponse({ error: "Missing title" }, 400);
   }
 
-  const notifBody =
-    typeof body.body === "string" ? body.body : "";
+  const notifBody = typeof body.body === "string" ? body.body : "";
   const url = typeof body.url === "string" ? body.url : "/";
   const tag = typeof body.tag === "string" ? body.tag : "default";
-  const icon = typeof body.icon === "string" ? body.icon : "/favicon.ico";
-  const badge = typeof body.badge === "string" ? body.badge : "/favicon.ico";
+  // Keep the small system identity branded; title artwork belongs in image.
+  const icon = CINELOG_NOTIFICATION_ICON;
+  const badge = CINELOG_NOTIFICATION_BADGE;
   const image = typeof body.image === "string" ? body.image : undefined;
   const requireInteraction = body.requireInteraction === true;
 
@@ -331,7 +334,7 @@ export async function POST(event: APIEvent): Promise<Response> {
   }
 
   const verifyClient = createClient(supabaseUrl, supabaseAnonKey, {
-    auth: { autoRefreshToken: false, persistSession: false },
+    auth: { autoRefreshToken: false, persistSession: false }
   });
 
   const { data: userData, error: userError } =
@@ -397,10 +400,7 @@ export async function POST(event: APIEvent): Promise<Response> {
       "[api/push/send] Failed to fetch subscriptions:",
       subsError.message
     );
-    return jsonResponse(
-      { error: "Failed to fetch push subscriptions." },
-      500
-    );
+    return jsonResponse({ error: "Failed to fetch push subscriptions." }, 500);
   }
 
   if (!subs || subs.length === 0) {
@@ -451,7 +451,7 @@ export async function POST(event: APIEvent): Promise<Response> {
     icon,
     badge,
     image,
-    requireInteraction,
+    requireInteraction
   });
 
   let sent = 0;
@@ -466,7 +466,7 @@ export async function POST(event: APIEvent): Promise<Response> {
         // DB row.
         const pushSubscription = {
           endpoint: sub.endpoint,
-          keys: sub.keys,
+          keys: sub.keys
         } as webPush.PushSubscription;
 
         await webPush.sendNotification(pushSubscription, payload);
@@ -502,10 +502,7 @@ export async function POST(event: APIEvent): Promise<Response> {
         .delete()
         .in("endpoint", deadEndpoints);
     } catch (err) {
-      console.warn(
-        "[api/push/send] Failed to clean up dead endpoints:",
-        err
-      );
+      console.warn("[api/push/send] Failed to clean up dead endpoints:", err);
     }
   }
 
