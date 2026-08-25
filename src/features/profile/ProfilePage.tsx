@@ -10,15 +10,15 @@
 //   +-- Banner          (ProfileBanner component)
 //   +-- Header          (ProfileHeader — avatar, name, bio, actions)
 //   +-- Watching Stats  (clickable header + compact expandable summary)
-//   +-- Tabs            (ProfileTabs — Favorites / Lists / Achievements)
-//   |   +-- Tab Content (FavoritesGrid / UserListsPreview / AchievementsPreview)
+//   +-- Recent Activity  (latest watchlist activity rail)
+//   +-- Favorites        (horizontal poster rail)
+//   +-- Lists            (horizontal collection rail)
+//   +-- Achievements     (horizontal badge rail)
 //   +-- Quick Action Row (QuickActionRow — Upcoming / Settings / Trash)
 //
 // State management:
-//   • activeTab — owned by useProfileTabs hook (persisted in localStorage)
 //   • editModalOpen — local signal
 //   • profile data — from useProfileData (existing hook)
-//   • stats — from useStats (existing hook, derived from watchlist)
 
 import { Component, createSignal, createEffect, Show, onMount } from "solid-js";
 import { useNavigate } from "@solidjs/router";
@@ -32,14 +32,13 @@ import { GlassButton, GlassEmptyState, GlassSkeleton } from "~/shared/ui/glass";
 import { ErrorState, RefreshingIndicator } from "~/shared/ui/states";
 
 import { useProfileData } from "./useProfileData";
-import { useProfileTabs } from "./hooks/useProfileTabs";
 
 // Sub-components
 import ProfileBanner from "./components/ProfileBanner";
 import ProfileHeader from "./components/ProfileHeader";
 import StatsHeader from "./components/StatsHeader";
 import ExpandableStatsCard from "./components/ExpandableStatsCard";
-import ProfileTabs from "./components/ProfileTabs";
+import RecentActivitySection from "./components/RecentActivitySection";
 import FavoritesGrid from "./components/FavoritesGrid";
 import UserListsPreview from "./components/UserListsPreview";
 import AchievementsPreview from "./components/AchievementsPreview";
@@ -60,8 +59,6 @@ const ProfilePage: Component = () => {
 
   const { data, loading, refreshing, error, refetch, watchlist } =
     useProfileData();
-  const { activeTab, setActiveTab } = useProfileTabs();
-
   const [editModalOpen, setEditModalOpen] = createSignal(false);
   const handleProfileSaved = () => refetch();
 
@@ -213,40 +210,27 @@ const ProfilePage: Component = () => {
               <ExpandableStatsCard titles={watchlist} />
             </section>
 
-            {/* 3. Tabs + content */}
-            <ProfileTabs activeTab={activeTab()} onTabChange={setActiveTab} />
+            {/* 3. Recent Activity — newest watchlist activity first. */}
+            <div class="profile-rails-stack">
+              <RecentActivitySection watchlist={watchlist} />
 
-            <div
-              class="profile-v3-tab-content"
-              id="profile-tab-panel"
-              role="tabpanel"
-              aria-labelledby={`profile-tab-${activeTab()}`}
-              tabindex={0}
-            >
-              <Show when={activeTab() === "favorites"}>
-                <div class="animate-fade-in">
-                  <FavoritesGrid
-                    watchlist={watchlist}
-                    onItemClick={handleItemClick}
-                  />
-                </div>
-              </Show>
-              <Show when={activeTab() === "lists"}>
-                <div class="animate-fade-in">
-                  <UserListsPreview />
-                </div>
-              </Show>
-              <Show when={activeTab() === "achievements"}>
-                <div class="animate-fade-in">
-                  <AchievementsPreview watchlist={watchlist} />
-                </div>
-              </Show>
+              {/* 4. Favorites — horizontal poster rail. */}
+              <FavoritesGrid
+                watchlist={watchlist}
+                onItemClick={handleItemClick}
+              />
+
+              {/* 5. Lists — horizontal collection rail. */}
+              <UserListsPreview />
+
+              {/* 6. Achievements — horizontal badge rail. */}
+              <AchievementsPreview watchlist={watchlist} />
             </div>
 
-            {/* 4. Quick action row — Upcoming / Settings / Trash */}
+            {/* 7. Quick action row — Upcoming / Settings / Trash */}
             <QuickActionRow />
 
-            {/* 5. Sign out */}
+            {/* 8. Sign out */}
             <button
               type="button"
               class="profile-v3-sign-out profile-v3-sign-out-danger focus-ring"
