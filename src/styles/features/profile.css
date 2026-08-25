@@ -4167,9 +4167,12 @@
   display: flex;
   flex-wrap: nowrap;
   width: 100% !important;
+  max-width: 100%;
   min-width: 0;
   min-height: 200px;
   gap: 1rem;
+  justify-content: flex-start;
+  cursor: grab;
   padding: 0.5rem 0.5rem 1rem;
   overflow-x: auto !important;
   overflow-y: hidden;
@@ -4180,6 +4183,12 @@
   scrollbar-width: none;
   -ms-overflow-style: none;
   -webkit-overflow-scrolling: touch;
+}
+
+.horizontal-rail-scroll.is-dragging {
+  cursor: grabbing;
+  user-select: none;
+  scroll-snap-type: none;
 }
 
 .horizontal-rail-scroll::-webkit-scrollbar {
@@ -4786,15 +4795,20 @@
   transform: translateX(0.12rem);
 }
 
+.profile-content-v3 {
+  gap: 0.75rem;
+}
+
 .profile-rails-stack {
-  gap: 1rem;
+  gap: 0.7rem;
 }
 
 .profile-recent-activity-rail .horizontal-rail-scroll {
   min-height: 0;
 }
 
-.profile-lists-preview-v3 .horizontal-rail-scroll {
+.profile-lists-preview-v3 .horizontal-rail-scroll,
+.profile-achievements-preview-v3 .horizontal-rail-scroll {
   min-height: 0;
 }
 
@@ -4813,8 +4827,8 @@
 
 .profile-quick-action-row-v3 {
   position: relative;
-  margin-top: -0.35rem;
-  padding-top: 0.85rem;
+  margin-top: -0.95rem;
+  padding-top: 0.65rem;
   border-top: 1px solid var(--hairline, rgb(255 255 255 / 0.14));
 }
 

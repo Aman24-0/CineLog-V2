@@ -4,6 +4,7 @@ import { useAuth } from "~/shared/hooks/useAuth";
 import { useUserLibrary } from "~/shared/hooks/useUserLibrary";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import PageContainer from "~/shared/ui/PageContainer";
+import ScrollToTop from "~/shared/ui/ScrollToTop";
 import type { ActivityItem } from "./utils/activity";
 import {
   activityActionText,
@@ -38,6 +39,7 @@ const RecentActivityPage: Component = () => {
 
   return (
     <PageContainer width="narrow" paddingTop="0" paddingBottom="var(--sp-12)">
+      <ScrollToTop />
       <div class="profile-recent-activity-page sec-page sec-fade-in">
         <div class="sec-header">
           <a

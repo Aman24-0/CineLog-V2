@@ -34,46 +34,82 @@ export default function ScrollToTop(props: ScrollToTopProps = {}) {
   const [visible, setVisible] = createSignal(false);
   let sentinel: HTMLDivElement | undefined;
   let observer: IntersectionObserver | undefined;
+  let resolvedScrollContainer: Element | null = null;
+
+  const resolveScrollContainer = (): Element | null => {
+    if (props.scrollContainer) {
+      return document.querySelector(props.scrollContainer);
+    }
+
+    // DesktopWorkspace owns page scrolling in #main-content; mobile keeps
+    // the document as the scroll owner. Detect the former without changing
+    // the existing window-scroll behavior on smaller screens.
+    const main = document.getElementById("main-content");
+    if (!main || main.scrollHeight <= main.clientHeight) return null;
+    const overflowY = window.getComputedStyle(main).overflowY;
+    return overflowY === "auto" || overflowY === "scroll" ? main : null;
+  };
 
   onMount(() => {
     if (!sentinel) return;
-    if (typeof IntersectionObserver === "undefined") return;
+
+    const updateVisibilityFromScroll = () => {
+      const element = resolveScrollContainer();
+      if (element) resolvedScrollContainer = element;
+      setVisible(element ? element.scrollTop > 200 : window.scrollY > 200);
+    };
+    const mainContent = document.getElementById("main-content");
+    window.addEventListener("scroll", updateVisibilityFromScroll, {
+      passive: true
+    });
+    mainContent?.addEventListener("scroll", updateVisibilityFromScroll, {
+      passive: true
+    });
+    updateVisibilityFromScroll();
+
+    if (typeof IntersectionObserver === "undefined") {
+      onCleanup(() => {
+        window.removeEventListener("scroll", updateVisibilityFromScroll);
+        mainContent?.removeEventListener("scroll", updateVisibilityFromScroll);
+      });
+      return;
+    }
 
     // If a scroll container selector is provided, resolve it and use it
     // as the IntersectionObserver root. Otherwise observe against the
     // viewport (root: null).
-    let root: Element | null = null;
-    if (props.scrollContainer) {
-      root = document.querySelector(props.scrollContainer);
-      // If the selector didn't match (e.g. modal not yet open), fall back
-      // to window scrolling rather than crashing.
-      if (!root) return;
-    }
+    resolvedScrollContainer = resolveScrollContainer();
 
     observer = new IntersectionObserver(
       (entries) => {
         // When sentinel is not intersecting (scrolled past it), show button
         setVisible(!entries[0]?.isIntersecting);
       },
-      { threshold: 0, root: root ?? null, rootMargin: "0px 0px -200px 0px" }
+      {
+        threshold: 0,
+        root: resolvedScrollContainer,
+        rootMargin: "0px 0px -200px 0px"
+      }
     );
     observer.observe(sentinel);
-  });
-
-  onCleanup(() => {
-    observer?.disconnect();
+    onCleanup(() => {
+      observer?.disconnect();
+      window.removeEventListener("scroll", updateVisibilityFromScroll);
+      mainContent?.removeEventListener("scroll", updateVisibilityFromScroll);
+    });
   });
 
   const scrollToTop = () => {
     const prefersReduced =
       typeof window !== "undefined" &&
       window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    if (props.scrollContainer) {
-      const el = document.querySelector(props.scrollContainer);
-      if (el) {
-        el.scrollTo({ top: 0, behavior: prefersReduced ? "auto" : "smooth" });
-        return;
-      }
+    const element = resolvedScrollContainer ?? resolveScrollContainer();
+    if (element) {
+      element.scrollTo({
+        top: 0,
+        behavior: prefersReduced ? "auto" : "smooth"
+      });
+      return;
     }
     window.scrollTo({ top: 0, behavior: prefersReduced ? "auto" : "smooth" });
   };

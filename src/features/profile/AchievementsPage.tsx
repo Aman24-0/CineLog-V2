@@ -16,6 +16,7 @@ import { Show, For, createMemo, type Component } from "solid-js";
 import { useUserLibrary } from "~/shared/hooks/useUserLibrary";
 import { useAuth } from "~/shared/hooks/useAuth";
 import PageContainer from "~/shared/ui/PageContainer";
+import ScrollToTop from "~/shared/ui/ScrollToTop";
 import { ACHIEVEMENTS } from "~/features/profile/achievements.constants";
 
 // Note: ACHIEVEMENTS is the single source of truth, defined in
@@ -51,6 +52,7 @@ const AchievementsPage: Component = () => {
 
   return (
     <PageContainer width="narrow" paddingTop="0" paddingBottom="var(--sp-12)">
+      <ScrollToTop />
       <div class="sec-page sec-fade-in">
         {/* Header */}
         <div class="sec-header">

@@ -9,7 +9,7 @@ import {
   Suspense,
   For
 } from "solid-js";
-import { useNavigate } from "@solidjs/router";
+import { useNavigate, useSearchParams } from "@solidjs/router";
 import PageContainer from "~/shared/ui/PageContainer";
 import ScrollToTop from "~/shared/ui/ScrollToTop";
 import { ErrorState, RefreshingIndicator } from "~/shared/ui/states";
@@ -19,6 +19,7 @@ import { tmdbImage } from "~/core/tmdb/tmdb";
 import SmartCollectionBuilder from "./components/SmartCollectionBuilder";
 import CollectionsGrid from "./components/CollectionsGrid";
 import ArchivedCollectionsSection from "./components/ArchivedCollectionsSection";
+import { collectionRouteForFilter } from "./collectionNavigation";
 
 // Lazy-load modals so they don't bloat the initial bundle.
 const AddUniverseModal = lazy(() => import("./components/AddUniverseModal"));
@@ -44,6 +45,7 @@ const AddUniverseModal = lazy(() => import("./components/AddUniverseModal"));
  */
 export default function CollectionsPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams<{ filter?: string }>();
   const {
     userCollections,
     curatedCollections: _curatedCollections,
@@ -92,6 +94,19 @@ export default function CollectionsPage() {
   // when the count hasn't changed (object memos always create a new ref).
   const collectionCount = createMemo(() => activeCollections().length);
   const universeCount = createMemo(() => subscribedUniverses().length);
+
+  // Profile’s Favorites rail uses a query parameter as a semantic link, but
+  // the product destination is the actual Favorites folder detail page.
+  // Wait for the collection load so a cold start does not navigate to a
+  // missing route, then consume the filter with a replace navigation.
+  createEffect(() => {
+    if (loading()) return;
+    const target = collectionRouteForFilter(
+      typeof searchParams.filter === "string" ? searchParams.filter : undefined,
+      activeCollections()
+    );
+    if (target) navigate(target, { replace: true, scroll: false });
+  });
 
   const handleCreate = async () => {
     const name = newName().trim();
@@ -155,9 +170,7 @@ export default function CollectionsPage() {
             <p class="collections-page-subtitle-counts">
               <span>
                 {collectionCount()}{" "}
-                {collectionCount() !== 1
-                  ? "Collections"
-                  : "Collection"}
+                {collectionCount() !== 1 ? "Collections" : "Collection"}
               </span>
               <span
                 class="collections-page-subtitle-counts-dot"
@@ -269,7 +282,10 @@ export default function CollectionsPage() {
             {/* Refreshing indicator — shows a subtle bar when collections
                 are being refreshed after the initial load. */}
             <Show when={loading() && hasLoadedOnce()}>
-              <RefreshingIndicator placement="top" message="Refreshing collections…" />
+              <RefreshingIndicator
+                placement="top"
+                message="Refreshing collections…"
+              />
             </Show>
 
             <CollectionsGrid

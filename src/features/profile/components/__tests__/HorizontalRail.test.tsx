@@ -93,6 +93,60 @@ describe("HorizontalRail", () => {
     expect(edgeEvent.defaultPrevented).toBe(false);
   });
 
+  it("drags horizontally without claiming vertical-intent gestures", () => {
+    const { container } = render(() => (
+      <HorizontalRail
+        title="Favorites"
+        items={["One", "Two", "Three"]}
+        renderItem={(title) => <article>{title}</article>}
+      />
+    ));
+
+    const scroll = container.querySelector(
+      ".horizontal-rail-scroll"
+    ) as HTMLDivElement;
+    Object.defineProperties(scroll, {
+      scrollWidth: { configurable: true, value: 900 },
+      clientWidth: { configurable: true, value: 300 },
+      scrollLeft: { configurable: true, writable: true, value: 0 }
+    });
+
+    fireEvent.pointerDown(scroll, {
+      pointerId: 7,
+      pointerType: "touch",
+      clientX: 300,
+      clientY: 120
+    });
+    fireEvent.pointerMove(scroll, {
+      pointerId: 7,
+      pointerType: "touch",
+      clientX: 180,
+      clientY: 122
+    });
+    expect(scroll.scrollLeft).toBe(120);
+
+    fireEvent.pointerUp(scroll, { pointerId: 7, pointerType: "touch" });
+
+    const verticalEvent = new PointerEvent("pointermove", {
+      pointerId: 8,
+      pointerType: "touch",
+      clientX: 300,
+      clientY: 120,
+      bubbles: true,
+      cancelable: true
+    });
+    fireEvent.pointerDown(scroll, {
+      pointerId: 8,
+      pointerType: "touch",
+      clientX: 300,
+      clientY: 120
+    });
+    Object.defineProperty(verticalEvent, "clientX", { value: 302 });
+    Object.defineProperty(verticalEvent, "clientY", { value: 220 });
+    fireEvent(scroll, verticalEvent);
+    expect(verticalEvent.defaultPrevented).toBe(false);
+  });
+
   it("renders the helpful empty state when a rail has no items", () => {
     const { container } = render(() => (
       <HorizontalRail

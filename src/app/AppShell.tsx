@@ -27,6 +27,7 @@ import { useCollectionModal } from "~/shared/hooks/useCollectionModal";
 import { useAuthModal } from "~/shared/hooks/useAuthModal";
 import SearchOverlay from "~/features/search/SearchOverlay";
 import { useRouteScrollRestoration } from "~/shared/hooks/useRouteScrollRestoration";
+import { shouldHideBottomNavigation } from "./routeChrome";
 
 export function isDiscoverConsumerRoute(pathname: string): boolean {
   return pathname === "/discover";
@@ -130,6 +131,14 @@ const AppShell: ParentComponent = (props) => {
     /^\/(?:movie|tv)\/\d+\/?$/.test(location.pathname)
   );
 
+  const isBackNavigationRoute = createMemo(() =>
+    shouldHideBottomNavigation(location.pathname)
+  );
+
+  const showBottomNavigation = createMemo(
+    () => !isDedicatedDetailRoute() && !isBackNavigationRoute()
+  );
+
   // Any modal open — used for body scroll lock (set in each modal's onMount)
   // AND for setting `inert` on the consumer wrapper so the background chrome
   // (header, sidebar, main, bottom nav) is non-focusable AND hidden from AT
@@ -158,16 +167,16 @@ const AppShell: ParentComponent = (props) => {
           when={isLandingRoute()}
           fallback={
             <div
-              class={`app-shell-bg min-h-screen w-full${isDiscoverRoute() ? "" : " app-shell-no-header"}${isDedicatedDetailRoute() ? " app-shell-detail-page" : ""}`}
+              class={`app-shell-bg min-h-screen w-full${isDiscoverRoute() ? "" : " app-shell-no-header"}${isDedicatedDetailRoute() ? " app-shell-detail-page" : ""}${isBackNavigationRoute() ? " app-shell-no-bottom-nav" : ""}`}
               // `inert` makes the entire background chrome (header, sidebar,
               // main, bottom nav) non-focusable AND hidden from the AT tree
               // when any modal is open. This is the WCAG-compliant way to
               // contain keyboard focus inside the modal — see header comment.
               inert={anyModalOpen() ? true : undefined}
               style={{
-                "padding-bottom": isDedicatedDetailRoute()
-                  ? "0"
-                  : "calc(var(--nav-total-height) + var(--nav-float-margin, 1rem) + 0.5rem)",
+                "padding-bottom": showBottomNavigation()
+                  ? "calc(var(--nav-total-height) + var(--nav-float-margin, 1rem) + 0.5rem)"
+                  : "0",
                 // Dedicated Detail pages own their complete background stack.
                 // Keep the consumer shell transparent there so the title
                 // backdrop is not composited over the global theme surface.
@@ -218,7 +227,7 @@ const AppShell: ParentComponent = (props) => {
 
               <ToastContainer />
 
-              <Show when={!isDedicatedDetailRoute()}>
+              <Show when={showBottomNavigation()}>
                 <BottomNavigation />
               </Show>
 

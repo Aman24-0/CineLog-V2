@@ -30,6 +30,11 @@ const HorizontalRail = <T,>(props: HorizontalRailProps<T>): JSX.Element => {
   let scrollRef: HTMLDivElement | undefined;
   const [showLeftArrow, setShowLeftArrow] = createSignal(false);
   const [showRightArrow, setShowRightArrow] = createSignal(false);
+  const [isDragging, setIsDragging] = createSignal(false);
+  let pointerId: number | null = null;
+  let pointerStartX = 0;
+  let pointerStartY = 0;
+  let pointerStartScrollLeft = 0;
 
   const items = createMemo(() =>
     typeof props.items === "function" ? props.items() : props.items
@@ -54,6 +59,51 @@ const HorizontalRail = <T,>(props: HorizontalRailProps<T>): JSX.Element => {
       left: direction === "left" ? -amount : amount,
       behavior: "smooth"
     });
+  };
+
+  const handlePointerDown = (event: PointerEvent) => {
+    const element = scrollRef;
+    if (
+      !element ||
+      element.scrollWidth <= element.clientWidth ||
+      (event.pointerType === "mouse" && event.button !== 0)
+    ) {
+      return;
+    }
+
+    pointerId = event.pointerId;
+    pointerStartX = event.clientX;
+    pointerStartY = event.clientY;
+    pointerStartScrollLeft = element.scrollLeft;
+    setIsDragging(false);
+  };
+
+  const handlePointerMove = (event: PointerEvent) => {
+    const element = scrollRef;
+    if (!element || pointerId !== event.pointerId) return;
+
+    const deltaX = event.clientX - pointerStartX;
+    const deltaY = event.clientY - pointerStartY;
+
+    if (!isDragging()) {
+      if (Math.max(Math.abs(deltaX), Math.abs(deltaY)) < 8) return;
+      if (Math.abs(deltaY) >= Math.abs(deltaX)) {
+        pointerId = null;
+        return;
+      }
+      setIsDragging(true);
+      element.setPointerCapture?.(event.pointerId);
+    }
+
+    event.preventDefault();
+    element.scrollLeft = pointerStartScrollLeft - deltaX;
+  };
+
+  const endPointerDrag = (event: PointerEvent) => {
+    if (pointerId !== event.pointerId) return;
+    scrollRef?.releasePointerCapture?.(event.pointerId);
+    pointerId = null;
+    setIsDragging(false);
   };
 
   const handleWheel = (event: WheelEvent) => {
@@ -157,8 +207,18 @@ const HorizontalRail = <T,>(props: HorizontalRailProps<T>): JSX.Element => {
         <div
           ref={scrollRef}
           class="horizontal-rail-scroll"
+          classList={{ "is-dragging": isDragging() }}
+          data-dragging={isDragging() ? "true" : "false"}
           onScroll={checkScrollPosition}
           onWheel={handleWheel}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={endPointerDrag}
+          onPointerCancel={endPointerDrag}
+          onPointerLeave={(event) => {
+            if (event.pointerType === "mouse") endPointerDrag(event);
+          }}
+          onDragStart={(event) => event.preventDefault()}
           role="list"
           tabindex={0}
           aria-label={`${props.title} items`}
