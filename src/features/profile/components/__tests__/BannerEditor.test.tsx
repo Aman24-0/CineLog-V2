@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { createSignal } from "solid-js";
 import {
   cleanup,
   fireEvent,
@@ -156,6 +157,32 @@ describe("BannerEditor progress and failure feedback", () => {
       )
     );
     expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it("updates the preview when a stable Storage URL receives a new version", async () => {
+    const stableUrl =
+      "https://project.supabase.co/storage/v1/object/public/banners/user-1/banner.jpg";
+    const [version, setVersion] = createSignal("stranger-things");
+
+    render(() => (
+      <BannerEditor
+        open={true}
+        currentBannerType="upload"
+        currentBannerUrl={stableUrl}
+        currentBannerVersion={version()}
+        data={null}
+        userId="user-1"
+        onClose={vi.fn()}
+        onSave={vi.fn().mockResolvedValue(true)}
+      />
+    ));
+
+    const preview = () =>
+      screen.getByAltText("Banner preview") as HTMLImageElement;
+    expect(preview().src).toContain("v=stranger-things");
+
+    setVersion("venom");
+    await waitFor(() => expect(preview().src).toContain("v=venom"));
   });
 
   it("preserves an existing uploaded banner when no replacement file is selected", async () => {

@@ -3,6 +3,7 @@ import { useAuth } from "~/shared/hooks/useAuth";
 import { useProfile } from "~/lib/supabase/hooks/useProfile";
 import { fetchTmdbMetadata, tmdbImage } from "~/core/tmdb/tmdb";
 import { extractBackdropProfile } from "~/shared/utils/colorExtractor";
+import { withImageCacheBust } from "~/shared/utils/imageUrl";
 import type { ProfileRow } from "~/lib/supabase/repositories";
 import {
   DEFAULT_PROFILE_THEME,
@@ -14,7 +15,11 @@ export const PROFILE_BANNER_CHANGED_EVENT = "cinelog:profile-banner-changed";
 
 type BannerProfile = Pick<
   ProfileRow,
-  "banner_type" | "banner_url" | "favorite_movie_id" | "favorite_series_id"
+  | "banner_type"
+  | "banner_url"
+  | "favorite_movie_id"
+  | "favorite_series_id"
+  | "updated_at"
 >;
 
 function toCssUrl(url: string | null): string {
@@ -130,7 +135,8 @@ function canLoadBannerImage(url: string): Promise<boolean> {
  * falls back to the favourite movie/series artwork before the neutral state.
  */
 async function resolveVisibleBanner(
-  profile: BannerProfile
+  profile: BannerProfile,
+  cacheVersion: string
 ): Promise<string | null> {
   const type = profile.banner_type ?? "favorite_movie";
   const primary =
@@ -139,19 +145,23 @@ async function resolveVisibleBanner(
       : type === "default"
         ? null
         : await resolveFavoriteBackdrop(profile);
+  const versionedPrimary = withImageCacheBust(primary, cacheVersion);
 
-  if (primary && (await canLoadBannerImage(primary))) return primary;
+  if (versionedPrimary && (await canLoadBannerImage(versionedPrimary))) {
+    return versionedPrimary;
+  }
 
   // ProfileBanner deliberately falls back to favourite artwork after a custom
   // image error, so the global environment must do the same.
   if (type === "upload" || type === "url") {
     const fallback = await resolveFavoriteBackdrop(profile);
+    const versionedFallback = withImageCacheBust(fallback, cacheVersion);
     if (
-      fallback &&
-      fallback !== primary &&
-      (await canLoadBannerImage(fallback))
+      versionedFallback &&
+      versionedFallback !== versionedPrimary &&
+      (await canLoadBannerImage(versionedFallback))
     ) {
-      return fallback;
+      return versionedFallback;
     }
   }
 
@@ -175,7 +185,12 @@ const ProfileAmbientTheme: Component = () => {
       return;
     }
 
-    const imageUrl = await resolveVisibleBanner(result.data);
+    // The Storage object path is intentionally stable and may be overwritten
+    // repeatedly. Include this refresh request in the render-only URL token so
+    // both the browser/CDN and extractBackdropProfile() see fresh bytes even
+    // when Supabase updated_at has the same visible precision.
+    const cacheVersion = `${result.data.updated_at ?? "unknown"}-${currentRequest}`;
+    const imageUrl = await resolveVisibleBanner(result.data, cacheVersion);
     if (currentRequest !== requestId) return;
     if (!imageUrl) {
       resetProfileBannerTheme();

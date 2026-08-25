@@ -541,6 +541,7 @@ const EditProfileModal: Component<EditProfileModalProps> = (props) => {
           data={props.data ?? null}
           currentBannerType={bannerType()}
           currentBannerUrl={bannerUrl()}
+          currentBannerVersion={bannerVersion() ?? props.profile?.updated_at}
           userId={props.userId}
           onClose={() => setBannerEditorOpen(false)}
           onSave={handleBannerSave}

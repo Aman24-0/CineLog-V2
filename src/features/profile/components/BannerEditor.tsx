@@ -7,6 +7,7 @@ import {
   uploadBannerToSupabase
 } from "~/shared/utils/imageCompress";
 import { getAuthHeaders } from "~/lib/supabase/session";
+import { withImageCacheBust } from "~/shared/utils/imageUrl";
 import type { ProfileData } from "../useProfileData";
 
 export type BannerType = "upload" | "url" | "favorite_movie" | "default";
@@ -15,6 +16,8 @@ interface BannerEditorProps {
   open: boolean;
   currentBannerType: BannerType;
   currentBannerUrl: string | null;
+  /** Render-only version for stable Storage URLs overwritten via upsert. */
+  currentBannerVersion?: string | number | null;
   data: ProfileData | null;
   userId: string;
   onClose: () => void;
@@ -448,7 +451,12 @@ const BannerEditor: Component<BannerEditorProps> = (props) => {
                   }
                 >
                   <img
-                    src={currentPreview().url!}
+                    src={
+                      withImageCacheBust(
+                        currentPreview().url,
+                        props.currentBannerVersion
+                      ) ?? ""
+                    }
                     style={{
                       width: "100%",
                       height: "100%",
