@@ -267,10 +267,10 @@ const HorizontalRail = <T,>(props: HorizontalRailProps<T>): JSX.Element => {
           onPointerMove={handlePointerMove}
           onPointerUp={endPointerDrag}
           onPointerCancel={endPointerDrag}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={endTouchDrag}
-          onTouchCancel={endTouchDrag}
+          on:touchstart={handleTouchStart}
+          on:touchmove={handleTouchMove}
+          on:touchend={endTouchDrag}
+          on:touchcancel={endTouchDrag}
           onPointerLeave={(event) => {
             if (event.pointerType === "mouse") endPointerDrag(event);
           }}

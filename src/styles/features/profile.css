@@ -4677,6 +4677,9 @@
   display: flex;
   flex: 0 0 100%;
   flex-direction: column;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
   align-items: center;
   justify-content: center;
   min-height: 160px;
@@ -4695,10 +4698,16 @@
 }
 
 .empty-message {
-  max-width: 18rem;
+  width: min(100%, 18rem);
+  max-width: 100%;
+  min-width: 0;
   margin: 0;
   color: var(--text-dim, rgb(255 255 255 / 0.55));
   font-size: 0.85rem;
+  line-height: 1.45;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .empty-action-link {
@@ -4746,22 +4755,13 @@
 }
 
 @media (max-width: 768px) {
+  /* Touch-only mobile rails: no button controls or reserved side gutter. */
   .horizontal-rail-scroll {
-    padding-inline: 2.6rem;
+    padding-inline: 0.5rem;
   }
 
   .horizontal-rail-nav {
-    display: inline-flex;
-    width: 2.15rem;
-    height: 2.15rem;
-  }
-
-  .horizontal-rail-nav-left {
-    left: 0.15rem;
-  }
-
-  .horizontal-rail-nav-right {
-    right: 0.15rem;
+    display: none !important;
   }
 }
 
@@ -4829,6 +4829,7 @@
 .profile-lists-preview-v3 .empty-rail-state {
   min-height: 7rem;
   padding: 1rem 1.25rem;
+  overflow: hidden;
 }
 
 .profile-lists-preview-v3 .empty-rail-icon {
@@ -4836,7 +4837,8 @@
 }
 
 .profile-lists-preview-v3 .empty-message {
-  max-width: 22rem;
+  width: min(100%, 22rem);
+  max-width: 100%;
 }
 
 .profile-quick-action-row-v3 {
