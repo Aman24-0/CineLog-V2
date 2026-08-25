@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, render } from "@solidjs/testing-library";
+import { MemoryRouter, Route } from "@solidjs/router";
 import HorizontalRail from "../HorizontalRail";
 
 afterEach(() => cleanup());
@@ -22,6 +23,35 @@ describe("HorizontalRail", () => {
     expect(
       container.querySelectorAll('[data-testid="rail-card"]')
     ).toHaveLength(3);
+  });
+
+  it("renders a visible title-plus-arrow View All link when configured", () => {
+    const { container } = render(() => (
+      <MemoryRouter>
+        <Route
+          path="/*"
+          component={() => (
+            <HorizontalRail
+              title="Favorites"
+              items={[]}
+              viewAllLink="/collections?filter=favorites"
+              renderItem={() => <div />}
+            />
+          )}
+        />
+      </MemoryRouter>
+    ));
+
+    const link = container.querySelector(
+      ".horizontal-rail-section-link"
+    ) as HTMLAnchorElement | null;
+    expect(link?.getAttribute("href")).toBe("/collections?filter=favorites");
+    expect(
+      link?.querySelector(".horizontal-rail-section-title")?.textContent
+    ).toBe("Favorites");
+    expect(link?.querySelector(".material-symbols-outlined")?.textContent).toBe(
+      "arrow_forward"
+    );
   });
 
   it("moves wheel input horizontally without trapping page scrolling at the edge", () => {

@@ -119,13 +119,18 @@ const HorizontalRail = <T,>(props: HorizontalRailProps<T>): JSX.Element => {
       aria-label={props.ariaLabel ?? props.title}
     >
       <div class="horizontal-rail-section-header">
-        <h2 class="horizontal-rail-section-title">{props.title}</h2>
-        <Show when={props.viewAllLink}>
+        <Show
+          when={props.viewAllLink}
+          fallback={
+            <h2 class="horizontal-rail-section-title">{props.title}</h2>
+          }
+        >
           <A
             href={props.viewAllLink!}
-            class="horizontal-rail-view-all focus-ring"
+            class="horizontal-rail-section-link focus-ring"
+            aria-label={`View all ${props.title}`}
           >
-            View All
+            <h2 class="horizontal-rail-section-title">{props.title}</h2>
             <span class="material-symbols-outlined" aria-hidden="true">
               arrow_forward
             </span>

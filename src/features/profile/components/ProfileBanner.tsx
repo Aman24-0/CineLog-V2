@@ -10,6 +10,10 @@ import {
 } from "solid-js";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import { withImageCacheBust } from "~/shared/utils/imageUrl";
+import {
+  getProfileBannerSignature,
+  readCachedProfileBanner
+} from "~/core/theme/profileBannerCache";
 import type { ProfileData } from "../useProfileData";
 import type { BannerType } from "./BannerEditor";
 
@@ -48,6 +52,7 @@ interface ProfileBannerProps {
 const ProfileBanner: Component<ProfileBannerProps> = (props) => {
   const [imgLoaded, setImgLoaded] = createSignal(false);
   const [failedCandidateIndex, setFailedCandidateIndex] = createSignal(0);
+  const [cachedImageFailed, setCachedImageFailed] = createSignal(false);
 
   // Determine the banner type from the profile data.
   // Legacy users (null banner_type) default to 'favorite_movie'.
@@ -58,6 +63,20 @@ const ProfileBanner: Component<ProfileBannerProps> = (props) => {
   });
 
   const bannerUrl = () => props.data?.profile?.banner_url ?? null;
+  const profileId = () => props.data?.profile?.id ?? null;
+  const profileSignature = () => {
+    const profile = props.data?.profile;
+    if (!profile) return undefined;
+    return getProfileBannerSignature(profile);
+  };
+  const cachedBannerUrl = () => {
+    const uid = profileId();
+    const signature = profileSignature();
+    if (!uid || !signature) return null;
+    return readCachedProfileBanner(uid, signature)?.bannerUrl ?? null;
+  };
+  const hasCachedImage = () =>
+    Boolean(cachedBannerUrl() && !cachedImageFailed());
 
   /**
    * Build an ordered candidate list. Custom banners get the first attempt,
@@ -71,8 +90,10 @@ const ProfileBanner: Component<ProfileBannerProps> = (props) => {
     if (type === "default") return [] as string[];
 
     const candidates: string[] = [];
+    if (cachedBannerUrl()) candidates.push(cachedBannerUrl()!);
     if ((type === "upload" || type === "url") && bannerUrl()) {
-      candidates.push(bannerUrl()!);
+      const currentUrl = bannerUrl()!;
+      if (!candidates.includes(currentUrl)) candidates.push(currentUrl);
     }
 
     const favoritePaths = [
@@ -105,6 +126,7 @@ const ProfileBanner: Component<ProfileBannerProps> = (props) => {
         ] as const,
       () => {
         setImgLoaded(false);
+        setCachedImageFailed(false);
         setFailedCandidateIndex(0);
       },
       { defer: true }
@@ -119,7 +141,7 @@ const ProfileBanner: Component<ProfileBannerProps> = (props) => {
       >
         <img
           src={renderUrl() as string}
-          class={`profile-banner-img${imgLoaded() ? " img-loaded" : ""}`}
+          class={`profile-banner-img${imgLoaded() || hasCachedImage() ? " img-loaded" : ""}`}
           loading="eager"
           decoding="async"
           alt="Profile banner"
@@ -129,11 +151,16 @@ const ProfileBanner: Component<ProfileBannerProps> = (props) => {
           onLoad={() => setImgLoaded(true)}
           onError={() => {
             setImgLoaded(false);
+            if (cachedBannerUrl() && failedCandidateIndex() === 0) {
+              setCachedImageFailed(true);
+              setFailedCandidateIndex(0);
+              return;
+            }
             setFailedCandidateIndex((index) => index + 1);
           }}
         />
         {/* Skeleton shimmer while image loads */}
-        <Show when={!imgLoaded()}>
+        <Show when={!imgLoaded() && !hasCachedImage()}>
           <div class="profile-banner-shimmer" aria-hidden="true" />
         </Show>
       </Show>

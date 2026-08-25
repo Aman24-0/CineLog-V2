@@ -4747,3 +4747,83 @@
     padding-inline: 1rem;
   }
 }
+
+/* ─── Profile section navigation and compact rhythm ─────────────────────── */
+.horizontal-rail-section-header {
+  justify-content: flex-start;
+  margin-bottom: 0.55rem;
+}
+
+.horizontal-rail-section-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 2rem;
+  color: inherit;
+  text-decoration: none;
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
+}
+
+.horizontal-rail-section-link:hover {
+  opacity: 0.82;
+  transform: translateX(0.12rem);
+}
+
+.horizontal-rail-section-link .horizontal-rail-section-title {
+  color: inherit;
+}
+
+.horizontal-rail-section-link > .material-symbols-outlined {
+  color: var(--text-strong, #fff);
+  font-size: 1.35rem;
+  font-weight: 500;
+  transition: transform 0.2s ease;
+}
+
+.horizontal-rail-section-link:hover > .material-symbols-outlined {
+  transform: translateX(0.12rem);
+}
+
+.profile-rails-stack {
+  gap: 1rem;
+}
+
+.profile-recent-activity-rail .horizontal-rail-scroll {
+  min-height: 0;
+}
+
+.profile-lists-preview-v3 .horizontal-rail-scroll {
+  min-height: 0;
+}
+
+.profile-lists-preview-v3 .empty-rail-state {
+  min-height: 7rem;
+  padding: 1rem 1.25rem;
+}
+
+.profile-lists-preview-v3 .empty-rail-icon {
+  font-size: 1.55rem;
+}
+
+.profile-lists-preview-v3 .empty-message {
+  max-width: 22rem;
+}
+
+.profile-quick-action-row-v3 {
+  position: relative;
+  margin-top: -0.35rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--hairline, rgb(255 255 255 / 0.14));
+}
+
+@media (max-width: 639px) {
+  .horizontal-rail-section-link {
+    gap: 0.4rem;
+  }
+
+  .horizontal-rail-section-link > .material-symbols-outlined {
+    font-size: 1.2rem;
+  }
+}

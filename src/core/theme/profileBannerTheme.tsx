@@ -10,6 +10,11 @@ import {
   profileToTheme,
   type ProfileTheme
 } from "./profileBannerThemeUtils";
+import {
+  getProfileBannerSignature,
+  readCachedProfileBanner,
+  writeCachedProfileBanner
+} from "./profileBannerCache";
 
 export const PROFILE_BANNER_CHANGED_EVENT = "cinelog:profile-banner-changed";
 
@@ -181,9 +186,15 @@ const ProfileAmbientTheme: Component = () => {
     const result = await profileRepo.getProfile(uid);
     if (currentRequest !== requestId) return;
     if (result.error || !result.data) {
-      resetProfileBannerTheme();
+      if (!readCachedProfileBanner(uid)) resetProfileBannerTheme();
       return;
     }
+
+    const profileSignature = getProfileBannerSignature(result.data);
+    const cached = readCachedProfileBanner(uid, profileSignature);
+    // Reapply the last known-good palette immediately while the banner is
+    // being resolved. This prevents a resume from flashing the default theme.
+    if (cached) setDocumentTheme(cached.theme);
 
     // The Storage object path is intentionally stable and may be overwritten
     // repeatedly. Include this refresh request in the render-only URL token so
@@ -193,13 +204,20 @@ const ProfileAmbientTheme: Component = () => {
     const imageUrl = await resolveVisibleBanner(result.data, cacheVersion);
     if (currentRequest !== requestId) return;
     if (!imageUrl) {
-      resetProfileBannerTheme();
+      if (cached) setDocumentTheme(cached.theme);
+      else resetProfileBannerTheme();
       return;
     }
 
     const profile = await extractBackdropProfile(imageUrl);
     if (currentRequest !== requestId) return;
-    setDocumentTheme(profileToTheme({ ...profile, imageUrl }));
+    const theme = profileToTheme({ ...profile, imageUrl });
+    setDocumentTheme(theme);
+    writeCachedProfileBanner(uid, {
+      bannerUrl: imageUrl,
+      theme,
+      profileSignature
+    });
   };
 
   createEffect(
@@ -219,19 +237,30 @@ const ProfileAmbientTheme: Component = () => {
 
   createEffect(() => {
     if (typeof window === "undefined") return;
-    const handleBannerChange = () => {
+    const refresh = () => {
       const uid = user()?.uid;
       if (!authReady() || !uid) return;
+      const cached = readCachedProfileBanner(uid);
+      if (cached) setDocumentTheme(cached.theme);
       const currentRequest = ++requestId;
       void loadAndApply(uid, currentRequest);
     };
+    const handleBannerChange = () => refresh();
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+    const handlePageShow = () => refresh();
     window.addEventListener(PROFILE_BANNER_CHANGED_EVENT, handleBannerChange);
-    onCleanup(() =>
+    document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("pageshow", handlePageShow);
+    onCleanup(() => {
       window.removeEventListener(
         PROFILE_BANNER_CHANGED_EVENT,
         handleBannerChange
-      )
-    );
+      );
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("pageshow", handlePageShow);
+    });
   });
 
   onCleanup(() => {
