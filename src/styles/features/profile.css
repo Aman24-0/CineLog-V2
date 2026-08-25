@@ -4160,35 +4160,23 @@
 
 .horizontal-rail-container {
   position: relative;
+  width: 100%;
   min-width: 0;
 }
 
+/* Keep this track structurally identical to Discover’s native carousel.
+   The browser owns touch scrolling; JS only adds desktop wheel handling. */
 .horizontal-rail-scroll {
   display: flex;
   flex-wrap: nowrap;
-  width: 100% !important;
-  max-width: 100%;
   min-width: 0;
-  min-height: 200px;
   gap: 1rem;
-  justify-content: flex-start;
-  cursor: grab;
   padding: 0.5rem 0.5rem 1rem;
-  overflow-x: auto !important;
-  overflow-y: hidden;
-  scroll-behavior: smooth;
-  scroll-snap-type: x mandatory;
-  touch-action: pan-x pan-y;
-  overscroll-behavior-x: contain;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
   scrollbar-width: none;
   -ms-overflow-style: none;
   -webkit-overflow-scrolling: touch;
-}
-
-.horizontal-rail-scroll.is-dragging {
-  cursor: grabbing;
-  user-select: none;
-  scroll-snap-type: none;
 }
 
 .horizontal-rail-scroll::-webkit-scrollbar {
@@ -4682,8 +4670,8 @@
   min-width: 0;
   align-items: center;
   justify-content: center;
-  min-height: 160px;
-  padding: 2rem;
+  min-height: 7.5rem;
+  padding: 1.25rem 1rem;
   border: 1px dashed var(--hairline, rgb(255 255 255 / 0.12));
   border-radius: 0.85rem;
   color: var(--text-dim, rgb(255 255 255 / 0.5));
@@ -4751,17 +4739,6 @@
   .app-shell-bg > #main-content {
     min-height: 0;
     overflow-y: auto;
-  }
-}
-
-@media (max-width: 768px) {
-  /* Touch-only mobile rails: no button controls or reserved side gutter. */
-  .horizontal-rail-scroll {
-    padding-inline: 0.5rem;
-  }
-
-  .horizontal-rail-nav {
-    display: none !important;
   }
 }
 

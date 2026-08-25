@@ -6,7 +6,7 @@ import HorizontalRail from "../HorizontalRail";
 afterEach(() => cleanup());
 
 describe("HorizontalRail", () => {
-  it("renders a horizontally scrollable container with non-shrinking rail items", () => {
+  it("renders fixed non-shrinking items inside a native horizontal track", () => {
     const { container } = render(() => (
       <HorizontalRail
         title="Favorites"
@@ -19,10 +19,12 @@ describe("HorizontalRail", () => {
 
     const scroll = container.querySelector(".horizontal-rail-scroll");
     expect(scroll).not.toBeNull();
+    expect(scroll?.getAttribute("role")).toBe("list");
     expect(container.querySelectorAll(".horizontal-rail-item")).toHaveLength(3);
     expect(
       container.querySelectorAll('[data-testid="rail-card"]')
     ).toHaveLength(3);
+    expect(container.querySelector(".empty-rail-state")).toBeNull();
   });
 
   it("renders a visible title-plus-arrow View All link when configured", () => {
@@ -93,7 +95,7 @@ describe("HorizontalRail", () => {
     expect(edgeEvent.defaultPrevented).toBe(false);
   });
 
-  it("uses the visible right arrow to advance an overflowing rail", () => {
+  it("uses the desktop rail arrow to advance an overflowing track", () => {
     const { container } = render(() => (
       <HorizontalRail
         title="Favorites"
@@ -125,85 +127,31 @@ describe("HorizontalRail", () => {
     });
   });
 
-  it("drags horizontally without claiming vertical-intent gestures", () => {
+  it("keeps an empty state outside the horizontal track and inside the viewport", () => {
     const { container } = render(() => (
-      <HorizontalRail
-        title="Favorites"
-        items={["One", "Two", "Three"]}
-        renderItem={(title) => <article>{title}</article>}
-      />
+      <MemoryRouter>
+        <Route
+          path="/*"
+          component={() => (
+            <HorizontalRail
+              title="Lists"
+              items={[]}
+              renderItem={() => <div />}
+              emptyIcon="collections_bookmark"
+              emptyMessage="No lists yet. Go to Collections to create your first list!"
+              emptyAction="Go to Collections"
+              emptyActionLink="/collections"
+            />
+          )}
+        />
+      </MemoryRouter>
     ));
 
-    const scroll = container.querySelector(
-      ".horizontal-rail-scroll"
-    ) as HTMLDivElement;
-    Object.defineProperties(scroll, {
-      scrollWidth: { configurable: true, value: 900 },
-      clientWidth: { configurable: true, value: 300 },
-      scrollLeft: { configurable: true, writable: true, value: 0 }
-    });
-
-    fireEvent.pointerDown(scroll, {
-      pointerId: 7,
-      pointerType: "mouse",
-      button: 0,
-      clientX: 300,
-      clientY: 120
-    });
-    fireEvent.pointerMove(scroll, {
-      pointerId: 7,
-      pointerType: "mouse",
-      clientX: 180,
-      clientY: 122
-    });
-    expect(scroll.scrollLeft).toBe(120);
-
-    fireEvent.pointerUp(scroll, { pointerId: 7, pointerType: "mouse" });
-
-    scroll.scrollLeft = 0;
-    fireEvent.touchStart(scroll, {
-      touches: [{ identifier: 9, clientX: 300, clientY: 120 }]
-    });
-    fireEvent.touchMove(scroll, {
-      touches: [{ identifier: 9, clientX: 180, clientY: 122 }]
-    });
-    expect(scroll.scrollLeft).toBe(120);
-    fireEvent.touchEnd(scroll);
-
-    const verticalEvent = new PointerEvent("pointermove", {
-      pointerId: 8,
-      pointerType: "mouse",
-      clientX: 300,
-      clientY: 120,
-      bubbles: true,
-      cancelable: true
-    });
-    fireEvent.pointerDown(scroll, {
-      pointerId: 8,
-      pointerType: "mouse",
-      button: 0,
-      clientX: 300,
-      clientY: 120
-    });
-    Object.defineProperty(verticalEvent, "clientX", { value: 302 });
-    Object.defineProperty(verticalEvent, "clientY", { value: 220 });
-    fireEvent(scroll, verticalEvent);
-    expect(verticalEvent.defaultPrevented).toBe(false);
-  });
-
-  it("renders the helpful empty state when a rail has no items", () => {
-    const { container } = render(() => (
-      <HorizontalRail
-        title="Recent Activity"
-        items={[]}
-        renderItem={() => <div />}
-        emptyIcon="history"
-        emptyMessage="No recent activity yet"
-      />
-    ));
-
-    expect(container.querySelector(".empty-rail-state")?.textContent).toContain(
-      "No recent activity yet"
-    );
+    const emptyState = container.querySelector(".empty-rail-state");
+    expect(emptyState).not.toBeNull();
+    expect(emptyState?.closest(".horizontal-rail-scroll")).toBeNull();
+    expect(emptyState?.textContent).toContain("No lists yet");
+    expect(emptyState?.textContent).toContain("Go to Collections");
+    expect(container.querySelector(".horizontal-rail-scroll")).toBeNull();
   });
 });

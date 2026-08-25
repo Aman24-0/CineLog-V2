@@ -30,16 +30,6 @@ const HorizontalRail = <T,>(props: HorizontalRailProps<T>): JSX.Element => {
   let scrollRef: HTMLDivElement | undefined;
   const [showLeftArrow, setShowLeftArrow] = createSignal(false);
   const [showRightArrow, setShowRightArrow] = createSignal(false);
-  const [isDragging, setIsDragging] = createSignal(false);
-  let pointerId: number | null = null;
-  let pointerStartX = 0;
-  let pointerStartY = 0;
-  let pointerStartScrollLeft = 0;
-  let touchActive = false;
-  let touchStartX = 0;
-  let touchStartY = 0;
-  let touchStartScrollLeft = 0;
-  let touchDragging = false;
 
   const items = createMemo(() =>
     typeof props.items === "function" ? props.items() : props.items
@@ -66,98 +56,6 @@ const HorizontalRail = <T,>(props: HorizontalRailProps<T>): JSX.Element => {
     });
   };
 
-  const handlePointerDown = (event: PointerEvent) => {
-    const element = scrollRef;
-    if (
-      !element ||
-      element.scrollWidth <= element.clientWidth ||
-      event.pointerType === "touch" ||
-      (event.pointerType === "mouse" && event.button !== 0)
-    ) {
-      return;
-    }
-
-    pointerId = event.pointerId;
-    pointerStartX = event.clientX;
-    pointerStartY = event.clientY;
-    pointerStartScrollLeft = element.scrollLeft;
-    setIsDragging(false);
-  };
-
-  const handlePointerMove = (event: PointerEvent) => {
-    const element = scrollRef;
-    if (
-      !element ||
-      pointerId !== event.pointerId ||
-      event.pointerType === "touch"
-    )
-      return;
-
-    const deltaX = event.clientX - pointerStartX;
-    const deltaY = event.clientY - pointerStartY;
-
-    if (!isDragging()) {
-      if (Math.max(Math.abs(deltaX), Math.abs(deltaY)) < 8) return;
-      if (Math.abs(deltaY) >= Math.abs(deltaX)) {
-        pointerId = null;
-        return;
-      }
-      setIsDragging(true);
-      element.setPointerCapture?.(event.pointerId);
-    }
-
-    event.preventDefault();
-    element.scrollLeft = pointerStartScrollLeft - deltaX;
-  };
-
-  const endPointerDrag = (event: PointerEvent) => {
-    if (pointerId !== event.pointerId) return;
-    scrollRef?.releasePointerCapture?.(event.pointerId);
-    pointerId = null;
-    setIsDragging(false);
-  };
-
-  const handleTouchStart = (event: TouchEvent) => {
-    const element = scrollRef;
-    const touch = event.touches[0];
-    if (!element || !touch || element.scrollWidth <= element.clientWidth) {
-      return;
-    }
-
-    touchActive = true;
-    touchDragging = false;
-    touchStartX = touch.clientX;
-    touchStartY = touch.clientY;
-    touchStartScrollLeft = element.scrollLeft;
-  };
-
-  const handleTouchMove = (event: TouchEvent) => {
-    const element = scrollRef;
-    const touch = event.touches[0];
-    if (!element || !touch || !touchActive) return;
-
-    const deltaX = touch.clientX - touchStartX;
-    const deltaY = touch.clientY - touchStartY;
-    if (!touchDragging) {
-      if (Math.max(Math.abs(deltaX), Math.abs(deltaY)) < 8) return;
-      if (Math.abs(deltaY) >= Math.abs(deltaX)) {
-        touchActive = false;
-        return;
-      }
-      touchDragging = true;
-      setIsDragging(true);
-    }
-
-    event.preventDefault();
-    element.scrollLeft = touchStartScrollLeft - deltaX;
-  };
-
-  const endTouchDrag = () => {
-    touchActive = false;
-    touchDragging = false;
-    setIsDragging(false);
-  };
-
   const handleWheel = (event: WheelEvent) => {
     const element = scrollRef;
     if (
@@ -174,8 +72,8 @@ const HorizontalRail = <T,>(props: HorizontalRailProps<T>): JSX.Element => {
       ? element.scrollLeft < maxScrollLeft - 1
       : element.scrollLeft > 1;
 
-    // At either horizontal edge, release the wheel event so the parent page
-    // can continue its normal vertical scroll instead of feeling stuck.
+    // Release the wheel at either horizontal edge so the page can keep
+    // scrolling vertically instead of becoming trapped in the rail.
     if (!canConsumeWheel) return;
 
     event.preventDefault();
@@ -241,6 +139,62 @@ const HorizontalRail = <T,>(props: HorizontalRailProps<T>): JSX.Element => {
       </div>
 
       <div class="horizontal-rail-container">
+        <Show
+          when={items().length > 0}
+          fallback={
+            <Show
+              when={!props.loading}
+              fallback={
+                <div class="empty-rail-state" aria-busy="true">
+                  <span
+                    class="material-symbols-outlined empty-rail-icon"
+                    aria-hidden="true"
+                  >
+                    progress_activity
+                  </span>
+                  <p class="empty-message">Loading…</p>
+                </div>
+              }
+            >
+              <div class="empty-rail-state">
+                <span
+                  class="material-symbols-outlined empty-rail-icon"
+                  aria-hidden="true"
+                >
+                  {props.emptyIcon ?? "history"}
+                </span>
+                <p class="empty-message">
+                  {props.emptyMessage ?? "Nothing here yet"}
+                </p>
+                <Show when={props.emptyAction && props.emptyActionLink}>
+                  <A
+                    href={props.emptyActionLink!}
+                    class="empty-action-link focus-ring"
+                  >
+                    {props.emptyAction}
+                  </A>
+                </Show>
+              </div>
+            </Show>
+          }
+        >
+          <div
+            ref={scrollRef}
+            class="horizontal-rail-scroll"
+            onScroll={checkScrollPosition}
+            onWheel={handleWheel}
+            role="list"
+            tabindex={0}
+            aria-label={`${props.title} items`}
+          >
+            <For each={items()}>
+              {(item) => (
+                <div class="horizontal-rail-item">{props.renderItem(item)}</div>
+              )}
+            </For>
+          </div>
+        </Show>
+
         <button
           type="button"
           class="horizontal-rail-nav horizontal-rail-nav-left focus-ring"
@@ -255,76 +209,6 @@ const HorizontalRail = <T,>(props: HorizontalRailProps<T>): JSX.Element => {
             chevron_left
           </span>
         </button>
-
-        <div
-          ref={scrollRef}
-          class="horizontal-rail-scroll"
-          classList={{ "is-dragging": isDragging() }}
-          data-dragging={isDragging() ? "true" : "false"}
-          onScroll={checkScrollPosition}
-          onWheel={handleWheel}
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={endPointerDrag}
-          onPointerCancel={endPointerDrag}
-          on:touchstart={handleTouchStart}
-          on:touchmove={handleTouchMove}
-          on:touchend={endTouchDrag}
-          on:touchcancel={endTouchDrag}
-          onPointerLeave={(event) => {
-            if (event.pointerType === "mouse") endPointerDrag(event);
-          }}
-          onDragStart={(event) => event.preventDefault()}
-          role="list"
-          tabindex={0}
-          aria-label={`${props.title} items`}
-        >
-          <Show
-            when={items().length > 0}
-            fallback={
-              <Show
-                when={!props.loading}
-                fallback={
-                  <div class="empty-rail-state" aria-busy="true">
-                    <span
-                      class="material-symbols-outlined empty-rail-icon"
-                      aria-hidden="true"
-                    >
-                      progress_activity
-                    </span>
-                    <p class="empty-message">Loading…</p>
-                  </div>
-                }
-              >
-                <div class="empty-rail-state">
-                  <span
-                    class="material-symbols-outlined empty-rail-icon"
-                    aria-hidden="true"
-                  >
-                    {props.emptyIcon ?? "history"}
-                  </span>
-                  <p class="empty-message">
-                    {props.emptyMessage ?? "Nothing here yet"}
-                  </p>
-                  <Show when={props.emptyAction && props.emptyActionLink}>
-                    <A
-                      href={props.emptyActionLink!}
-                      class="empty-action-link focus-ring"
-                    >
-                      {props.emptyAction}
-                    </A>
-                  </Show>
-                </div>
-              </Show>
-            }
-          >
-            <For each={items()}>
-              {(item) => (
-                <div class="horizontal-rail-item">{props.renderItem(item)}</div>
-              )}
-            </For>
-          </Show>
-        </div>
 
         <button
           type="button"
