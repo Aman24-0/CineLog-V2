@@ -101,6 +101,13 @@ const RecentActivityPage: Component = () => {
                   <p class="glass-empty-state-body">
                     Add or watch a title and your journal will start here.
                   </p>
+                  <a
+                    href="/discover"
+                    class="empty-action-link focus-ring"
+                    style={{ "margin-top": "var(--sp-2)" }}
+                  >
+                    Discover Content
+                  </a>
                 </div>
               }
             >

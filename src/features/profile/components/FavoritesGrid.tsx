@@ -3,8 +3,7 @@
 // FavoritesGrid preserves the existing Favorites collection data flow while
 // rendering its poster cards inside the shared horizontal rail component.
 
-import { Show, For, createMemo, type Component, type Accessor } from "solid-js";
-import { GlassEmptyState, GlassSkeleton } from "~/shared/ui/glass";
+import { Show, createMemo, type Component, type Accessor } from "solid-js";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import { useCollections } from "~/features/collections/hooks/useCollections";
 import type { WatchlistItem, CollectionEntry } from "~/shared/types";
@@ -110,40 +109,19 @@ const FavoritesGrid: Component<FavoritesGridProps> = (props) => {
       <HorizontalRail
         title="Favorites"
         items={favoritesEntries}
-        viewAllLink="/collections"
+        viewAllLink="/collections?filter=favorites"
         ariaLabel="Favorite titles"
         renderItem={favoriteCard}
+        loading={collections.loading()}
+        emptyIcon="favorite_border"
+        emptyMessage={
+          favoritesCollection() === null
+            ? "Add titles to your Favorites collection to showcase them here."
+            : "Open a title and tap the heart icon to add it to your Favorites."
+        }
+        emptyAction="Discover Content"
+        emptyActionLink="/discover"
       />
-
-      <Show when={collections.loading() && favoritesCollection() === null}>
-        <div class="profile-horizontal-rail-skeleton" aria-busy="true">
-          <For each={Array.from({ length: 4 })}>
-            {() => (
-              <GlassSkeleton class="profile-horizontal-rail-skeleton-card" />
-            )}
-          </For>
-        </div>
-      </Show>
-
-      <Show when={favoritesCollection() === null && !collections.loading()}>
-        <GlassEmptyState
-          icon="favorite"
-          title="No favorites yet"
-          message="Add titles to your Favorites collection to showcase them here."
-          variant="compact"
-        />
-      </Show>
-
-      <Show
-        when={favoritesEntries().length === 0 && favoritesCollection() !== null}
-      >
-        <GlassEmptyState
-          icon="favorite_border"
-          title="Your Favorites collection is empty"
-          message="Open a title and tap the heart icon to add it to your Favorites."
-          variant="compact"
-        />
-      </Show>
     </div>
   );
 };

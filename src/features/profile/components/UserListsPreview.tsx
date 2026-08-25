@@ -3,9 +3,8 @@
 // UserListsPreview renders the user's non-Favorites collections in the shared
 // horizontal rail, with collection covers, title counts, and full-page links.
 
-import { Show, For, createMemo, type Component } from "solid-js";
+import { Show, createMemo, type Component } from "solid-js";
 import { useNavigate } from "@solidjs/router";
-import { GlassEmptyState, GlassSkeleton } from "~/shared/ui/glass";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import { useCollections } from "~/features/collections/hooks/useCollections";
 import HorizontalRail from "./HorizontalRail";
@@ -83,26 +82,12 @@ const UserListsPreview: Component = () => {
         viewAllLink="/collections"
         ariaLabel="Your lists"
         renderItem={listCard}
+        loading={collections.loading()}
+        emptyIcon="video_library"
+        emptyMessage="No lists yet. Go to Collections to create your first list."
+        emptyAction="Go to Collections"
+        emptyActionLink="/collections"
       />
-
-      <Show when={collections.loading() && lists().length === 0}>
-        <div class="profile-horizontal-rail-skeleton" aria-busy="true">
-          <For each={Array.from({ length: 3 })}>
-            {() => (
-              <GlassSkeleton class="profile-horizontal-rail-skeleton-card profile-horizontal-rail-skeleton-list" />
-            )}
-          </For>
-        </div>
-      </Show>
-
-      <Show when={!collections.loading() && lists().length === 0}>
-        <GlassEmptyState
-          icon="video_library"
-          title="No lists yet"
-          message="Create a collection on the Collections page to organise your titles by theme, franchise, or mood."
-          variant="compact"
-        />
-      </Show>
     </div>
   );
 };

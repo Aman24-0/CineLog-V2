@@ -19,6 +19,11 @@ export interface HorizontalRailProps<T> {
   showNavigation?: boolean;
   ariaLabel?: string;
   class?: string;
+  loading?: boolean;
+  emptyIcon?: string;
+  emptyMessage?: string;
+  emptyAction?: string;
+  emptyActionLink?: string;
 }
 
 const HorizontalRail = <T,>(props: HorizontalRailProps<T>): JSX.Element => {
@@ -66,8 +71,23 @@ const HorizontalRail = <T,>(props: HorizontalRailProps<T>): JSX.Element => {
 
   onMount(() => {
     checkScrollPosition();
+    const frame =
+      typeof window.requestAnimationFrame === "function"
+        ? window.requestAnimationFrame(checkScrollPosition)
+        : null;
+    const observer =
+      typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(checkScrollPosition)
+        : null;
+    if (scrollRef) observer?.observe(scrollRef);
     window.addEventListener("resize", checkScrollPosition);
-    onCleanup(() => window.removeEventListener("resize", checkScrollPosition));
+    onCleanup(() => {
+      if (frame !== null && typeof window.cancelAnimationFrame === "function") {
+        window.cancelAnimationFrame(frame);
+      }
+      observer?.disconnect();
+      window.removeEventListener("resize", checkScrollPosition);
+    });
   });
 
   createEffect(() => {
@@ -127,7 +147,51 @@ const HorizontalRail = <T,>(props: HorizontalRailProps<T>): JSX.Element => {
           tabindex={0}
           aria-label={`${props.title} items`}
         >
-          <For each={items()}>{(item) => props.renderItem(item)}</For>
+          <Show
+            when={items().length > 0}
+            fallback={
+              <Show
+                when={!props.loading}
+                fallback={
+                  <div class="empty-rail-state" aria-busy="true">
+                    <span
+                      class="material-symbols-outlined empty-rail-icon"
+                      aria-hidden="true"
+                    >
+                      progress_activity
+                    </span>
+                    <p class="empty-message">Loading…</p>
+                  </div>
+                }
+              >
+                <div class="empty-rail-state">
+                  <span
+                    class="material-symbols-outlined empty-rail-icon"
+                    aria-hidden="true"
+                  >
+                    {props.emptyIcon ?? "history"}
+                  </span>
+                  <p class="empty-message">
+                    {props.emptyMessage ?? "Nothing here yet"}
+                  </p>
+                  <Show when={props.emptyAction && props.emptyActionLink}>
+                    <A
+                      href={props.emptyActionLink!}
+                      class="empty-action-link focus-ring"
+                    >
+                      {props.emptyAction}
+                    </A>
+                  </Show>
+                </div>
+              </Show>
+            }
+          >
+            <For each={items()}>
+              {(item) => (
+                <div class="horizontal-rail-item">{props.renderItem(item)}</div>
+              )}
+            </For>
+          </Show>
         </div>
 
         <button

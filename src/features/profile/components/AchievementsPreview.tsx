@@ -34,9 +34,10 @@ const AchievementsPreview: Component<AchievementsPreviewProps> = (props) => {
     });
   });
 
-  const unlockedCount = createMemo(
-    () => computed().filter((badge) => badge.unlocked).length
+  const unlockedBadges = createMemo(() =>
+    computed().filter((badge) => badge.unlocked)
   );
+  const unlockedCount = createMemo(() => unlockedBadges().length);
   const goFullPage = () => navigate("/profile/achievements");
 
   const badgeCard = (badge: AchievementPreviewItem) => {
@@ -91,10 +92,14 @@ const AchievementsPreview: Component<AchievementsPreviewProps> = (props) => {
       </p>
       <HorizontalRail
         title="Achievements"
-        items={computed}
+        items={unlockedBadges}
         viewAllLink="/profile/achievements"
         ariaLabel="Achievements"
         renderItem={badgeCard}
+        emptyIcon="emoji_events"
+        emptyMessage="No achievements unlocked yet. Keep watching!"
+        emptyAction="Keep Watching"
+        emptyActionLink="/discover"
       />
     </div>
   );

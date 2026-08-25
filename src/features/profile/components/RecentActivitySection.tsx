@@ -1,6 +1,5 @@
 import { Show, createMemo, type Accessor, type Component } from "solid-js";
 import { useNavigate } from "@solidjs/router";
-import { GlassEmptyState } from "~/shared/ui/glass";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import { titleDetailPath } from "~/shared/utils/titleRoutes";
 import type { WatchlistItem } from "~/shared/types";
@@ -79,15 +78,11 @@ const RecentActivitySection: Component<RecentActivitySectionProps> = (
         ariaLabel="Recent Activity"
         renderItem={activityCard}
         class="profile-recent-activity-rail"
+        emptyIcon="history_toggle_off"
+        emptyMessage="No recent activity yet. Start watching to see your activity here!"
+        emptyAction="Start Watching"
+        emptyActionLink="/discover"
       />
-      <Show when={activities().length === 0}>
-        <GlassEmptyState
-          icon="history"
-          title="No recent activity yet"
-          message="Your watched, rated, and added titles will appear here."
-          variant="compact"
-        />
-      </Show>
     </div>
   );
 };
