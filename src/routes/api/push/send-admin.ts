@@ -12,6 +12,8 @@
 //     tag?: string,              // notification tag (default "default")
 //     icon?: string,             // icon URL (default "/favicon.ico")
 //     badge?: string,            // badge URL (default "/favicon.ico")
+//     image?: string,            // large poster/artwork URL
+//     requireInteraction?: bool  // keep high-priority reminders visible
 //     category?: PushCategory    // Phase 6 Task 3 — per-category opt-in
 //   }
 //   → 200 { sent: number, failed: number, skipped: number }  on success
@@ -106,6 +108,8 @@ interface SendAdminRequestBody {
   tag?: unknown;
   icon?: unknown;
   badge?: unknown;
+  image?: unknown;
+  requireInteraction?: unknown;
   /** Phase 6 Task 3 — per-category opt-in check. */
   category?: unknown;
 }
@@ -365,6 +369,8 @@ export async function POST(event: APIEvent): Promise<Response> {
   const tag = typeof body.tag === "string" ? body.tag : "default";
   const icon = typeof body.icon === "string" ? body.icon : "/favicon.ico";
   const badge = typeof body.badge === "string" ? body.badge : "/favicon.ico";
+  const image = typeof body.image === "string" ? body.image : undefined;
+  const requireInteraction = body.requireInteraction === true;
 
   // Phase 6 Task 3 — validate the category field. Unknown values are
   // treated as "no category" (the send proceeds unconditionally) so a
@@ -463,6 +469,8 @@ export async function POST(event: APIEvent): Promise<Response> {
     tag,
     icon,
     badge,
+    image,
+    requireInteraction,
   });
 
   let sent = 0;

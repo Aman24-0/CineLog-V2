@@ -907,12 +907,20 @@ self.addEventListener("push", (event) => {
   }
 
   const title = data.title || "CineLog";
+  const rawUrl = typeof data.url === "string" ? data.url : "/";
+  let targetUrl = "/";
+  try {
+    targetUrl = new URL(rawUrl, self.location.origin).href;
+  } catch {
+    // Keep the notification usable even if an old/malformed payload exists.
+  }
   const options = {
     body: data.body || "",
     icon: data.icon || "/favicon.ico",
+    image: data.image || undefined,
     badge: data.badge || "/favicon.ico",
     tag: data.tag || "default",
-    data: data.url ? { url: data.url } : undefined,
+    data: { url: targetUrl },
     // requireInteraction: when true, the notification stays visible
     // until the user dismisses it (instead of auto-hiding after a
     // few seconds). This is appropriate for high-priority reminders
@@ -933,7 +941,14 @@ self.addEventListener("push", (event) => {
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
 
-  const url = (event.notification.data && event.notification.data.url) || "/";
+  const rawUrl =
+    (event.notification.data && event.notification.data.url) || "/";
+  let url = "/";
+  try {
+    url = new URL(rawUrl, self.location.origin).href;
+  } catch {
+    // Keep the fallback route for malformed legacy notification data.
+  }
 
   event.waitUntil(
     self.clients

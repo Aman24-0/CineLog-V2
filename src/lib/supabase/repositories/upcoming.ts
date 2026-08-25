@@ -1170,6 +1170,63 @@ export async function scheduleReminder(
 }
 
 /**
+ * Repair a legacy movie reminder without creating another feed row.
+ *
+ * Older clients incorrectly applied the episode lead preference to movies,
+ * so some existing rows can be one day early and can also lack poster data.
+ * This updates only the reminder/feed metadata for the matching title; vault
+ * and other tracking data are never touched.
+ */
+export async function syncMovieReminder(
+  userId: string,
+  tmdbId: string | number,
+  releaseDate: string,
+  titleName: string,
+  posterPath: string | null,
+  resetNotification = false
+): Promise<boolean> {
+  try {
+    const supabase = getClient();
+    const idStr = String(tmdbId);
+    const reminderUpdate: Record<string, unknown> = {
+      release_date: releaseDate,
+      title_name: titleName,
+      poster_path: posterPath
+    };
+    if (resetNotification) reminderUpdate.notification_sent = false;
+
+    const { data, error } = await supabase
+      .from("user_reminders")
+      .update(reminderUpdate)
+      .eq("user_id", userId)
+      .eq("tmdb_id", idStr)
+      .eq("title_type", "movie")
+      .select("id")
+      .limit(1)
+      .maybeSingle();
+    if (error || !data) return false;
+
+    // Keep the existing in-app reminder history accurate without inserting
+    // duplicate rows. Read/unread state is deliberately preserved.
+    await supabase
+      .from("notifications")
+      .update({
+        title: `Reminder set: ${titleName}`,
+        message: `We'll notify you when it releases on ${releaseDate}.`,
+        scheduled_for: new Date(`${releaseDate}T09:00:00Z`).toISOString()
+      })
+      .eq("user_id", userId)
+      .eq("type", "reminder")
+      .eq("related_title_id", idStr)
+      .eq("related_title_type", "movie");
+
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Cancel a release-day reminder. Removes the user_reminders row.
  * Does NOT remove already-inserted notifications (the user might want
  * the history).
@@ -1221,7 +1278,8 @@ export async function getDueReminders(
 ): Promise<UserReminderRow[]> {
   try {
     const supabase = getClient();
-    const today = new Date().toISOString().slice(0, 10);
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
     const { data, error } = await supabase
       .from("user_reminders")
       .select("*")

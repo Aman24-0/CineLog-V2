@@ -8,7 +8,11 @@
 // the Phase 1 audit fix.
 
 import { describe, it, expect } from "vitest";
-import { applyLeadTime } from "../useNotifications";
+import {
+  applyLeadTime,
+  buildReminderNotification,
+  reminderDateForTitle
+} from "../useNotifications";
 
 describe("applyLeadTime", () => {
   it("returns the input unchanged for lead = 0", () => {
@@ -71,5 +75,46 @@ describe("applyLeadTime", () => {
   it("handles fractional lead minutes by flooring", () => {
     // 1440.7 minutes floors to 1440 = 1 day
     expect(applyLeadTime("2026-08-15", 1440.7)).toBe("2026-08-14");
+  });
+
+  it("keeps movie reminders on the actual release date", () => {
+    expect(reminderDateForTitle("2026-08-26", "movie", 60)).toBe(
+      "2026-08-26"
+    );
+  });
+
+  it("continues applying the episode lead preference to series reminders", () => {
+    expect(reminderDateForTitle("2026-08-26", "series", 60)).toBe(
+      "2026-08-25"
+    );
+  });
+
+  it("builds a title-aware movie notification with poster and detail URL", () => {
+    const payload = buildReminderNotification({
+      id: "reminder-1",
+      tmdb_id: "12345",
+      title_type: "movie",
+      title_name: "Toxic: A Fairy Tale for Grown-ups",
+      poster_path: "/toxic-poster.jpg"
+    });
+
+    expect(payload.title).toBe("Toxic: A Fairy Tale for Grown-ups is out today");
+    expect(payload.body).toContain("Tap to open");
+    expect(payload.url).toBe("/movie/12345");
+    expect(payload.image).toContain("/toxic-poster.jpg");
+    expect(payload.icon).toBe(payload.image);
+    expect(payload.requireInteraction).toBe(true);
+  });
+
+  it("maps the stored series type to the canonical TV detail URL", () => {
+    expect(
+      buildReminderNotification({
+        id: "reminder-2",
+        tmdb_id: "987",
+        title_type: "series",
+        title_name: "A Series",
+        poster_path: null
+      }).url
+    ).toBe("/tv/987");
   });
 });

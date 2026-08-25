@@ -81,6 +81,8 @@ interface SendRequestBody {
   tag?: unknown;
   icon?: unknown;
   badge?: unknown;
+  image?: unknown;
+  requireInteraction?: unknown;
   accessToken?: unknown;
 }
 
@@ -297,6 +299,8 @@ export async function POST(event: APIEvent): Promise<Response> {
   const tag = typeof body.tag === "string" ? body.tag : "default";
   const icon = typeof body.icon === "string" ? body.icon : "/favicon.ico";
   const badge = typeof body.badge === "string" ? body.badge : "/favicon.ico";
+  const image = typeof body.image === "string" ? body.image : undefined;
+  const requireInteraction = body.requireInteraction === true;
 
   // ─── Resolve the access token ───────────────────────────────────
   // Same pattern as /api/account/delete: the browser client stores
@@ -446,6 +450,8 @@ export async function POST(event: APIEvent): Promise<Response> {
     tag,
     icon,
     badge,
+    image,
+    requireInteraction,
   });
 
   let sent = 0;

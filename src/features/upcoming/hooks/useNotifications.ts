@@ -43,6 +43,8 @@ import {
   notifPrefs
 } from "~/core/preferences/notifications";
 import { getBrowserSession } from "~/lib/supabase/session";
+import { tmdbImage } from "~/core/tmdb/tmdb";
+import { relatedTitleDetailPath } from "~/shared/utils/titleRoutes";
 import {
   renderEmailTemplate,
   type NotificationType
@@ -102,6 +104,106 @@ export function applyLeadTime(releaseDate: string, leadMinutes: number): string 
 }
 
 /**
+ * Movie reminders are release-day reminders. The preference is named
+ * `episodeReminderLead`, so it applies to TV episode reminders only; applying
+ * it to movies incorrectly moves a 26 Aug movie reminder to 25 Aug.
+ */
+export function reminderDateForTitle(
+  releaseDate: string,
+  titleType: "movie" | "series",
+  leadMinutes: number
+): string {
+  return titleType === "series"
+    ? applyLeadTime(releaseDate, leadMinutes)
+    : releaseDate;
+}
+
+export interface ReminderNotificationPayload {
+  title: string;
+  body: string;
+  url: string;
+  tag: string;
+  icon: string;
+  image?: string;
+  badge: string;
+  requireInteraction: boolean;
+}
+
+/** Return whether this tab has a subscription that will receive the push. */
+async function hasActivePushSubscription(): Promise<boolean> {
+  if (
+    typeof window === "undefined" ||
+    typeof navigator === "undefined" ||
+    !("serviceWorker" in navigator) ||
+    !("PushManager" in window)
+  ) {
+    return false;
+  }
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    return Boolean(await registration.pushManager.getSubscription());
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Show the foreground notification and make its click actionable as well.
+ * Web Push clicks are handled by public/sw.js; this covers the Notification
+ * API path when the app is already open in a browser tab.
+ */
+function showBrowserReminderNotification(
+  payload: ReminderNotificationPayload
+): void {
+  try {
+    const notificationOptions = {
+      body: payload.body,
+      icon: payload.icon,
+      image: payload.image,
+      badge: payload.badge,
+      tag: payload.tag,
+      data: { url: payload.url },
+      requireInteraction: payload.requireInteraction
+    } as NotificationOptions & { image?: string };
+    const notification = new Notification(payload.title, notificationOptions);
+    notification.onclick = () => {
+      window.focus();
+      window.location.assign(payload.url);
+      notification.close();
+    };
+  } catch {
+    // Notification construction can throw on some platforms. Web Push is
+    // still attempted by the caller, so foreground failure is non-fatal.
+  }
+}
+
+/** Build one title-aware payload for browser and Web Push delivery. */
+export function buildReminderNotification(
+  reminder: Pick<
+    UserReminderRow,
+    "id" | "tmdb_id" | "title_type" | "title_name" | "poster_path"
+  >
+): ReminderNotificationPayload {
+  const name = reminder.title_name.trim() || "Tracked title";
+  const poster = reminder.poster_path
+    ? reminder.poster_path.startsWith("http")
+      ? reminder.poster_path
+      : tmdbImage(reminder.poster_path, "w342")
+    : undefined;
+
+  return {
+    title: `${name} is out today`,
+    body: "Tap to open the title in CineLog.",
+    url: relatedTitleDetailPath(reminder.tmdb_id, reminder.title_type),
+    tag: `reminder-${reminder.id}`,
+    icon: poster ?? "/favicon.ico",
+    image: poster,
+    badge: "/favicon.ico",
+    requireInteraction: true
+  };
+}
+
+/**
  * Send a Web Push notification to the user's devices via the
  * /api/push/send server endpoint.
  *
@@ -128,7 +230,9 @@ async function sendPushNotification(
   title: string,
   body: string,
   url?: string,
-  tag?: string
+  tag?: string,
+  image?: string,
+  requireInteraction = false
 ): Promise<{ sent: number; failed: number; suppressed?: boolean }> {
   // The browser stores Supabase sessions in localStorage (not cookies),
   // so the server can't read the access_token from the Cookie header.
@@ -141,7 +245,17 @@ async function sendPushNotification(
   const response = await fetch("/api/push/send", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ userId, title, body, url, tag, accessToken }),
+    body: JSON.stringify({
+      userId,
+      title,
+      body,
+      url,
+      tag,
+      icon: image,
+      image,
+      requireInteraction,
+      accessToken
+    }),
   });
 
   if (!response.ok) {
@@ -347,6 +461,7 @@ export function useNotifications() {
     const inQuiet = isInQuietHours();
     const canShowToast =
       "Notification" in window && Notification.permission === "granted";
+    const hasPushSubscription = await hasActivePushSubscription();
 
     // ─── Email fallback gate (Phase 2 — Task 15) ─────────────────
     // The email fallback fires when push delivery fails OR the user
@@ -363,23 +478,18 @@ export function useNotifications() {
     const recipientEmail = user()?.email ?? "";
 
     for (const r of due) {
-      const notifTitle = "CineLog — Release Day";
-      const notifBody = `Your tracked title is out today. Tap to open.`;
+      const reminderNotification = buildReminderNotification(r);
+      const notifTitle = reminderNotification.title;
+      const notifBody = reminderNotification.body;
       let pushSucceeded = false;
 
       // ─── 1. In-browser toast (visible only if the tab is open) ──
-      if (canShowToast && !inQuiet) {
-        try {
-          new Notification(notifTitle, {
-            body: notifBody,
-            icon: "/favicon.ico",
-            tag: `reminder-${r.id}`
-          });
-        } catch {
-          // Notification construction can throw on some platforms
-          // (e.g. service worker scope issues). Don't abort the whole
-          // loop — the push send may still succeed.
-        }
+      // A subscribed device receives the service-worker push below. Do not
+      // also construct a foreground Notification or Android will show the
+      // same reminder twice. The foreground path is a fallback for users
+      // who granted browser permission but have no push subscription.
+      if (canShowToast && !inQuiet && !hasPushSubscription) {
+        showBrowserReminderNotification(reminderNotification);
       }
 
       // ─── 2. Web Push (visible even if the tab is closed) ───────
@@ -397,8 +507,10 @@ export function useNotifications() {
           id,
           notifTitle,
           notifBody,
-          `/upcoming`,
-          `reminder-${r.id}`
+          reminderNotification.url,
+          reminderNotification.tag,
+          reminderNotification.image,
+          reminderNotification.requireInteraction
         );
         pushSucceeded = pushResult.sent > 0;
       } catch (err) {
@@ -486,21 +598,17 @@ export function useNotifications() {
   // notification permission.
   //
   // EPISODE REMINDER LEAD TIME (Phase 1 audit fix):
-  //   The user can configure `episodeReminderLead` (0, 5, 15, 30, 60, or
-  //   1440 minutes) in the notification preferences. We subtract the
-  //   lead time from the release date so the reminder fires BEFORE the
-  //   actual release, not on the day-of.
+  //   `episodeReminderLead` applies to series/episode reminders. Movie
+  //   reminders are release-day reminders and retain the title's actual
+  //   release date; applying an episode lead to movies caused a 26 Aug
+  //   movie to be stored as 25 Aug.
   //
   //   The `user_reminders.release_date` column is a DATE (not TIMESTAMPTZ),
-  //   so sub-day precision is lost. See `applyLeadTime` for the exact
-  //   semantics — the short version: any lead > 0 shifts the stored
-  //   date back by at least 1 day, so the reminder fires the evening
-  //   before release (or earlier for multi-day leads).
+  //   so sub-day precision is lost for series reminders. See
+  //   `reminderDateForTitle` for the exact semantics.
   //
-  //   If the shifted reminder time is already in the past, we still
-  //   schedule it — `getDueReminders` will pick it up immediately on
-  //   the next page load (the user gets the notification right away,
-  //   which is the right behavior for a release that's about to happen).
+  //   If a shifted series reminder date is already in the past, we still
+  //   schedule it — `getDueReminders` will pick it up on the next page load.
   const scheduleReminder = async (
     tmdbId: string | number,
     titleType: "movie" | "series",
@@ -511,17 +619,14 @@ export function useNotifications() {
     const id = uid();
     if (!id) return false;
 
-    // ─── Apply the lead time ──────────────────────────────────────
-    // Parse the release date as a local-midnight Date, subtract the
-    // lead time, then convert back to YYYY-MM-DD for storage.
-    //
-    // We use local time (not UTC) because the user thinks in local
-    // time — "release day" to them means "8 PM my time on Friday",
-    // not "midnight UTC". Using local-midnight as the basis means a
-    // 60-minute lead fires at 23:00 the day before in local time,
-    // which still rounds to the previous calendar day.
+    // Apply the episode lead only to series reminders. Movie reminders
+    // retain the actual release date shown by TMDB and the Upcoming card.
     const leadMinutes = notifPrefs().episodeReminderLead ?? 60;
-    const shiftedReleaseDate = applyLeadTime(releaseDate, leadMinutes);
+    const shiftedReleaseDate = reminderDateForTitle(
+      releaseDate,
+      titleType,
+      leadMinutes
+    );
 
     const ok = await repoScheduleReminder(
       id,
@@ -677,6 +782,7 @@ export function useNotifications() {
       typeof window !== "undefined" &&
       "Notification" in window &&
       Notification.permission === "granted";
+    const hasPushSubscription = await hasActivePushSubscription();
     const prefs = notifPrefs();
     const emailFallbackEnabled = prefs.emailEnabled;
     const recipientEmail = user()?.email ?? "";
@@ -686,20 +792,13 @@ export function useNotifications() {
     let suppressed = 0;
 
     for (const r of unsent) {
-      const notifTitle = "CineLog — Release Day";
-      const notifBody = `Your tracked title is out today. Tap to open.`;
+      const reminderNotification = buildReminderNotification(r);
+      const notifTitle = reminderNotification.title;
+      const notifBody = reminderNotification.body;
       let pushSucceeded = false;
 
-      if (canShowToast && !inQuiet) {
-        try {
-          new Notification(notifTitle, {
-            body: notifBody,
-            icon: "/favicon.ico",
-            tag: `reminder-${r.id}`
-          });
-        } catch {
-          // ignore — push may still succeed
-        }
+      if (canShowToast && !inQuiet && !hasPushSubscription) {
+        showBrowserReminderNotification(reminderNotification);
       }
 
       try {
@@ -707,8 +806,10 @@ export function useNotifications() {
           id,
           notifTitle,
           notifBody,
-          `/upcoming`,
-          `reminder-${r.id}`
+          reminderNotification.url,
+          reminderNotification.tag,
+          reminderNotification.image,
+          reminderNotification.requireInteraction
         );
         pushSucceeded = pushResult.sent > 0;
       } catch (err) {
@@ -783,7 +884,7 @@ export function useNotifications() {
 
   onMount(() => {
     if (isSignedIn()) {
-      void refresh().then(() => void fireDueBrowserNotifications());
+      void refresh();
     }
   });
 
@@ -802,6 +903,7 @@ export function useNotifications() {
     snooze,
     dismiss,
     notifyAll,
-    requestPermission
+    requestPermission,
+    fireDueBrowserNotifications
   };
 }

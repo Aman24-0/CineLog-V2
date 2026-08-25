@@ -58,8 +58,12 @@ import { createVaultItemInSupabase } from "~/features/watchlist/vaultAdapter";
 import { getCurrentUid } from "~/shared/hooks/useAuth";
 import { cacheMetadataEntries, buildCacheKey } from "~/shared/utils/tmdbCache";
 import { useProfileData } from "~/features/profile/useProfileData";
+import { syncMovieReminder } from "~/lib/supabase/repositories/upcoming";
 import type { TMDBTitle, WatchlistItem } from "~/shared/types";
-import { titleDetailPath } from "~/shared/utils/titleRoutes";
+import {
+  relatedTitleDetailPath,
+  titleDetailPath
+} from "~/shared/utils/titleRoutes";
 
 import { useUpcomingData } from "./hooks/useUpcomingData";
 import { useNotifications } from "./hooks/useNotifications";
@@ -85,13 +89,16 @@ import TrailerModal from "./components/TrailerModal";
 // this as soon as useProfileData resolves.
 const DEFAULT_REGION = "US";
 
+function localDateString(date = new Date()): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
 function todayStr(): string {
-  return new Date().toISOString().slice(0, 10);
+  return localDateString();
 }
 function addDays(base: string, days: number): string {
-  const d = new Date(base + "T00:00:00");
+  const d = new Date(`${base}T00:00:00`);
   d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
+  return localDateString(d);
 }
 
 const UpcomingPage: Component = () => {
@@ -210,6 +217,71 @@ const UpcomingPage: Component = () => {
     },
     notif.reminders
   );
+
+  // Older builds applied the episode lead preference to movie reminders.
+  // Reconcile those rows against the current Upcoming metadata before the
+  // due-reminder check runs, so an existing 25 Aug row for a 26 Aug movie is
+  // moved to 26 Aug and retains its title/poster metadata.
+  const [remindersReconciled, setRemindersReconciled] = createSignal(false);
+  createEffect(() => {
+    if (
+      !isSignedIn() ||
+      remindersReconciled() ||
+      data.loading() ||
+      notif.loading()
+    ) {
+      return;
+    }
+
+    const titles = data.titles();
+    const reminders = notif.reminders();
+    if (titles.length === 0 || reminders.length === 0) return;
+
+    setRemindersReconciled(true);
+    void (async () => {
+      const userId = getCurrentUid();
+      if (!userId) return;
+
+      const titlesById = new Map(
+        titles.map((title) => [String(title.id), title])
+      );
+      let changed = false;
+      let failed = false;
+
+      for (const reminder of reminders) {
+        if (reminder.title_type !== "movie") continue;
+        const title = titlesById.get(String(reminder.tmdb_id));
+        const releaseDate = title?.release_date;
+        if (!title || !releaseDate) continue;
+
+        const titleName = title.title || title.name || "Untitled";
+        const posterPath = title.poster_path ?? null;
+        const dateChanged = reminder.release_date !== releaseDate;
+        const metadataChanged =
+          reminder.title_name !== titleName ||
+          reminder.poster_path !== posterPath;
+        if (!dateChanged && !metadataChanged) continue;
+
+        const ok = await syncMovieReminder(
+          userId,
+          reminder.tmdb_id,
+          releaseDate,
+          titleName,
+          posterPath,
+          dateChanged
+        );
+        if (!ok) failed = true;
+        else changed = true;
+      }
+
+      // Never emit a due notification from stale local data. A successful
+      // reconciliation refreshes both reminder rows and the in-app feed
+      // before the due query is run.
+      if (failed) return;
+      if (changed) await notif.refresh();
+      await notif.fireDueBrowserNotifications();
+    })();
+  });
 
   // ── Vault membership ────────────────────────────────────────────
   // Defensive: useUserLibrary might not be available on first render.
@@ -703,9 +775,9 @@ const UpcomingPage: Component = () => {
         onSnooze={notif.snooze}
         onDismiss={notif.dismiss}
         onOpenTitle={(relatedId, relatedType) => {
-          // Navigate to the canonical deep-link route /{type}/{id}.
-          // The Details modal opens automatically from there.
-          navigate(`/${relatedType ?? "movie"}/${relatedId}`);
+          // Reminder metadata uses `series`; the router uses `tv`.
+          // The helper also URL-encodes the id and handles legacy episode rows.
+          navigate(relatedTitleDetailPath(relatedId, relatedType));
         }}
       />
 

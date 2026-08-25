@@ -52,7 +52,17 @@ export interface UpcomingGroup {
   titles: TMDBTitle[];
 }
 
-const today = () => new Date().toISOString().slice(0, 10);
+function localDateString(date = new Date()): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function addLocalDays(base: string, days: number): string {
+  const date = new Date(`${base}T00:00:00`);
+  date.setDate(date.getDate() + days);
+  return localDateString(date);
+}
+
+const today = () => localDateString();
 
 function isSameDate(d1: string, d2: string): boolean {
   return d1 === d2;
@@ -65,7 +75,7 @@ function startOfWeek(): string {
   const monday = new Date(now);
   monday.setDate(now.getDate() - day + 1);
   monday.setHours(0, 0, 0, 0);
-  return monday.toISOString().slice(0, 10);
+  return localDateString(monday);
 }
 
 export function useUpcomingData(
@@ -128,15 +138,9 @@ export function useUpcomingData(
   const groups = createMemo<UpcomingGroup[]>(() => {
     const list = titles();
     const todayStr = today();
-    const tomorrowStr = new Date(Date.now() + 86400000)
-      .toISOString()
-      .slice(0, 10);
+    const tomorrowStr = addLocalDays(todayStr, 1);
     const weekStart = startOfWeek();
-    const weekEnd = new Date(
-      new Date(weekStart + "T00:00:00").getTime() + 6 * 86400000
-    )
-      .toISOString()
-      .slice(0, 10);
+    const weekEnd = addLocalDays(weekStart, 6);
 
     const buckets: Record<UpcomingGroup["key"], TMDBTitle[]> = {
       today: [],
