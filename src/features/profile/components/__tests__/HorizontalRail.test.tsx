@@ -20,10 +20,10 @@ describe("HorizontalRail", () => {
     const scroll = container.querySelector(".horizontal-rail-scroll");
     expect(scroll).not.toBeNull();
     expect(scroll?.getAttribute("role")).toBe("list");
-    expect(container.querySelectorAll(".horizontal-rail-item")).toHaveLength(3);
-    expect(
-      container.querySelectorAll('[data-testid="rail-card"]')
-    ).toHaveLength(3);
+    expect(scroll?.children).toHaveLength(3);
+    expect(scroll?.querySelectorAll('[data-testid="rail-card"]')).toHaveLength(
+      3
+    );
     expect(container.querySelector(".empty-rail-state")).toBeNull();
   });
 

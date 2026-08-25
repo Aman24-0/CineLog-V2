@@ -187,11 +187,7 @@ const HorizontalRail = <T,>(props: HorizontalRailProps<T>): JSX.Element => {
             tabindex={0}
             aria-label={`${props.title} items`}
           >
-            <For each={items()}>
-              {(item) => (
-                <div class="horizontal-rail-item">{props.renderItem(item)}</div>
-              )}
-            </For>
+            <For each={items()}>{(item) => props.renderItem(item)}</For>
           </div>
         </Show>
 
