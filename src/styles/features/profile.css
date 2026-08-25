@@ -4746,8 +4746,22 @@
 }
 
 @media (max-width: 768px) {
+  .horizontal-rail-scroll {
+    padding-inline: 2.6rem;
+  }
+
   .horizontal-rail-nav {
-    display: none !important;
+    display: inline-flex;
+    width: 2.15rem;
+    height: 2.15rem;
+  }
+
+  .horizontal-rail-nav-left {
+    left: 0.15rem;
+  }
+
+  .horizontal-rail-nav-right {
+    right: 0.15rem;
   }
 }
 

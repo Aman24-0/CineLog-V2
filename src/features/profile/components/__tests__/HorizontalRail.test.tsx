@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render } from "@solidjs/testing-library";
 import { MemoryRouter, Route } from "@solidjs/router";
 import HorizontalRail from "../HorizontalRail";
@@ -91,6 +91,38 @@ describe("HorizontalRail", () => {
     });
     fireEvent(scroll, edgeEvent);
     expect(edgeEvent.defaultPrevented).toBe(false);
+  });
+
+  it("uses the visible right arrow to advance an overflowing rail", () => {
+    const { container } = render(() => (
+      <HorizontalRail
+        title="Favorites"
+        items={["One", "Two", "Three"]}
+        renderItem={(title) => <article>{title}</article>}
+      />
+    ));
+
+    const scroll = container.querySelector(
+      ".horizontal-rail-scroll"
+    ) as HTMLDivElement;
+    Object.defineProperties(scroll, {
+      scrollWidth: { configurable: true, value: 900 },
+      clientWidth: { configurable: true, value: 300 },
+      scrollLeft: { configurable: true, writable: true, value: 0 }
+    });
+    const scrollBy = vi.fn();
+    scroll.scrollBy = scrollBy;
+    fireEvent.scroll(scroll);
+
+    const rightArrow = container.querySelector(
+      ".horizontal-rail-nav-right"
+    ) as HTMLButtonElement;
+    expect(rightArrow.classList.contains("is-visible")).toBe(true);
+    fireEvent.click(rightArrow);
+    expect(scrollBy).toHaveBeenCalledWith({
+      left: 240,
+      behavior: "smooth"
+    });
   });
 
   it("drags horizontally without claiming vertical-intent gestures", () => {
