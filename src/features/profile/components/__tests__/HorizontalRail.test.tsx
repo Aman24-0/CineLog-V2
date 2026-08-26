@@ -103,13 +103,20 @@ describe("HorizontalRail", () => {
   });
 
   it("defines a native non-snapping rail contract", () => {
+    const stackBlock = profileCss.match(
+      /\.profile-rails-stack \{([\s\S]*?)\n\}/
+    )?.[1];
     const railBlock = profileCss.match(
       /\.horizontal-rail-scroll \{([\s\S]*?)\n\}/
     )?.[1];
     const childBlock = profileCss.match(
       /\.horizontal-rail-scroll > \* \{([\s\S]*?)\n\}/
     )?.[1];
+    const favoritesCardBlock = profileCss.match(
+      /\.profile-favorites-rail-card \{([\s\S]*?)\n\}/
+    )?.[1];
 
+    expect(stackBlock).toContain("grid-template-columns: minmax(0, 1fr);");
     expect(railBlock).toContain("display: flex;");
     expect(railBlock).toContain("flex-direction: row;");
     expect(railBlock).toContain("flex-wrap: nowrap;");
@@ -121,6 +128,9 @@ describe("HorizontalRail", () => {
     expect(childBlock).toContain("flex: 0 0 auto !important;");
     expect(childBlock).toContain("flex-shrink: 0 !important;");
     expect(childBlock).not.toContain("scroll-snap");
+    expect(favoritesCardBlock).toContain("touch-action: pan-x pan-y;");
+    expect(profileCss).toContain(".profile-favorites-rail-card > * {");
+    expect(profileCss).toContain("pointer-events: none;");
   });
 
   it("uses the desktop rail arrow to advance an overflowing track", () => {
@@ -143,6 +153,8 @@ describe("HorizontalRail", () => {
     const scrollBy = vi.fn();
     scroll.scrollBy = scrollBy;
     fireEvent.scroll(scroll);
+
+    expect(container.querySelector(".horizontal-rail-nav-left")).toBeNull();
 
     const rightArrow = container.querySelector(
       ".horizontal-rail-nav-right"

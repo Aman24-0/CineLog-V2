@@ -28,7 +28,6 @@ export interface HorizontalRailProps<T> {
 
 const HorizontalRail = <T,>(props: HorizontalRailProps<T>): JSX.Element => {
   let scrollRef: HTMLDivElement | undefined;
-  const [showLeftArrow, setShowLeftArrow] = createSignal(false);
   const [showRightArrow, setShowRightArrow] = createSignal(false);
   // Pointer drag is intentionally limited to desktop mouse input. Mobile touch
   // scrolling is owned by the browser's native overflow container.
@@ -49,18 +48,14 @@ const HorizontalRail = <T,>(props: HorizontalRailProps<T>): JSX.Element => {
       0,
       element.scrollWidth - element.clientWidth
     );
-    setShowLeftArrow(element.scrollLeft > 4);
     setShowRightArrow(element.scrollLeft < maxScrollLeft - 4);
   };
 
-  const scroll = (direction: "left" | "right") => {
+  const scrollRight = () => {
     const element = scrollRef;
     if (!element) return;
     const amount = Math.max(element.clientWidth * 0.8, 240);
-    element.scrollBy({
-      left: direction === "left" ? -amount : amount,
-      behavior: "smooth"
-    });
+    element.scrollBy({ left: amount, behavior: "smooth" });
   };
 
   // Desktop mouse dragging is kept separate from touch handling so a
@@ -161,7 +156,6 @@ const HorizontalRail = <T,>(props: HorizontalRailProps<T>): JSX.Element => {
       if (hasItems) {
         checkScrollPosition();
       } else {
-        setShowLeftArrow(false);
         setShowRightArrow(false);
       }
     });
@@ -259,26 +253,11 @@ const HorizontalRail = <T,>(props: HorizontalRailProps<T>): JSX.Element => {
 
         <button
           type="button"
-          class="horizontal-rail-nav horizontal-rail-nav-left focus-ring"
-          classList={{
-            "is-visible": props.showNavigation !== false && showLeftArrow()
-          }}
-          onClick={() => scroll("left")}
-          aria-label={`Scroll ${props.title} left`}
-          tabindex={props.showNavigation !== false && showLeftArrow() ? 0 : -1}
-        >
-          <span class="material-symbols-outlined" aria-hidden="true">
-            chevron_left
-          </span>
-        </button>
-
-        <button
-          type="button"
           class="horizontal-rail-nav horizontal-rail-nav-right focus-ring"
           classList={{
             "is-visible": props.showNavigation !== false && showRightArrow()
           }}
-          onClick={() => scroll("right")}
+          onClick={scrollRight}
           aria-label={`Scroll ${props.title} right`}
           tabindex={props.showNavigation !== false && showRightArrow() ? 0 : -1}
         >

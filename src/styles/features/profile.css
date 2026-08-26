@@ -2694,26 +2694,11 @@
   flex-shrink: 0;
 }
 
-.profile-lists-preview-v3-rail {
-  display: flex;
-  gap: var(--sp-2, 0.5rem);
-  overflow-x: auto;
-  scroll-snap-type: x mandatory;
-  -webkit-overflow-scrolling: touch;
-  padding-bottom: 0.25rem;
-  scrollbar-width: none;
-}
-
-.profile-lists-preview-v3-rail::-webkit-scrollbar {
-  display: none;
-}
-
 .profile-lists-preview-v3-card {
   position: relative;
   width: 140px;
   height: 90px;
   flex-shrink: 0;
-  scroll-snap-align: start;
   background: transparent;
   border: 1px solid var(--hairline, rgba(255, 255, 255, 0.08));
   border-radius: var(--radius-md, 0.75rem);
@@ -4115,6 +4100,7 @@
 /* ─── Profile Horizontal Rails ─────────────────────────────────────────── */
 .profile-rails-stack {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 1.75rem;
   min-width: 0;
   max-width: 100%;
@@ -4251,10 +4237,6 @@
   transform: translateY(-50%) scale(1.06);
 }
 
-.horizontal-rail-nav-left {
-  left: -0.65rem;
-}
-
 .horizontal-rail-nav-right {
   right: -0.65rem;
 }
@@ -4275,7 +4257,15 @@
   cursor: pointer;
   text-align: left;
   font: inherit;
+  /* Keep a swipe that starts on the interactive card native to the rail. */
+  touch-action: pan-x pan-y;
   transition: transform 0.2s ease;
+}
+
+.profile-favorites-rail-card > * {
+  /* The button remains the hit target; poster/meta descendants must not
+     create a separate gesture target on Android. */
+  pointer-events: none;
 }
 
 .profile-favorites-rail-card:hover {
