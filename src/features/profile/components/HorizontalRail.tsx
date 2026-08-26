@@ -86,10 +86,7 @@ const HorizontalRail = <T,>(props: HorizontalRailProps<T>): JSX.Element => {
 
   const handlePointerMove = (event: PointerEvent) => {
     const element = scrollRef;
-    if (
-      !element ||
-      pointerId !== event.pointerId
-    ) {
+    if (!element || pointerId !== event.pointerId) {
       return;
     }
 

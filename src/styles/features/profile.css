@@ -3416,6 +3416,9 @@
 
 .profile-page-region .profile-content-v3 > :not(.profile-v3-banner-section) {
   width: auto;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
   margin-left: clamp(1rem, 5vw, 4.5rem);
   margin-right: clamp(1rem, 5vw, 4.5rem);
 }
@@ -4114,10 +4117,14 @@
   display: grid;
   gap: 1.75rem;
   min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .horizontal-rail-section {
   min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .horizontal-rail-section-header {
@@ -4161,24 +4168,28 @@
 .horizontal-rail-container {
   position: relative;
   width: 100%;
+  max-width: 100%;
   min-width: 0;
+  box-sizing: border-box;
 }
 
 /* Keep this track structurally identical to Discover’s native carousel.
    The browser owns touch scrolling; JS only adds desktop wheel handling. */
 .horizontal-rail-scroll {
   display: flex;
+  flex-direction: row;
   flex-wrap: nowrap;
+  width: 100%;
+  max-width: 100%;
   min-width: 0;
+  box-sizing: border-box;
   gap: 1rem;
   padding: 0.5rem 0.5rem 1rem;
   overflow-x: auto;
   overflow-y: hidden;
-  /* Allow both gesture directions initially. The rail takes ownership only
-     after horizontal intent is clear; vertical intent stays with the page.
-     The TouchEvent fallback covers browsers that do not start native
-     overflow scrolling from a card surface. */
-  touch-action: pan-x pan-y;
+  /* Keep vertical page scrolling native; horizontal intent is handled by
+     the rail's real overflow container and its pointer/touch fallback. */
+  touch-action: pan-y;
   overscroll-behavior-x: contain;
   scroll-snap-type: x proximity;
   scrollbar-width: none;
@@ -4668,9 +4679,16 @@
 /* ─── Scroll ownership and rail empty states ────────────────────────────── */
 .profile-page-region,
 .profile-page-region .profile-layout-v3,
-.profile-page-region .profile-content-v3 {
+.profile-page-region .profile-content-v3,
+.profile-page-region .profile-rails-stack,
+.profile-page-region .profile-lists-preview-v3,
+.profile-page-region .profile-recent-activity-section,
+.profile-page-region .profile-achievements-preview-v3 {
   height: auto;
+  min-width: 0;
+  max-width: 100%;
   min-height: 0;
+  box-sizing: border-box;
   overflow: visible;
 }
 
