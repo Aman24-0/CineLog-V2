@@ -4869,6 +4869,14 @@
   border-top: 1px solid var(--hairline, rgb(255 255 255 / 0.14));
 }
 
+@media (max-width: 768px) {
+  /* Keep the overflow affordance available on phones as a reliable fallback
+     for touch surfaces and as an accessible alternative to horizontal drag. */
+  .horizontal-rail-nav {
+    display: inline-flex;
+  }
+}
+
 @media (max-width: 639px) {
   .horizontal-rail-section-link {
     gap: 0.4rem;

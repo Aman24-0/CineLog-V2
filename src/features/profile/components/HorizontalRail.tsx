@@ -73,7 +73,6 @@ const HorizontalRail = <T,>(props: HorizontalRailProps<T>): JSX.Element => {
     if (
       !element ||
       element.scrollWidth <= element.clientWidth ||
-      event.pointerType === "touch" ||
       (event.pointerType === "mouse" && event.button !== 0)
     ) {
       return;
@@ -89,8 +88,7 @@ const HorizontalRail = <T,>(props: HorizontalRailProps<T>): JSX.Element => {
     const element = scrollRef;
     if (
       !element ||
-      pointerId !== event.pointerId ||
-      event.pointerType === "touch"
+      pointerId !== event.pointerId
     ) {
       return;
     }
@@ -123,7 +121,12 @@ const HorizontalRail = <T,>(props: HorizontalRailProps<T>): JSX.Element => {
   const handleTouchStart = (event: TouchEvent) => {
     const element = scrollRef;
     const touch = event.touches[0];
-    if (!element || !touch || element.scrollWidth <= element.clientWidth) {
+    if (
+      !element ||
+      !touch ||
+      pointerId !== null ||
+      element.scrollWidth <= element.clientWidth
+    ) {
       return;
     }
     touchActive = true;
@@ -136,7 +139,7 @@ const HorizontalRail = <T,>(props: HorizontalRailProps<T>): JSX.Element => {
   const handleTouchMove = (event: TouchEvent) => {
     const element = scrollRef;
     const touch = event.touches[0];
-    if (!element || !touch || !touchActive) return;
+    if (!element || !touch || !touchActive || pointerId !== null) return;
 
     const deltaX = touch.clientX - touchStartX;
     const deltaY = touch.clientY - touchStartY;

@@ -125,6 +125,44 @@ describe("HorizontalRail", () => {
     expect(scroll.scrollLeft).toBe(420);
   });
 
+  it("moves an overflowing rail from a touch PointerEvent gesture", () => {
+    const { container } = render(() => (
+      <HorizontalRail
+        title="Favorites"
+        items={["One", "Two", "Three"]}
+        renderItem={(title) => <article>{title}</article>}
+      />
+    ));
+
+    const scroll = container.querySelector(
+      ".horizontal-rail-scroll"
+    ) as HTMLDivElement;
+    Object.defineProperties(scroll, {
+      scrollWidth: { configurable: true, value: 900 },
+      clientWidth: { configurable: true, value: 300 },
+      scrollLeft: { configurable: true, writable: true, value: 300 }
+    });
+
+    fireEvent.pointerDown(scroll, {
+      pointerId: 1,
+      pointerType: "touch",
+      button: 0,
+      clientX: 240,
+      clientY: 120
+    });
+    const moveEvent = fireEvent.pointerMove(scroll, {
+      pointerId: 1,
+      pointerType: "touch",
+      cancelable: true,
+      clientX: 120,
+      clientY: 124
+    });
+
+    expect(moveEvent).toBe(false);
+    expect(scroll.scrollLeft).toBe(420);
+    fireEvent.pointerUp(scroll, { pointerId: 1, pointerType: "touch" });
+  });
+
   it("does not consume a vertical touch gesture", () => {
     const { container } = render(() => (
       <HorizontalRail
