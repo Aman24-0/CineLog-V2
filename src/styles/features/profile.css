@@ -4675,17 +4675,21 @@
 }
 
 .horizontal-rail-empty-container {
+  display: block;
+  box-sizing: border-box;
   width: 100%;
+  max-width: 100%;
   min-width: 0;
-  overflow: visible;
+  overflow: hidden;
 }
 
 .empty-rail-state {
   display: flex;
-  flex: 0 0 100%;
+  flex: 0 1 auto;
   flex-direction: column;
   box-sizing: border-box;
   width: 100%;
+  max-width: 100%;
   min-width: 0;
   align-items: center;
   justify-content: center;
@@ -4835,6 +4839,27 @@
 .profile-lists-preview-v3 .empty-message {
   width: min(100%, 22rem);
   max-width: 100%;
+}
+
+@media (max-width: 639px) {
+  .horizontal-rail-container,
+  .horizontal-rail-empty-container,
+  .empty-rail-state {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .empty-message {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    padding-inline: 0.5rem;
+  }
+
+  .empty-action-link {
+    max-width: 100%;
+  }
 }
 
 .profile-quick-action-row-v3 {

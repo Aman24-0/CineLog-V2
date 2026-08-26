@@ -209,6 +209,11 @@ describe("HorizontalRail", () => {
 
     const emptyState = container.querySelector(".empty-rail-state");
     expect(emptyState).not.toBeNull();
+    expect(
+      emptyState?.parentElement?.classList.contains(
+        "horizontal-rail-empty-container"
+      )
+    ).toBe(true);
     expect(emptyState?.closest(".horizontal-rail-scroll")).toBeNull();
     expect(emptyState?.textContent).toContain("No lists yet");
     expect(emptyState?.textContent).toContain("Go to Collections");
