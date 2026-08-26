@@ -111,6 +111,7 @@ const FavoritesGrid: Component<FavoritesGridProps> = (props) => {
         items={favoritesEntries}
         viewAllLink="/collections?filter=favorites"
         ariaLabel="Favorite titles"
+        showNavigation={false}
         renderItem={favoriteCard}
         loading={collections.loading()}
         emptyIcon="favorite_border"

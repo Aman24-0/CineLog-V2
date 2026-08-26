@@ -95,6 +95,7 @@ const AchievementsPreview: Component<AchievementsPreviewProps> = (props) => {
         items={unlockedBadges}
         viewAllLink="/profile/achievements"
         ariaLabel="Achievements"
+        showNavigation={false}
         renderItem={badgeCard}
         emptyIcon="emoji_events"
         emptyMessage="No achievements yet. Keep watching to unlock!"

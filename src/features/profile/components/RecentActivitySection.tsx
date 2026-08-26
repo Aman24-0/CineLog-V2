@@ -76,6 +76,7 @@ const RecentActivitySection: Component<RecentActivitySectionProps> = (
         items={activities}
         viewAllLink="/profile/recent-activity"
         ariaLabel="Recent Activity"
+        showNavigation={false}
         renderItem={activityCard}
         class="profile-recent-activity-rail"
         emptyIcon="history_toggle_off"
