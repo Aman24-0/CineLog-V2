@@ -30,16 +30,13 @@ const HorizontalRail = <T,>(props: HorizontalRailProps<T>): JSX.Element => {
   let scrollRef: HTMLDivElement | undefined;
   const [showLeftArrow, setShowLeftArrow] = createSignal(false);
   const [showRightArrow, setShowRightArrow] = createSignal(false);
+  // Pointer drag is intentionally limited to desktop mouse input. Mobile touch
+  // scrolling is owned by the browser's native overflow container.
   const [isDragging, setIsDragging] = createSignal(false);
   let pointerId: number | null = null;
   let pointerStartX = 0;
   let pointerStartY = 0;
   let pointerStartScrollLeft = 0;
-  let touchActive = false;
-  let touchStartX = 0;
-  let touchStartY = 0;
-  let touchStartScrollLeft = 0;
-  let touchDragging = false;
 
   const items = createMemo(() =>
     typeof props.items === "function" ? props.items() : props.items
@@ -72,8 +69,9 @@ const HorizontalRail = <T,>(props: HorizontalRailProps<T>): JSX.Element => {
     const element = scrollRef;
     if (
       !element ||
+      event.pointerType !== "mouse" ||
       element.scrollWidth <= element.clientWidth ||
-      (event.pointerType === "mouse" && event.button !== 0)
+      event.button !== 0
     ) {
       return;
     }
@@ -109,53 +107,6 @@ const HorizontalRail = <T,>(props: HorizontalRailProps<T>): JSX.Element => {
     if (pointerId !== event.pointerId) return;
     scrollRef?.releasePointerCapture?.(event.pointerId);
     pointerId = null;
-    setIsDragging(false);
-  };
-
-  // Some mobile browsers expose touch gestures through TouchEvent rather
-  // than a draggable native overflow surface. Once horizontal intent is
-  // clear, take over the gesture and move the rail directly.
-  const handleTouchStart = (event: TouchEvent) => {
-    const element = scrollRef;
-    const touch = event.touches[0];
-    if (
-      !element ||
-      !touch ||
-      pointerId !== null ||
-      element.scrollWidth <= element.clientWidth
-    ) {
-      return;
-    }
-    touchActive = true;
-    touchDragging = false;
-    touchStartX = touch.clientX;
-    touchStartY = touch.clientY;
-    touchStartScrollLeft = element.scrollLeft;
-  };
-
-  const handleTouchMove = (event: TouchEvent) => {
-    const element = scrollRef;
-    const touch = event.touches[0];
-    if (!element || !touch || !touchActive || pointerId !== null) return;
-
-    const deltaX = touch.clientX - touchStartX;
-    const deltaY = touch.clientY - touchStartY;
-    if (!touchDragging) {
-      if (Math.max(Math.abs(deltaX), Math.abs(deltaY)) < 8) return;
-      if (Math.abs(deltaY) >= Math.abs(deltaX)) {
-        touchActive = false;
-        return;
-      }
-      touchDragging = true;
-      setIsDragging(true);
-    }
-    event.preventDefault();
-    element.scrollLeft = touchStartScrollLeft - deltaX;
-  };
-
-  const endTouchDrag = () => {
-    touchActive = false;
-    touchDragging = false;
     setIsDragging(false);
   };
 
@@ -294,10 +245,6 @@ const HorizontalRail = <T,>(props: HorizontalRailProps<T>): JSX.Element => {
             onPointerMove={handlePointerMove}
             onPointerUp={endPointerDrag}
             onPointerCancel={endPointerDrag}
-            on:touchstart={handleTouchStart}
-            on:touchmove={handleTouchMove}
-            on:touchend={endTouchDrag}
-            on:touchcancel={endTouchDrag}
             onPointerLeave={(event) => {
               if (event.pointerType === "mouse") endPointerDrag(event);
             }}

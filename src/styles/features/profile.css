@@ -4187,11 +4187,10 @@
   padding: 0.5rem 0.5rem 1rem;
   overflow-x: auto;
   overflow-y: hidden;
-  /* Keep vertical page scrolling native; horizontal intent is handled by
-     the rail's real overflow container and its pointer/touch fallback. */
-  touch-action: pan-y;
+  /* Let the browser resolve horizontal rail gestures versus vertical page
+     scrolling. No JavaScript owns the mobile finger movement. */
+  touch-action: pan-x pan-y;
   overscroll-behavior-x: contain;
-  scroll-snap-type: x proximity;
   scrollbar-width: none;
   -ms-overflow-style: none;
   -webkit-overflow-scrolling: touch;
@@ -4204,21 +4203,18 @@
 .horizontal-rail-scroll.is-dragging {
   cursor: grabbing;
   user-select: none;
-  scroll-snap-type: none;
 }
 
 .horizontal-rail-scroll > * {
   flex: 0 0 auto !important;
   flex-grow: 0 !important;
   flex-shrink: 0 !important;
-  scroll-snap-align: start;
 }
 
 .horizontal-rail-item {
   flex: 0 0 auto !important;
   flex-grow: 0 !important;
   flex-shrink: 0 !important;
-  scroll-snap-align: start;
 }
 
 .horizontal-rail-nav {
@@ -4698,7 +4694,7 @@
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .empty-rail-state {
@@ -4847,7 +4843,7 @@
 .profile-lists-preview-v3 .empty-rail-state {
   min-height: 7rem;
   padding: 1rem 1.25rem;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .profile-lists-preview-v3 .empty-rail-icon {
