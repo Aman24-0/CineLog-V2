@@ -93,10 +93,14 @@ export function useGlobalSearch(): SearchContextValue {
 }
 
 export const SearchProvider: Component<{ children: JSX.Element }> = (props) => {
-  const { watchlist } = useUserLibrary();
+  const { watchlist, loading: vaultLoading } = useUserLibrary();
 
   // Instantiate the search hook ONCE — all consumers share this instance.
-  const search = useSearch({ vault: watchlist });
+  // `vaultLoading` is plumbed through so `useSearch.trendingLoading()`
+  // stays true until the vault has resolved, preventing the "Trending
+  // this week" section from flashing library items that disappear once
+  // the vault arrives.
+  const search = useSearch({ vault: watchlist, vaultLoading });
 
   // Search overlay open/close state
   const [searchOpen, setSearchOpen] = createSignal(false);

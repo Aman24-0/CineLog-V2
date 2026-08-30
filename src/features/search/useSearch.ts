@@ -46,6 +46,20 @@ export type { GenreBrowseState };
 
 interface UseSearchArgs {
   vault: Accessor<WatchlistItem[]>;
+  /**
+   * Optional accessor for the user-library loading state (from
+   * `useUserLibrary().loading`). When provided, the public
+   * `trendingLoading()` accessor waits for BOTH the TMDB trending fetch
+   * AND the vault fetch to resolve before reporting `false`.
+   *
+   * This prevents the "Trending this week" section from flashing
+   * library items that disappear once the vault arrives — the trending
+   * list is filtered against the vault reactively, so we wait for the
+   * vault to land before unblocking the loader. Guests (no vault fetch)
+   * resolve `loading` to `false` immediately, so they see trending as
+   * soon as the TMDB call completes.
+   */
+  vaultLoading?: Accessor<boolean>;
 }
 
 /**
@@ -75,8 +89,22 @@ export function useSearch(args: UseSearchArgs) {
   const [loading, setLoading] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
   const [recentSearches, setRecentSearches] = createSignal<string[]>([]);
-  const [trending, setTrending] = createSignal<TMDBTitle[]>([]);
-  const [trendingLoading, setTrendingLoading] = createSignal(false);
+  // Raw TMDB trending items, unfiltered. The public `trending` accessor
+  // (declared further down) derives from this and removes any items
+  // already present in the user's vault, so the "Trending this week"
+  // section never shows library cards. The raw signal is kept separate
+  // from the derived accessor so the filter stays reactive to vault
+  // changes (e.g. when the vault finishes loading after the trending
+  // fetch resolves, or when the user adds/removes a title while the
+  // search page is open).
+  const [trendingItems, setTrendingItems] = createSignal<TMDBTitle[]>([]);
+  // Raw fetch-state for the trending API call. The public
+  // `trendingLoading` accessor (declared further down) combines this
+  // with the optional `vaultLoading` arg so the Search page stays in
+  // its loading state until BOTH the trending fetch and the vault fetch
+  // have resolved — preventing a flash where library items appear in
+  // Trending and then vanish once the vault arrives.
+  const [trendingFetching, setTrendingFetching] = createSignal(false);
   const [genreBrowse, setGenreBrowse] =
     createSignal<GenreBrowseState>(emptyGenreBrowse());
 
@@ -98,11 +126,11 @@ export function useSearch(args: UseSearchArgs) {
 
   onMount(() => {
     setRecentSearches(loadRecent());
-    setTrendingLoading(true);
+    setTrendingFetching(true);
     getTrending("all", "week")
-      .then((items) => setTrending(items.slice(0, 12)))
-      .catch(() => setTrending([]))
-      .finally(() => setTrendingLoading(false));
+      .then((items) => setTrendingItems(items.slice(0, 12)))
+      .catch(() => setTrendingItems([]))
+      .finally(() => setTrendingFetching(false));
   });
 
   // Debounce the query — 250ms after the user stops typing
@@ -423,6 +451,49 @@ export function useSearch(args: UseSearchArgs) {
     const key = vaultIdKey(title);
     return key !== null && vaultKeys().has(key);
   };
+
+  // ── Trending filtering ─────────────────────────────────────────────
+  // "Trending this week" on the Search page must NOT show items that are
+  // already in the user's library. We exclude them at the data level by
+  // deriving `trending` from the raw `trendingItems` signal and the
+  // existing `vaultKeys` memo (composite "{media_type}/{id}" keys, so a
+  // movie and a TV show sharing the same numeric TMDB id are never
+  // treated as the same item).
+  //
+  // The filter is reactive: when the vault finishes loading after the
+  // trending fetch resolves, or when the user adds/removes a title while
+  // the search page is open, the memo recomputes and the rendered list
+  // updates. Order is preserved — we keep the TMDB trending order
+  // exactly, only dropping matching items.
+  //
+  // Edge cases handled:
+  //   • Empty vault → `vaultKeys().size === 0` → short-circuit returns
+  //     the raw list (no allocation for the common guest case).
+  //   • All items in vault → returns `[]`; the Search page's existing
+  //     `<For>` over an empty array renders nothing inside the section.
+  //   • Vault still loading → `vaultKeys` is empty for now, so the
+  //     filter is a no-op; the public `trendingLoading` accessor (below)
+  //     keeps the loader up until the vault resolves to avoid a flash.
+  const trending = createMemo(() => {
+    const items = trendingItems();
+    const keys = vaultKeys();
+    if (keys.size === 0) return items;
+    return items.filter((t) => {
+      const key = vaultIdKey(t);
+      return key === null || !keys.has(key);
+    });
+  });
+
+  // Public loading accessor for the "Trending this week" section. We
+  // gate on BOTH the raw TMDB trending fetch AND the optional
+  // `vaultLoading` accessor so the Search page does not flash
+  // library items that disappear once the vault arrives. When
+  // `vaultLoading` is not provided (e.g. unit tests that only pass
+  // `vault`), this collapses to just the fetch state.
+  const trendingLoading = createMemo(() => {
+    if (trendingFetching()) return true;
+    return args.vaultLoading ? args.vaultLoading() : false;
+  });
 
   // Derived flags — captured as variables so the linter can analyze the
   // createMemo return values (also a tiny perf win: declared once per

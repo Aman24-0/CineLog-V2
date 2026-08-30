@@ -721,3 +721,60 @@ Stage Summary:
   * [x] Errors in the audio worker do not break the movie detail page (modal handles its own error state; MetadataGrid renders independently).
   * [x] Midsommar has been used as a real end-to-end test (JustWatch POC confirmed Midsommar → audio=[en], correctly returning English-only).
   * [x] The final implementation follows the existing CineLog architecture and visual design (SolidStart routes, GlassModal, Azeret Mono labels, gold hairlines, server-side service-role Supabase client).
+
+---
+Task ID: 1
+Agent: main (orchestrator)
+Task: Search page "Trending This Week" must exclude items already in the user's library.
+
+Work Log:
+- Cloned https://github.com/Aman24-0/CineLog-V2.git
+- Audited:
+  - Search route `src/routes/search.tsx` → lazy-loads `src/features/search/SearchPage.tsx`
+  - SearchPage renders `search.trending().slice(0, 8)` from `useGlobalSearch()`
+  - `SearchContext.tsx` instantiates `useSearch({ vault: watchlist })` from `useUserLibrary()`
+  - `useSearch.ts` fetches trending via `getTrending("all", "week")` into a `trending` signal with NO vault filtering
+  - `vaultKeys = createMemo(() => buildVaultKeySet(args.vault()))` already exists in `useSearch`
+  - `vaultIdKey()` and `buildVaultKeySet()` from `~/shared/utils/vaultMatch` produce composite `"media_type/id"` keys — already correct for movie/TV disambiguation
+  - `isInVault(title)` is used by `SearchResultRow` for the "In Library" pill UI only — never filters the list
+- Root cause: Trending list is rendered raw. Vault membership is computed but only used for the pill.
+
+Stage Summary:
+- Root cause identified: `useSearch.ts` populates `trending` signal directly from TMDB without excluding vault items.
+- Fix location: derived `trending` accessor in `useSearch.ts` that filters out items whose `vaultIdKey` is in `vaultKeys()`.
+- Will reuse existing `vaultKeys` memo + `vaultIdKey` helper — no new helper needed.
+- Will also pass `vaultLoading` from `useUserLibrary` → `useSearch` and gate the public `trendingLoading` on both, to avoid the flash of library items appearing then disappearing once vault loads.
+- Files to change: `src/features/search/useSearch.ts`, `src/shared/contexts/SearchContext.tsx`, `src/features/search/__tests__/useSearch.test.ts`.
+
+---
+Task ID: 1 (verification)
+Agent: main (orchestrator)
+Task: Verify the Search Trending exclusion fix.
+
+Work Log:
+- Added 13 focused tests to `src/features/search/__tests__/useSearch.test.ts` covering:
+  1. Trending item not in library remains visible
+  2. Trending movie already in library is excluded
+  3. Trending TV series already in library is excluded
+  4. Multiple matching library items are all excluded
+  5. Remaining Trending items preserve their original order
+  6. Empty library does not filter Trending
+  7. All-items-in-library returns `[]` (so the Search page's existing empty `<For>` shows nothing)
+  8. Movie/TV media types are matched correctly (Stalker movie/1398 stays when only tv/1398 is in library)
+  9. Normal Search results are NOT filtered by library membership
+  10. `isInVault` still works (existing library-status logic unchanged)
+  11. `trendingLoading` gates on `vaultLoading` to avoid flash
+  12. `trendingLoading` collapses to fetch-only state when `vaultLoading` not provided
+  13. Reactive re-filtering when vault contents change after mount
+- Ran vitest on changed files: 16/16 pass in `useSearch.test.ts`
+- Ran vitest on `SearchPage.test.tsx` + `vaultMatch.test.ts`: 24/24 pass
+- Ran full vitest suite: 1694/1694 pass across 100 files
+- Ran `tsc --noEmit`: clean
+- Ran `eslint` on the three changed source files: clean
+- Ran `npm run build` (production): built successfully in 13.94s
+
+Stage Summary:
+- Final diff is exactly 3 source/test files + worklog.md. No unrelated files modified.
+- Files changed: `src/features/search/useSearch.ts` (+83/-9), `src/shared/contexts/SearchContext.tsx` (+6/-1), `src/features/search/__tests__/useSearch.test.ts` (+257/-1).
+- Production build succeeds; full test suite passes; TypeScript and ESLint clean.
+- Browser-based manual verification at 390x844 could not be performed in this environment (requires live Supabase env + auth), but the focused unit tests + type check + production build provide strong verification of the fix's correctness and non-regression.
