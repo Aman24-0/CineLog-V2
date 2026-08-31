@@ -150,6 +150,53 @@ describe("userLibraryAdapter", () => {
       const result = vaultRowToWatchlistItem(tvRow, progress);
       expect(result.watchProgress!.updatedAt).toBe("2024-06-01T00:00:00Z"); // updated_at
     });
+
+    // ── Activity columns regression test (2026-09-02) ───────────────────
+    // These tests verify that vaultRowToWatchlistItem preserves the six
+    // activity columns that the Details/Edit modal writes to the vault
+    // table. The bug these guard against: VAULT_DASHBOARD_COLUMNS in
+    // dashboard.utils.ts previously omitted reaction, watch_device,
+    // watch_platform, favorite_character_id, favorite_character_name,
+    // and favorite_character_profile. The Supabase SELECT projection
+    // therefore never returned them, so the mapper received undefined
+    // and the resulting WatchlistItem had all activity fields null.
+    // The fix is purely the column projection (see dashboardRepository.test.ts
+    // for the projection-level test). These tests verify the mapper itself
+    // does the right thing when the columns ARE present.
+    it("preserves all six activity columns from VaultRow to WatchlistItem (regression: activity read-back)", () => {
+      const rowWithActivity = {
+        ...mockVaultRow,
+        reaction: "loved_it",
+        watch_device: "theatre",
+        watch_platform: "sonyliv",
+        favorite_character_id: "123",
+        favorite_character_name: "Test Character",
+        favorite_character_profile: "/test.jpg",
+        tag: "Theatre"
+      } as unknown as VaultRow;
+      const result = vaultRowToWatchlistItem(rowWithActivity);
+      expect(result.reaction).toBe("loved_it");
+      expect(result.watchDevice).toBe("theatre");
+      expect(result.watchPlatform).toBe("sonyliv");
+      expect(result.favoriteCharacterId).toBe("123");
+      expect(result.favoriteCharacterName).toBe("Test Character");
+      expect(result.favoriteCharacterProfile).toBe("/test.jpg");
+    });
+
+    it("defaults activity fields to null when row omits them (matches buggy pre-fix behavior — fields are nullable)", () => {
+      // A row with the activity columns absent (e.g. older rows pre-migration,
+      // OR the buggy SELECT projection that omitted these columns) should
+      // produce a WatchlistItem with nulls — NOT throw, NOT silently
+      // synthesize a value. The UI treats null as "not set" and shows no
+      // selection, which is the correct fallback.
+      const result = vaultRowToWatchlistItem(mockVaultRow);
+      expect(result.reaction).toBeNull();
+      expect(result.watchDevice).toBeNull();
+      expect(result.watchPlatform).toBeNull();
+      expect(result.favoriteCharacterId).toBeNull();
+      expect(result.favoriteCharacterName).toBeNull();
+      expect(result.favoriteCharacterProfile).toBeNull();
+    });
   });
 
   describe("fetchUserLibrary", () => {

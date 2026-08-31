@@ -77,21 +77,35 @@ export const CONTINUE_WATCHING_OR_FILTER =
  *
  * Includes ALL user-owned columns so that `vaultRowToWatchlistItem` can
  * populate every field the UI needs (seasonDates, rewatchDates, notes,
- * etc.) without a second fetch. Previously this excluded `notes`,
- * `season_dates`, `rewatch_dates`, `season_rewatch_count`, and
+ * activity columns, etc.) without a second fetch. Previously this excluded
+ * `notes`, `season_dates`, `rewatch_dates`, `season_rewatch_count`, and
  * `season_rewatch_dates` to "keep payloads small" — but that meant the
  * edit form's season date pickers were always empty, the rewatch badge
  * never appeared, and the notes preview was missing for items loaded
  * via the dashboard path (which is the ONLY path the main UI uses).
  *
- * The payload cost is small (season_dates is jsonb, typically < 200
- * bytes per item; rewatch_dates is a short text array) and is dwarfed
- * by the TMDB metadata fetch that follows. Fetching all columns in one
- * query is far cheaper than the N+1 pattern that would otherwise be
- * needed to fill in the missing fields.
+ * ACTIVITY COLUMNS (2026-09-02 fix): reaction, watch_device, watch_platform,
+ * favorite_character_id, favorite_character_name, favorite_character_profile.
+ * These are persisted to the vault table by the Details/Edit modal's save
+ * flow (verified against the live Supabase database — values ARE present in
+ * the DB rows after Save). But because this SELECT projection omitted them,
+ * `getAllVaultItems()` → `vaultRowToWatchlistItem()` never received the
+ * values, so the WatchlistItem had reaction/watchDevice/watchPlatform/
+ * favoriteCharacter{Id,Name,Profile} = null. The Activity section of the
+ * Edit modal was therefore always blank after a hard refresh, and "Your
+ * Activity" could not display persisted activity data. The mapper
+ * (userLibraryAdapter.ts) already has the correct field reads — it just
+ * needs the columns to be SELECTed. Adding them here is the complete fix.
+ *
+ * The payload cost is small (activity columns are short strings/text;
+ * favorite_character_* is typically a TMDB character ID + display name +
+ * profile path, < 200 bytes total) and is dwarfed by the TMDB metadata
+ * fetch that follows. Fetching all columns in one query is far cheaper
+ * than the N+1 pattern that would otherwise be needed to fill in the
+ * missing fields.
  */
 export const VAULT_DASHBOARD_COLUMNS =
-  "id,user_id,tmdb_id,media_type,status,is_favorite,is_pinned,rating,notes,rewatch_count,rewatch_dates,progress_minutes,watched_on,started_at,completed_at,last_activity_at,created_at,updated_at,deleted_at,season_dates,season_rewatch_count,season_rewatch_dates,tag" as const;
+  "id,user_id,tmdb_id,media_type,status,is_favorite,is_pinned,rating,notes,rewatch_count,rewatch_dates,progress_minutes,watched_on,started_at,completed_at,last_activity_at,created_at,updated_at,deleted_at,season_dates,season_rewatch_count,season_rewatch_dates,tag,reaction,watch_device,watch_platform,favorite_character_id,favorite_character_name,favorite_character_profile" as const;
 
 /**
  * Compact column list for collection rows returned to the dashboard.
