@@ -342,7 +342,13 @@ export default function DetailsExperience(props: DetailsExperienceProps) {
     // open the Activity/Edit modal so they can fill in their viewing
     // metadata. The status is already saved before this fires —
     // closing the edit modal without saving does NOT revert Completed.
-    onCompletedAutoOpenEdit: () => setIsEditing(true)
+    onCompletedAutoOpenEdit: () => setIsEditing(true),
+    // Critical fix — update the GLOBAL user-library watchlist after
+    // save so consumers (Library, Search, YourActivityCard) see the
+    // new activity fields immediately. Without this, the modal's local
+    // state is updated but the global watchlist stays stale —
+    // reopening the modal shows the OLD values.
+    updateLibraryItem: library.updateItem
   });
 
   // Reset trailer state whenever the open title changes.

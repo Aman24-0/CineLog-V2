@@ -65,6 +65,14 @@ export interface UseDetailsActionsArgs {
    * the Activity/Edit modal. Passed through to useDetailsProgress.
    */
   onCompletedAutoOpenEdit?: () => void;
+  /**
+   * Updates the GLOBAL user-library watchlist signal after a save.
+   * Without this, the local modal state is updated but the global
+   * watchlist (used by Library, Search, and other consumers) stays
+   * stale until a full refresh. Called with the vault item id + the
+   * partial update containing the new activity fields.
+   */
+  updateLibraryItem?: (itemId: string, update: Partial<WatchlistItem>) => void;
 }
 
 export interface UseDetailsActionsResult {
@@ -463,6 +471,28 @@ export function useDetailsActions(
         baseItem: { ...args.baseItem()!, ...updatedVault },
         vaultItem: updatedVault
       });
+      // Update the GLOBAL user-library watchlist signal so consumers
+      // (Library, Search, YourActivityCard, etc.) see the new values
+      // immediately without waiting for a full refresh. This fixes
+      // the "saved but not read back" bug — without this call, the
+      // global watchlist stays stale and reopening the modal (which
+      // derives vaultItem from the global watchlist) shows the OLD
+      // values.
+      if (args.updateLibraryItem) {
+        args.updateLibraryItem(v.id, {
+          tag: args.form().tag || undefined,
+          reaction: args.form().reaction || null,
+          watchDevice: args.form().watchDevice || null,
+          watchPlatform: args.form().watchPlatform || null,
+          favoriteCharacterId: args.form().favoriteCharacterId || null,
+          favoriteCharacterName: args.form().favoriteCharacterName || null,
+          favoriteCharacterProfile: args.form().favoriteCharacterProfile || null,
+          watchDate: args.form().watchDate,
+          notes: args.form().notes,
+          rating: Number(args.form().rating) || undefined,
+          updatedAt: new Date().toISOString()
+        });
+      }
       // Exit edit mode (mirrors the original setIsEditing(false) at end of save)
       args.resetTo(updatedVault);
     } catch (err) {

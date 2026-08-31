@@ -645,7 +645,7 @@ export default function DetailsEditForm(props: DetailsEditFormProps) {
         </div>
       </Show>
 
-      {/* ── Where did you watch? (Part 8) ────────────────────────── */}
+      {/* ── Where did you watch? (Part 8 + Part 2) ───────────────── */}
       <div>
         <label
           class="type-label mb-2 block"
@@ -654,7 +654,12 @@ export default function DetailsEditForm(props: DetailsEditFormProps) {
           Where did you watch?
         </label>
         <div class="flex gap-2 flex-wrap">
-          <For each={WATCH_DEVICE_OPTIONS}>
+          {/* Theatre is ONLY for movies (not TV/series). The condition
+              checks `!isSeries()` which is true for movies. */}
+          <For each={[
+            ...(isSeries() ? [] : [WATCH_DEVICE_OPTION_THEATRE]),
+            ...WATCH_DEVICE_OPTIONS_BASE
+          ]}>
             {(opt) => {
               const isSelected = () => props.form().watchDevice === opt.value;
               return (
@@ -755,13 +760,21 @@ export default function DetailsEditForm(props: DetailsEditFormProps) {
   );
 }
 
-// ─── Watch device options (Part 8) ──────────────────────────────────
-const WATCH_DEVICE_OPTIONS = [
+// ─── Watch device options (Part 8 + Part 2) ─────────────────────────
+// Theatre is ONLY for movies (not TV/series). The `isMovie` flag is
+// passed to the form to conditionally include it.
+const WATCH_DEVICE_OPTIONS_BASE = [
   { value: "tv", label: "TV", emoji: "📺" },
   { value: "computer", label: "Computer", emoji: "💻" },
   { value: "tablet", label: "Tablet", emoji: "📱" },
   { value: "mobile", label: "Mobile", emoji: "📱" }
 ] as const;
+
+const WATCH_DEVICE_OPTION_THEATRE = {
+  value: "theatre",
+  label: "Theatre",
+  emoji: "🎬"
+} as const;
 
 // ─── Tag selector (Part 4) ──────────────────────────────────────────
 // Reuses the existing tagStore vocabulary. The user can select a tag
@@ -828,33 +841,54 @@ function TagSelector(props: { value: string; onChange: (v: string) => void }) {
   );
 }
 
-// ─── Platform selector (Part 9) ─────────────────────────────────────
+// ─── Platform selector (Part 9 + Part 3 fix) ──────────────────────
 // Uses the existing published Supabase provider catalogue via
 // usePublishedProviderCatalog. No hardcoded list. Only active/published
-// providers are shown. Provider logos are displayed when available.
+// providers are shown. LOGO-ONLY grid (no provider name text) with
+// responsive auto-fill layout. Each logo has aria-label + title for
+// accessibility. Missing logos render a fallback first-letter tile.
 function PlatformSelector(props: {
   value: string;
   onChange: (v: string) => void;
 }) {
   const { catalog } = usePublishedProviderCatalog();
   return (
-    <div class="flex gap-2 flex-wrap">
+    <div
+      class="platform-logo-grid"
+      style={{
+        display: "grid",
+        "grid-template-columns": "repeat(auto-fill, minmax(3rem, 1fr))",
+        gap: "0.5rem"
+      }}
+    >
+      {/* "None" option — a dashed-circle tile */}
       <button
         type="button"
-        class="rounded-lg px-3 py-2 text-sm transition-all"
+        class="platform-logo-tile"
         style={{
-          border:
-            !props.value
-              ? "2px solid var(--p)"
-              : "1px solid var(--hairline-2)",
-          background: !props.value ? "var(--p-dim)" : "var(--glass-bg)",
-          color: !props.value ? "var(--p)" : "var(--text-soft)",
-          cursor: "pointer"
+          "aspect-ratio": "1",
+          border: !props.value
+            ? "2px solid var(--p)"
+            : "1px dashed var(--hairline-2)",
+          background: !props.value ? "var(--p-dim)" : "transparent",
+          "border-radius": "0.5rem",
+          cursor: "pointer",
+          display: "flex",
+          "align-items": "center",
+          "justify-content": "center"
         }}
         onClick={() => props.onChange("")}
         aria-pressed={!props.value}
+        aria-label="No platform"
+        title="None"
       >
-        None
+        <span
+          class="material-symbols-outlined"
+          style={{ "font-size": "18px", color: "var(--text-muted)" }}
+          aria-hidden="true"
+        >
+          block
+        </span>
       </button>
       <For each={catalog()}>
         {(provider) => {
@@ -865,35 +899,54 @@ function PlatformSelector(props: {
           return (
             <button
               type="button"
-              class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-all"
+              class="platform-logo-tile"
               style={{
+                "aspect-ratio": "1",
                 border: isSelected()
                   ? "2px solid var(--p)"
                   : "1px solid var(--hairline-2)",
                 background: isSelected() ? "var(--p-dim)" : "var(--glass-bg)",
-                color: isSelected() ? "var(--p)" : "var(--text-soft)",
-                cursor: "pointer"
+                "border-radius": "0.5rem",
+                cursor: "pointer",
+                display: "flex",
+                "align-items": "center",
+                "justify-content": "center",
+                padding: "0.375rem"
               }}
               onClick={() =>
                 props.onChange(isSelected() ? "" : provider.technicalName)
               }
               aria-pressed={isSelected()}
+              aria-label={provider.clearName || provider.technicalName}
+              title={provider.clearName || provider.technicalName}
             >
-              <Show when={iconUrl}>
+              <Show
+                when={iconUrl}
+                fallback={
+                  <span
+                    style={{
+                      "font-size": "0.75rem",
+                      "font-weight": 700,
+                      color: "var(--text-soft)"
+                    }}
+                  >
+                    {(provider.clearName || provider.technicalName).charAt(0)}
+                  </span>
+                }
+              >
                 <img
                   src={iconUrl ?? ""}
                   alt=""
-                  class="h-4 w-4 rounded object-contain"
+                  class="h-full w-full rounded object-contain"
                   loading="lazy"
                 />
               </Show>
-              {provider.clearName || provider.technicalName}
             </button>
           );
         }}
       </For>
       <Show when={catalog().length === 0}>
-        <span class="text-sm text-text-muted">
+        <span class="text-sm text-text-muted" style={{ "grid-column": "1 / -1" }}>
           No platforms published. Ask admin to publish the catalogue.
         </span>
       </Show>

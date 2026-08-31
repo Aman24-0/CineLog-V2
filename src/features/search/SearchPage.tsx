@@ -87,56 +87,62 @@ const SearchPage: Component = () => {
       paddingTop="var(--sp-5)"
       paddingBottom="var(--sp-12)"
     >
+      {/* Search title — scrolls away naturally */}
       <div class="search-page-shell">
         <header class="search-page-header">
           <h1 class="type-display search-page-title">Search</h1>
         </header>
+      </div>
 
-        {/* Sticky search bar — remains accessible while scrolling.
-            The .search-page-sticky wrapper applies the glass
-            background + sticky positioning. The form + search-bar
-            inside are the existing primitives (unchanged). */}
-        <div class="search-page-sticky">
-          <form
-            class="search-bar-form search-page-form"
-            onSubmit={(event) => {
-              event.preventDefault();
-              submitQuery(search.query());
-            }}
-          >
-            <div class="search-bar">
-              <span
-                class="material-symbols-outlined search-bar-icon"
-                aria-hidden="true"
+      {/* Sticky search bar — a DIRECT child of PageContainer (not
+          inside .search-page-shell) so position:sticky works correctly.
+          The PageContainer provides the horizontal padding; the sticky
+          bar extends to the full width of the scroll container. The
+          glass background ensures content doesn't bleed through. */}
+      <div class="search-sticky-bar">
+        <form
+          class="search-bar-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            submitQuery(search.query());
+          }}
+        >
+          <div class="search-bar">
+            <span
+              class="material-symbols-outlined search-bar-icon"
+              aria-hidden="true"
+            >
+              search
+            </span>
+            <input
+              type="search"
+              class="search-bar-input"
+              value={search.query()}
+              onInput={(event) => search.setQuery(event.currentTarget.value)}
+              placeholder="Search movies, series, people, or anime…"
+              autocomplete="off"
+              spellcheck={false}
+              autofocus
+              aria-label="Search movies, series, people, or anime"
+            />
+            <Show when={search.query().length > 0}>
+              <button
+                type="button"
+                class="search-bar-clear focus-ring"
+                onClick={() => search.clearQuery()}
+                aria-label="Clear search"
               >
-                search
-              </span>
-              <input
-                type="search"
-                class="search-bar-input"
-                value={search.query()}
-                onInput={(event) => search.setQuery(event.currentTarget.value)}
-                placeholder="Search movies, series, people, or anime…"
-                autocomplete="off"
-                spellcheck={false}
-                autofocus
-                aria-label="Search movies, series, people, or anime"
-              />
-              <Show when={search.query().length > 0}>
-                <button
-                  type="button"
-                  class="search-bar-clear focus-ring"
-                  onClick={() => search.clearQuery()}
-                  aria-label="Clear search"
-                >
-                  <span class="material-symbols-outlined" aria-hidden="true">
-                    close
-                  </span>
-                </button>
-              </Show>
-            </div>
-          </form>
-        </div>
+                <span class="material-symbols-outlined" aria-hidden="true">
+                  close
+                </span>
+              </button>
+            </Show>
+          </div>
+        </form>
+      </div>
+
+      {/* Content — the .search-page-shell constrains the max-width */}
+      <div class="search-page-shell">
 
         <Show
           when={search.hasQuery()}

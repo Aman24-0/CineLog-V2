@@ -666,33 +666,39 @@
 }
 
 /* ─── Sticky search bar ────────────────────────────────────────────────
-   When the user scrolls past the page title, the search bar sticks to
-   the top of the viewport so it remains accessible. The glass
-   background + border + shadow ensures content doesn't visually pass
-   through the bar. Uses `position: sticky; top: 0` with z-index
-   below the modal stack (z-[999999]) but above page content.
+   The search bar sticks to the top of the scroll container while the
+   title scrolls away. Uses `position: sticky; top: 0` — no JS scroll
+   listeners. The sticky element is a DIRECT child of PageContainer
+   (not wrapped in .search-page-shell) so it sticks correctly within
+   the scroll container (#main-content on desktop, body on mobile).
+
+   The glass background + bottom border ensures content doesn't
+   visually bleed through the bar when scrolling. z-index is 50 —
+   above page content but well below the modal stack (z-[999999]).
 */
-.search-page-sticky {
+.search-sticky-bar {
   position: sticky;
   top: 0;
   z-index: 50;
-  padding: 0.75rem 0;
-  background: color-mix(in srgb, var(--glass-bg-strong) 92%, var(--void-ambient));
+  padding-bottom: 0.75rem;
+  margin-bottom: var(--sp-4);
+  background: color-mix(in srgb, var(--glass-bg-strong) 88%, var(--void-ambient));
   backdrop-filter: blur(var(--glass-blur)) saturate(160%);
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%);
-  border-bottom: 1px solid var(--hairline-2);
-  margin: calc(-1 * var(--sp-5)) -1rem 0;
-  margin-left: calc(-1 * var(--sp-4));
-  margin-right: calc(-1 * var(--sp-4));
-  padding-left: var(--sp-4);
-  padding-right: var(--sp-4);
 }
 
-@media (min-width: 640px) {
-  .search-page-sticky {
-    margin-left: calc(-1 * var(--sp-5));
-    margin-right: calc(-1 * var(--sp-5));
-    padding-left: var(--sp-5);
-    padding-right: var(--sp-5);
+/* On desktop, #main-content is the scroll container and has padding.
+   The sticky bar should extend to the edges of the scroll container
+   by counteracting the parent padding. This is done with negative
+   margins matching the PageContainer's lg:px-12 (= 3rem) padding,
+   plus the sticky bar's own vertical padding to create a visible
+   glass band above the input. */
+@media (min-width: 1024px) {
+  .search-sticky-bar {
+    margin-left: calc(-1 * 3rem);
+    margin-right: calc(-1 * 3rem);
+    padding-left: 3rem;
+    padding-right: 3rem;
+    padding-top: 0.75rem;
   }
 }
