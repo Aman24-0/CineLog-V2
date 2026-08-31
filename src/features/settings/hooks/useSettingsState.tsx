@@ -67,6 +67,10 @@ import {
   useDiscoverRegion
 } from "~/core/config/discoverRegion";
 import { COUNTRIES, countryLabel } from "~/shared/data/countryLanguages";
+import {
+  getStatesForCountry,
+  getCitiesForState
+} from "~/shared/data/locationData";
 
 // Static option lists — used by the memos (languageOptions,
 // fallbackOptions) and the providers loop.
@@ -126,6 +130,13 @@ export function useSettingsState(): SettingsState {
     return "US";
   })();
   const [country, setCountry] = createSignal<string>(initialCountry);
+
+  // State / Province — nullable. Loaded from profiles.state on
+  // loadProfile. When country changes, state + city reset to "".
+  const [stateCode, setStateCode] = createSignal<string>("");
+  // City — nullable. Loaded from profiles.city on loadProfile.
+  // When state changes, city resets to "".
+  const [city, setCity] = createSignal<string>("");
   const [displayName, setDisplayName] = createSignal<string>("");
   const [bio, setBio] = createSignal<string>("");
   // Profile banner appearance is owned globally by ProfileAmbientTheme;
@@ -253,6 +264,12 @@ export function useSettingsState(): SettingsState {
       return;
     }
     setCountry(newCountry);
+    // Country change resets state + city (cascading selector). The
+    // user must re-pick a state + city for the new country. We
+    // persist the reset to Supabase too so the profile doesn't
+    // keep an invalid state/city from the old country.
+    setStateCode("");
+    setCity("");
     // Persist to localStorage immediately so the next reload starts
     // with the right value, even if the network round-trip is slow.
     try {
@@ -262,7 +279,9 @@ export function useSettingsState(): SettingsState {
     }
     try {
       const { error } = await profileRepo.updateProfile(uid, {
-        country: newCountry
+        country: newCountry,
+        state: null,
+        city: null
       });
       if (error) throw error;
       setDiscoverRegion(newCountry);
@@ -270,6 +289,51 @@ export function useSettingsState(): SettingsState {
     } catch (err) {
       console.error("[settings] Failed to save country:", err);
       showToast("Failed to save country.", "error");
+    }
+  };
+
+  /** Save the state/province. Resets city to "" (cascading). */
+  const handleSaveState = async (newStateCode: string) => {
+    const uid = user()?.uid;
+    if (!uid) {
+      showToast("Sign in to save your state.", "error");
+      return;
+    }
+    setStateCode(newStateCode);
+    setCity("");
+    try {
+      const { error } = await profileRepo.updateProfile(uid, {
+        state: newStateCode || null,
+        city: null
+      });
+      if (error) throw error;
+      const stateName =
+        stateOptions().find((s) => s.value === newStateCode)?.label ??
+        newStateCode;
+      showToast(`State set to ${stateName}`, "success", 1800);
+    } catch (err) {
+      console.error("[settings] Failed to save state:", err);
+      showToast("Failed to save state.", "error");
+    }
+  };
+
+  /** Save the city. */
+  const handleSaveCity = async (newCity: string) => {
+    const uid = user()?.uid;
+    if (!uid) {
+      showToast("Sign in to save your city.", "error");
+      return;
+    }
+    setCity(newCity);
+    try {
+      const { error } = await profileRepo.updateProfile(uid, {
+        city: newCity || null
+      });
+      if (error) throw error;
+      showToast(`City set to ${newCity}`, "success", 1800);
+    } catch (err) {
+      console.error("[settings] Failed to save city:", err);
+      showToast("Failed to save city.", "error");
     }
   };
 
@@ -347,6 +411,13 @@ export function useSettingsState(): SettingsState {
         } catch {
           // localStorage may be unavailable; the signal remains authoritative.
         }
+      }
+      // Load state/city (nullable — existing profiles may have null)
+      if ((result.data as { state?: string | null }).state) {
+        setStateCode((result.data as { state?: string | null }).state ?? "");
+      }
+      if ((result.data as { city?: string | null }).city) {
+        setCity((result.data as { city?: string | null }).city ?? "");
       }
       if (result.data.display_name) setDisplayName(result.data.display_name);
       if (result.data.bio) setBio(result.data.bio);
@@ -582,6 +653,26 @@ export function useSettingsState(): SettingsState {
     COUNTRIES.map((c) => ({ value: c.code, label: c.label }))
   );
 
+  // State options — derived from the real geographic dataset
+  // (src/shared/data/locationData.ts) based on the selected country.
+  // Returns [] if the country has no state data (the State SelectRow
+  // renders in a disabled state in that case).
+  const stateOptions = createMemo(() =>
+    getStatesForCountry(country()).map((s) => ({
+      value: s.code,
+      label: s.name
+    }))
+  );
+
+  // City options — derived from the selected country + state.
+  // Returns [] if no state is selected or the state has no city data.
+  const cityOptions = createMemo(() =>
+    getCitiesForState(country(), stateCode()).map((c) => ({
+      value: c,
+      label: c
+    }))
+  );
+
   const languageOptions = createMemo(() =>
     UI_LANGUAGES.map((l) => ({
       value: l.code,
@@ -814,6 +905,8 @@ export function useSettingsState(): SettingsState {
     handleSaveProfile,
     handleCancelEditProfile,
     handleSaveCountry,
+    handleSaveState,
+    handleSaveCity,
     handleLinkProvider,
     handleUnlinkProvider,
     handleSignOut,
@@ -834,6 +927,10 @@ export function useSettingsState(): SettingsState {
 
     // Derived display values (memos + plain functions)
     countryOptions,
+    stateOptions,
+    cityOptions,
+    stateCode,
+    city,
     languageOptions,
     fallbackOptions,
     activeProviderCount,

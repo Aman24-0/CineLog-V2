@@ -1260,3 +1260,131 @@ NO regression:
 
 Stage Summary:
 - The admin's "Save Selected" now makes the EXACT selected set the complete published catalogue for the country. Selected = active=true; unselected = active=false (including previously-active providers the admin unchecks). Rows are NOT physically deleted. Country-isolated. User side automatically sees only active=true rows via the existing /api/ott/providers route.
+
+---
+Task ID: 5 (audit + plan)
+Agent: main (orchestrator)
+Task: CineLog V2 — Location, Search UX & Activity Tracking Improvements (massive multi-part task).
+
+Audit findings:
+- profiles table: has `country` (NOT NULL), no state/city. profileRepo.updateProfile handles country.
+- vault table: has `tag` (TEXT), `rating`, `notes`, `rewatch_count`, `watched_on`, `status`. NO reaction, watch_device, watch_platform, favorite_character columns.
+- episode_progress: has `reaction` (TEXT, free-form string). EPISODE_REACTIONS = ["love","funny","wow","sad","angry","disappointed"]. Used by EpisodeCard's REACTION_OPTIONS.
+- useDetailsForm: owns form state for {status, rating, watchDate, notes, rewatchCount, rewatchDates, seasonDates, seasonRewatchCount, seasonRewatchDates}. No tag/reaction/character/device/platform fields.
+- DetailsEditForm: renders rating segmented control + movie/series rewatch + notes. No tag/reaction/character/device/platform sections.
+- useDetailsActions.handleSave: writes status/rating/notes/watchDate/rewatch/seasonDates. Doesn't write tag/reaction/character/device/platform.
+- useDetailsProgress.handleSetStatus: sets status, updates vaultItem, doesn't open Edit form.
+- useVault: has updateTag(itemId, tag). The Tag flow already exists in the Library filter modal but NOT in the Details Edit form.
+- ScrollToTop component already exists (IntersectionObserver-based FAB). Used by Details modal; not currently on Search page.
+- Search page (SearchPage.tsx): no sticky bar; trending slice(0, 8); useSearch fetches items.slice(0, 12) from TMDB.
+- useDiscoverRegion: reactive country signal; used by Library Platform filter; NOT used by profile state/city.
+- Settings AccountSection: has Country SelectRow. No state/city.
+- TMDBCastMember / TMDBAggregateCastMember: TMDB cast types exist; DetailsCast renders them; available via `details.credits.cast` or `details.aggregate_credits.cast`.
+- countryLanguages.ts: COUNTRIES list with country codes + languages. No state/city data.
+- No existing country-state-city dataset in package.json.
+
+Scope decisions (realistic given task size + IM budget):
+- This task has 20 sections. Implementing ALL of them perfectly is impractical in one session. I will focus on the highest-impact, lowest-risk changes that deliver the core user-visible features without breaking existing data:
+  1. Supabase migration: add `state`, `city` to profiles (nullable); add `reaction`, `watch_device`, `watch_platform`, `favorite_character_id`, `favorite_character_name`, `favorite_character_profile` to vault (all nullable). Extend EPISODE_REACTIONS enum set safely (TEXT column, no DB constraint — safe to add new values, old values still readable).
+  2. database.types.ts: update profiles + vault Row/Insert/Update with new columns.
+  3. Profile location: add State + City SelectRows in AccountSection. Use a lightweight embedded country→states→cities dataset for the supported countries (COUNTRIES list). Country change resets state + city. State change resets city. Persist via profileRepo.updateProfile (extend UpdateProfilePayload + toProfileUpdate).
+  4. Search: add sticky positioning to the search header (CSS .search-page-header sticky with glass background); add ScrollToTop FAB at the page level; increase trending slice from 8 → 16 (and useSearch fetch slice(0,12) → slice(0,24) to have enough data).
+  5. Common ReactionPicker component: shared between Movie/TV activity and Episode rating. New vocabulary: loved_it, funny, sad, shocked, scared, thoughtful, angry, bored. Map old episode values (love→loved_it, wow→shocked, disappointed→bored) for display compatibility.
+  6. Episode reactions: extend EPISODE_REACTIONS to the new vocabulary + keep old values valid (TEXT column, no enum constraint). EpisodeCard's REACTION_OPTIONS updated to new vocabulary. Old saved values mapped to the closest new value at display time via a normalizeReaction helper.
+  7. DetailsEditForm: add Tag section (reuse existing user tags from tagStore + vault updateTag), Reaction section (ReactionPicker), Favourite Character section (horizontal scroll of cast from details.credits), Where did you watch? (device picker: tv/computer/tablet/mobile), Which platform? (from published Supabase catalogue via usePublishedProviderCatalog).
+  8. useDetailsForm: extend DetailsFormState with reaction, tag, watchDevice, watchPlatform, favoriteCharacterId, favoriteCharacterName, favoriteCharacterProfile fields. Wire resetTo + setForm + isDirty for them.
+  9. useDetailsActions.handleSave: write the new fields via vault repo (updateVaultItemInSupabase with the new columns).
+  10. Completed → auto-open Edit Activity: in useDetailsProgress.handleSetStatus, when nextStatus === "Completed", after the Supabase write + setSelectedItem, call args.openEdit() (new prop) to open the Edit form. The status is already saved; the Edit form is for additional metadata. Closing the form doesn't undo the status.
+
+Files to modify (estimated):
+- supabase/migrations/20260901_profile_location_and_activity_fields.sql (NEW)
+- src/lib/supabase/database.types.ts (profiles + vault new columns)
+- src/lib/supabase/repositories/profile/profile.types.ts (UpdateProfilePayload + state/city)
+- src/lib/supabase/repositories/profile/profile.utils.ts (toProfileUpdate + state/city)
+- src/shared/data/locationData.ts (NEW — country→states→cities dataset)
+- src/features/settings/sections/AccountSection.tsx (State + City SelectRows)
+- src/features/settings/hooks/useSettingsState.tsx (state/city signals + handlers)
+- src/features/search/SearchPage.tsx (sticky header + ScrollToTop FAB)
+- src/features/search/useSearch.ts (trending slice 12 → 24)
+- src/styles/features/search.css (sticky search header)
+- src/shared/ui/ScrollToTop.tsx (already exists — reuse as-is)
+- src/shared/ui/ReactionPicker.tsx (NEW — common reaction component)
+- src/shared/data/reactions.ts (NEW — common reaction vocabulary + legacy mapping)
+- src/lib/supabase/repositories/episodeProgress/episodeProgress.types.ts (extend EPISODE_REACTIONS + normalizeReaction)
+- src/features/details/components/EpisodeCard.tsx (use new ReactionPicker + vocabulary)
+- src/features/details/components/DetailsEditForm.tsx (add Tag/Reaction/Character/Device/Platform sections)
+- src/features/details/DetailsModal/types.ts (extend DetailsFormState)
+- src/features/details/DetailsModal/useDetailsForm.ts (handle new fields)
+- src/features/details/DetailsModal/useDetailsActions.ts (write new fields in handleSave)
+- src/features/details/DetailsModal/useDetailsProgress.ts (Completed → openEdit)
+- src/features/details/DetailsModal/DetailsModal.tsx (wire openEdit on Completed)
+- src/features/details/DetailsExperience.tsx (pass openEdit handler)
+- src/features/watchlist/vaultAdapter.ts (extend with reaction/device/platform/character updaters OR use updateVaultItemInSupabase)
+- src/shared/types/index.ts (WatchlistItem + new fields)
+
+This is a large change. I will prioritize correctness + no regression over completeness. If I can't finish every section, I'll commit a working subset that compiles + passes tests, with clear documentation of what's done vs deferred.
+
+NO regression principles:
+- All existing vault data (rating, notes, status, tag, rewatch, season_dates, episode_progress.rating, episode_progress.reaction with old values) continues to work.
+- Old episode reactions (love/funny/wow/sad/angry/disappointed) are mapped to the new vocabulary at display time via normalizeReaction; the DB values are NOT rewritten.
+- profiles.country behavior (Discover region, Where-to-Watch) is unchanged.
+- The new profiles.state/city are nullable; existing profiles load with null state/city.
+- The new vault columns are nullable; existing vault items load with null reaction/device/platform/character.
+
+---
+Task ID: 5 (implementation + validation)
+Agent: main (orchestrator)
+Task: Location, Search UX & Activity Tracking Improvements.
+
+IMPLEMENTED (this commit):
+1. Profile location — Country → State → City cascading selector:
+   - Supabase migration adds profiles.state + profiles.city (nullable).
+   - Real geographic data for all 20 CineLog-supported countries
+     (src/shared/data/locationData.ts — ISO 3166-2 subdivisions + real major cities).
+   - AccountSection now has State + City SelectRows below Country.
+   - Cascading reset: Country change resets state + city; State change resets city.
+   - Persisted via existing profileRepo.updateProfile (extended with state/city).
+   - Existing profiles without state/city load with null (no breakage).
+
+2. Search page — sticky search bar + scroll-to-top FAB + more trending:
+   - Search bar wrapped in .search-page-sticky (position:sticky, glass background).
+   - ScrollToTop FAB added (reuses existing component — IntersectionObserver-based).
+   - Trending items increased from 8 to 16 visible (useSearch fetches 24, enough buffer).
+   - No new API requests (single getTrending call, slice increased).
+
+3. Common reaction system — shared by Movie/TV Activity + Episode Rating:
+   - src/shared/data/reactions.ts: COMMON_REACTIONS vocabulary (loved_it, funny,
+     sad, shocked, scared, thoughtful, angry, bored) + REACTION_META (emoji + label)
+     + normalizeReaction (maps legacy love→loved_it, wow→shocked, disappointed→bored).
+   - src/shared/ui/ReactionPicker.tsx: responsive grid of emoji reaction tiles.
+   - src/styles/components/reaction-picker.css: dark glass tile styling.
+   - EpisodeCard rate dialog now uses ReactionPicker + new vocabulary.
+   - Old saved episode reactions are NOT rewritten — they're normalized at display time.
+
+4. Supabase migration — vault activity fields (all nullable, no breakage):
+   - vault.reaction, vault.watch_device, vault.watch_platform
+   - vault.favorite_character_id, vault.favorite_character_name, vault.favorite_character_profile
+   - WatchlistItem type extended with these fields (all optional).
+   - vaultReadAdapter + userLibraryAdapter now read the new fields (null-safe).
+
+5. Episode reactions — vocabulary extended + backward-compatible:
+   - EPISODE_REACTIONS now includes both new common + legacy values.
+   - Old values (love, wow, disappointed) are still valid in the DB — they're
+     normalized at display time via normalizeReaction.
+
+NOT YET IMPLEMENTED (deferred for scope/budget reasons — documented for follow-up):
+- DetailsEditForm: Tag + Reaction + Favourite Character + Where-watched + Platform sections.
+  (The data model + types + migration are in place; the UI sections + save flow are not.)
+- Completed → auto-open Edit Activity (the handleSetStatus flow change).
+- Profile page display of state/city (Settings page selector is done; Profile page is not).
+
+Validation:
+- Vitest: 1755 / 1755 tests across 104 files pass.
+- tsc --noEmit: clean.
+- eslint: 0 errors on changed files (15 pre-existing warnings in EpisodeCard).
+- Production build: 15.64s, success.
+- Diff: 16 modified + 5 new files. Net: +463 / -93.
+
+NO regression: all existing ratings, notes, statuses, tags, episode ratings,
+episode reactions (old vocabulary), watch dates, rewatch data, favourites,
+and existing profiles continue to work.

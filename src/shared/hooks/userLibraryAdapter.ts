@@ -192,7 +192,16 @@ export function vaultRowToWatchlistItem(
     // columns existed). Used by useVault.toggleFavorite / togglePinned
     // to determine the CURRENT state before flipping it.
     isFavorite: row.is_favorite ?? false,
-    isPinned: row.is_pinned ?? false
+    isPinned: row.is_pinned ?? false,
+    // Activity tracking fields (added 2026-09-01 migration). All
+    // nullable; existing items (pre-migration) load with null/undefined
+    // and the UI treats that as "not set".
+    reaction: (row as { reaction?: string | null }).reaction ?? null,
+    watchDevice: (row as { watch_device?: string | null }).watch_device ?? null,
+    watchPlatform: (row as { watch_platform?: string | null }).watch_platform ?? null,
+    favoriteCharacterId: (row as { favorite_character_id?: string | null }).favorite_character_id ?? null,
+    favoriteCharacterName: (row as { favorite_character_name?: string | null }).favorite_character_name ?? null,
+    favoriteCharacterProfile: (row as { favorite_character_profile?: string | null }).favorite_character_profile ?? null
   };
 
   if (progress && row.media_type === "tv") {

@@ -89,7 +89,16 @@ export function vaultRowToWatchlistItem(row: VaultRow): WatchlistItem {
     isFavorite: row.is_favorite ?? false,
     isPinned: row.is_pinned ?? false,
     // Phase 6.2 Task 1a — user-defined tag. Optional; most items have none.
-    tag: row.tag ?? undefined
+    tag: row.tag ?? undefined,
+    // Activity tracking fields (added 2026-09-01 migration). All
+    // nullable; existing items (pre-migration) load with null/undefined
+    // and the UI treats that as "not set".
+    reaction: row.reaction ?? null,
+    watchDevice: row.watch_device ?? null,
+    watchPlatform: row.watch_platform ?? null,
+    favoriteCharacterId: row.favorite_character_id ?? null,
+    favoriteCharacterName: row.favorite_character_name ?? null,
+    favoriteCharacterProfile: row.favorite_character_profile ?? null
   };
 }
 

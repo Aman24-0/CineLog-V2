@@ -109,6 +109,19 @@ export interface UpdateProfilePayload {
   readonly avatarUrl?: string | null;
   readonly bio?: string | null;
   readonly country?: string;
+  /**
+   * State / province — ISO 3166-2 subdivision code OR a human-readable
+   * name. Nullable so existing profiles (which have no state) load
+   * without breaking. The app validates against the country's
+   * subdivision list before writing.
+   */
+  readonly state?: string | null;
+  /**
+   * City name. Nullable so existing profiles (which have no city)
+   * load without breaking. The app validates against the
+   * state's city list before writing.
+   */
+  readonly city?: string | null;
   readonly languageCode?: string;
   readonly timezone?: string;
   readonly favoriteMovieId?: string | null;

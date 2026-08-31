@@ -271,6 +271,47 @@ export function AccountSection(props: { state: SettingsState }) {
                   options={s.countryOptions()}
                 />
 
+                {/* State / Province — cascading from Country.
+                    Real geographic data from locationData.ts.
+                    Disabled (renders as a muted row) when the
+                    selected country has no state data in the dataset. */}
+                <SelectRow
+                  icon="location_on"
+                  label="State / Province"
+                  desc={
+                    s.stateOptions().length > 0
+                      ? "Affects local Where-to-Watch / theatre links."
+                      : "Select a country first."
+                  }
+                  value={s.stateCode}
+                  onChange={s.handleSaveState}
+                  options={
+                    s.stateOptions().length > 0
+                      ? [{ value: "", label: "Not set" }, ...s.stateOptions()]
+                      : [{ value: "", label: "Not set" }]
+                  }
+                />
+
+                {/* City — cascading from State.
+                    Real city data from locationData.ts.
+                    Disabled when no state is selected. */}
+                <SelectRow
+                  icon="apartment"
+                  label="City"
+                  desc={
+                    s.cityOptions().length > 0
+                      ? "Used for local booking / theatre links."
+                      : "Select a state first."
+                  }
+                  value={s.city}
+                  onChange={s.handleSaveCity}
+                  options={
+                    s.cityOptions().length > 0
+                      ? [{ value: "", label: "Not set" }, ...s.cityOptions()]
+                      : [{ value: "", label: "Not set" }]
+                  }
+                />
+
                 {/* Joined — read-only */}
                 <div class="setting-row" style={{ cursor: "default" }}>
                   <div class="setting-row-icon" aria-hidden="true">

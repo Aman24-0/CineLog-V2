@@ -4,6 +4,8 @@ import { tmdbImage } from "~/core/tmdb/tmdb";
 import { formatRuntime } from "~/shared/utils/format";
 import { SafeImage } from "~/shared/ui";
 import { GlassModal } from "~/shared/ui/glass";
+import ReactionPicker from "~/shared/ui/ReactionPicker";
+import { normalizeReaction } from "~/shared/data/reactions";
 import { ratingScale } from "~/core/preferences";
 import type { TMDBEpisode } from "~/shared/types";
 import type {
@@ -110,17 +112,25 @@ export function canOpenEpisodeFeedback(
   );
 }
 
+// Common reaction vocabulary — shared with the Movie/TV Activity
+// Edit modal via `src/shared/data/reactions.ts`. The EpisodeCard rate
+// dialog uses ReactionPicker for consistency. Old saved reactions
+// (love, wow, disappointed) are normalized at display time via
+// `normalizeReaction` so existing episode ratings continue to show
+// the correct reaction without a DB migration.
 const REACTION_OPTIONS: ReadonlyArray<{
   value: EpisodeReaction;
   label: string;
-  icon: string;
+  emoji: string;
 }> = [
-  { value: "love", label: "Love", icon: "favorite" },
-  { value: "funny", label: "Funny", icon: "sentiment_very_satisfied" },
-  { value: "wow", label: "Wow", icon: "auto_awesome" },
-  { value: "sad", label: "Sad", icon: "sentiment_dissatisfied" },
-  { value: "angry", label: "Angry", icon: "mood_bad" },
-  { value: "disappointed", label: "Disappointed", icon: "heart_broken" }
+  { value: "loved_it", label: "Loved it", emoji: "😍" },
+  { value: "funny", label: "Funny", emoji: "😂" },
+  { value: "sad", label: "Sad", emoji: "😭" },
+  { value: "shocked", label: "Shocked", emoji: "🤯" },
+  { value: "scared", label: "Scared", emoji: "😱" },
+  { value: "thoughtful", label: "Thoughtful", emoji: "🤔" },
+  { value: "angry", label: "Angry", emoji: "🤬" },
+  { value: "bored", label: "Bored", emoji: "🥱" }
 ];
 
 const EpisodeCard: Component<EpisodeCardProps> = (props) => {
@@ -178,10 +188,6 @@ const EpisodeCard: Component<EpisodeCardProps> = (props) => {
     setDraftRating((current) => (current === star ? null : star));
   };
 
-  const selectDraftReaction = (reaction: EpisodeReaction): void => {
-    setDraftReaction((current) => (current === reaction ? null : reaction));
-  };
-
   const saveFeedback = async (): Promise<void> => {
     if (isSavingFeedback()) return;
     setIsSavingFeedback(true);
@@ -201,12 +207,15 @@ const EpisodeCard: Component<EpisodeCardProps> = (props) => {
 
   const feedbackSummary = (): string | null => {
     const rating = currentRating();
-    const reaction = currentReaction();
+    // Normalize legacy reactions (love→loved_it, wow→shocked,
+    // disappointed→bored) so the summary shows the new label even
+    // for old saved values.
+    const reaction = normalizeReaction(currentReaction());
     if (rating == null && reaction == null) return null;
     const parts = [rating != null ? `★ ${rating}/${ratingMax()}` : null];
-    const reactionLabel = REACTION_OPTIONS.find(
-      (option) => option.value === reaction
-    )?.label;
+    const reactionLabel = reaction
+      ? REACTION_OPTIONS.find((option) => option.value === reaction)?.label
+      : null;
     if (reactionLabel) parts.push(reactionLabel);
     return parts.filter(Boolean).join(" · ");
   };
@@ -396,38 +405,16 @@ const EpisodeCard: Component<EpisodeCardProps> = (props) => {
 
             <fieldset class="episode-reaction-fieldset">
               <legend>Reaction</legend>
-              <div
-                class="episode-reaction-options"
-                role="radiogroup"
-                aria-label={`Reaction for episode ${props.episode.episode_number}`}
-              >
-                <For each={REACTION_OPTIONS}>
-                  {(option) => (
-                    <button
-                      type="button"
-                      class={`episode-reaction-option focus-ring${
-                        draftReaction() === option.value ? " is-active" : ""
-                      }`}
-                      onClick={() => selectDraftReaction(option.value)}
-                      role="radio"
-                      aria-checked={draftReaction() === option.value}
-                      aria-label={
-                        draftReaction() === option.value
-                          ? `Clear ${option.label} reaction`
-                          : option.label
-                      }
-                    >
-                      <span
-                        class="material-symbols-outlined"
-                        aria-hidden="true"
-                      >
-                        {option.icon}
-                      </span>
-                      <span>{option.label}</span>
-                    </button>
-                  )}
-                </For>
-              </div>
+              {/* Common ReactionPicker — shared with the Movie/TV
+                  Activity Edit modal. The draft reaction is
+                  normalized from legacy values via
+                  `normalizeReaction` so old saved reactions display
+                  correctly in the new vocabulary. */}
+              <ReactionPicker
+                value={normalizeReaction(draftReaction())}
+                onChange={(r) => setDraftReaction(r as EpisodeReaction | null)}
+                disabled={isSavingFeedback()}
+              />
             </fieldset>
 
             <div class="episode-rating-dialog-actions">

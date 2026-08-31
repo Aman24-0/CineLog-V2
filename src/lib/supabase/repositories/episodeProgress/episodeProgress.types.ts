@@ -24,13 +24,39 @@ export type EpisodeProgressRow = Tables<"episode_progress">;
 export type EpisodeProgressInsert = TablesInsert<"episode_progress">;
 export type EpisodeProgressUpdate = TablesUpdate<"episode_progress">;
 
-/** Reactions supported by the episode RATE dialog and database constraint. */
+/**
+ * Reactions supported by the episode RATE dialog and database column.
+ *
+ * The `episode_progress.reaction` column is a TEXT column with NO
+ * CHECK constraint, so any string can be stored. The values below
+ * are the full set the app has ever written:
+ *
+ *   - Legacy values (still readable, mapped at display time via
+ *     `normalizeReaction` from `~/shared/data/reactions`):
+ *       love, funny, wow, sad, angry, disappointed
+ *
+ *   - New common vocabulary (the current set, shared with the
+ *     Movie/TV Activity Edit modal):
+ *       loved_it, funny, sad, shocked, scared, thoughtful, angry, bored
+ *
+ * The app writes ONLY the new common vocabulary going forward. Old
+ * values are NOT rewritten — they're normalized at display time so
+ * existing episode ratings continue to show the correct reaction.
+ */
 export const EPISODE_REACTIONS = [
-  "love",
+  // New common vocabulary (current writes)
+  "loved_it",
   "funny",
-  "wow",
   "sad",
+  "shocked",
+  "scared",
+  "thoughtful",
   "angry",
+  "bored",
+  // Legacy values (kept for backward-compatibility —
+  // normalizeReaction maps them to the new vocabulary at display time)
+  "love",
+  "wow",
   "disappointed"
 ] as const;
 

@@ -127,8 +127,12 @@ export function useSearch(args: UseSearchArgs) {
   onMount(() => {
     setRecentSearches(loadRecent());
     setTrendingFetching(true);
+    // Fetch 24 trending items so the Search page can render up to 16
+    // (after library-exclusion filtering) without a second request.
+    // The extra items also serve as a buffer for the trending-exclusion
+    // filter (items already in the user's library are removed).
     getTrending("all", "week")
-      .then((items) => setTrendingItems(items.slice(0, 12)))
+      .then((items) => setTrendingItems(items.slice(0, 24)))
       .catch(() => setTrendingItems([]))
       .finally(() => setTrendingFetching(false));
   });

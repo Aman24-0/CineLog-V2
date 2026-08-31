@@ -4,6 +4,7 @@ import { useGlobalSearch } from "~/shared/contexts/SearchContext";
 import { useUserLibrary } from "~/shared/hooks/useUserLibrary";
 import { useDiscoverActions } from "~/features/discover/useDiscoverActions";
 import PageContainer from "~/shared/ui/PageContainer";
+import ScrollToTop from "~/shared/ui/ScrollToTop";
 import SearchResults from "./SearchResults";
 import SearchResultRow from "./SearchResultRow";
 
@@ -91,45 +92,51 @@ const SearchPage: Component = () => {
           <h1 class="type-display search-page-title">Search</h1>
         </header>
 
-        <form
-          class="search-bar-form search-page-form"
-          onSubmit={(event) => {
-            event.preventDefault();
-            submitQuery(search.query());
-          }}
-        >
-          <div class="search-bar">
-            <span
-              class="material-symbols-outlined search-bar-icon"
-              aria-hidden="true"
-            >
-              search
-            </span>
-            <input
-              type="search"
-              class="search-bar-input"
-              value={search.query()}
-              onInput={(event) => search.setQuery(event.currentTarget.value)}
-              placeholder="Search movies, series, people, or anime…"
-              autocomplete="off"
-              spellcheck={false}
-              autofocus
-              aria-label="Search movies, series, people, or anime"
-            />
-            <Show when={search.query().length > 0}>
-              <button
-                type="button"
-                class="search-bar-clear focus-ring"
-                onClick={() => search.clearQuery()}
-                aria-label="Clear search"
+        {/* Sticky search bar — remains accessible while scrolling.
+            The .search-page-sticky wrapper applies the glass
+            background + sticky positioning. The form + search-bar
+            inside are the existing primitives (unchanged). */}
+        <div class="search-page-sticky">
+          <form
+            class="search-bar-form search-page-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              submitQuery(search.query());
+            }}
+          >
+            <div class="search-bar">
+              <span
+                class="material-symbols-outlined search-bar-icon"
+                aria-hidden="true"
               >
-                <span class="material-symbols-outlined" aria-hidden="true">
-                  close
-                </span>
-              </button>
-            </Show>
-          </div>
-        </form>
+                search
+              </span>
+              <input
+                type="search"
+                class="search-bar-input"
+                value={search.query()}
+                onInput={(event) => search.setQuery(event.currentTarget.value)}
+                placeholder="Search movies, series, people, or anime…"
+                autocomplete="off"
+                spellcheck={false}
+                autofocus
+                aria-label="Search movies, series, people, or anime"
+              />
+              <Show when={search.query().length > 0}>
+                <button
+                  type="button"
+                  class="search-bar-clear focus-ring"
+                  onClick={() => search.clearQuery()}
+                  aria-label="Clear search"
+                >
+                  <span class="material-symbols-outlined" aria-hidden="true">
+                    close
+                  </span>
+                </button>
+              </Show>
+            </div>
+          </form>
+        </div>
 
         <Show
           when={search.hasQuery()}
@@ -184,7 +191,7 @@ const SearchPage: Component = () => {
                   }
                 >
                   <div class="search-results-list">
-                    <For each={search.trending().slice(0, 8)}>
+                    <For each={search.trending().slice(0, 16)}>
                       {(title) => (
                         <SearchResultRow
                           title={title}
@@ -214,6 +221,13 @@ const SearchPage: Component = () => {
           />
         </Show>
       </div>
+
+      {/* Scroll-to-top FAB — appears after the user scrolls down.
+          Reuses the existing ScrollToTop component (IntersectionObserver-
+          based, respects reduced-motion, safe-area-aware). Placed
+          OUTSIDE the .search-page-shell so the sentinel + FAB
+          position correctly relative to the page scroll container. */}
+      <ScrollToTop />
     </PageContainer>
   );
 };

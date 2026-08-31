@@ -119,6 +119,8 @@ export interface SettingsState {
   handleSaveProfile: () => Promise<void>;
   handleCancelEditProfile: () => void;
   handleSaveCountry: (newCountry: string) => Promise<void>;
+  handleSaveState: (newStateCode: string) => Promise<void>;
+  handleSaveCity: (newCity: string) => Promise<void>;
   handleLinkProvider: (provider: "google" | "apple") => Promise<void>;
   handleUnlinkProvider: (provider: "google" | "apple") => Promise<void>;
   handleSignOut: () => void;
@@ -148,6 +150,10 @@ export interface SettingsState {
 
   // ── Derived display values (memos + plain functions) ────────────
   countryOptions: Accessor<{ value: string; label: string }[]>;
+  stateCode: Accessor<string>;
+  stateOptions: Accessor<{ value: string; label: string }[]>;
+  city: Accessor<string>;
+  cityOptions: Accessor<{ value: string; label: string }[]>;
   languageOptions: Accessor<{ value: string; label: string }[]>;
   fallbackOptions: Accessor<{ value: string; label: string }[]>;
   activeProviderCount: Accessor<number>;

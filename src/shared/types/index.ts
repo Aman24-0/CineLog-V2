@@ -175,6 +175,39 @@ export interface WatchlistItem {
    */
   credits?: TMDBCredits;
   tag?: string;
+  /**
+   * User's emotional reaction to the title — one of the common
+   * reaction vocabulary (loved_it, funny, sad, shocked, scared,
+   * thoughtful, angry, bored). NULL/undefined = no reaction set.
+   * Persisted to `vault.reaction` (TEXT column, no DB CHECK
+   * constraint — the app validates before writing).
+   */
+  reaction?: string | null;
+  /**
+   * Where the user watched the title: "tv" | "computer" | "tablet"
+   * | "mobile". NULL/undefined = not set. Persisted to
+   * `vault.watch_device`.
+   */
+  watchDevice?: string | null;
+  /**
+   * JustWatch `technicalName` of the platform the user watched on
+   * (e.g. "netflix", "prime"). NULL/undefined = not set / unknown.
+   * Persisted to `vault.watch_platform`. Distinct from
+   * `justwatchProviders` (which is the list of ALL providers the
+   * title is available on, populated by the batch-availability
+   * enrichment — NOT the user's chosen platform).
+   */
+  watchPlatform?: string | null;
+  /**
+   * Favourite character — TMDB person id (cast.id). NULL/undefined
+   * = no favourite character set. Persisted to
+   * `vault.favorite_character_id`.
+   */
+  favoriteCharacterId?: string | null;
+  /** Favourite character display name (cast.character). */
+  favoriteCharacterName?: string | null;
+  /** Favourite character actor profile_path for image display. */
+  favoriteCharacterProfile?: string | null;
   seasonDates?: Record<string, { start: string; end: string }>;
   franchises?: Record<string, number>;
   watchProgress?: WatchProgress;

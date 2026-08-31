@@ -496,6 +496,7 @@ export type Database = {
           banner_type: string;
           banner_url: string | null;
           bio: string | null;
+          city: string | null;
           country: string;
           created_at: string;
           deleted_at: string | null;
@@ -509,6 +510,7 @@ export type Database = {
           is_admin: boolean;
           language_code: string;
           scheduled_deletion_at: string | null;
+          state: string | null;
           timezone: string;
           updated_at: string;
           username: string;
@@ -520,6 +522,7 @@ export type Database = {
           banner_type?: string;
           banner_url?: string | null;
           bio?: string | null;
+          city?: string | null;
           country: string;
           created_at?: string;
           deleted_at?: string | null;
@@ -533,6 +536,7 @@ export type Database = {
           is_admin?: boolean;
           language_code?: string;
           scheduled_deletion_at?: string | null;
+          state?: string | null;
           timezone?: string;
           updated_at?: string;
           username: string;
@@ -544,6 +548,7 @@ export type Database = {
           banner_type?: string;
           banner_url?: string | null;
           bio?: string | null;
+          city?: string | null;
           country?: string;
           created_at?: string;
           deleted_at?: string | null;
@@ -557,6 +562,7 @@ export type Database = {
           is_admin?: boolean;
           language_code?: string;
           scheduled_deletion_at?: string | null;
+          state?: string | null;
           timezone?: string;
           updated_at?: string;
           username?: string;
@@ -1000,6 +1006,9 @@ export type Database = {
           completed_at: string | null;
           created_at: string;
           deleted_at: string | null;
+          favorite_character_id: string | null;
+          favorite_character_name: string | null;
+          favorite_character_profile: string | null;
           id: string;
           is_favorite: boolean;
           is_pinned: boolean;
@@ -1008,6 +1017,7 @@ export type Database = {
           notes: string | null;
           progress_minutes: number | null;
           rating: number | null;
+          reaction: string | null;
           rewatch_count: number;
           rewatch_dates: string[] | null;
           season_dates: Json | null;
@@ -1020,11 +1030,16 @@ export type Database = {
           updated_at: string;
           user_id: string;
           watched_on: string | null;
+          watch_device: string | null;
+          watch_platform: string | null;
         };
         Insert: {
           completed_at?: string | null;
           created_at?: string;
           deleted_at?: string | null;
+          favorite_character_id?: string | null;
+          favorite_character_name?: string | null;
+          favorite_character_profile?: string | null;
           id?: string;
           is_favorite?: boolean;
           is_pinned?: boolean;
@@ -1033,6 +1048,7 @@ export type Database = {
           notes?: string | null;
           progress_minutes?: number | null;
           rating?: number | null;
+          reaction?: string | null;
           rewatch_count?: number;
           rewatch_dates?: string[] | null;
           season_dates?: Json | null;
@@ -1045,11 +1061,16 @@ export type Database = {
           updated_at?: string;
           user_id: string;
           watched_on?: string | null;
+          watch_device?: string | null;
+          watch_platform?: string | null;
         };
         Update: {
           completed_at?: string | null;
           created_at?: string;
           deleted_at?: string | null;
+          favorite_character_id?: string | null;
+          favorite_character_name?: string | null;
+          favorite_character_profile?: string | null;
           id?: string;
           is_favorite?: boolean;
           is_pinned?: boolean;
@@ -1058,6 +1079,7 @@ export type Database = {
           notes?: string | null;
           progress_minutes?: number | null;
           rating?: number | null;
+          reaction?: string | null;
           rewatch_count?: number;
           rewatch_dates?: string[] | null;
           season_dates?: Json | null;
@@ -1070,6 +1092,8 @@ export type Database = {
           updated_at?: string;
           user_id?: string;
           watched_on?: string | null;
+          watch_device?: string | null;
+          watch_platform?: string | null;
         };
         Relationships: [
           {

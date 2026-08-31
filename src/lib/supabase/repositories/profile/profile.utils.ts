@@ -82,6 +82,8 @@ export function toProfileInsert(
     avatar_url: payload.avatarUrl ?? null,
     bio: payload.bio ?? null,
     country: payload.country,
+    state: null,
+    city: null,
     language_code: payload.languageCode,
     timezone: payload.timezone
   };
@@ -110,6 +112,8 @@ export function toProfileUpdate(
   if (payload.avatarUrl !== undefined) update.avatar_url = payload.avatarUrl;
   if (payload.bio !== undefined) update.bio = payload.bio;
   if (payload.country !== undefined) update.country = payload.country;
+  if (payload.state !== undefined) update.state = payload.state;
+  if (payload.city !== undefined) update.city = payload.city;
   if (payload.languageCode !== undefined)
     update.language_code = payload.languageCode;
   if (payload.timezone !== undefined) update.timezone = payload.timezone;
