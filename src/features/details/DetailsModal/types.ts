@@ -59,4 +59,18 @@ export interface DetailsFormState {
   seasonRewatchCount: string;
   /** SERIES: per-re-watch per-season start/end. Array index = re-watch number (0 = 1st rewatch). */
   seasonRewatchDates: Record<string, { start: string; end: string }>[];
+  /** User tag (from the existing tag system — tagStore + vault.tag column). */
+  tag: string;
+  /** User's emotional reaction (common reaction vocabulary from reactions.ts). */
+  reaction: string;
+  /** Where the user watched: tv | computer | tablet | mobile | "" */
+  watchDevice: string;
+  /** JustWatch technicalName of the platform the user watched on. */
+  watchPlatform: string;
+  /** TMDB person id of the favourite character. */
+  favoriteCharacterId: string;
+  /** Favourite character display name (cast.character). */
+  favoriteCharacterName: string;
+  /** Favourite character actor profile_path. */
+  favoriteCharacterProfile: string;
 }

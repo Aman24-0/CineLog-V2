@@ -60,7 +60,14 @@ export function useDetailsForm(
     rewatchDates: [],
     seasonDates: {},
     seasonRewatchCount: "0",
-    seasonRewatchDates: []
+    seasonRewatchDates: [],
+    tag: "",
+    reaction: "",
+    watchDevice: "",
+    watchPlatform: "",
+    favoriteCharacterId: "",
+    favoriteCharacterName: "",
+    favoriteCharacterProfile: ""
   });
 
   const resetTo = (v: WatchlistItem | null) => {
@@ -112,7 +119,14 @@ export function useDetailsForm(
         rewatchDates: dates,
         seasonDates,
         seasonRewatchCount: String(seasonRewatchCount),
-        seasonRewatchDates
+        seasonRewatchDates,
+        tag: v.tag ?? "",
+        reaction: v.reaction ?? "",
+        watchDevice: v.watchDevice ?? "",
+        watchPlatform: v.watchPlatform ?? "",
+        favoriteCharacterId: v.favoriteCharacterId ?? "",
+        favoriteCharacterName: v.favoriteCharacterName ?? "",
+        favoriteCharacterProfile: v.favoriteCharacterProfile ?? ""
       });
     } else {
       // Non-vault title — reset the form to defaults (no user-owned state)
@@ -125,7 +139,14 @@ export function useDetailsForm(
         rewatchDates: [],
         seasonDates: {},
         seasonRewatchCount: "0",
-        seasonRewatchDates: []
+        seasonRewatchDates: [],
+        tag: "",
+        reaction: "",
+        watchDevice: "",
+        watchPlatform: "",
+        favoriteCharacterId: "",
+        favoriteCharacterName: "",
+        favoriteCharacterProfile: ""
       });
     }
     setIsEditing(false);
@@ -174,7 +195,14 @@ export function useDetailsForm(
       !datesEqual ||
       !seasonDatesEqual ||
       currentSeasonRewatch !== itemSeasonRewatch ||
-      !seasonRewatchDatesEqual
+      !seasonRewatchDatesEqual ||
+      form().tag !== (v.tag ?? "") ||
+      form().reaction !== (v.reaction ?? "") ||
+      form().watchDevice !== (v.watchDevice ?? "") ||
+      form().watchPlatform !== (v.watchPlatform ?? "") ||
+      form().favoriteCharacterId !== (v.favoriteCharacterId ?? "") ||
+      form().favoriteCharacterName !== (v.favoriteCharacterName ?? "") ||
+      form().favoriteCharacterProfile !== (v.favoriteCharacterProfile ?? "")
     );
   });
 

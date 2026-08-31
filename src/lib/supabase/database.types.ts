@@ -510,7 +510,6 @@ export type Database = {
           is_admin: boolean;
           language_code: string;
           scheduled_deletion_at: string | null;
-          state: string | null;
           timezone: string;
           updated_at: string;
           username: string;
@@ -536,7 +535,6 @@ export type Database = {
           is_admin?: boolean;
           language_code?: string;
           scheduled_deletion_at?: string | null;
-          state?: string | null;
           timezone?: string;
           updated_at?: string;
           username: string;
@@ -562,7 +560,6 @@ export type Database = {
           is_admin?: boolean;
           language_code?: string;
           scheduled_deletion_at?: string | null;
-          state?: string | null;
           timezone?: string;
           updated_at?: string;
           username?: string;

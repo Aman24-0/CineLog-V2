@@ -50,6 +50,15 @@ export interface UseDetailsProgressArgs {
   /** Optional route-aware related-title navigation for dedicated pages. */
   onSelectRelatedItem?: (item: WatchlistItem) => void;
   showToast: (msg: string, type: ToastType, duration?: number) => void;
+  /**
+   * Part 5 — Called when the user sets status to "Completed". The
+   * Activity/Edit modal opens automatically so the user can
+   * immediately fill in their viewing metadata (rating, reaction,
+   * watch date, etc.). The status is ALREADY SAVED before this is
+   * called — closing the edit modal without saving does NOT revert
+   * the Completed status.
+   */
+  onCompletedAutoOpenEdit?: () => void;
 }
 
 export interface UseDetailsProgressResult {
@@ -369,6 +378,14 @@ export function useDetailsProgress(
         vaultItem: updated
       });
       args.showToast(`Status: ${state.status}`, "success", 1500);
+      // Part 5 — If the user set status to "Completed", automatically
+      // open the Activity/Edit modal so they can fill in their viewing
+      // metadata (rating, reaction, watch date, etc.). The status is
+      // ALREADY SAVED — closing the edit modal without saving does NOT
+      // revert the Completed status.
+      if (nextStatus === "Completed" && args.onCompletedAutoOpenEdit) {
+        args.onCompletedAutoOpenEdit();
+      }
     } catch {
       args.showToast("Failed to update status.", "error");
     }

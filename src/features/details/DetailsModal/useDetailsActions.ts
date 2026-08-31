@@ -19,7 +19,8 @@ import {
   updateRatingInSupabase,
   updateRewatchInSupabase,
   updateSeasonDatesInSupabase,
-  updateWatchDateInSupabase
+  updateWatchDateInSupabase,
+  updateVaultItemInSupabase
 } from "~/features/watchlist/vaultAdapter";
 import { cacheMetadataEntries, buildCacheKey } from "~/shared/utils/tmdbCache";
 import type { WatchlistItem, TMDBDetails } from "~/shared/types";
@@ -59,6 +60,11 @@ export interface UseDetailsActionsArgs {
   onSelectRelatedItem?: (item: WatchlistItem) => void;
   /** Called after a successful remove to close the modal. */
   onRemoved: () => void;
+  /**
+   * Part 5 — Called when status is set to "Completed" to auto-open
+   * the Activity/Edit modal. Passed through to useDetailsProgress.
+   */
+  onCompletedAutoOpenEdit?: () => void;
 }
 
 export interface UseDetailsActionsResult {
@@ -359,6 +365,43 @@ export function useDetailsActions(
         );
       }
 
+      // ── Activity tracking fields (Part 4-9) ─────────────────────
+      // Tag, reaction, watchDevice, watchPlatform, favoriteCharacter.
+      // All are written via a single updateVaultItemInSupabase call
+      // (they're all on the vault table). We compare each field to the
+      // current vault item's value so we only write if changed.
+      const activityUpdate: Record<string, string | null> = {};
+      if (args.form().tag !== (v.tag ?? "")) {
+        activityUpdate.tag = args.form().tag || null;
+      }
+      if (args.form().reaction !== (v.reaction ?? "")) {
+        activityUpdate.reaction = args.form().reaction || null;
+      }
+      if (args.form().watchDevice !== (v.watchDevice ?? "")) {
+        activityUpdate.watch_device = args.form().watchDevice || null;
+      }
+      if (args.form().watchPlatform !== (v.watchPlatform ?? "")) {
+        activityUpdate.watch_platform = args.form().watchPlatform || null;
+      }
+      if (args.form().favoriteCharacterId !== (v.favoriteCharacterId ?? "")) {
+        activityUpdate.favorite_character_id =
+          args.form().favoriteCharacterId || null;
+        activityUpdate.favorite_character_name =
+          args.form().favoriteCharacterName || null;
+        activityUpdate.favorite_character_profile =
+          args.form().favoriteCharacterProfile || null;
+      }
+      if (Object.keys(activityUpdate).length > 0) {
+        updates.push(
+          updateVaultItemInSupabase(
+            uid,
+            v.id,
+            v.media_type,
+            activityUpdate as Parameters<typeof updateVaultItemInSupabase>[3]
+          )
+        );
+      }
+
       // Use allSettled so ALL updates run even if one fails.
       // A single field failure (e.g. rewatch_dates column missing) should
       // not prevent the other fields (status, rating, notes) from saving.
@@ -407,7 +450,14 @@ export function useDetailsActions(
         rewatchDates: [...newDates],
         seasonDates: { ...newSeasonDates },
         seasonRewatchCount: newSeasonRewatchCount,
-        seasonRewatchDates: newSeasonRewatchDates.map((m) => ({ ...m }))
+        seasonRewatchDates: newSeasonRewatchDates.map((m) => ({ ...m })),
+        tag: args.form().tag || undefined,
+        reaction: args.form().reaction || null,
+        watchDevice: args.form().watchDevice || null,
+        watchPlatform: args.form().watchPlatform || null,
+        favoriteCharacterId: args.form().favoriteCharacterId || null,
+        favoriteCharacterName: args.form().favoriteCharacterName || null,
+        favoriteCharacterProfile: args.form().favoriteCharacterProfile || null
       };
       args.setSelectedItem({
         baseItem: { ...args.baseItem()!, ...updatedVault },
@@ -479,7 +529,8 @@ export function useDetailsActions(
     watchlist: args.watchlist,
     setSelectedItem: args.setSelectedItem,
     onSelectRelatedItem: args.onSelectRelatedItem,
-    showToast
+    showToast,
+    onCompletedAutoOpenEdit: args.onCompletedAutoOpenEdit
   });
 
   return {

@@ -110,16 +110,10 @@ export interface UpdateProfilePayload {
   readonly bio?: string | null;
   readonly country?: string;
   /**
-   * State / province — ISO 3166-2 subdivision code OR a human-readable
-   * name. Nullable so existing profiles (which have no state) load
-   * without breaking. The app validates against the country's
-   * subdivision list before writing.
-   */
-  readonly state?: string | null;
-  /**
    * City name. Nullable so existing profiles (which have no city)
-   * load without breaking. The app validates against the
-   * state's city list before writing.
+   * load without breaking. The app provides a searchable city list
+   * per country (src/shared/data/locationData.ts) but also allows
+   * free-text entry for cities not in the dataset.
    */
   readonly city?: string | null;
   readonly languageCode?: string;

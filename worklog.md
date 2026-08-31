@@ -1388,3 +1388,34 @@ Validation:
 NO regression: all existing ratings, notes, statuses, tags, episode ratings,
 episode reactions (old vocabulary), watch dates, rewatch data, favourites,
 and existing profiles continue to work.
+
+---
+Task ID: 6 (audit + plan)
+Agent: main (orchestrator)
+Task: Complete all remaining CineLog requirements — 17 parts.
+
+AUDIT:
+- Current state: commit b1d1e96 added Country→State→City + reaction system + search UX + vault migration.
+- State field exists in: locationData.ts (state→city hierarchy), useSettingsState.tsx (stateCode signal + handleSaveState), AccountSection.tsx (State SelectRow), types.ts (stateCode/stateOptions/handleSaveState), profile.types.ts (state in UpdateProfilePayload), profile.utils.ts (state in toProfileUpdate/toProfileInsert), database.types.ts (state in profiles Row/Insert/Update).
+- City is currently state-dependent (cascading from state selection). Need to make it searchable directly.
+- DetailsEditForm has NO tag/reaction/character/device/platform sections. DetailsFormState has NO fields for these.
+- useDetailsActions.handleSave writes: status, rating, notes, watchDate, rewatchCount, rewatchDates, seasonDates. Does NOT write: tag, reaction, watchDevice, watchPlatform, favoriteCharacter.
+- useDetailsProgress.handleSetStatus: saves status then updates vaultItem, does NOT open edit form.
+- EpisodeCard already uses ReactionPicker + new vocabulary (from previous commit).
+- Search page already has sticky bar + ScrollToTop + 16 trending (from previous commit).
+- vaultReadAdapter + userLibraryAdapter already read reaction/watchDevice/watchPlatform/favoriteCharacter from DB.
+- Vault table has columns: reaction, watch_device, watch_platform, favorite_character_id, favorite_character_name, favorite_character_profile (from previous migration).
+- profiles table has: state, city (from previous migration). Need to DROP state.
+
+PLAN:
+1. Create migration to DROP profiles.state column.
+2. Replace locationData.ts with a flat city search dataset (country → cities[], no state hierarchy).
+3. Remove ALL state references from: useSettingsState, AccountSection, types.ts, profile.types.ts, profile.utils.ts, database.types.ts.
+4. Implement city search input in AccountSection (type-ahead filter over city list).
+5. Extend DetailsFormState with: tag, reaction, watchDevice, watchPlatform, favoriteCharacterId, favoriteCharacterName, favoriteCharacterProfile.
+6. Extend useDetailsForm to handle these fields in resetTo + setForm + isDirty.
+7. Extend DetailsEditForm with Tag, Reaction, Favourite Character, Where-watched, Platform sections.
+8. Extend useDetailsActions.handleSave to write these fields via updateVaultItemInSupabase.
+9. Implement Completed → auto-open: modify handleSetStatus to call setIsEditing(true) when nextStatus==="Completed".
+10. Audit WhereToWatch for city-specific URL injection (Part 2 — may be limited by JustWatch's URL structure).
+11. Tests + validation.

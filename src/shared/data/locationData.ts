@@ -1,346 +1,285 @@
 // src/shared/data/locationData.ts
 //
-// locationData — real country → state/province → city dataset for
-// the CineLog Profile location selector.
+// locationData — real country → searchable city dataset for the
+// CineLog Profile location selector.
 //
-// DESIGN:
+// DESIGN (Part 1 redesign — Country + City, NO State):
 //   - Covers every country in COUNTRIES (countryLanguages.ts) so the
 //     Profile selector works generically for all supported regions.
-//   - States/provinces are the real ISO 3166-2 subdivisions for each
-//     country (e.g. IN-MP = Madhya Pradesh, US-CA = California).
-//   - Cities are real major cities for each state — NOT a tiny
-//     special-cased list. Each state has 3-12 cities (the major
-//     population centres), enough for a useful selector without
-//     bloating the bundle.
-//   - The dataset is intentionally NOT exhaustive (a full city
-//     database for 20 countries would be megabytes). It covers the
-//     major cities a user is likely to be in, plus the state
-//     capital. Users in smaller towns can pick the nearest major
-//     city or leave the city unset (the field is optional).
+//   - Cities are a FLAT list per country (no state hierarchy). The
+//     user types a city name and the list filters — like BookMyShow.
+//     Searching "Rewa" returns Rewa directly, no state selection needed.
+//   - Each country has its major cities (population centres, state
+//     capitals, and notable towns). The list is NOT exhaustive (a
+//     full city database for 20 countries would be megabytes) but
+//     covers the cities a user is most likely to be in. Users in
+//     unlisted towns can type their city name and if it's not in the
+//     list, they can save it as a custom value (the UI supports
+//     free-text entry for cities not in the dataset).
+//   - The dataset is loaded synchronously (no network request on
+//     every keystroke) and is small enough to bundle (~40KB).
 //
 // USAGE:
-//   import { getStatesForCountry, getCitiesForState, LOCATION_DATA }
-//     from "~/shared/data/locationData";
+//   import { getCitiesForCountry, searchCities } from "~/shared/data/locationData";
 //
-//   const states = getStatesForCountry("IN"); // [{ code: "IN-MP",
-//                                              //   name: "Madhya Pradesh"}, ...]
-//   const cities = getCitiesForState("IN", "IN-MP"); // ["Rewa", "Bhopal", ...]
+//   const cities = getCitiesForCountry("IN"); // ["Mumbai", "Delhi", "Rewa", ...]
+//   const results = searchCities("IN", "rew"); // ["Rewa"]
 //
 // SOURCE:
-//   ISO 3166-2 subdivision codes + Wikipedia "List of cities in ..."
-//   articles for the major cities. The data is hand-curated for
-//   accuracy and bundle size. Adding a new country requires:
+//   Wikipedia "List of cities in ..." articles + GeoNames for the
+//   major cities. The data is hand-curated for accuracy and bundle
+//   size. Adding a new country requires:
 //     1. Adding it to COUNTRIES in countryLanguages.ts.
-//     2. Adding its states + cities here.
-//
-// This dataset is loaded synchronously (no network request on every
-// selector interaction) and is small enough (~50KB) to bundle.
+//     2. Adding its cities here.
 
-export interface StateOption {
-  /** ISO 3166-2 subdivision code, e.g. "IN-MP", "US-CA". */
-  code: string;
-  /** Human-readable state/province name. */
-  name: string;
+/**
+ * Get the full list of cities for a country (sorted alphabetically).
+ * Returns `[]` if the country is not in the dataset.
+ */
+export function getCitiesForCountry(country: string): string[] {
+  const cities = COUNTRY_CITIES[country];
+  return cities ? [...cities].sort() : [];
 }
 
-interface CountryLocation {
-  /** ISO 3166-1 alpha-2 country code. */
-  country: string;
-  /** States/provinces for this country. */
-  states: Array<{
-    code: string;
-    name: string;
-    /** Major cities in this state (real names, not exhaustive). */
-    cities: string[];
-  }>;
+/**
+ * Search cities within a country by prefix or substring match.
+ * Case-insensitive. Returns up to 20 results.
+ * Used by the type-ahead city search input in the Profile settings.
+ */
+export function searchCities(country: string, query: string): string[] {
+  const cities = COUNTRY_CITIES[country];
+  if (!cities) return [];
+  const q = query.trim().toLowerCase();
+  if (!q) return [];
+  const results = cities.filter((c) => c.toLowerCase().includes(q));
+  return results.slice(0, 20);
 }
 
 // ─── Dataset ────────────────────────────────────────────────────────
 //
-// Each country entry has its real ISO 3166-2 subdivisions + the major
-// cities for each. The list is intentionally NOT exhaustive — it
-// covers the major population centres so the user can pick a
-// sensible value. Smaller towns are not listed (the city field is
-// optional; users in unlisted towns can pick the nearest major
-// city or leave it unset).
+// Each country entry has its real major cities as a flat array.
+// The list is NOT exhaustive but covers the major population centres
+// + state capitals + notable towns for each country.
 
-export const LOCATION_DATA: CountryLocation[] = [
-  {
-    country: "IN",
-    states: [
-      { code: "IN-MP", name: "Madhya Pradesh", cities: ["Bhopal", "Indore", "Jabalpur", "Gwalior", "Rewa", "Ujjain"] },
-      { code: "IN-MH", name: "Maharashtra", cities: ["Mumbai", "Pune", "Nagpur", "Nashik", "Aurangabad", "Thane"] },
-      { code: "IN-DL", name: "Delhi", cities: ["New Delhi", "Delhi"] },
-      { code: "IN-KA", name: "Karnataka", cities: ["Bengaluru", "Mysuru", "Mangaluru", "Hubballi", "Belagavi"] },
-      { code: "IN-TN", name: "Tamil Nadu", cities: ["Chennai", "Coimbatore", "Madurai", "Tiruchirappalli", "Salem"] },
-      { code: "IN-TG", name: "Telangana", cities: ["Hyderabad", "Warangal", "Nizamabad", "Karimnagar"] },
-      { code: "IN-AP", name: "Andhra Pradesh", cities: ["Visakhapatnam", "Vijayawada", "Guntur", "Tirupati"] },
-      { code: "IN-WB", name: "West Bengal", cities: ["Kolkata", "Howrah", "Durgapur", "Asansol", "Siliguri"] },
-      { code: "IN-GJ", name: "Gujarat", cities: ["Ahmedabad", "Surat", "Vadodara", "Rajkot", "Bhavnagar"] },
-      { code: "IN-RJ", name: "Rajasthan", cities: ["Jaipur", "Jodhpur", "Udaipur", "Kota", "Ajmer"] },
-      { code: "IN-UP", name: "Uttar Pradesh", cities: ["Lucknow", "Kanpur", "Agra", "Varanasi", "Meerut", "Allahabad"] },
-      { code: "IN-PB", name: "Punjab", cities: ["Ludhiana", "Amritsar", "Jalandhar", "Patiala"] },
-      { code: "IN-HR", name: "Haryana", cities: ["Gurugram", "Faridabad", "Panipat", "Ambala", "Karnal"] },
-      { code: "IN-KL", name: "Kerala", cities: ["Thiruvananthapuram", "Kochi", "Kozhikode", "Thrissur"] },
-      { code: "IN-AS", name: "Assam", cities: ["Guwahati", "Dibrugarh", "Silchar", "Jorhat"] },
-      { code: "IN-OR", name: "Odisha", cities: ["Bhubaneswar", "Cuttack", "Rourkela", "Brahmapur"] },
-      { code: "IN-BR", name: "Bihar", cities: ["Patna", "Gaya", "Bhagalpur", "Muzaffarpur"] },
-      { code: "IN-JH", name: "Jharkhand", cities: ["Ranchi", "Jamshedpur", "Dhanbad", "Bokaro"] },
-      { code: "IN-CT", name: "Chhattisgarh", cities: ["Raipur", "Bhilai", "Bilaspur", "Korba"] },
-      { code: "IN-UT", name: "Uttarakhand", cities: ["Dehradun", "Haridwar", "Roorkee", "Haldwani"] },
-      { code: "IN-HP", name: "Himachal Pradesh", cities: ["Shimla", "Manali", "Dharamshala", "Solan"] },
-      { code: "IN-GA", name: "Goa", cities: ["Panaji", "Margao", "Vasco da Gama"] },
-      { code: "IN-JK", name: "Jammu and Kashmir", cities: ["Srinagar", "Jammu", "Anantnag", "Baramulla"] }
-    ]
-  },
-  {
-    country: "US",
-    states: [
-      { code: "US-CA", name: "California", cities: ["Los Angeles", "San Francisco", "San Diego", "San Jose", "Sacramento", "Fresno"] },
-      { code: "US-NY", name: "New York", cities: ["New York City", "Buffalo", "Rochester", "Albany", "Syracuse"] },
-      { code: "US-TX", name: "Texas", cities: ["Houston", "Dallas", "Austin", "San Antonio", "Fort Worth", "El Paso"] },
-      { code: "US-FL", name: "Florida", cities: ["Miami", "Orlando", "Tampa", "Jacksonville", "Tallahassee"] },
-      { code: "US-IL", name: "Illinois", cities: ["Chicago", "Springfield", "Aurora", "Naperville"] },
-      { code: "US-WA", name: "Washington", cities: ["Seattle", "Spokane", "Tacoma", "Olympia", "Bellevue"] },
-      { code: "US-MA", name: "Massachusetts", cities: ["Boston", "Worcester", "Springfield", "Cambridge"] },
-      { code: "US-PA", name: "Pennsylvania", cities: ["Philadelphia", "Pittsburgh", "Harrisburg", "Allentown"] },
-      { code: "US-GA", name: "Georgia", cities: ["Atlanta", "Savannah", "Augusta", "Athens", "Macon"] },
-      { code: "US-NC", name: "North Carolina", cities: ["Charlotte", "Raleigh", "Greensboro", "Durham", "Winston-Salem"] },
-      { code: "US-MI", name: "Michigan", cities: ["Detroit", "Grand Rapids", "Lansing", "Ann Arbor"] },
-      { code: "US-NJ", name: "New Jersey", cities: ["Newark", "Jersey City", "Trenton", "Atlantic City"] },
-      { code: "US-VA", name: "Virginia", cities: ["Virginia Beach", "Richmond", "Norfolk", "Arlington"] },
-      { code: "US-WA", name: "Washington", cities: ["Seattle", "Spokane", "Tacoma", "Olympia"] },
-      { code: "US-AZ", name: "Arizona", cities: ["Phoenix", "Tucson", "Mesa", "Scottsdale", "Flagstaff"] },
-      { code: "US-CO", name: "Colorado", cities: ["Denver", "Colorado Springs", "Aurora", "Boulder", "Fort Collins"] },
-      { code: "US-OR", name: "Oregon", cities: ["Portland", "Salem", "Eugene", "Bend"] },
-      { code: "US-NV", name: "Nevada", cities: ["Las Vegas", "Reno", "Henderson", "Carson City"] },
-      { code: "US-MN", name: "Minnesota", cities: ["Minneapolis", "Saint Paul", "Rochester", "Duluth"] },
-      { code: "US-WI", name: "Wisconsin", cities: ["Milwaukee", "Madison", "Green Bay", "Kenosha"] }
-    ]
-  },
-  {
-    country: "GB",
-    states: [
-      { code: "GB-ENG", name: "England", cities: ["London", "Manchester", "Birmingham", "Leeds", "Liverpool", "Sheffield", "Bristol"] },
-      { code: "GB-SCT", name: "Scotland", cities: ["Edinburgh", "Glasgow", "Aberdeen", "Dundee", "Inverness"] },
-      { code: "GB-WLS", name: "Wales", cities: ["Cardiff", "Swansea", "Newport", "Bangor"] },
-      { code: "GB-NIR", name: "Northern Ireland", cities: ["Belfast", "Derry", "Lisburn", "Newry"] }
-    ]
-  },
-  {
-    country: "CA",
-    states: [
-      { code: "CA-ON", name: "Ontario", cities: ["Toronto", "Ottawa", "Mississauga", "Hamilton", "London"] },
-      { code: "CA-QC", name: "Quebec", cities: ["Montreal", "Quebec City", "Laval", "Gatineau"] },
-      { code: "CA-BC", name: "British Columbia", cities: ["Vancouver", "Victoria", "Surrey", "Kelowna"] },
-      { code: "CA-AB", name: "Alberta", cities: ["Calgary", "Edmonton", "Red Deer", "Lethbridge"] },
-      { code: "CA-MB", name: "Manitoba", cities: ["Winnipeg", "Brandon", "Steinbach"] },
-      { code: "CA-SK", name: "Saskatchewan", cities: ["Saskatoon", "Regina", "Prince Albert"] },
-      { code: "CA-NS", name: "Nova Scotia", cities: ["Halifax", "Sydney", "Dartmouth"] }
-    ]
-  },
-  {
-    country: "AU",
-    states: [
-      { code: "AU-NSW", name: "New South Wales", cities: ["Sydney", "Newcastle", "Wollongong", "Maitland"] },
-      { code: "AU-VIC", name: "Victoria", cities: ["Melbourne", "Geelong", "Ballarat", "Bendigo"] },
-      { code: "AU-QLD", name: "Queensland", cities: ["Brisbane", "Gold Coast", "Cairns", "Townsville"] },
-      { code: "AU-WA", name: "Western Australia", cities: ["Perth", "Fremantle", "Mandurah", "Bunbury"] },
-      { code: "AU-SA", name: "South Australia", cities: ["Adelaide", "Mount Gambier", "Whyalla"] },
-      { code: "AU-TAS", name: "Tasmania", cities: ["Hobart", "Launceston", "Devonport"] }
-    ]
-  },
-  {
-    country: "DE",
-    states: [
-      { code: "DE-BY", name: "Bavaria", cities: ["Munich", "Nuremberg", "Augsburg", "Würzburg"] },
-      { code: "DE-BE", name: "Berlin", cities: ["Berlin"] },
-      { code: "DE-HH", name: "Hamburg", cities: ["Hamburg"] },
-      { code: "DE-NW", name: "North Rhine-Westphalia", cities: ["Cologne", "Düsseldorf", "Dortmund", "Essen"] },
-      { code: "DE-HE", name: "Hesse", cities: ["Frankfurt", "Wiesbaden", "Kassel", "Darmstadt"] },
-      { code: "DE-SN", name: "Saxony", cities: ["Dresden", "Leipzig", "Chemnitz"] },
-      { code: "DE-BW", name: "Baden-Württemberg", cities: ["Stuttgart", "Mannheim", "Karlsruhe", "Freiburg"] }
-    ]
-  },
-  {
-    country: "FR",
-    states: [
-      { code: "FR-75", name: "Paris", cities: ["Paris"] },
-      { code: "FR-69", name: "Rhône", cities: ["Lyon", "Villeurbanne"] },
-      { code: "FR-13", name: "Bouches-du-Rhône", cities: ["Marseille", "Aix-en-Provence"] },
-      { code: "FR-31", name: "Haute-Garonne", cities: ["Toulouse", "Colomiers"] },
-      { code: "FR-06", name: "Alpes-Maritimes", cities: ["Nice", "Cannes", "Antibes"] },
-      { code: "FR-44", name: "Loire-Atlantique", cities: ["Nantes", "Saint-Nazaire"] },
-      { code: "FR-67", name: "Bas-Rhin", cities: ["Strasbourg", "Haguenau"] }
-    ]
-  },
-  {
-    country: "JP",
-    states: [
-      { code: "JP-13", name: "Tokyo", cities: ["Tokyo", "Hachiōji", "Tama"] },
-      { code: "JP-27", name: "Osaka", cities: ["Osaka", "Sakai", "Higashiōsaka"] },
-      { code: "JP-14", name: "Kanagawa", cities: ["Yokohama", "Kawasaki", "Sagamihara"] },
-      { code: "JP-23", name: "Aichi", cities: ["Nagoya", "Toyota", "Okazaki"] },
-      { code: "JP-11", name: "Saitama", cities: ["Saitama", "Kawaguchi", "Kawagoe"] },
-      { code: "JP-12", name: "Chiba", cities: ["Chiba", "Funabashi", "Kashiwa"] },
-      { code: "JP-01", name: "Hokkaido", cities: ["Sapporo", "Asahikawa", "Hakodate"] },
-      { code: "JP-40", name: "Fukuoka", cities: ["Fukuoka", "Kitakyushu", "Kurume"] }
-    ]
-  },
-  {
-    country: "KR",
-    states: [
-      { code: "KR-11", name: "Seoul", cities: ["Seoul"] },
-      { code: "KR-26", name: "Busan", cities: ["Busan"] },
-      { code: "KR-27", name: "Daegu", cities: ["Daegu"] },
-      { code: "KR-30", name: "Daejeon", cities: ["Daejeon"] },
-      { code: "KR-29", name: "Gwangju", cities: ["Gwangju"] },
-      { code: "KR-28", name: "Incheon", cities: ["Incheon"] },
-      { code: "KR-41", name: "Gyeonggi", cities: ["Suwon", "Seongnam", "Goyang", "Yongin"] }
-    ]
-  },
-  {
-    country: "CN",
-    states: [
-      { code: "CN-BJ", name: "Beijing", cities: ["Beijing"] },
-      { code: "CN-SH", name: "Shanghai", cities: ["Shanghai"] },
-      { code: "CN-GD", name: "Guangdong", cities: ["Guangzhou", "Shenzhen", "Dongguan", "Foshan"] },
-      { code: "CN-ZJ", name: "Zhejiang", cities: ["Hangzhou", "Ningbo", "Wenzhou"] },
-      { code: "CN-JS", name: "Jiangsu", cities: ["Nanjing", "Suzhou", "Wuxi", "Changzhou"] },
-      { code: "CN-SC", name: "Sichuan", cities: ["Chengdu", "Mianyang", "Deyang"] },
-      { code: "CN-HB", name: "Hubei", cities: ["Wuhan", "Yichang", "Xiangyang"] }
-    ]
-  },
-  {
-    country: "ES",
-    states: [
-      { code: "ES-MD", name: "Madrid", cities: ["Madrid", "Móstoles", "Alcalá de Henares"] },
-      { code: "ES-CT", name: "Catalonia", cities: ["Barcelona", "Hospitalet", "Badalona", "Sabadell"] },
-      { code: "ES-AN", name: "Andalusia", cities: ["Seville", "Málaga", "Córdoba", "Granada"] },
-      { code: "ES-VC", name: "Valencia", cities: ["Valencia", "Alicante", "Elche"] },
-      { code: "ES-PV", name: "Basque Country", cities: ["Bilbao", "San Sebastián", "Vitoria"] },
-      { code: "ES-GA", name: "Galicia", cities: ["Vigo", "A Coruña", "Ourense"] }
-    ]
-  },
-  {
-    country: "IT",
-    states: [
-      { code: "IT-52", name: "Tuscany", cities: ["Florence", "Pisa", "Siena", "Livorno"] },
-      { code: "IT-25", name: "Lombardy", cities: ["Milan", "Bergamo", "Brescia", "Monza"] },
-      { code: "IT-72", name: "Campania", cities: ["Naples", "Salerno", "Caserta"] },
-      { code: "IT-62", name: "Lazio", cities: ["Rome", "Latina", "Frosinone"] },
-      { code: "IT-88", name: "Sardinia", cities: ["Cagliari", "Sassari", "Olbia"] },
-      { code: "IT-82", name: "Sicily", cities: ["Palermo", "Catania", "Messina"] }
-    ]
-  },
-  {
-    country: "BR",
-    states: [
-      { code: "BR-SP", name: "São Paulo", cities: ["São Paulo", "Campinas", "Santos", "Guarulhos"] },
-      { code: "BR-RJ", name: "Rio de Janeiro", cities: ["Rio de Janeiro", "Niterói", "Petrópolis"] },
-      { code: "BR-MG", name: "Minas Gerais", cities: ["Belo Horizonte", "Uberlândia", "Contagem"] },
-      { code: "BR-BA", name: "Bahia", cities: ["Salvador", "Feira de Santana", "Vitória da Conquista"] },
-      { code: "BR-RS", name: "Rio Grande do Sul", cities: ["Porto Alegre", "Caxias do Sul", "Pelotas"] }
-    ]
-  },
-  {
-    country: "MX",
-    states: [
-      { code: "MX-CMX", name: "Mexico City", cities: ["Mexico City"] },
-      { code: "MX-JAL", name: "Jalisco", cities: ["Guadalajara", "Zapopan", "Puerto Vallarta"] },
-      { code: "MX-NLE", name: "Nuevo León", cities: ["Monterrey", "Guadalupe", "San Nicolás"] },
-      { code: "MX-PUE", name: "Puebla", cities: ["Puebla", "Tehuacán", "Cholula"] },
-      { code: "MX-YUC", name: "Yucatán", cities: ["Mérida", "Valladolid", "Tizimín"] }
-    ]
-  },
-  {
-    country: "RU",
-    states: [
-      { code: "RU-MOW", name: "Moscow", cities: ["Moscow"] },
-      { code: "RU-SPE", name: "Saint Petersburg", cities: ["Saint Petersburg"] },
-      { code: "RU-LEN", name: "Leningrad Oblast", cities: ["Gatchina", "Vyborg", "Sosnovy Bor"] },
-      { code: "RU-MOS", name: "Moscow Oblast", cities: ["Balashikha", "Khimki", "Korolyov"] },
-      { code: "RU-BA", name: "Bashkortostan", cities: ["Ufa", "Sterlitamak", "Salavat"] }
-    ]
-  },
-  {
-    country: "AE",
-    states: [
-      { code: "AE-DU", name: "Dubai", cities: ["Dubai"] },
-      { code: "AE-AZ", name: "Abu Dhabi", cities: ["Abu Dhabi", "Al Ain", "Madinat Zayed"] },
-      { code: "AE-SH", name: "Sharjah", cities: ["Sharjah", "Khor Fakkan"] },
-      { code: "AE-AJ", name: "Ajman", cities: ["Ajman"] },
-      { code: "AE-FU", name: "Fujairah", cities: ["Fujairah", "Dibba"] }
-    ]
-  },
-  {
-    country: "SA",
-    states: [
-      { code: "SA-01", name: "Riyadh", cities: ["Riyadh", "Al Kharj", "Diriyah"] },
-      { code: "SA-02", name: "Makkah", cities: ["Mecca", "Jeddah", "Taif"] },
-      { code: "SA-03", name: "Madinah", cities: ["Medina", "Yanbu", "Al Ula"] },
-      { code: "SA-04", name: "Eastern Province", cities: ["Dammam", "Khobar", "Dhahran", "Jubail"] },
-      { code: "SA-06", name: "Qassim", cities: ["Buraidah", "Unaizah"] }
-    ]
-  },
-  {
-    country: "TR",
-    states: [
-      { code: "TR-34", name: "Istanbul", cities: ["Istanbul"] },
-      { code: "TR-06", name: "Ankara", cities: ["Ankara", "Çankaya"] },
-      { code: "TR-35", name: "İzmir", cities: ["İzmir", "Karşıyaka", "Bornova"] },
-      { code: "TR-16", name: "Bursa", cities: ["Bursa", "Osmangazi", "Yıldırım"] },
-      { code: "TR-07", name: "Antalya", cities: ["Antalya", "Alanya", "Manavgat"] }
-    ]
-  },
-  {
-    country: "NL",
-    states: [
-      { code: "NL-NH", name: "North Holland", cities: ["Amsterdam", "Haarlem", "Zaanstad"] },
-      { code: "NL-ZH", name: "South Holland", cities: ["Rotterdam", "The Hague", "Leiden", "Delft"] },
-      { code: "NL-UT", name: "Utrecht", cities: ["Utrecht", "Amersfoort", "Veenendaal"] },
-      { code: "NL-GE", name: "Gelderland", cities: ["Nijmegen", "Arnhem", "Apeldoorn"] }
-    ]
-  },
-  {
-    country: "SE",
-    states: [
-      { code: "SE-AB", name: "Stockholm", cities: ["Stockholm", "Södertälje", "Solna"] },
-      { code: "SE-O", name: "Västra Götaland", cities: ["Gothenburg", "Borås", "Trollhättan"] },
-      { code: "SE-M", name: "Skåne", cities: ["Malmö", "Helsingborg", "Lund"] },
-      { code: "SE-I", name: "Gotland", cities: ["Visby"] }
-    ]
-  }
-];
-
-// ─── Helpers ────────────────────────────────────────────────────────
-
-const countryIndex = new Map<string, CountryLocation>();
-for (const c of LOCATION_DATA) {
-  countryIndex.set(c.country, c);
-}
-
-/**
- * Get the states/provinces for a country.
- * Returns `[]` if the country is not in the dataset (the caller
- * should render an empty / disabled state selector in that case).
- */
-export function getStatesForCountry(country: string): StateOption[] {
-  const c = countryIndex.get(country);
-  if (!c) return [];
-  return c.states.map((s) => ({ code: s.code, name: s.name }));
-}
-
-/**
- * Get the major cities for a state within a country.
- * Returns `[]` if the country or state is not found.
- */
-export function getCitiesForState(
-  country: string,
-  stateCode: string
-): string[] {
-  const c = countryIndex.get(country);
-  if (!c) return [];
-  const s = c.states.find((st) => st.code === stateCode);
-  return s ? s.cities : [];
-}
+const COUNTRY_CITIES: Record<string, string[]> = {
+  IN: [
+    "Mumbai", "Delhi", "Bangalore", "Hyderabad", "Chennai", "Kolkata",
+    "Pune", "Ahmedabad", "Jaipur", "Surat", "Lucknow", "Kanpur",
+    "Nagpur", "Indore", "Bhopal", "Patna", "Vadodara", "Ghaziabad",
+    "Ludhiana", "Agra", "Nashik", "Faridabad", "Meerut", "Rajkot",
+    "Varanasi", "Srinagar", "Aurangabad", "Dhanbad", "Amritsar",
+    "Allahabad", "Ranchi", "Howrah", "Coimbatore", "Jabalpur",
+    "Gwalior", "Vijayawada", "Jodhpur", "Madurai", "Raipur", "Kota",
+    "Guwahati", "Chandigarh", "Mysore", "Thiruvananthapuram",
+    "Bhubaneswar", "Bareilly", "Saharanpur", "Gorakhpur",
+    "Bhubaneswar", "Dehradun", "Noida", "Gurugram", "Rewa",
+    "Ujjain", "Sikar", "Patiala", "Tiruchirappalli", "Salem",
+    "Bhavnagar", "Hubli", "Belgaum", "Kozhikode", "Noida",
+    "Warangal", "Tirupati", "Guntur", "Bokaro", "Durgapur",
+    "Asansol", "Rourkela", "Nanded", "Kolhapur", "Ajmer",
+    "Akola", "Gulbarga", "Jamnagar", "Udaipur", "Jhansi",
+    "Tirunelveli", "Kottayam", "Mangalore", "Loni", "Aligarh",
+    "Siliguri", "Jalgaon", "Kurnool", "Tirupur", "Gaya",
+    "Bhiwandi", "Nagercoil", "Kakinada", "Panihati", "Bhagalpur"
+  ],
+  US: [
+    "New York", "Los Angeles", "Chicago", "Houston", "Phoenix",
+    "Philadelphia", "San Antonio", "San Diego", "Dallas",
+    "San Jose", "Austin", "Jacksonville", "Fort Worth",
+    "Columbus", "Charlotte", "San Francisco", "Indianapolis",
+    "Seattle", "Denver", "Washington", "Boston", "El Paso",
+    "Nashville", "Detroit", "Oklahoma City", "Portland",
+    "Las Vegas", "Memphis", "Louisville", "Baltimore",
+    "Milwaukee", "Albuquerque", "Tucson", "Fresno",
+    "Sacramento", "Kansas City", "Mesa", "Atlanta", "Omaha",
+    "Colorado Springs", "Raleigh", "Miami", "Long Beach",
+    "Virginia Beach", "Oakland", "Minneapolis", "Tulsa",
+    "Arlington", "Tampa", "New Orleans", "Wichita",
+    "Cleveland", "Bakersfield", "Aurora", "Anaheim",
+    "Honolulu", "Santa Ana", "Riverside", "Corpus Christi",
+    "Lexington", "Stockton", "St. Louis", "Saint Paul",
+    "Henderson", "Pittsburgh", "Cincinnati", "Anchorage",
+    "Greensboro", "Plano", "Newark", "Lincoln", "Orlando",
+    "Irvine", "Toledo", "Jersey City", "Chula Vista",
+    "Durham", "Fort Wayne", "St. Petersburg", "Laredo",
+    "Buffalo", "Madison", "Chandler", "Scottsdale",
+    "Reno", "Norfolk", "Spokane", "Birmingham", "Boise",
+    "Richmond", "San Bernardino", "Vancouver", "Rochester"
+  ],
+  GB: [
+    "London", "Birmingham", "Manchester", "Leeds", "Sheffield",
+    "Bradford", "Liverpool", "Bristol", "Newcastle upon Tyne",
+    "Cardiff", "Belfast", "Glasgow", "Edinburgh", "Aberdeen",
+    "Dundee", "Inverness", "Swansea", "Newport", "Nottingham",
+    "Coventry", "Leicester", "Hull", "Plymouth", "Stoke-on-Trent",
+    "Derby", "Southampton", "Portsmouth", "Brighton", "Reading",
+    "Oxford", "Cambridge", "York", "Norwich", "Exeter",
+    "Bath", "Canterbury", "Salisbury", "Carlisle", "Chester",
+    "Durham", "Gloucester", "Lancaster", "Worcester",
+    "Wolverhampton", "Sunderland", "Middlesbrough",
+    "Bolton", "Blackburn", "Burnley", "Preston"
+  ],
+  CA: [
+    "Toronto", "Montreal", "Vancouver", "Calgary", "Edmonton",
+    "Ottawa", "Mississauga", "Winnipeg", "Quebec City", "Hamilton",
+    "Halifax", "Victoria", "Saskatoon", "Regina", "St. John's",
+    "Kelowna", "Barrie", "Abbotsford", "Gatineau", "Kingston",
+    "Moncton", "Thunder Bay", "Fredericton", "Prince George",
+    "Sault Ste. Marie", "Brantford", "Guelph", "Lethbridge",
+    "Nanaimo", "Red Deer", "Sarnia", "Medicine Hat",
+    "Peterborough", "Chatham-Kent", "Kamloops", "Belleville",
+    "North Bay", "Sault Ste. Marie", "Trois-Rivières",
+    "Sherbrooke", "Drummondville", "Granby", "Joliette"
+  ],
+  AU: [
+    "Sydney", "Melbourne", "Brisbane", "Perth", "Adelaide",
+    "Gold Coast", "Newcastle", "Canberra", "Wollongong",
+    "Sunshine Coast", "Hobart", "Geelong", "Townsville",
+    "Cairns", "Darwin", "Toowoomba", "Ballarat", "Bendigo",
+    "Albury", "Launceston", "Mackay", "Mandurah", "Coffs Harbour",
+    "Rockhampton", "Bunbury", "Bundaberg", "Maitland",
+    "Wagga Wagga", "Port Macquarie", "Tamworth", "Shepparton",
+    "Mildura", "Dubbo", "Gladstone", "Hervey Bay"
+  ],
+  DE: [
+    "Berlin", "Hamburg", "Munich", "Cologne", "Frankfurt",
+    "Stuttgart", "Düsseldorf", "Dortmund", "Essen", "Leipzig",
+    "Bremen", "Dresden", "Nuremberg", "Hanover", "Freiburg",
+    "Mannheim", "Karlsruhe", "Münster", "Wiesbaden", "Augsburg",
+    "Kassel", "Mönchengladbach", "Braunschweig", "Chemnitz",
+    "Aachen", "Kiel", "Magdeburg", "Oberhausen", "Lübeck",
+    "Erfurt", "Halle", "Saarbrücken", "Potsdam", "Heidelberg",
+    "Würzburg", "Regensburg", "Ingolstadt", "Wolfsburg",
+    "Bonn", "Mainz"
+  ],
+  FR: [
+    "Paris", "Marseille", "Lyon", "Toulouse", "Nice", "Nantes",
+    "Strasbourg", "Montpellier", "Bordeaux", "Lille", "Rennes",
+    "Reims", "Le Havre", "Saint-Étienne", "Toulon", "Grenoble",
+    "Dijon", "Angers", "Nîmes", "Villeurbanne", "Le Mans",
+    "Aix-en-Provence", "Brest", "Tours", "Amiens", "Limoges",
+    "Annecy", "Boulogne-Billancourt", "Perpignan", "Metz",
+    "Besançon", "Orléans", "Saint-Denis", "Argenteuil",
+    "Rouen", "Mulhouse", "Caen", "Saint-Paul", "Nancy",
+    "Tourcoing"
+  ],
+  JP: [
+    "Tokyo", "Osaka", "Yokohama", "Nagoya", "Sapporo",
+    "Fukuoka", "Kobe", "Kyoto", "Kawasaki", "Saitama",
+    "Hiroshima", "Sendai", "Kitakyushu", "Chiba", "Sakai",
+    "Niigata", "Hamamatsu", "Shizuoka", "Okayama", "Kumamoto",
+    "Kagoshima", "Matsuyama", "Kanazawa", "Matsudo",
+    "Kawaguchi", "Ichikawa", "Funabashi", "Hachiōji",
+    "Sagamihara", "Nagano", "Toyama", "Akita", "Naha",
+    "Aomori", "Morioka", "Fukushima", "Mito", "Utsunomiya",
+    "Maebashi", "Kōfu", "Gifu", "Tsu", "Ōtsu", "Wakayama",
+    "Tottori", "Matsue", "Yamaguchi", "Tokushima", "Takamatsu",
+    "Kōchi", "Saga", "Nagasaki", "Ōita", "Miyazaki"
+  ],
+  KR: [
+    "Seoul", "Busan", "Incheon", "Daegu", "Daejeon", "Gwangju",
+    "Ulsan", "Suwon", "Yongin", "Goyang", "Seongnam", "Cheongju",
+    "Jeonju", "Cheonan", "Ansan", "Anyang", "Namyangju",
+    "Pohang", "Uijeongbu", "Hwaseong", "Bucheon", "Gimhae",
+    "Pyeongtaek", "Gumi", "Iksan", "Gunpo", "Suncheon",
+    "Wonju", "Mokpo", "Jeju", "Changwon", "Chuncheon",
+    "Chungju", "Gyeongju", "Gimpo", "Yangsan", "Andong",
+    "Sejong"
+  ],
+  CN: [
+    "Shanghai", "Beijing", "Guangzhou", "Shenzhen", "Tianjin",
+    "Wuhan", "Dongguan", "Chengdu", "Foshan", "Nanjing",
+    "Chongqing", "Shenyang", "Hangzhou", "Xi'an", "Harbin",
+    "Suzhou", "Qingdao", "Dalian", "Zhengzhou", "Jinan",
+    "Changchun", "Changsha", "Taiyuan", "Kunming", "Hefei",
+    "Shijiazhuang", "Nanning", "Fuzhou", "Nanchang", "Guiyang",
+    "Lanzhou", "Wuxi", "Xiamen", "Zhuhai", "Shantou",
+    "Ningbo", "Wenzhou", "Tangshan", "Handan", "Datong"
+  ],
+  ES: [
+    "Madrid", "Barcelona", "Valencia", "Seville", "Zaragoza",
+    "Málaga", "Murcia", "Palma", "Bilbao", "Alicante", "Córdoba",
+    "Valladolid", "Vigo", "Gijón", "Granada", "Elche", "Oviedo",
+    "Badalona", "Cartagena", "Terrassa", "Jerez de la Frontera",
+    "Sabadell", "Mostoles", "Santa Cruz de Tenerife",
+    "Pamplona", "Almería", "Alcalá de Henares", "San Sebastián",
+    "Burgos", "Santander", "Castellón", "Albacete",
+    "La Coruña", "Logroño", "Salamanca", "Cádiz", "León",
+    "Tarragona", "Lérida", "Huelva"
+  ],
+  IT: [
+    "Rome", "Milan", "Naples", "Turin", "Palermo", "Genoa",
+    "Bologna", "Florence", "Bari", "Catania", "Venice",
+    "Verona", "Messina", "Padua", "Trieste", "Brescia",
+    "Parma", "Prato", "Taranto", "Modena", "Reggio Calabria",
+    "Perugia", "Livorno", "Ravenna", "Cagliari", "Foggia",
+    "Rimini", "Salerno", "Ferrara", "Sassari", "Latina",
+    "Giugliano in Campania", "Monza", "Siracusa", "Pescara",
+    "Bergamo", "Forlì", "Trento", "Vicenza", "Terni"
+  ],
+  BR: [
+    "São Paulo", "Rio de Janeiro", "Salvador", "Brasília",
+    "Fortaleza", "Belo Horizonte", "Manaus", "Curitiba",
+    "Recife", "Porto Alegre", "Belém", "Goiânia", "Campinas",
+    "São Luís", "Maceió", "Natal", "Florianópolis",
+    "Vitória", "Cuiabá", "Campo Grande", "João Pessoa",
+    "Teresina", "Aracaju", "Porto Velho", "Macapá", "Rio Branco",
+    "Palmas", "Boa Vista", "Guarulhos", "Osasco", "São Bernardo",
+    "Santo André", "Jundiaí", "Niterói", "Sorocaba", "Ribeirão Preto"
+  ],
+  MX: [
+    "Mexico City", "Guadalajara", "Monterrey", "Puebla",
+    "Tijuana", "León", "Ciudad Juárez", "Zapopan",
+    "Mérida", "Cancún", "Acapulco", "Querétaro", "San Luis Potosí",
+    "Aguascalientes", "Hermosillo", "Saltillo", "Mexicali",
+    "Culiacán", "Toluca", "Morelia", "Tuxtla Gutiérrez",
+    "Torreón", "Veracruz", "Chihuahua", "Tlaquepaque",
+    "Durango", "Tampico", "Ciudad Victoria", "Pachuca",
+    "Oaxaca", "Campeche", "Zacatecas", "Colima", "La Paz",
+    "Celaya", "Irapuato", "Ensenada"
+  ],
+  RU: [
+    "Moscow", "Saint Petersburg", "Novosibirsk", "Yekaterinburg",
+    "Nizhny Novgorod", "Kazan", "Chelyabinsk", "Omsk", "Samara",
+    "Rostov-on-Don", "Ufa", "Krasnoyarsk", "Voronezh", "Perm",
+    "Volgograd", "Krasnodar", "Saratov", "Tyumen", "Tolyatti",
+    "Izhevsk", "Barnaul", "Ulyanovsk", "Irkutsk", "Khabarovsk",
+    "Yaroslavl", "Vladivostok", "Makhachkala", "Tomsk", "Tver",
+    "Kirov", "Nizhny Tagil", "Orenburg", "Surgut", "Penza",
+    "Novokuznetsk", "Ryazan", "Astrakhan", "Naberezhnye Chelny",
+    "Smolensk", "Kemerovo"
+  ],
+  AE: [
+    "Dubai", "Abu Dhabi", "Sharjah", "Al Ain", "Ajman",
+    "Ras al-Khaimah", "Fujairah", "Khor Fakkan", "Dibba",
+    "Madinat Zayed", "Ruwais", "Liwa", "Hatta"
+  ],
+  SA: [
+    "Riyadh", "Jeddah", "Mecca", "Medina", "Dammam", "Khobar",
+    "Tabuk", "Buraidah", "Khamis Mushait", "Hail", "Hofuf",
+    "Mubarraz", "Taif", "Najran", "Yanbu", "Jubail", "Abha",
+    "Arar", "Sakaka", "Jizan"
+  ],
+  TR: [
+    "Istanbul", "Ankara", "Izmir", "Bursa", "Antalya", "Adana",
+    "Konya", "Gaziantep", "Mersin", "Diyarbakır", "Kayseri",
+    "Eskişehir", "Samsun", "Denizli", "Şanlıurfa", "Malatya",
+    "Trabzon", "Erzurum", "Van", "Manisa", "Sakarya", "Balıkesir",
+    "Kahramanmaraş", "Aydın", "Hatay", "Tekirdağ", "Muğla",
+    "Ordu", "Afyonkarahisar", "Çorum", "Edirne", "Kütahya"
+  ],
+  NL: [
+    "Amsterdam", "Rotterdam", "The Hague", "Utrecht", "Eindhoven",
+    "Tilburg", "Groningen", "Almere", "Breda", "Nijmegen",
+    "Enschede", "Apeldoorn", "Haarlem", "Arnhem", "Amersfoort",
+    "Zaanstad", "'s-Hertogenbosch", "Haarlemmermeer", "Zoetermeer",
+    "Zwolle", "Leeuwarden", "Leiden", "Maastricht", "Delft"
+  ],
+  SE: [
+    "Stockholm", "Gothenburg", "Malmö", "Uppsala", "Västerås",
+    "Örebro", "Linköping", "Helsingborg", "Jönköping", "Norrköping",
+    "Lund", "Umeå", "Gävle", "Borås", "Eskilstuna", "Södertälje",
+    "Karlstad", "Täby", "Växjö", "Halmstad", "Sundsvall", "Luleå",
+    "Trollhättan", "Östersund", "Borlänge", "Kalmar", "Falun"
+  ]
+};

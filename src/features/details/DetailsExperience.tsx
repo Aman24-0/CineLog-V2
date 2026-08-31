@@ -337,7 +337,12 @@ export default function DetailsExperience(props: DetailsExperienceProps) {
     resetTo,
     setSelectedItem: props.setSelectedItem,
     onSelectRelatedItem: props.onNavigateRelated,
-    onRemoved: handleRemoved
+    onRemoved: handleRemoved,
+    // Part 5 — When the user sets status to "Completed", automatically
+    // open the Activity/Edit modal so they can fill in their viewing
+    // metadata. The status is already saved before this fires —
+    // closing the edit modal without saving does NOT revert Completed.
+    onCompletedAutoOpenEdit: () => setIsEditing(true)
   });
 
   // Reset trailer state whenever the open title changes.

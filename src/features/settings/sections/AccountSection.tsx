@@ -24,7 +24,7 @@ import type { SettingsState } from "./types";
 import TwoFactorSetup from "~/features/settings/components/TwoFactorSetup";
 import SessionList from "~/features/settings/components/SessionList";
 import LoginHistoryList from "~/features/settings/components/LoginHistoryList";
-import { SelectRow } from "~/features/settings/sharedControls";
+import { SelectRow, CitySearchRow } from "~/features/settings/sharedControls";
 import { MutationButton } from "~/shared/ui/states";
 
 export function AccountSection(props: { state: SettingsState }) {
@@ -271,45 +271,22 @@ export function AccountSection(props: { state: SettingsState }) {
                   options={s.countryOptions()}
                 />
 
-                {/* State / Province — cascading from Country.
-                    Real geographic data from locationData.ts.
-                    Disabled (renders as a muted row) when the
-                    selected country has no state data in the dataset. */}
-                <SelectRow
-                  icon="location_on"
-                  label="State / Province"
-                  desc={
-                    s.stateOptions().length > 0
-                      ? "Affects local Where-to-Watch / theatre links."
-                      : "Select a country first."
-                  }
-                  value={s.stateCode}
-                  onChange={s.handleSaveState}
-                  options={
-                    s.stateOptions().length > 0
-                      ? [{ value: "", label: "Not set" }, ...s.stateOptions()]
-                      : [{ value: "", label: "Not set" }]
-                  }
-                />
-
-                {/* City — cascading from State.
-                    Real city data from locationData.ts.
-                    Disabled when no state is selected. */}
-                <SelectRow
+                {/* City — searchable input (like BookMyShow).
+                    The user types a city name and sees matching
+                    cities from the dataset. They can also enter a
+                    custom city name not in the list. Changing
+                    country clears the city. */}
+                <CitySearchRow
                   icon="apartment"
                   label="City"
                   desc={
                     s.cityOptions().length > 0
                       ? "Used for local booking / theatre links."
-                      : "Select a state first."
+                      : "Type your city name."
                   }
                   value={s.city}
                   onChange={s.handleSaveCity}
-                  options={
-                    s.cityOptions().length > 0
-                      ? [{ value: "", label: "Not set" }, ...s.cityOptions()]
-                      : [{ value: "", label: "Not set" }]
-                  }
+                  cities={s.cityOptions()}
                 />
 
                 {/* Joined — read-only */}

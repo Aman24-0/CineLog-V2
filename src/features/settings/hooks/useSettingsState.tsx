@@ -68,8 +68,7 @@ import {
 } from "~/core/config/discoverRegion";
 import { COUNTRIES, countryLabel } from "~/shared/data/countryLanguages";
 import {
-  getStatesForCountry,
-  getCitiesForState
+  getCitiesForCountry
 } from "~/shared/data/locationData";
 
 // Static option lists — used by the memos (languageOptions,
@@ -131,11 +130,10 @@ export function useSettingsState(): SettingsState {
   })();
   const [country, setCountry] = createSignal<string>(initialCountry);
 
-  // State / Province — nullable. Loaded from profiles.state on
-  // loadProfile. When country changes, state + city reset to "".
-  const [stateCode, setStateCode] = createSignal<string>("");
   // City — nullable. Loaded from profiles.city on loadProfile.
-  // When state changes, city resets to "".
+  // When country changes, city resets to "".
+  // The user can type to search the city list (type-ahead), or
+  // enter a custom city name not in the dataset.
   const [city, setCity] = createSignal<string>("");
   const [displayName, setDisplayName] = createSignal<string>("");
   const [bio, setBio] = createSignal<string>("");
@@ -264,14 +262,10 @@ export function useSettingsState(): SettingsState {
       return;
     }
     setCountry(newCountry);
-    // Country change resets state + city (cascading selector). The
-    // user must re-pick a state + city for the new country. We
-    // persist the reset to Supabase too so the profile doesn't
-    // keep an invalid state/city from the old country.
-    setStateCode("");
+    // Country change resets city (cascading). Persist the reset to
+    // Supabase so the profile doesn't keep an invalid city from the
+    // old country.
     setCity("");
-    // Persist to localStorage immediately so the next reload starts
-    // with the right value, even if the network round-trip is slow.
     try {
       localStorage.setItem("cinelog_country", newCountry);
     } catch {
@@ -280,7 +274,6 @@ export function useSettingsState(): SettingsState {
     try {
       const { error } = await profileRepo.updateProfile(uid, {
         country: newCountry,
-        state: null,
         city: null
       });
       if (error) throw error;
@@ -292,32 +285,8 @@ export function useSettingsState(): SettingsState {
     }
   };
 
-  /** Save the state/province. Resets city to "" (cascading). */
-  const handleSaveState = async (newStateCode: string) => {
-    const uid = user()?.uid;
-    if (!uid) {
-      showToast("Sign in to save your state.", "error");
-      return;
-    }
-    setStateCode(newStateCode);
-    setCity("");
-    try {
-      const { error } = await profileRepo.updateProfile(uid, {
-        state: newStateCode || null,
-        city: null
-      });
-      if (error) throw error;
-      const stateName =
-        stateOptions().find((s) => s.value === newStateCode)?.label ??
-        newStateCode;
-      showToast(`State set to ${stateName}`, "success", 1800);
-    } catch (err) {
-      console.error("[settings] Failed to save state:", err);
-      showToast("Failed to save state.", "error");
-    }
-  };
-
-  /** Save the city. */
+  /** Save the city. Called when the user selects a city from the
+   *  search results or enters a custom city name. */
   const handleSaveCity = async (newCity: string) => {
     const uid = user()?.uid;
     if (!uid) {
@@ -412,10 +381,7 @@ export function useSettingsState(): SettingsState {
           // localStorage may be unavailable; the signal remains authoritative.
         }
       }
-      // Load state/city (nullable — existing profiles may have null)
-      if ((result.data as { state?: string | null }).state) {
-        setStateCode((result.data as { state?: string | null }).state ?? "");
-      }
+      // Load city (nullable — existing profiles may have null)
       if ((result.data as { city?: string | null }).city) {
         setCity((result.data as { city?: string | null }).city ?? "");
       }
@@ -653,25 +619,11 @@ export function useSettingsState(): SettingsState {
     COUNTRIES.map((c) => ({ value: c.code, label: c.label }))
   );
 
-  // State options — derived from the real geographic dataset
-  // (src/shared/data/locationData.ts) based on the selected country.
-  // Returns [] if the country has no state data (the State SelectRow
-  // renders in a disabled state in that case).
-  const stateOptions = createMemo(() =>
-    getStatesForCountry(country()).map((s) => ({
-      value: s.code,
-      label: s.name
-    }))
-  );
-
-  // City options — derived from the selected country + state.
-  // Returns [] if no state is selected or the state has no city data.
-  const cityOptions = createMemo(() =>
-    getCitiesForState(country(), stateCode()).map((c) => ({
-      value: c,
-      label: c
-    }))
-  );
+  // City options — a flat list of all cities for the selected country.
+  // The UI uses this to render a searchable dropdown / type-ahead
+  // input. Returns [] if the country has no city data (the user can
+  // still type a custom city name).
+  const cityOptions = createMemo(() => getCitiesForCountry(country()));
 
   const languageOptions = createMemo(() =>
     UI_LANGUAGES.map((l) => ({
@@ -905,7 +857,6 @@ export function useSettingsState(): SettingsState {
     handleSaveProfile,
     handleCancelEditProfile,
     handleSaveCountry,
-    handleSaveState,
     handleSaveCity,
     handleLinkProvider,
     handleUnlinkProvider,
@@ -927,10 +878,8 @@ export function useSettingsState(): SettingsState {
 
     // Derived display values (memos + plain functions)
     countryOptions,
-    stateOptions,
-    cityOptions,
-    stateCode,
     city,
+    cityOptions,
     languageOptions,
     fallbackOptions,
     activeProviderCount,

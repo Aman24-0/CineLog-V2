@@ -1,7 +1,13 @@
 // src/features/details/components/DetailsEditForm.tsx
-import { Show, For, createMemo } from "solid-js";
+import { Show, For, createMemo, createSignal } from "solid-js";
 import type { Accessor } from "solid-js";
 import Icon from "~/shared/ui/Icon";
+import ReactionPicker from "~/shared/ui/ReactionPicker";
+import { normalizeReaction, type CommonReaction } from "~/shared/data/reactions";
+import { readTagDefinitions } from "~/features/watchlist/tagStore";
+import { usePublishedProviderCatalog } from "~/features/watchlist/hooks/usePublishedProviderCatalog";
+import { buildJustWatchIconUrl } from "~/features/watchlist/hooks/useWatchlistOttAvailability";
+import { tmdbImage } from "~/core/tmdb/tmdb";
 import type { TMDBDetails } from "~/shared/types";
 
 interface DetailsEditFormProps {
@@ -15,13 +21,21 @@ interface DetailsEditFormProps {
     seasonDates: Record<string, { start: string; end: string }>;
     seasonRewatchCount: string;
     seasonRewatchDates: Record<string, { start: string; end: string }>[];
+    tag: string;
+    reaction: string;
+    watchDevice: string;
+    watchPlatform: string;
+    favoriteCharacterId: string;
+    favoriteCharacterName: string;
+    favoriteCharacterProfile: string;
   }>;
   setForm: (key: string, value: string) => void;
   onSave: () => void;
   onCancel: () => void;
   isSaving: boolean;
   isDirty: boolean;
-  /** TMDB details — used to render the per-season structure for series. */
+  /** TMDB details — used to render the per-season structure for series
+   *  AND the cast list for the Favourite Character picker. */
   details?: Accessor<TMDBDetails | null>;
   /** Base item — used to detect series vs movie. */
   isSeries?: Accessor<boolean>;
@@ -60,6 +74,35 @@ export default function DetailsEditForm(props: DetailsEditFormProps) {
   const rewatchCount = () => Number(props.form().rewatchCount) || 0;
   const isSeries = () => props.isSeries?.() ?? false;
   const seasonRewatchCount = () => Number(props.form().seasonRewatchCount) || 0;
+
+  // Cast list for the Favourite Character picker (Part 7).
+  // Uses real TMDB cast data from `details.credits.cast` (movies) or
+  // `details.aggregate_credits.cast` (TV). Falls back to `details.credits.cast`
+  // for TV if aggregate_credits is missing (older cached entries).
+  // Limited to the first 20 cast members (by billing order) to keep
+  // the horizontal scroll list manageable on mobile.
+  const castList = createMemo(() => {
+    const d = props.details?.();
+    if (!d) return [];
+    // TV: prefer aggregate_credits (full series cast), fall back to regular credits.
+    if (isSeries() && d.aggregate_credits?.cast) {
+      return d.aggregate_credits.cast.slice(0, 20).map((c) => ({
+        id: c.id,
+        name: c.name,
+        character: c.roles[0]?.character ?? c.name,
+        profile_path: c.profile_path
+      }));
+    }
+    if (d.credits?.cast) {
+      return d.credits.cast.slice(0, 20).map((c) => ({
+        id: c.id,
+        name: c.name,
+        character: c.character ?? c.name,
+        profile_path: c.profile_path
+      }));
+    }
+    return [];
+  });
 
   /** Sorted list of season numbers (1-indexed, excludes specials/season 0). */
   const seasons = createMemo<number[]>(() => {
@@ -501,6 +544,161 @@ export default function DetailsEditForm(props: DetailsEditFormProps) {
         </Show>
       </Show>
 
+      {/* ── Tag (Part 4) ─────────────────────────────────────────── */}
+      <div>
+        <label
+          class="type-label mb-2 block"
+          style={{ color: "var(--muted)" }}
+        >
+          Tag
+        </label>
+        <TagSelector
+          value={props.form().tag}
+          onChange={(v) => props.setForm("tag", v)}
+        />
+      </div>
+
+      {/* ── Reaction (Part 6) ────────────────────────────────────── */}
+      <div>
+        <label
+          class="type-label mb-2 block"
+          style={{ color: "var(--muted)" }}
+        >
+          Reaction
+        </label>
+        <ReactionPicker
+          value={normalizeReaction(props.form().reaction) as CommonReaction | null}
+          onChange={(r) => props.setForm("reaction", r ?? "")}
+          disabled={props.isSaving}
+        />
+      </div>
+
+      {/* ── Favourite Character (Part 7) ─────────────────────────── */}
+      <Show when={castList().length > 0}>
+        <div>
+          <label
+            class="type-label mb-2 block"
+            style={{ color: "var(--muted)" }}
+          >
+            Favourite Character
+          </label>
+          <div class="flex gap-2 overflow-x-auto pb-2" style={{ "scrollbar-width": "thin" }}>
+            <For each={castList()}>
+              {(member) => {
+                const isSelected = () => props.form().favoriteCharacterId === String(member.id);
+                return (
+                  <button
+                    type="button"
+                    class="flex flex-col items-center gap-1 rounded-lg p-2 transition-all"
+                    style={{
+                      "min-width": "5rem",
+                      border: isSelected() ? "2px solid var(--p)" : "1px solid var(--hairline-2)",
+                      background: isSelected() ? "var(--p-dim)" : "var(--glass-bg)",
+                      cursor: "pointer"
+                    }}
+                    onClick={() => {
+                      if (isSelected()) {
+                        props.setForm("favoriteCharacterId", "");
+                        props.setForm("favoriteCharacterName", "");
+                        props.setForm("favoriteCharacterProfile", "");
+                      } else {
+                        props.setForm("favoriteCharacterId", String(member.id));
+                        props.setForm("favoriteCharacterName", member.character || member.name);
+                        props.setForm("favoriteCharacterProfile", member.profile_path ?? "");
+                      }
+                    }}
+                    aria-pressed={isSelected()}
+                  >
+                    <Show
+                      when={member.profile_path}
+                      fallback={
+                        <div
+                          class="flex items-center justify-center rounded-full"
+                          style={{
+                            width: "3rem",
+                            height: "3rem",
+                            background: "var(--glass-bg-strong)"
+                          }}
+                        >
+                          <span class="material-symbols-outlined" style={{ "font-size": "20px", color: "var(--text-muted)" }} aria-hidden="true">
+                            person
+                          </span>
+                        </div>
+                      }
+                    >
+                      <img
+                        src={tmdbImage(member.profile_path, "w92") ?? ""}
+                        alt={member.name}
+                        class="rounded-full object-cover"
+                        style={{ width: "3rem", height: "3rem" }}
+                        loading="lazy"
+                      />
+                    </Show>
+                    <span class="text-xs text-center font-medium" style={{ color: "var(--text-strong)" }}>
+                      {member.character || member.name}
+                    </span>
+                  </button>
+                );
+              }}
+            </For>
+          </div>
+        </div>
+      </Show>
+
+      {/* ── Where did you watch? (Part 8) ────────────────────────── */}
+      <div>
+        <label
+          class="type-label mb-2 block"
+          style={{ color: "var(--muted)" }}
+        >
+          Where did you watch?
+        </label>
+        <div class="flex gap-2 flex-wrap">
+          <For each={WATCH_DEVICE_OPTIONS}>
+            {(opt) => {
+              const isSelected = () => props.form().watchDevice === opt.value;
+              return (
+                <button
+                  type="button"
+                  class="rounded-lg px-3 py-2 text-sm transition-all"
+                  style={{
+                    border: isSelected() ? "2px solid var(--p)" : "1px solid var(--hairline-2)",
+                    background: isSelected() ? "var(--p-dim)" : "var(--glass-bg)",
+                    color: isSelected() ? "var(--p)" : "var(--text-soft)",
+                    cursor: "pointer"
+                  }}
+                  onClick={() => {
+                    if (isSelected()) {
+                      props.setForm("watchDevice", "");
+                    } else {
+                      props.setForm("watchDevice", opt.value);
+                    }
+                  }}
+                  aria-pressed={isSelected()}
+                >
+                  <span style={{ "margin-right": "0.25rem" }}>{opt.emoji}</span>
+                  {opt.label}
+                </button>
+              );
+            }}
+          </For>
+        </div>
+      </div>
+
+      {/* ── Which platform? (Part 9) ─────────────────────────────── */}
+      <div>
+        <label
+          class="type-label mb-2 block"
+          style={{ color: "var(--muted)" }}
+        >
+          Which platform?
+        </label>
+        <PlatformSelector
+          value={props.form().watchPlatform}
+          onChange={(v) => props.setForm("watchPlatform", v)}
+        />
+      </div>
+
       {/* Notes */}
       <div>
         <label
@@ -553,6 +751,152 @@ export default function DetailsEditForm(props: DetailsEditFormProps) {
           {props.isSaving ? "Saving..." : "Save Changes"}
         </button>
       </div>
+    </div>
+  );
+}
+
+// ─── Watch device options (Part 8) ──────────────────────────────────
+const WATCH_DEVICE_OPTIONS = [
+  { value: "tv", label: "TV", emoji: "📺" },
+  { value: "computer", label: "Computer", emoji: "💻" },
+  { value: "tablet", label: "Tablet", emoji: "📱" },
+  { value: "mobile", label: "Mobile", emoji: "📱" }
+] as const;
+
+// ─── Tag selector (Part 4) ──────────────────────────────────────────
+// Reuses the existing tagStore vocabulary. The user can select a tag
+// from their existing vocabulary or clear it. No new tag system is
+// created — this writes to the same vault.tag column that the Library
+// filter reads.
+function TagSelector(props: { value: string; onChange: (v: string) => void }) {
+  const [tags] = createSignal<string[]>(readTagDefinitions());
+  return (
+    <div class="flex gap-2 flex-wrap">
+      <Show when={tags().length > 0}>
+        <For each={tags()}>
+          {(tag) => {
+            const isSelected = () => props.value === tag;
+            return (
+              <button
+                type="button"
+                class="rounded-lg px-3 py-2 text-sm transition-all"
+                style={{
+                  border: isSelected()
+                    ? "2px solid var(--p)"
+                    : "1px solid var(--hairline-2)",
+                  background: isSelected() ? "var(--p-dim)" : "var(--glass-bg)",
+                  color: isSelected() ? "var(--p)" : "var(--text-soft)",
+                  cursor: "pointer"
+                }}
+                onClick={() => {
+                  props.onChange(isSelected() ? "" : tag);
+                }}
+                aria-pressed={isSelected()}
+              >
+                {tag}
+              </button>
+            );
+          }}
+        </For>
+      </Show>
+      <Show when={props.value && !tags().includes(props.value)}>
+        <span
+          class="rounded-lg px-3 py-2 text-sm"
+          style={{
+            border: "2px solid var(--p)",
+            background: "var(--p-dim)",
+            color: "var(--p)"
+          }}
+        >
+          {props.value}
+          <button
+            type="button"
+            class="ml-2 text-xs"
+            onClick={() => props.onChange("")}
+            aria-label="Clear tag"
+          >
+            ✕
+          </button>
+        </span>
+      </Show>
+      <Show when={!props.value && tags().length === 0}>
+        <span class="text-sm text-text-muted">
+          No tags defined. Create tags in Library → Filters → Manage Tags.
+        </span>
+      </Show>
+    </div>
+  );
+}
+
+// ─── Platform selector (Part 9) ─────────────────────────────────────
+// Uses the existing published Supabase provider catalogue via
+// usePublishedProviderCatalog. No hardcoded list. Only active/published
+// providers are shown. Provider logos are displayed when available.
+function PlatformSelector(props: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const { catalog } = usePublishedProviderCatalog();
+  return (
+    <div class="flex gap-2 flex-wrap">
+      <button
+        type="button"
+        class="rounded-lg px-3 py-2 text-sm transition-all"
+        style={{
+          border:
+            !props.value
+              ? "2px solid var(--p)"
+              : "1px solid var(--hairline-2)",
+          background: !props.value ? "var(--p-dim)" : "var(--glass-bg)",
+          color: !props.value ? "var(--p)" : "var(--text-soft)",
+          cursor: "pointer"
+        }}
+        onClick={() => props.onChange("")}
+        aria-pressed={!props.value}
+      >
+        None
+      </button>
+      <For each={catalog()}>
+        {(provider) => {
+          const isSelected = () => props.value === provider.technicalName;
+          const iconUrl = provider.icon
+            ? buildJustWatchIconUrl(provider.icon)
+            : undefined;
+          return (
+            <button
+              type="button"
+              class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-all"
+              style={{
+                border: isSelected()
+                  ? "2px solid var(--p)"
+                  : "1px solid var(--hairline-2)",
+                background: isSelected() ? "var(--p-dim)" : "var(--glass-bg)",
+                color: isSelected() ? "var(--p)" : "var(--text-soft)",
+                cursor: "pointer"
+              }}
+              onClick={() =>
+                props.onChange(isSelected() ? "" : provider.technicalName)
+              }
+              aria-pressed={isSelected()}
+            >
+              <Show when={iconUrl}>
+                <img
+                  src={iconUrl ?? ""}
+                  alt=""
+                  class="h-4 w-4 rounded object-contain"
+                  loading="lazy"
+                />
+              </Show>
+              {provider.clearName || provider.technicalName}
+            </button>
+          );
+        }}
+      </For>
+      <Show when={catalog().length === 0}>
+        <span class="text-sm text-text-muted">
+          No platforms published. Ask admin to publish the catalogue.
+        </span>
+      </Show>
     </div>
   );
 }
