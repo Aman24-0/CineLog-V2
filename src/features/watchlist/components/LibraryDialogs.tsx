@@ -33,10 +33,16 @@ export interface LibraryDialogsProps {
   /** Bump to force `uniqueTagsPlus` to re-read localStorage after a
    *  tag definition add/remove. Phase 6.2 Task 1a. */
   refreshTagVocab: () => void;
-  /** True while the JustWatch batch-availability fetch is in flight.
-   *  Surfaced so the Platform dropdown can render a disabled
-   *  "loading" state when no providers are available yet. */
+  /** True while the JustWatch batch-availability fetch is in flight
+   *  (title-level enrichment). Surfaced so the Platform dropdown can
+   *  render a disabled state when no providers are available yet.
+   *  The Platform dropdown's "Loading platforms…" hint does NOT use
+   *  this — see `platformCatalogLoading` below. */
   ottLoading: Accessor<boolean>;
+  /** Part 4 follow-up — true WHILE the published Supabase provider
+   *  catalog fetch is in flight. The Platform dropdown uses THIS
+   *  accessor (NOT `ottLoading`) for the "Loading platforms…" hint. */
+  platformCatalogLoading: Accessor<boolean>;
   onClose: () => void;
   onClear: () => void;
 }
@@ -70,6 +76,7 @@ export default function LibraryDialogs(props: LibraryDialogsProps) {
           uniqueTagsPlus={props.uniqueTagsPlus()}
           refreshTagVocab={props.refreshTagVocab}
           ottLoading={props.ottLoading()}
+          platformCatalogLoading={props.platformCatalogLoading()}
           onClose={props.onClose}
           onClear={props.onClear}
         />

@@ -82,11 +82,22 @@ export interface VaultFiltersContentProps {
   uniqueTagsPlus: string[];
   /** Bump to force re-read of tag vocabulary from localStorage. */
   refreshTagVocab: () => void;
-  /** True while the JustWatch batch-availability fetch is in flight.
-   *  Surfaced so the Platform dropdown can render a disabled "loading"
-   *  state when no providers are available yet. The visible orange
-   *  debug block was removed in the Part 4 redesign. */
+  /** True while the JustWatch batch-availability fetch is in flight
+   *  (title-level enrichment). Surfaced so the Platform dropdown can
+   *  render a disabled state when no providers are available yet.
+   *  The visible orange debug block was removed in the Part 4
+   *  redesign. The Platform dropdown's "Loading platforms…" hint
+   *  does NOT use this — see `platformCatalogLoading` below. */
   ottLoading: boolean;
+  /** Part 4 follow-up — true WHILE the published Supabase provider
+   *  catalog fetch is in flight. The Platform dropdown uses THIS
+   *  accessor (NOT `ottLoading`) to decide whether to show
+   *  "Loading platforms…" vs "No platforms available for your
+   *  country". This decoupling means the dropdown becomes
+   *  interactive the moment the small Supabase catalog read lands,
+   *  even if the title-level JustWatch batch availability is still
+   *  running for 1000+ titles. */
+  platformCatalogLoading: boolean;
   presets: Accessor<FilterPreset[]>;
   onSavePreset: (name: string) => Promise<void>;
   onDeletePreset: (id: string) => void;
@@ -278,7 +289,14 @@ export default function VaultFiltersContent(props: VaultFiltersContentProps) {
                 opacity: "0.7"
               }}
             >
-              {props.ottLoading
+              {/* Part 4 follow-up — the loading hint depends ONLY on
+                  `platformCatalogLoading` (the small Supabase catalog
+                  read), NOT on `ottLoading` (the title-level JustWatch
+                  batch availability, which can take minutes for a
+                  large library). This decoupling means the dropdown
+                  becomes interactive the moment the catalog lands,
+                  even if the title-level enrichment is still running. */}
+              {props.platformCatalogLoading
                 ? "Loading platforms…"
                 : "No platforms available for your country"}
             </p>

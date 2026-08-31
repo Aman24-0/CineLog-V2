@@ -36,12 +36,21 @@
 //   3. Return `{ country, providers }`.
 //
 // Caching:
-//   - Success: `public, max-age=300, s-maxage=600` (5 min browser,
-//     10 min CDN). The underlying published catalogue does NOT
-//     expire (admin-controlled refresh), so the CDN cache is just an
-//     edge cache for repeated reads.
+//   - `private, no-store`. The published catalogue is admin-controlled
+//     and tiny (typically <100 rows), so correctness >> cache efficiency.
+//     A previous version used `public, max-age=300, s-maxage=600` (5
+//     min browser / 10 min CDN), which meant a stale EMPTY response
+//     (e.g. served before the admin published providers) could be
+//     cached for up to 10 minutes — the user would see "No platforms
+//     available" even though Supabase had 91 published rows. With
+//     `no-store`, every request goes to Supabase, so a newly-published
+//     catalogue is visible to the user on the next Library page load
+//     (or the next time the `usePublishedProviderCatalog` effect
+//     re-fires, e.g. on country change). The Supabase read is fast
+//     (indexed by `(country, active)`).
 //   - Errors: same headers (the response is still 200 with empty
-//     providers — caching that for 5 min is fine).
+//     providers — `no-store` ensures the empty response is NOT cached
+//     either, so a transient error doesn't poison the next request).
 //
 // Auth: optional. Anonymous callers get "US" country. NEVER returns 401
 // for missing/invalid session — the route always fails open with HTTP 200
@@ -55,8 +64,12 @@ interface APIEvent {
   request: Request;
 }
 
+// Part 4 follow-up — `private, no-store` guarantees the user sees a
+// newly-published catalogue immediately. The catalogue is tiny so the
+// per-request Supabase read is fast. See the header comment for the
+// full rationale.
 const CACHE_HEADERS = {
-  "Cache-Control": "public, max-age=300, s-maxage=600",
+  "Cache-Control": "private, no-store",
   "Content-Type": "application/json"
 };
 

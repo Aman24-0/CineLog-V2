@@ -931,3 +931,206 @@ Stage Summary:
 - The user-side Library page now reads ONLY Supabase for the Platform dropdown options; the ONLY JustWatch call from the app is the admin's "Fetch Catalogue" button (admin route, admin auth, audit logged).
 - The orange debug block is removed from the user Library; admin Platform Catalogue page has a clean diagnostic panel instead.
 - Country source = profile country via `useDiscoverRegion()` (reactive). When the user changes country in Settings, the Library Platform filter automatically reads the new country's published catalogue.
+
+---
+Task ID: 3 (audit)
+Agent: main (orchestrator)
+Task: Fix two post-implementation issues from commit f2fd9e8 — Platform filter stuck on "Loading platforms..." and Clear/Reset button UI.
+
+Audit findings — Issue 1 (Platform filter stuck on "Loading platforms..."):
+- Root cause #1 (primary): `useVaultFiltering.ts:359` aggregates loading:
+    `const ottLoading = createMemo(() => ottBatchLoading() || catalogLoading());`
+  `VaultFiltersContent.tsx:281-283` uses `props.ottLoading` to decide whether
+  to show "Loading platforms…" vs "No platforms available for your country".
+  When the title-level JustWatch batch availability is still running
+  (1054 titles, can take minutes), `ottBatchLoading() = true`, so even though
+  the catalog returned 91 providers from Supabase in <100ms, the dropdown
+  shows "Loading platforms…" instead of the 91 providers. The Platform
+  dropdown must depend ONLY on `catalogLoading`, NOT on `ottBatchLoading`.
+- Root cause #2 (secondary): `usePublishedProviderCatalog.ts:180` caches
+  empty results: `cache.set(c, options)` even when `options.length === 0`.
+  Combined with the module-scoped `cache` Map (line 60), a transient empty
+  response (e.g. before admin published, or a network blip) is cached for
+  the entire page session. Subsequent effect runs hit the cache and skip
+  the fetch (lines 133-138). After admin publishes, the user still sees
+  the stale empty cached list.
+- Root cause #3 (secondary): `/api/ott/providers` route sets
+  `Cache-Control: public, max-age=300, s-maxage=600` — a 5-min browser /
+  10-min CDN cache. Before admin published, the route returned `[]`, which
+  was cached. After admin publishes 91 providers, the user may receive the
+  stale empty `[]` for up to 5-10 minutes. For an admin-controlled
+  catalogue that is tiny (91 rows), correctness > cache efficiency.
+
+Audit findings — Issue 2 (Clear/Reset UI):
+- Current: `LibraryHeader.tsx:131-147` renders the reset button in a
+  separate `.library-search-reset-row` BELOW the search input, with both
+  icon AND "Clear / Reset" text. CSS at `watchlist.css:1535-1586` styles
+  the separate row.
+- Required: move the reset control INTO `.library-search-row`, icon-only,
+  at the far right. Use flex layout (search icon → input flex:1 → reset
+  button flex-shrink:0). Remove the `.library-search-reset-row` row and
+  the `<span>Clear / Reset</span>` text. Keep the same aria-label and the
+  same `onClearAll` semantics. Keep the danger accent (red). Adjust
+  `.library-search-reset` CSS to be a compact icon-only pill.
+
+Plan:
+- Fix 1A: Add `platformCatalogLoading` accessor to `useVaultFiltering`
+  return; keep `ottLoading` for backward compat (or repurpose). Change
+  `VaultFiltersContent` to use `platformCatalogLoading` (a new prop) for
+  the "Loading platforms…" state. The dropdown's disabled state already
+  depends on `uniquePlatforms.length === 0`, which is correct.
+- Fix 1B: Trace via reading the code — `getPublishedProviderCatalog` in
+  cache.ts queries `country = ? AND active = true`. The user-side route
+  maps rows to JustWatchPackage and returns them. The query is correct.
+  The bug is purely Fix 1A + Fix 1C + Fix 1D, not the DB query.
+- Fix 1C: Change `/api/ott/providers` `Cache-Control` to
+  `private, no-store`. This guarantees the user sees a newly-published
+  catalogue immediately. The catalogue is tiny (91 rows) so the
+  per-request Supabase read is fast.
+- Fix 1D: In `usePublishedProviderCatalog`, only cache NON-EMPTY
+  successful responses. An empty `[]` response is NOT cached — the next
+  effect run (e.g. country change, page focus) will re-fetch. Errors are
+  not cached either. Add a small comment explaining the rationale.
+- Fix 2: In `LibraryHeader.tsx`, remove the `.library-search-reset-row`
+  wrapper and the `<span>Clear / Reset</span>` text. Move the `<button>`
+  INSIDE `.library-search-row` after the input. Update CSS:
+  `.library-search-reset` becomes a compact icon-only pill (no text),
+  `flex-shrink: 0`, same vertical height as the search bar. Remove the
+  `.library-search-reset-row` CSS rule (dead). Keep the danger accent +
+  focus ring + hover state.
+- Update tests:
+  - LibraryHeader test: update the "renders the clear/reset control
+    OUTSIDE the search input" test to "renders the clear/reset control
+    INSIDE the search row (icon-only, no text)". Add a test verifying
+    icon-only (no "Clear / Reset" text). Add a test verifying the
+    button is a descendant of `.library-search-row`.
+  - usePublishedProviderCatalog test: add tests for
+    "empty result is not permanently cached" + "published catalogue
+    can change from 0 → 91 and user sees 91" + "API error does not
+    poison cache".
+  - useVaultFiltering test (new): add tests for `platformCatalogLoading`
+    being independent of `ottBatchLoading`. (No existing test file —
+    will need to create one OR extend an existing test.)
+
+Files to modify:
+- src/features/watchlist/useVaultFiltering.ts (add platformCatalogLoading)
+- src/features/watchlist/components/VaultFiltersContent.tsx (use
+  platformCatalogLoading for "Loading platforms…" state)
+- src/features/watchlist/components/LibraryHeader.tsx (move reset into
+  search row, icon-only)
+- src/features/watchlist/components/LibraryDialogs.tsx (pass
+  platformCatalogLoading through)
+- src/features/watchlist/components/VaultFilters.tsx (pass
+  platformCatalogLoading through)
+- src/features/watchlist/LibraryView.tsx (pass platformCatalogLoading)
+- src/features/watchlist/hooks/usePublishedProviderCatalog.ts (don't
+  cache empty results; allow refetch)
+- src/routes/api/ott/providers.ts (Cache-Control: private, no-store)
+- src/styles/features/watchlist.css (compact icon-only reset button;
+  remove .library-search-reset-row)
+- Tests: LibraryHeader.test.tsx, usePublishedProviderCatalog.test.ts,
+  new useVaultFiltering test for the decoupled loading states.
+
+Stage Summary:
+- Two issues, six files (plus tests). Issue 1 has three sub-fixes (1A
+  decouple loading, 1C cache header, 1D don't cache empty). Issue 2 is
+  UI-only.
+
+---
+Task ID: 3 (implementation + validation)
+Agent: main (orchestrator)
+Task: Fix two post-implementation issues from commit f2fd9e8.
+
+Work Log:
+- Fix 1A (decouple loading states):
+  - useVaultFiltering.ts: added `platformCatalogLoading` accessor
+    (= catalogLoading only). Kept `ottLoading` (backward-compat) as
+    the aggregate. Added `platformCatalogLoading` to the return
+    interface + return object.
+  - VaultFiltersContent.tsx: the "Loading platforms…" vs "No
+    platforms available for your country" hint now uses
+    `props.platformCatalogLoading` (NOT `props.ottLoading`). The
+    dropdown's disabled state still depends on
+    `uniquePlatforms.length === 0` (correct — that's the structural
+    state). The Platform dropdown becomes interactive the moment the
+    Supabase catalog read lands, even if the title-level JustWatch
+    batch availability is still running for 1000+ titles.
+  - VaultFiltersContent / VaultFilters / LibraryDialogs / LibraryView:
+    added `platformCatalogLoading` prop plumbed through the same path
+    as the existing `ottLoading` prop. Updated all call sites.
+- Fix 1B (trace): the `getPublishedProviderCatalog` query in
+  cache.ts is `country = ? AND active = true`, ordered by clear_name.
+  The user-side route maps rows to JustWatchPackage and returns
+  them. The query is correct — the bug was purely the loading-state
+  coupling (Fix 1A) + stale CDN cache (Fix 1C) + empty-result
+  caching (Fix 1D). No DB code change needed.
+- Fix 1C (no stale CDN cache): /api/ott/providers Cache-Control
+  changed from `public, max-age=300, s-maxage=600` to
+  `private, no-store`. The catalogue is tiny (91 rows), so the
+  per-request Supabase read is fast. A stale empty response (served
+  before the admin published) is no longer cached — the user sees
+  the newly-published catalogue on the next Library page load.
+- Fix 1D (don't cache empty results): usePublishedProviderCatalog
+  now only caches NON-EMPTY successful responses. Empty `[]` and
+  errors are not cached, so the next effect run (e.g. country
+  toggle, page focus) re-fetches. The cost is one extra small
+  Supabase read per Library mount when the catalogue is genuinely
+  empty, which is acceptable for correctness.
+- Fix 2 (icon-only reset in search row):
+  - LibraryHeader.tsx: removed the `.library-search-reset-row` wrapper
+    and the `<span>Clear / Reset</span>` text. Moved the `<button>`
+    INSIDE `.library-search-row` after the input. Icon-only
+    (`restart_alt` 18px), no text. Added `title` attribute for hover
+    tooltip. Kept the same aria-label and the same `onClearAll`
+    semantics.
+  - watchlist.css: replaced the `.library-search-reset-row` + text
+    pill CSS with compact icon-only styling — 2rem × 2rem circle,
+    flex-shrink:0, danger accent (rose-400 icon, red border). Kept
+    the focus ring, hover state, active state.
+- Tests:
+  - LibraryHeader.test.tsx: updated the "renders the clear/reset
+    control OUTSIDE the search input" test to "renders INSIDE the
+    search row (icon-only, no text)". Added tests for: button is a
+    descendant of `.library-search-row`, no "Clear / Reset" text,
+    restart_alt icon present, aria-label preserved, title attribute
+    for hover tooltip.
+  - usePublishedProviderCatalog.test.ts: added 4 new tests for the
+    Fix 1D behavior — empty result is NOT permanently cached (re-
+    fetches on country toggle), catalog can change from 0 → 91,
+    API error does NOT poison the cache, non-empty successful
+    response IS cached (switching back to country is instant).
+  - useVaultFiltering.platformLoading.test.ts (NEW): 5 new tests
+    verifying the decoupled loading states — platformCatalogLoading
+    depends only on catalogLoading (NOT on ottBatchLoading);
+    ottLoading aggregates both (backward-compat); uniquePlatforms
+    reflects the published catalog (NOT the watchlist-derived
+    providerCatalog).
+
+Validation:
+- Vitest full suite: 1735 / 1735 tests across 102 files pass
+  (12 new tests added).
+- `npx tsc --noEmit` — clean.
+- `npx eslint` on changed source files — clean (no errors).
+- `npm run build` (production) — 14.74s, success.
+- Diff stat: 11 modified files + 1 new test file + worklog.
+  Net: +561 / -95.
+
+Stage Summary:
+- Issue 1 fixed via three sub-changes: decoupled loading states
+  (1A), no-store cache header (1C), don't cache empty results (1D).
+  The Platform dropdown now becomes interactive the moment the
+  small Supabase catalog read lands, even if the title-level
+  JustWatch batch availability is still running for 1000+ titles.
+  A newly-published catalogue is visible to the user on the next
+  Library page load (no stale CDN cache, no poisoned empty cache).
+- Issue 2 fixed via UI-only change: the clear/reset control is now
+  a compact icon-only button INSIDE the search row at the far
+  right (flex-shrink:0), not a separate row with icon + text. The
+  click behavior is UNCHANGED — same onClearAll / clearFilters
+  semantics.
+- No architecture change — the published-catalogue flow (Supabase
+  → /api/ott/providers → usePublishedProviderCatalog → dropdown)
+  is intact. The title-level availability flow (JustWatch batch
+  → /api/ott/batch-availability → justwatchProviders →
+  matchesPlatform) is UNCHANGED. No JustWatch fallback on the
+  user side.

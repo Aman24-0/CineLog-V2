@@ -1515,46 +1515,42 @@
   display: none;
 }
 
-/* ─── Part 2 — Clear / Reset control (outside the search input) ────
-   Previously the X clear button lived INSIDE .library-search-row,
-   so users couldn't tell it also cleared active advanced filters.
-   The new control is rendered in its OWN row directly below the
-   search input, with a distinct danger accent so it clearly reads
-   as a destructive/reset action (per spec). It only renders when
-   there's something to clear (search text OR advanced filters OR
-   non-default active status); see `showClear` in LibraryHeader.
+/* ─── Part 2 follow-up — Clear / Reset control (icon-only, inside the search row) ─
+   The previous version rendered a separate `.library-search-reset-row`
+   BELOW the search input with icon + "Clear / Reset" text. The user
+   wanted a compact icon-only reset button that lives in the SAME row
+   as the search input, at the far right, with a danger accent so it
+   visually reads as a destructive/reset action.
 
-   Layout: the row is a flex container that right-aligns the button
-   pill. The pill uses the standard focus-ring class for keyboard
-   accessibility (visible focus outline) and meets the 44px mobile
-   tap-target minimum (height: 2.25rem ≈ 36px is below 44, but the
-   padding + line-height + the row's min-height pushes the effective
-   tappable area to ≥44px; we explicitly set min-height on the row
-   so the touch target is comfortable on 390×844 / 360×800 / 320×568).
+   Layout: the parent `.library-search-row` is already
+   `display: flex; align-items: center; gap: var(--sp-2)`. The reset
+   button is the LAST flex child, with `flex-shrink: 0` so it never
+   gets squeezed by the input. The input is `flex: 1; min-width: 0`
+   (existing rule above) so it shrinks correctly at 320/360/390/412px
+   mobile widths without horizontal scrolling.
+
+   The button is a 2rem × 2rem circle (smaller than the search row's
+   3rem min-height so it sits comfortably inside the pill) with a
+   danger-red border + rose-400 icon. The `restart_alt` Material Symbol
+   is 18px. A focus ring is provided by the `.focus-ring` class. The
+   minimum touch target is ~32px (2rem) which is below the 44px
+   ideal, but the button is intentionally compact so the search row
+   stays at one line height; the aria-label + title make the action
+   discoverable for screen readers and hover-tooltip users.
 */
-.library-search-reset-row {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  margin-top: var(--sp-2);
-  min-height: 2.25rem;
-}
-
 .library-search-reset {
   display: inline-flex;
   align-items: center;
-  gap: 0.375rem;
-  padding: 0.375rem 0.75rem;
-  min-height: 2.25rem;
+  justify-content: center;
+  flex: 0 0 auto;
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
   border: 1px solid color-mix(in srgb, #ef4444 35%, var(--hairline-2));
   border-radius: var(--radius-pill);
-  background: color-mix(in srgb, #ef4444 12%, var(--glass-bg-strong));
+  background: color-mix(in srgb, #ef4444 12%, transparent);
   color: #fca5a5;
-  font-family: "Azeret Mono", monospace;
-  font-size: 0.625rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
   cursor: pointer;
   transition:
     background var(--dur-fast) var(--ease-out),
@@ -1564,25 +1560,25 @@
 }
 
 .library-search-reset:hover {
-  background: color-mix(in srgb, #ef4444 22%, var(--glass-bg-strong));
+  background: color-mix(in srgb, #ef4444 22%, transparent);
   border-color: color-mix(in srgb, #ef4444 55%, var(--hairline-2));
   color: #fecaca;
-  box-shadow: 0 0 12px color-mix(in srgb, #ef4444 35%, transparent);
+  box-shadow: 0 0 10px color-mix(in srgb, #ef4444 35%, transparent);
 }
 
 .library-search-reset:focus-visible {
   outline: 0;
   box-shadow:
     0 0 0 3px color-mix(in srgb, #ef4444 45%, transparent),
-    0 0 12px color-mix(in srgb, #ef4444 35%, transparent);
+    0 0 10px color-mix(in srgb, #ef4444 35%, transparent);
 }
 
 .library-search-reset:active {
-  transform: scale(0.96);
+  transform: scale(0.94);
 }
 
 .library-search-reset .material-symbols-outlined {
-  font-size: 16px;
+  font-size: 18px;
 }
 
 .library-status-row {

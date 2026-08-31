@@ -110,7 +110,8 @@ export default function LibraryView() {
     uniqueTags,
     uniqueTagsPlus,
     refreshTagVocab,
-    ottLoading
+    ottLoading,
+    platformCatalogLoading
   } = filtering;
 
   // Persist ephemeral presentation state only. The UserLibrary provider and
@@ -266,6 +267,7 @@ export default function LibraryView() {
                 uniqueTagsPlus={uniqueTagsPlus()}
                 refreshTagVocab={refreshTagVocab}
                 ottLoading={ottLoading()}
+                platformCatalogLoading={platformCatalogLoading()}
                 presets={presets}
                 onSavePreset={(name) => savePreset(name, filters())}
                 onDeletePreset={(id) => deletePreset(id)}
@@ -371,6 +373,7 @@ export default function LibraryView() {
         uniqueTagsPlus={uniqueTagsPlus}
         refreshTagVocab={refreshTagVocab}
         ottLoading={ottLoading}
+        platformCatalogLoading={platformCatalogLoading}
         onClose={() => setShowFilter(false)}
         onClear={() => {
           clearFilters();

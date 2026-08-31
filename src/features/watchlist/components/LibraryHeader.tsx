@@ -117,34 +117,40 @@ const LibraryHeader: Component<LibraryHeaderProps> = (props) => {
           class="library-search-input"
           aria-label="Search your library"
         />
-      </div>
-      {/* Part 2 fix — Clear/Reset control moved OUTSIDE the search input.
-          Previously the X button was rendered inside .library-search-row,
-          so users couldn't tell it also cleared active advanced
-          filters. It's now a separate, distinctly-danger-colored
-          control that lives in its own row beneath the search input
-          and only appears when there's actually something to clear
-          (search text, advanced filters, or non-default active
-          status). The click behavior is UNCHANGED — it still calls
-          props.onClearAll() which routes to clearFilters(), so the
-          exact same clear-all semantics are preserved. */}
-      <Show when={showClear()}>
-        <div class="library-search-reset-row">
+        {/* Part 2 follow-up — Clear/Reset control is now an icon-only
+            button rendered INSIDE .library-search-row at the far
+            right (flex layout: search icon → input flex:1 → reset
+            button flex-shrink:0). The previous version rendered a
+            separate row with icon + "Clear / Reset" text below the
+            search input — the user wanted a compact icon-only reset
+            that lives in the same row, visually separated from the
+            search input by the danger accent.
+
+            The click behavior is UNCHANGED — it still calls
+            props.onClearAll() which routes to clearFilters(), so the
+            exact same clear-all semantics are preserved (clears
+            search text + debounced search state + advanced filters +
+            relevant status state).
+
+            The button only renders when `showClear()` is true (search
+            text > 0 OR advanced filters active OR activeStatusTab !==
+            "all"). The aria-label is preserved for accessibility. */}
+        <Show when={showClear()}>
           <button
             type="button"
             class="library-search-reset focus-ring"
             onClick={() => props.onClearAll()}
             aria-label="Clear search and reset all library filters"
+            title="Clear search and reset all library filters"
           >
             <Icon
               name="restart_alt"
-              style={{ "font-size": "16px" }}
+              style={{ "font-size": "18px" }}
               aria-hidden="true"
             />
-            <span>Clear / Reset</span>
           </button>
-        </div>
-      </Show>
+        </Show>
+      </div>
 
       <div class="library-status-row">
         <QuickFilterTabs

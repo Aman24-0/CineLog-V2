@@ -172,14 +172,17 @@ describe("LibraryHeader — Part 1 — Filter count badge", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────
-// Part 2 — Clear / Reset control (outside the search input).
+// Part 2 — Clear / Reset control (icon-only, inside the search row).
 //
-// The X clear button was previously INSIDE the search input. The new
-// design renders a separate, distinctly-danger-colored "Clear / Reset"
-// pill button BELOW the search input, only when there's something to
-// clear (search text, advanced filters, or non-default active status).
+// The original Part 2 implementation rendered a separate
+// `.library-search-reset-row` BELOW the search input with icon +
+// "Clear / Reset" text. The follow-up fix moves the control INTO
+// `.library-search-row` as a compact icon-only button at the far
+// right (flex layout: search icon → input flex:1 → reset button
+// flex-shrink:0). The click behavior is UNCHANGED — it still calls
+// `onClearAll` which routes to `clearFilters()`.
 // ─────────────────────────────────────────────────────────────────────
-describe("LibraryHeader — Part 2 — Clear / Reset control", () => {
+describe("LibraryHeader — Part 2 — Clear / Reset control (icon-only, in search row)", () => {
   it("does not render the clear/reset button when nothing is active", () => {
     renderHeader({
       activeFilterCount: () => 0,
@@ -260,7 +263,7 @@ describe("LibraryHeader — Part 2 — Clear / Reset control", () => {
     expect(onClearAll).toHaveBeenCalledTimes(1);
   });
 
-  it("renders the clear/reset control OUTSIDE the search input (not inside .library-search-row)", () => {
+  it("renders the clear/reset button INSIDE the search row (not in a separate row)", () => {
     renderHeader({
       activeFilterCount: () => 1,
       searchInput: () => "nolan"
@@ -269,12 +272,58 @@ describe("LibraryHeader — Part 2 — Clear / Reset control", () => {
     const resetButton = screen.getByRole("button", {
       name: "Clear search and reset all library filters"
     });
-    // The reset button must NOT be a descendant of .library-search-row.
-    expect(searchRow!.contains(resetButton)).toBe(false);
-    // It should live in its own row (.library-search-reset-row) which
-    // is a sibling of .library-search-row.
-    const resetRow = resetButton.closest(".library-search-reset-row");
-    expect(resetRow).toBeTruthy();
+    // The reset button must be a descendant of .library-search-row
+    // (the follow-up fix moved it from a separate row INTO the
+    // search row, as a compact icon-only button at the far right).
+    expect(searchRow!.contains(resetButton)).toBe(true);
+    // The old `.library-search-reset-row` wrapper must NOT exist.
+    expect(document.querySelector(".library-search-reset-row")).toBeNull();
+  });
+
+  it("renders the button with icon only — no 'Clear / Reset' text", () => {
+    renderHeader({
+      activeFilterCount: () => 1,
+      searchInput: () => "nolan"
+    });
+    const button = screen.getByRole("button", {
+      name: "Clear search and reset all library filters"
+    });
+    // The button must NOT contain the "Clear / Reset" text — it's
+    // icon-only now. The aria-label provides the accessible name.
+    expect(button.textContent).not.toContain("Clear / Reset");
+    expect(button.textContent).not.toContain("Clear");
+    expect(button.textContent).not.toContain("Reset");
+    // The button must contain the restart_alt icon (material-symbols).
+    const icon = button.querySelector(".material-symbols-outlined");
+    expect(icon).toBeTruthy();
+    expect(icon!.textContent).toBe("restart_alt");
+  });
+
+  it("preserves the aria-label for accessibility even though the button is icon-only", () => {
+    renderHeader({
+      activeFilterCount: () => 1,
+      searchInput: () => "nolan"
+    });
+    const button = screen.getByRole("button", {
+      name: "Clear search and reset all library filters"
+    });
+    expect(button).toBeTruthy();
+    expect(button.getAttribute("aria-label")).toBe(
+      "Clear search and reset all library filters"
+    );
+  });
+
+  it("adds a title attribute for hover-tooltip discovery", () => {
+    renderHeader({
+      activeFilterCount: () => 1,
+      searchInput: () => "nolan"
+    });
+    const button = screen.getByRole("button", {
+      name: "Clear search and reset all library filters"
+    });
+    expect(button.getAttribute("title")).toBe(
+      "Clear search and reset all library filters"
+    );
   });
 });
 

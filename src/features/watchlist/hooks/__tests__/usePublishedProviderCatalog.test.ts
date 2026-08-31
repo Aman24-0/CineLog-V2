@@ -187,4 +187,214 @@ describe("usePublishedProviderCatalog", () => {
       )
     ).toBe(true);
   });
+
+  // ── Part 4 follow-up tests — Fix 1D: don't cache empty results ──
+
+  it("does NOT permanently cache an empty result — re-fetches on the next effect run", async () => {
+    // First fetch: empty (e.g. before admin published any providers).
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({ country: "IN", providers: [] }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      )
+    );
+
+    const hook = renderHook(() => usePublishedProviderCatalog());
+    await vi.waitFor(() => expect(hook.result.loading()).toBe(false));
+    expect(hook.result.catalog()).toEqual([]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    // Now simulate the admin publishing 91 providers. We trigger a
+    // refetch by toggling the country signal: IN → US → IN.
+    //
+    // The fetchMock queue is FIFO, so we set the responses in the
+    // ORDER the fetches will happen:
+    //   2nd fetch: US (empty)  — when the country switches to US
+    //   3rd fetch: IN (1 provider) — when the country switches back to IN
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({ country: "US", providers: [] }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      )
+    );
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          country: "IN",
+          providers: [
+            {
+              id: "p1",
+              clearName: "Netflix",
+              shortName: "NF",
+              technicalName: "netflix",
+              icon: ""
+            }
+          ]
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      )
+    );
+
+    setRegionSignal("US");
+    await vi.waitFor(() => expect(hook.result.country()).toBe("US"));
+    await vi.waitFor(() => expect(hook.result.loading()).toBe(false));
+
+    setRegionSignal("IN");
+    await vi.waitFor(() => expect(hook.result.country()).toBe("IN"));
+    await vi.waitFor(() => expect(hook.result.loading()).toBe(false));
+
+    // The hook should have re-fetched IN (the empty result was NOT
+    // cached) and now sees the 1 provider the admin just published.
+    expect(hook.result.catalog()).toHaveLength(1);
+    expect(hook.result.catalog()[0].technicalName).toBe("netflix");
+  });
+
+  it("catalog can change from 0 → N when the admin publishes after the initial empty fetch", async () => {
+    // Initial: empty.
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({ country: "IN", providers: [] }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      )
+    );
+    const hook = renderHook(() => usePublishedProviderCatalog());
+    await vi.waitFor(() => expect(hook.result.loading()).toBe(false));
+    expect(hook.result.catalog()).toEqual([]);
+
+    // Admin publishes 91 providers. Trigger a refetch via IN → US → IN.
+    // FetchMock queue order: US (empty) then IN (91 providers).
+    const providers91 = Array.from({ length: 91 }, (_, i) => ({
+      id: `p${i}`,
+      clearName: `Provider ${i}`,
+      shortName: `P${i}`,
+      technicalName: `provider_${i}`,
+      icon: ""
+    }));
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({ country: "US", providers: [] }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      )
+    );
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({ country: "IN", providers: providers91 }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      )
+    );
+    setRegionSignal("US");
+    await vi.waitFor(() => expect(hook.result.country()).toBe("US"));
+    await vi.waitFor(() => expect(hook.result.loading()).toBe(false));
+
+    setRegionSignal("IN");
+    await vi.waitFor(() => expect(hook.result.country()).toBe("IN"));
+    await vi.waitFor(() => expect(hook.result.loading()).toBe(false));
+
+    // The user should now see all 91 providers — the empty result
+    // was not cached, so the hook re-fetched and got the new state.
+    expect(hook.result.catalog()).toHaveLength(91);
+  });
+
+  it("an API error does NOT permanently poison the cache — next fetch still works", async () => {
+    // First fetch: 500 error.
+    fetchMock.mockResolvedValueOnce(
+      new Response("Internal Server Error", { status: 500 })
+    );
+    const hook = renderHook(() => usePublishedProviderCatalog());
+    await vi.waitFor(() => expect(hook.result.loading()).toBe(false));
+    expect(hook.result.error()).toBe(true);
+    expect(hook.result.catalog()).toEqual([]);
+
+    // Second fetch: success with 91 providers (admin had already
+    // published; the first request just hit a transient error).
+    // Trigger a refetch via IN → US → IN. FetchMock queue order:
+    // US (empty) then IN (91 providers).
+    const providers91 = Array.from({ length: 91 }, (_, i) => ({
+      id: `p${i}`,
+      clearName: `Provider ${i}`,
+      shortName: `P${i}`,
+      technicalName: `provider_${i}`,
+      icon: ""
+    }));
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({ country: "US", providers: [] }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      )
+    );
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({ country: "IN", providers: providers91 }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      )
+    );
+    setRegionSignal("US");
+    await vi.waitFor(() => expect(hook.result.country()).toBe("US"));
+    await vi.waitFor(() => expect(hook.result.loading()).toBe(false));
+
+    setRegionSignal("IN");
+    await vi.waitFor(() => expect(hook.result.country()).toBe("IN"));
+    await vi.waitFor(() => expect(hook.result.loading()).toBe(false));
+
+    expect(hook.result.error()).toBe(false);
+    expect(hook.result.catalog()).toHaveLength(91);
+  });
+
+  it("a NON-EMPTY successful response IS cached — switching back to the country is instant (no refetch)", async () => {
+    // First fetch: IN with 1 provider.
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          country: "IN",
+          providers: [
+            {
+              id: "p1",
+              clearName: "Netflix",
+              shortName: "NF",
+              technicalName: "netflix",
+              icon: ""
+            }
+          ]
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      )
+    );
+    const hook = renderHook(() => usePublishedProviderCatalog());
+    await vi.waitFor(() => expect(hook.result.loading()).toBe(false));
+    expect(hook.result.catalog()).toHaveLength(1);
+    const initialCallCount = fetchMock.mock.calls.length;
+
+    // Switch to US — provide a non-empty response so it caches too.
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          country: "US",
+          providers: [
+            {
+              id: "p2",
+              clearName: "Hulu",
+              shortName: "H",
+              technicalName: "hulu",
+              icon: ""
+            }
+          ]
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      )
+    );
+    setRegionSignal("US");
+    await vi.waitFor(() => expect(hook.result.country()).toBe("US"));
+    await vi.waitFor(() => expect(hook.result.loading()).toBe(false));
+    expect(hook.result.catalog()).toHaveLength(1);
+    expect(hook.result.catalog()[0].technicalName).toBe("hulu");
+
+    // Switch back to IN — should hit the cache, NO new fetch.
+    setRegionSignal("IN");
+    await vi.waitFor(() => expect(hook.result.country()).toBe("IN"));
+    // The catalog should be the cached IN value (netflix), instantly.
+    expect(hook.result.catalog()).toHaveLength(1);
+    expect(hook.result.catalog()[0].technicalName).toBe("netflix");
+    // No new fetch was made for IN (cache hit).
+    expect(fetchMock.mock.calls.length).toBe(initialCallCount + 1); // only the US fetch
+  });
 });

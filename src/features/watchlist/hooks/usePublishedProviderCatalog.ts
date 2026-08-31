@@ -177,7 +177,29 @@ export function usePublishedProviderCatalog(): {
             count: 0
           }));
 
-        cache.set(c, options);
+        // Part 4 follow-up — DO NOT cache an empty result.
+        //
+        // The published catalogue is admin-controlled and may
+        // legitimately be empty at one moment (e.g. before the admin
+        // has published any providers, or for a country that has never
+        // been published). If we cached the empty `[]` here, a
+        // subsequent effect re-run (e.g. the user navigates away and
+        // back to the Library, or the country signal briefly flips and
+        // flips back) would hit the cache and skip the fetch — the
+        // user would NEVER see the 91 providers the admin just
+        // published until they hard-reload the page.
+        //
+        // Only cache NON-EMPTY successful responses. An empty response
+        // is treated as "no data yet" — the next effect run will
+        // re-fetch. Errors are also not cached (the `catch` branch
+        // below doesn't touch the cache).
+        //
+        // The cost is one extra small Supabase read per Library mount
+        // when the catalogue is genuinely empty, which is acceptable
+        // for correctness.
+        if (options.length > 0) {
+          cache.set(c, options);
+        }
         setCatalog(options);
         setError(false);
       } catch (err) {

@@ -116,10 +116,31 @@ export interface UseVaultFilteringResult {
    */
   uniquePlatforms: Accessor<PlatformFilterOption[]>;
   /**
+   * True WHILE the published Supabase provider catalog fetch is in
+   * flight (the small Supabase read that powers the Platform dropdown
+   * options). This is INDEPENDENT of `ottLoading` (title-level
+   * JustWatch batch availability), so the Platform dropdown can
+   * become interactive the moment the catalog lands — even if the
+   * title-level enrichment is still running for 1000+ titles.
+   *
+   * Part 4 follow-up fix: VaultFiltersContent uses THIS accessor
+   * (NOT `ottLoading`) to decide whether to show "Loading platforms…"
+   * vs "No platforms available for your country". Before the fix,
+   * `ottLoading` aggregated both loading states, so the dropdown
+   * stayed in "Loading platforms…" until the 1000+ title availability
+   * fetch completed — even though the catalog itself returned in
+   * <100ms.
+   */
+  platformCatalogLoading: Accessor<boolean>;
+  /**
    * True while the JustWatch batch-availability fetch is in flight
-   * (title-level enrichment) OR while the published provider catalog
-   * fetch is in flight. Surfaced so the Platform dropdown can render
-   * a "Loading platforms…" hint.
+   * (title-level enrichment). This is the title-level "which of my
+   * library titles are available on each platform" fetch — separate
+   * from the published-catalog read above.
+   *
+   * Kept for backward-compat with any consumer that reads it. The
+   * Platform dropdown should NOT use this — see
+   * `platformCatalogLoading` above.
    */
   ottLoading: Accessor<boolean>;
   uniqueTags: Accessor<string[]>;
@@ -351,11 +372,20 @@ export function useVaultFiltering(
     return publishedCatalogItems();
   });
 
-  // ── Aggregate loading flag — true while EITHER the batch-availability
-  // fetch (per-title enrichment) OR the published-catalog fetch is in
-  // flight. Surfaced as `ottLoading` so the Platform dropdown can show
-  // a "Loading platforms…" hint when the catalog is empty but a fetch
-  // is in progress.
+  // ── Aggregate loading flag — kept for backward-compat with any
+  // consumer that read the old `ottLoading` (which used to aggregate
+  // both loading states). The Platform dropdown should NOT use this
+  // — it should read `platformCatalogLoading` (below) instead, so
+  // the dropdown becomes interactive the moment the small Supabase
+  // catalog read lands, even if the title-level JustWatch batch
+  // availability fetch is still running for 1000+ titles.
+  //
+  // Part 4 follow-up: the original `ottLoading = ottBatchLoading() ||
+  // catalogLoading()` caused the Platform dropdown to show "Loading
+  // platforms…" until the title-level fetch completed, which can take
+  // minutes for a large library. The dropdown now uses the dedicated
+  // `platformCatalogLoading` accessor (which is just `catalogLoading`).
+  const platformCatalogLoading = createMemo(() => catalogLoading());
   const ottLoading = createMemo(() => ottBatchLoading() || catalogLoading());
   const uniqueTags = createMemo(() => {
     const set = new Set<string>();
@@ -480,6 +510,7 @@ export function useVaultFiltering(
     uniqueGenres,
     uniqueLanguages,
     uniquePlatforms,
+    platformCatalogLoading,
     ottLoading,
     uniqueTags,
     uniqueTagsPlus,
