@@ -5,21 +5,46 @@
 // The admin surface for managing the published JustWatch provider
 // catalogue that powers the user-side Library Platform filter.
 //
-// Workflow:
+// WORKFLOW (Save Selected = complete published catalogue):
 //   1. Admin picks a country (dropdown of supported JustWatch regions).
 //   2. Admin clicks "Fetch Catalogue" → server calls JustWatch and
 //      returns a diff against the saved Supabase rows (SAVED / NEW /
 //      UPDATED / REMOVED). The diagnostic panel shows the fetch
 //      duration, last fetch time, and counts of each diff status.
-//   3. Admin publishes new / updated providers (Add / Add Selected /
-//      Add All New). Publishing inserts the row with `active = true`
-//      if it doesn't exist, or flips `active = true` if it does.
-//   4. Admin can deactivate providers that should no longer appear
-//      in the user-side dropdown. The row is preserved for re-publish
-//      if the provider reappears in a future JustWatch fetch (no data
-//      loss from a transient JustWatch response).
-//   5. Admin can update individual provider metadata (clearName etc.)
-//      when JustWatch reports a changed value.
+//   3. The provider list renders with checkboxes. Initial selection
+//      reflects the CURRENT published state:
+//        - SAVED + active=true   → checked
+//        - SAVED + active=false  → unchecked
+//        - NEW (not in Supabase) → unchecked
+//        - REMOVED (not in latest JustWatch) → unchecked AND
+//          disabled (the admin can't select a provider JustWatch no
+//          longer returns; the row is preserved in Supabase but will
+//          be deactivated on Save Selected because it's not in the
+//          selected set).
+//   4. Admin toggles checkboxes to choose the EXACT set of providers
+//      to publish.
+//   5. Admin clicks "Save Selected":
+//        - If the selection is empty, a confirm dialog warns that
+//          all platforms will be removed from the user Platform
+//          filter. The admin can confirm or cancel.
+//        - On confirm, the page calls POST
+//          /api/admin/platform-catalog/save-selection with the
+//          country + the full JustWatchPackage[] for the selected
+//          providers. The server upserts the selected providers
+//          with `active = true` AND deactivates ALL OTHER rows for
+//          the same country (country-isolated).
+//   6. After Save Selected succeeds, the page re-fetches the diff
+//      so the checkboxes reflect the new saved state.
+//
+// KEY DIFFERENCE FROM THE OLD "Add Selected":
+//   - OLD: `handlePublishSelected` only UPSERTS active=true for the
+//     selected providers. Providers the admin didn't select KEEP
+//     their previous active state — so a previously-active provider
+//     stays active even if the admin unchecks it.
+//   - NEW: `handleSaveSelected` makes the EXACT selected set the
+//     complete published catalogue. Unselected providers (including
+//     previously-active ones) become `active = false`. This is the
+//     "complete selection" model the spec requires.
 //
 // Architecture notes (see also the route file):
 //   - Country source: the JustWatch GraphQL `Country` enum is NOT
@@ -131,19 +156,38 @@ const AdminPlatformCatalogPage: Component = () => {
   const [fetching, setFetching] = createSignal(false);
   const [fetchError, setFetchError] = createSignal<string | null>(null);
   const [fetchResult, setFetchResult] = createSignal<FetchResponse | null>(null);
+  // `selected` is the SET of technicalName values the admin has
+  // checked. It's initialized from the saved rows where
+  // `saved.active === true` on every Fetch Catalogue, and the admin
+  // can toggle any checkbox to add/remove from this set. The set
+  // represents the EXACT catalogue the admin wants to publish —
+  // Save Selected will make this set the complete published
+  // catalogue (everything else becomes `active = false`).
   const [selected, setSelected] = createSignal<Set<string>>(new Set<string>());
 
   // Mutation in-flight flags so the user gets immediate feedback.
-  const [publishing, setPublishing] = createSignal(false);
+  const [saving, setSaving] = createSignal(false);
   const [deactivating, setDeactivating] = createSignal(false);
   const [updating, setUpdating] = createSignal(false);
   const [mutationError, setMutationError] = createSignal<string | null>(null);
+  const [mutationSuccess, setMutationSuccess] = createSignal<string | null>(
+    null
+  );
+
+  // Empty-selection confirm dialog state. When the admin clicks
+  // "Save Selected" with 0 providers checked, we show a confirm
+  // dialog instead of immediately saving (the zero-selection case
+  // deactivates ALL rows for the country, which the user Platform
+  // filter would render as "No platforms available for your
+  // country"). The admin can confirm or cancel.
+  const [confirmEmpty, setConfirmEmpty] = createSignal(false);
 
   // ── Fetch handler: calls JustWatch + returns the diff ──────────
   const handleFetch = async () => {
     setFetching(true);
     setFetchError(null);
     setMutationError(null);
+    setMutationSuccess(null);
     setSelected(new Set<string>());
     try {
       const res = await fetch("/api/admin/platform-catalog/fetch", {
@@ -158,14 +202,27 @@ const AdminPlatformCatalogPage: Component = () => {
       }
       const data = (await res.json()) as FetchResponse;
       setFetchResult(data);
-      // Pre-select all NEW entries so the admin can one-click "Add
-      // Selected" to publish them. UPDATED entries are not pre-
-      // selected (the admin may want to review the metadata diff
-      // first).
+      // Initialize the selection from the CURRENT published state:
+      //   - SAVED + active=true   → checked
+      //   - SAVED + active=false  → unchecked
+      //   - NEW (not in Supabase) → unchecked
+      //   - REMOVED               → unchecked (and the checkbox is
+      //                            disabled in the UI because the
+      //                            provider isn't in the JustWatch
+      //                            response, so it can't be selected
+      //                            for publishing)
+      //
+      // This is the "selection source of truth" rule from the spec:
+      //   checked = saved row exists AND saved.active === true
+      //
+      // We do NOT pre-select NEW providers (the old behavior did,
+      // which caused accidental publishing of every newly-
+      // discovered provider). The admin explicitly opts in to
+      // publishing each provider by checking it.
       setSelected(
         new Set<string>(
           data.diff
-            .filter((d) => d.status === "NEW")
+            .filter((d) => d.saved?.active === true)
             .map((d) => d.technical_name)
         )
       );
@@ -177,13 +234,17 @@ const AdminPlatformCatalogPage: Component = () => {
     }
   };
 
-  // ── Publish handlers ───────────────────────────────────────────
-  const publishProviders = async (providers: JustWatchPackage[]) => {
-    if (providers.length === 0) return;
-    setPublishing(true);
+  // ── Save Selected handler ──────────────────────────────────────
+  // Makes the EXACT selected set the complete published catalogue
+  // for the country. Calls the dedicated save-selection route (NOT
+  // the old publish route) so the server can atomically upsert +
+  // deactivate-others in one request.
+  const handleSaveSelected = async (providers: JustWatchPackage[]) => {
+    setSaving(true);
     setMutationError(null);
+    setMutationSuccess(null);
     try {
-      const res = await fetch("/api/admin/platform-catalog/publish", {
+      const res = await fetch("/api/admin/platform-catalog/save-selection", {
         method: "POST",
         credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
@@ -196,16 +257,30 @@ const AdminPlatformCatalogPage: Component = () => {
         const err = (await res.json().catch(() => ({}))) as { error?: string };
         throw new Error(err.error || `HTTP ${res.status}`);
       }
-      // Re-fetch the diff to reflect the new saved state.
+      const result = (await res.json()) as {
+        ok: boolean;
+        published: number;
+        deactivated: number;
+      };
+      setMutationSuccess(
+        `Saved: ${result.published} published, ${result.deactivated} deactivated.`
+      );
+      // Re-fetch the diff so the checkboxes reflect the new saved
+      // state (selected providers are now SAVED + active=true; any
+      // previously-active providers the admin unchecked are now
+      // SAVED + active=false and will render unchecked).
       await handleFetch();
     } catch (err) {
       setMutationError(err instanceof Error ? err.message : String(err));
     } finally {
-      setPublishing(false);
+      setSaving(false);
     }
   };
 
-  const handlePublishSelected = () => {
+  // Build the JustWatchPackage[] for the currently-selected
+  // technical names, using the JustWatch metadata from the latest
+  // fetch. This is what we send to the save-selection route.
+  const buildSelectedProviders = (): JustWatchPackage[] => {
     const sel = selected();
     const providers: JustWatchPackage[] = [];
     for (const entry of fetchResult()?.diff ?? []) {
@@ -213,30 +288,39 @@ const AdminPlatformCatalogPage: Component = () => {
         providers.push(entry.justwatch);
       }
     }
-    if (providers.length === 0) return;
-    void publishProviders(providers);
+    return providers;
   };
 
-  const handlePublishAllNew = () => {
-    const providers: JustWatchPackage[] = [];
-    for (const entry of fetchResult()?.diff ?? []) {
-      if (entry.status === "NEW" && entry.justwatch) {
-        providers.push(entry.justwatch);
-      }
+  // Click handler for the "Save Selected" button. If the selection
+  // is empty, show the confirm dialog instead of saving immediately.
+  const onClickSaveSelected = () => {
+    const providers = buildSelectedProviders();
+    if (providers.length === 0) {
+      setConfirmEmpty(true);
+      return;
     }
-    if (providers.length === 0) return;
-    void publishProviders(providers);
+    void handleSaveSelected(providers);
   };
 
-  const handlePublishOne = (entry: DiffEntry) => {
-    if (!entry.justwatch) return;
-    void publishProviders([entry.justwatch]);
+  // Confirm handler for the empty-selection dialog. The admin has
+  // acknowledged that saving 0 providers will remove all platforms
+  // from the user Platform filter.
+  const onConfirmEmptySave = () => {
+    setConfirmEmpty(false);
+    void handleSaveSelected([]);
   };
 
-  // ── Deactivate handler ─────────────────────────────────────────
+  // ── Deactivate handler (per-row, kept for quick one-off) ──────
+  // The per-row "Deactivate" button is kept as a quick way to
+  // deactivate a single provider WITHOUT going through the full
+  // Save Selected flow. It calls the existing deactivate route
+  // (country-scoped, single technical_name). After deactivating,
+  // the page re-fetches the diff so the checkbox reflects the new
+  // state (unchecked + inactive).
   const handleDeactivate = async (technicalName: string) => {
     setDeactivating(true);
     setMutationError(null);
+    setMutationSuccess(null);
     try {
       const res = await fetch("/api/admin/platform-catalog/deactivate", {
         method: "POST",
@@ -251,6 +335,7 @@ const AdminPlatformCatalogPage: Component = () => {
         const err = (await res.json().catch(() => ({}))) as { error?: string };
         throw new Error(err.error || `HTTP ${res.status}`);
       }
+      setMutationSuccess(`Deactivated ${technicalName}.`);
       await handleFetch();
     } catch (err) {
       setMutationError(err instanceof Error ? err.message : String(err));
@@ -259,11 +344,16 @@ const AdminPlatformCatalogPage: Component = () => {
     }
   };
 
-  // ── Update metadata handler ────────────────────────────────────
+  // ── Update metadata handler (per-row, kept for metadata edits) ─
+  // The per-row "Update metadata" button is kept because metadata
+  // edits (clearName / shortName / icon_template) are independent of
+  // the publish/active state. The admin can update a provider's
+  // metadata without changing its active flag.
   const handleUpdateMetadata = async (entry: DiffEntry) => {
     if (!entry.justwatch) return;
     setUpdating(true);
     setMutationError(null);
+    setMutationSuccess(null);
     try {
       const res = await fetch("/api/admin/platform-catalog/update", {
         method: "POST",
@@ -281,6 +371,7 @@ const AdminPlatformCatalogPage: Component = () => {
         const err = (await res.json().catch(() => ({}))) as { error?: string };
         throw new Error(err.error || `HTTP ${res.status}`);
       }
+      setMutationSuccess(`Updated metadata for ${entry.clear_name}.`);
       await handleFetch();
     } catch (err) {
       setMutationError(err instanceof Error ? err.message : String(err));
@@ -300,9 +391,25 @@ const AdminPlatformCatalogPage: Component = () => {
       }
       return next;
     });
+    // Clear any success message when the admin starts editing the
+    // selection again — otherwise the stale "Saved: 4 published"
+        // message would linger and confuse the admin about whether
+        // their new edits have been saved.
+    setMutationSuccess(null);
   };
 
   const selectedCount = createMemo(() => selected().size);
+
+  // `publishedCount` is the count of saved rows where active=true
+  // for the current country. This is the CURRENT published state
+  // (before any pending Save Selected). The diagnostic panel shows
+  // this as "Published" — distinct from "Selected" (the admin's
+  // current checkbox state) and "JustWatch providers" (the latest
+  // fetch count).
+  const publishedCount = createMemo(() => {
+    const rows = fetchResult()?.saved_rows ?? [];
+    return rows.filter((r) => r.active).length;
+  });
 
   // ─── Render ──────────────────────────────────────────────────────
   return (
@@ -316,6 +423,10 @@ const AdminPlatformCatalogPage: Component = () => {
           ONLY the published rows ({`active = true`}). The
           "Fetch Catalogue" button is the only place in the app that
           calls JustWatch directly — there is no user-side fallback.
+          Check the providers you want to publish and click
+          "Save Selected" — the EXACT selected set becomes the
+          complete published catalogue for the country (everything
+          else becomes inactive).
         </p>
       </div>
 
@@ -337,9 +448,12 @@ const AdminPlatformCatalogPage: Component = () => {
                 setFetchResult(null);
                 setSelected(new Set<string>());
                 setFetchError(null);
+                setMutationError(null);
+                setMutationSuccess(null);
+                setConfirmEmpty(false);
               }}
               class="w-full rounded-lg border border-hairline bg-glass-strong px-3 py-2 text-text-strong"
-              disabled={fetching()}
+              disabled={fetching() || saving()}
             >
               <For each={COUNTRY_OPTIONS}>
                 {(opt) => (
@@ -353,7 +467,7 @@ const AdminPlatformCatalogPage: Component = () => {
           <GlassButton
             variant="primary"
             onClick={() => void handleFetch()}
-            disabled={fetching()}
+            disabled={fetching() || saving()}
           >
             {fetching() ? "Fetching…" : "Fetch Catalogue"}
           </GlassButton>
@@ -364,6 +478,8 @@ const AdminPlatformCatalogPage: Component = () => {
           regions CineLog already supports as profile countries
           (SUPPORTED_DISCOVER_REGIONS in core/config/discoverRegion.ts).
           Add a new country there to publish a catalogue for it.
+          Saving a catalogue for one country does NOT affect other
+          countries.
         </p>
       </GlassCard>
 
@@ -407,12 +523,29 @@ const AdminPlatformCatalogPage: Component = () => {
                   {result().justwatch_providers.length}
                 </div>
               </div>
+              {/* "Published" = the CURRENT count of active=true rows
+                  for the country (before any pending Save Selected).
+                  This is distinct from "Selected" (the admin's
+                  current checkbox state) and from "JustWatch
+                  providers" (the latest fetch count). */}
               <div class="rounded-lg border border-hairline bg-glass p-3">
                 <div class="type-meta text-xs uppercase tracking-widest text-text-muted">
-                  Saved (published)
+                  Published
                 </div>
                 <div class="type-body mt-1 font-semibold text-emerald-400">
-                  {result().summary.saved}
+                  {publishedCount()}
+                </div>
+              </div>
+              {/* "Selected" = the admin's CURRENT checkbox state
+                  (live — updates as the admin toggles checkboxes).
+                  After Save Selected, this number becomes the new
+                  "Published" count. */}
+              <div class="rounded-lg border border-hairline bg-glass p-3">
+                <div class="type-meta text-xs uppercase tracking-widest text-text-muted">
+                  Selected
+                </div>
+                <div class="type-body mt-1 font-semibold text-sky-400">
+                  {selectedCount()}
                 </div>
               </div>
               <div class="rounded-lg border border-hairline bg-glass p-3">
@@ -444,7 +577,14 @@ const AdminPlatformCatalogPage: Component = () => {
         )}
       </Show>
 
-      {/* Errors */}
+      {/* Success / error messages */}
+      <Show when={mutationSuccess()}>
+        <GlassCard class="border border-emerald-500/40 p-4">
+          <p class="type-body text-emerald-400">
+            <strong>Saved.</strong> {mutationSuccess()}
+          </p>
+        </GlassCard>
+      </Show>
       <Show when={fetchError()}>
         <GlassCard class="border border-rose-500/40 p-4">
           <p class="type-body text-rose-400">
@@ -474,29 +614,70 @@ const AdminPlatformCatalogPage: Component = () => {
         />
       </Show>
 
+      {/* Empty-selection confirm dialog */}
+      <Show when={confirmEmpty()}>
+        <div
+          class="fixed inset-0 z-[999999] flex items-center justify-center bg-black/75 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="confirm-empty-title"
+        >
+          <GlassCard class="w-full max-w-md p-6">
+            <h2
+              id="confirm-empty-title"
+              class="type-headline mb-2 text-lg text-text-strong"
+            >
+              No platforms selected
+            </h2>
+            <p class="type-body-soft mb-4 text-sm leading-relaxed">
+              You're about to save an empty selection. This will
+              remove ALL platforms from the user Platform filter for
+              this country — users will see "No platforms available
+              for your country" until you publish providers again.
+              The existing provider rows are NOT deleted (they become
+              inactive and can be re-published later).
+            </p>
+            <div class="flex justify-end gap-2">
+              <GlassButton
+                variant="ghost"
+                onClick={() => setConfirmEmpty(false)}
+                disabled={saving()}
+              >
+                Cancel
+              </GlassButton>
+              <GlassButton
+                variant="danger"
+                onClick={() => onConfirmEmptySave()}
+                disabled={saving()}
+              >
+                {saving() ? "Saving…" : "Continue — save empty"}
+              </GlassButton>
+            </div>
+          </GlassCard>
+        </div>
+      </Show>
+
       {/* Diff list + action bar */}
       <Show when={fetchResult()}>
         {(result) => (
           <>
-            {/* Sticky action bar */}
+            {/* Sticky action bar — the primary workflow is now
+                "Save Selected" (makes the EXACT selected set the
+                complete published catalogue). The old "Add Selected"
+                and "Add All New" buttons were REMOVED because they
+                conflicted with the exact-selection model. */}
             <div class="sticky top-0 z-10 flex flex-wrap items-center gap-2 rounded-xl border border-hairline bg-glass-strong/95 p-3 backdrop-blur">
               <span class="type-meta text-xs uppercase tracking-widest text-text-muted">
                 {selectedCount()} selected
               </span>
               <div class="flex-1" />
               <GlassButton
-                variant="ghost"
-                onClick={() => void handlePublishSelected()}
-                disabled={publishing() || selectedCount() === 0}
+                variant="primary"
+                onClick={() => onClickSaveSelected()}
+                disabled={saving()}
+                title="Make the exact selected set the complete published catalogue for this country. Everything else becomes inactive."
               >
-                {publishing() ? "Publishing…" : "Add Selected"}
-              </GlassButton>
-              <GlassButton
-                variant="ghost"
-                onClick={() => void handlePublishAllNew()}
-                disabled={publishing() || result().summary.new === 0}
-              >
-                Add All New ({result().summary.new})
+                {saving() ? "Saving…" : "Save Selected"}
               </GlassButton>
             </div>
 
@@ -514,19 +695,44 @@ const AdminPlatformCatalogPage: Component = () => {
                 <For each={result().diff}>
                   {(entry) => {
                     const isSelected = () => selected().has(entry.technical_name);
+                    // A REMOVED entry (JustWatch no longer returns
+                    // it) can't be selected for publishing because
+                    // we don't have its JustWatchPackage metadata
+                    // to upsert. The checkbox is disabled. The row
+                    // is preserved in Supabase; if it was active
+                    // before, Save Selected will deactivate it
+                    // (because it's not in the selected set).
+                    const isRemovable = () => entry.status === "REMOVED";
                     return (
                       <GlassCard class="p-3">
                         <div class="flex flex-wrap items-center gap-3">
-                          {/* Checkbox for select-to-publish */}
+                          {/* Checkbox for select-to-publish.
+              The checkbox represents "should this provider be
+              published?" — NOT "is this provider new?". The
+              admin can check/uncheck ANY provider regardless
+              of its diff status (SAVED / NEW / UPDATED). Only
+              REMOVED entries are disabled because we don't
+              have the JustWatch metadata to upsert. */}
                           <input
                             type="checkbox"
                             checked={isSelected()}
                             onChange={() => toggleSelected(entry.technical_name)}
-                            class="h-4 w-4 cursor-pointer accent-[var(--p)]"
+                            disabled={isRemovable()}
+                            class="h-4 w-4 cursor-pointer accent-[var(--p)] disabled:cursor-not-allowed disabled:opacity-40"
                             aria-label={`Select ${entry.clear_name}`}
+                            title={
+                              isRemovable()
+                                ? "Not in latest JustWatch fetch — cannot be selected for publishing. Save Selected will deactivate it if it was active."
+                                : "Check to include in the published catalogue"
+                            }
                           />
 
-                          {/* Status badge */}
+                          {/* Status badge — kept for diff context.
+              Selection is INDEPENDENT from diff status: a SAVED
+              provider can be unchecked, a NEW provider can be
+              checked, an UPDATED provider can be checked. The
+              checkbox represents "should this provider be
+              published?", NOT "is this provider new?". */}
                           <Show when={entry.status === "SAVED"}>
                             <GlassBadge intent="success" label="SAVED" />
                           </Show>
@@ -551,7 +757,11 @@ const AdminPlatformCatalogPage: Component = () => {
                                 {" · "}
                                 id: {entry.justwatch!.id}
                               </Show>
-                              <Show when={entry.saved?.active === false}>
+                              <Show when={entry.saved?.active === true}>
+                                {" · "}
+                                <span class="text-emerald-400">published</span>
+                              </Show>
+                              <Show when={entry.saved && entry.saved.active === false}>
                                 {" · "}
                                 <span class="text-rose-400">inactive</span>
                               </Show>
@@ -587,24 +797,21 @@ const AdminPlatformCatalogPage: Component = () => {
                             </Show>
                           </div>
 
-                          {/* Per-row actions */}
+                          {/* Per-row actions.
+              The per-row "Add" / "Publish update" buttons were
+              REMOVED — the primary workflow is now "Save
+              Selected" which handles the complete catalogue in
+              one atomic operation. The per-row "Deactivate" and
+              "Update metadata" buttons are kept for quick one-
+              off actions that don't warrant a full Save
+              Selected. */}
                           <div class="flex shrink-0 gap-1">
-                            <Show when={entry.status === "NEW" || entry.status === "UPDATED"}>
-                              <GlassButton
-                                variant="ghost"
-                                onClick={() => void handlePublishOne(entry)}
-                                disabled={publishing()}
-                                title="Publish this provider"
-                              >
-                                {entry.status === "NEW" ? "Add" : "Publish update"}
-                              </GlassButton>
-                            </Show>
                             <Show when={entry.status === "UPDATED"}>
                               <GlassButton
                                 variant="ghost"
                                 onClick={() => void handleUpdateMetadata(entry)}
-                                disabled={updating()}
-                                title="Update saved metadata from JustWatch"
+                                disabled={updating() || saving()}
+                                title="Update saved metadata from JustWatch (does not change active state)"
                               >
                                 Update metadata
                               </GlassButton>
@@ -613,8 +820,8 @@ const AdminPlatformCatalogPage: Component = () => {
                               <GlassButton
                                 variant="danger"
                                 onClick={() => void handleDeactivate(entry.technical_name)}
-                                disabled={deactivating()}
-                                title="Deactivate — hide from user Library"
+                                disabled={deactivating() || saving()}
+                                title="Deactivate — hide from user Library immediately (without a full Save Selected)"
                               >
                                 Deactivate
                               </GlassButton>

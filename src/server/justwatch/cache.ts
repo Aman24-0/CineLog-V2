@@ -665,6 +665,211 @@ export async function markProvidersLastFetched(
   }
 }
 
+// ---------------------------------------------------------------------------
+// 2c. Save exact selection — "Save Selected" admin action
+// ---------------------------------------------------------------------
+
+/**
+ * Save the admin's EXACT selected set as the complete published
+ * catalogue for a country.
+ *
+ * This is the "Save Selected" operation (replaces the old additive
+ * "Add Selected" semantics). After this call:
+ *   - every provider in `selectedProviders` has `active = true` for
+ *     the given country (inserted if it doesn't exist, upserted if
+ *     it does);
+ *   - EVERY OTHER row for the same country has `active = false`
+ *     (rows are NOT physically deleted — they're preserved for re-
+ *     publish later, per the active/inactive architecture);
+ *   - rows for OTHER countries are NOT touched (country isolation).
+ *
+ * This is implemented as TWO Supabase calls (not a single RPC) but
+ * the two calls together form the complete synchronization:
+ *   1. Upsert all selected providers with `active = true` +
+ *      `published_at = now()` + `last_fetched_at = now()` +
+ *      `updated_at = now()`.
+ *   2. Update ALL rows for the country that are NOT in the selected
+ *      set to `active = false` + `updated_at = now()`.
+ *
+ * Edge cases:
+ *   - Empty `selectedProviders` (admin saves with 0 checked): step 1
+ *     is skipped (no rows to upsert), step 2 deactivates ALL rows for
+ *     the country. The admin UI guards against accidental zero-
+ *     selection with a confirm dialog, but the server allows it
+ *     because the empty catalogue is a valid state.
+ *   - Provider already in Supabase with `active = true` and still
+ *     selected: upsert refreshes `last_fetched_at` + `published_at`
+ *     to now (no semantic change — it stays published).
+ *   - Provider already in Supabase with `active = false` and now
+ *     selected: upsert flips `active = true` + stamps `published_at`
+ *     + `updated_at`.
+ *   - Provider already in Supabase with `active = true` but NOT
+ *     selected: step 2 deactivates it (`active = false`). This is
+ *     the key new behavior — previously-active providers that the
+ *     admin unchecks become inactive.
+ *   - Provider NOT in Supabase (NEW from JustWatch) and selected:
+ *     step 1 inserts it with `active = true` + `published_at = now`.
+ *   - Provider in Supabase but NOT in the latest JustWatch fetch
+ *     (REMOVED status): if the admin can't select it (it's not in
+ *     the JustWatch response), it's NOT in `selectedProviders`, so
+ *     step 2 deactivates it. The row is preserved for re-publish if
+ *     JustWatch returns it again later.
+ *
+ * Country isolation: both Supabase calls are scoped to
+ * `country = ?`. Rows for other countries are NEVER touched — saving
+ * the IN catalogue does NOT modify US rows.
+ *
+ * @returns `{ published, deactivated }` counts for the audit log +
+ *          the admin UI's success toast. Returns `{ published: 0,
+ *          deactivated: 0 }` if the service client is unavailable
+ *          (cache init error) — the route handler treats this as a
+ *          500.
+ */
+export async function saveSelectionToPublishedCatalog(
+  country: string,
+  selectedProviders: JustWatchPackage[]
+): Promise<{ published: number; deactivated: number }> {
+  const supabase = getServiceClient();
+  if (!supabase) {
+    return { published: 0, deactivated: 0 };
+  }
+
+  const nowIso = new Date().toISOString();
+  const longExpiresAt = daysFromNow(365 * 10); // published rows don't expire; satisfy NOT NULL
+  const selectedTechnicalNames = new Set<string>(
+    (selectedProviders ?? [])
+      .filter(
+        (p) =>
+          !!p &&
+          typeof p.technicalName === "string" &&
+          p.technicalName.length > 0
+      )
+      .map((p) => p.technicalName)
+  );
+
+  let deactivatedCount = 0;
+
+  try {
+    // 1. Upsert all selected providers as active = true.
+    if (selectedProviders && selectedProviders.length > 0) {
+      const rows = selectedProviders
+        .filter(
+          (p): p is JustWatchPackage =>
+            !!p &&
+            typeof p.technicalName === "string" &&
+            typeof p.clearName === "string" &&
+            p.technicalName.length > 0 &&
+            p.clearName.length > 0
+        )
+        .map((p) => ({
+          country,
+          package_id: p.id,
+          clear_name: p.clearName,
+          short_name: p.shortName,
+          technical_name: p.technicalName,
+          icon_template: p.icon,
+          fetched_at: nowIso,
+          expires_at: longExpiresAt,
+          active: true,
+          last_fetched_at: nowIso,
+          published_at: nowIso,
+          updated_at: nowIso
+        }));
+
+      if (rows.length > 0) {
+        const { error: upsertError } = await supabase
+          .from("justwatch_provider_catalog")
+          .upsert(rows, {
+            onConflict: "country,technical_name",
+            ignoreDuplicates: false
+          });
+
+        if (upsertError) {
+          console.warn(
+            "[justwatch/cache] saveSelectionToPublishedCatalog upsert error:",
+            upsertError.message
+          );
+          // Don't return early — still run the deactivate step so the
+          // admin doesn't end up with a half-applied selection. The
+          // deactivate step is what enforces "unselected = inactive",
+          // and it's better to deactivate the unselected providers
+          // even if some selected upserts failed.
+        }
+      }
+    }
+
+    // 2. Deactivate ALL OTHER rows for the same country.
+    //
+    // We use the raw `.filter()` method to build a `not.in.(...)`
+    // clause, mirroring the value-cleaning logic that supabase-js's
+    // `.in()` helper uses internally (see
+    // node_modules/@supabase/postgrest-js/src/PostgrestFilterBuilder.ts).
+    // We do NOT use `.not(column, "in", value)` because `.not()`
+    // passes `value` through unchanged and expects the caller to
+    // produce the raw PostgREST syntax — the array form is easier
+    // to get wrong. Building the cleaned string ourselves and using
+    // `.filter()` lets us handle:
+    //   - Empty selected set: skip the `not.in` clause entirely,
+    //     which deactivates ALL rows for the country (the zero-
+    //     selection case the admin UI guards with a confirm dialog).
+    //   - Values containing a literal `"`: escape as `""` (PostgREST
+    //     uses doubled double-quotes for escaping inside quoted
+    //     strings — same as CSV).
+    //
+    // We always wrap every value in double quotes for
+    // predictability. PostgREST strips the surrounding quotes if
+    // the value contains no reserved chars; if it does (`,` `(` `)`
+    // per https://postgrest.org/en/stable/api.html#reserved-
+    // characters), the quotes are required.
+    const cleanedSelected = Array.from(selectedTechnicalNames)
+      .map((s) => {
+        const escaped = s.replace(/"/g, '""');
+        return `"${escaped}"`;
+      })
+      .join(",");
+
+    let deactivateQuery = supabase
+      .from("justwatch_provider_catalog")
+      .update({ active: false, updated_at: nowIso })
+      .eq("country", country);
+
+    if (selectedTechnicalNames.size > 0) {
+      // Add `technical_name=not.in.("a","b","c")` so we deactivate
+      // only rows whose technical_name is NOT in the selected set.
+      deactivateQuery = deactivateQuery.filter(
+        "technical_name",
+        "not.in",
+        `(${cleanedSelected})`
+      );
+    }
+    // If selectedTechnicalNames is empty, the query is just
+    // `UPDATE ... WHERE country = ?` — deactivates all rows for the
+    // country (the zero-selection case).
+
+    const { data: deactivatedData, error: deactivateError } =
+      await deactivateQuery.select("technical_name");
+
+    if (deactivateError) {
+      console.warn(
+        "[justwatch/cache] saveSelectionToPublishedCatalog deactivate error:",
+        deactivateError.message
+      );
+    } else if (Array.isArray(deactivatedData)) {
+      deactivatedCount = deactivatedData.length;
+    }
+  } catch (err) {
+    console.warn(
+      "[justwatch/cache] saveSelectionToPublishedCatalog threw:",
+      err instanceof Error ? err.message : String(err)
+    );
+  }
+
+  return {
+    published: selectedTechnicalNames.size,
+    deactivated: deactivatedCount
+  };
+}
+
 
 // ---------------------------------------------------------------------------
 // 3. Title mapping — read

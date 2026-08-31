@@ -1134,3 +1134,129 @@ Stage Summary:
   → /api/ott/batch-availability → justwatchProviders →
   matchesPlatform) is UNCHANGED. No JustWatch fallback on the
   user side.
+
+---
+Task ID: 4 (audit + plan)
+Agent: main (orchestrator)
+Task: Change admin Platform Catalogue semantics from additive "Add Selected" to "Save Selected = complete published catalogue" (selected = active=true, unselected = active=false, no deletes, country-isolated).
+
+Audit findings:
+- Current admin page (`AdminPlatformCatalogPage.tsx`):
+  - `handleFetch` pre-selects ONLY NEW entries (line 165-171):
+      `setSelected(new Set(data.diff.filter(d => d.status === "NEW").map(d => d.technical_name)))`
+    So existing SAVED/active providers are NOT initially checked — the admin has to re-check them every time, and the workflow only ADDS to the published set.
+  - `handlePublishSelected` calls `publishProviders` (upsert active=true) for selected entries — pure additive, never deactivates anything.
+  - `handlePublishAllNew` publishes all NEW providers in one click — conflicts with the new exact-selection model.
+  - Per-row "Add" / "Publish update" / "Update metadata" / "Deactivate" actions exist.
+  - Diagnostic shows: Country, Last fetch, Duration, JustWatch providers, Saved (published), New, Updated, Removed.
+- Current API routes:
+  - POST /api/admin/platform-catalog/publish — additive upsert active=true.
+  - POST /api/admin/platform-catalog/deactivate — sets active=false for listed technical_names (country-scoped).
+  - POST /api/admin/platform-catalog/update — metadata edit.
+  - POST /api/admin/platform-catalog/fetch — returns diff (SAVED/NEW/UPDATED/REMOVED).
+  - GET  /api/admin/platform-catalog — list saved rows.
+- Current cache.ts helpers:
+  - `publishProviders(country, providers)` — upsert with active=true + published_at=now + last_fetched_at=now + updated_at=now.
+  - `deactivateProviders(country, technicalNames)` — UPDATE active=false WHERE country=? AND technical_name IN (?).
+  - `markProvidersLastFetched(country, technicalNames)`.
+  - `getFullProviderCatalog(country)` — admin view (active + inactive + admin fields).
+  - `getPublishedProviderCatalog(country)` — user-side (active=true only).
+- No existing admin API route tests, no existing AdminPlatformCatalogPage tests.
+
+Root cause of the "additive" behavior:
+- `handleFetch` pre-selects only NEW providers (not existing SAVED/active ones).
+- `handlePublishSelected` only UPSERTS active=true; it does NOT deactivate the providers the admin didn't select.
+- There's no "Save the EXACT selected set" operation — only "Add these to the published set".
+
+Plan — smallest correct change:
+1. Add a new cache.ts helper `saveSelectionToPublishedCatalog(country, selectedProviders)`:
+   - Upsert each selected provider with active=true + published_at=now + last_fetched_at=now + updated_at=now.
+   - Deactivate ALL OTHER rows for the same country (set active=false + updated_at=now).
+   - Country-scoped — never touches other countries.
+   - Single atomic-ish operation: 2 Supabase calls (upsert + update).
+2. Add a new API route POST /api/admin/platform-catalog/save-selection:
+   - Body: { country: "XX", providers: JustWatchPackage[] }
+   - requireAdmin + enforceAdminMutationRateLimit + logAdminAction.
+   - Calls `saveSelectionToPublishedCatalog(country, providers)`.
+   - Returns { ok: true, published: N, deactivated: M }.
+3. Rewrite `AdminPlatformCatalogPage.tsx`:
+   - `handleFetch`: pre-select ALL saved rows where `saved.active === true` (NOT just NEW). New providers are unchecked (per spec).
+   - Rename `handlePublishSelected` → `handleSaveSelected`. Calls the new save-selection route. Confirms if selection is empty (zero providers) before saving.
+   - Remove `handlePublishAllNew` and the "Add All New" button (per spec — conflicts with exact-selection model).
+   - Remove the per-row "Add" / "Publish update" buttons (per-row actions are now redundant; Save Selected is the single source of truth). KEEP the per-row "Deactivate" button for quick one-off deactivation (still useful — it just unchecks + saves). KEEP "Update metadata" since metadata edits are still independent.
+   - Update the diagnostic panel: replace "Saved (published)" with "Published" (= count of saved.active=true rows for the country) and add "Selected" (= current selection count, live). Keep "JustWatch providers", "New", "Updated", "Removed" for diff context.
+   - Country change: clear fetch result + selection (already done — keep it).
+4. Tests:
+   - cache helper: saveSelectionToPublishedCatalog — verify upsert + deactivate-others + country isolation.
+   - admin page: initial selection reflects saved.active; Save Selected calls the new route; empty selection shows confirm; country change clears selection.
+   - User-side: getPublishedProviderCatalog still returns only active=true rows after save-selection.
+
+Files to modify:
+- src/server/justwatch/cache.ts (add saveSelectionToPublishedCatalog)
+- src/routes/api/admin/platform-catalog/save-selection.ts (NEW)
+- src/features/admin/AdminPlatformCatalogPage.tsx (rewrite per plan)
+- Tests: new test file for cache helper + admin page behavior.
+
+NO regression: keep all user-side architecture (usePublishedProviderCatalog, /api/ott/providers no-store, platformCatalogLoading, batch-availability, matchesPlatform, justwatchProviders, etc.) UNCHANGED.
+
+---
+Task ID: 4 (implementation + validation)
+Agent: main (orchestrator)
+Task: Change admin Platform Catalogue from additive "Add Selected" to "Save Selected = complete published catalogue" semantics.
+
+Work Log:
+- Added `saveSelectionToPublishedCatalog(country, providers)` to cache.ts:
+  - Upserts all selected providers with `active = true` + `published_at` + `last_fetched_at` + `updated_at = now()`.
+  - Deactivates ALL OTHER rows for the same country (`active = false` + `updated_at = now()`), scoped by `country = ?` AND `technical_name not.in (...)`. Uses `.filter("technical_name", "not.in", "(...)")` with manual PostgREST value escaping (every value wrapped in `"..."`, internal `"` escaped as `""`).
+  - Country-isolated — never touches other countries' rows.
+  - Empty selection: skips upsert, deactivates ALL rows for the country (the zero-selection case the admin UI guards with a confirm dialog).
+  - Rows are NOT physically deleted (the active/inactive architecture preserves metadata + history).
+  - Returns `{ published, deactivated }` for the audit log + UI success toast.
+- Added POST /api/admin/platform-catalog/save-selection route:
+  - requireAdmin auth (401 if not admin).
+  - enforceAdminMutationRateLimit (429 if too many mutations; action name "platform-catalog:save-selection" tracked independently).
+  - Validates country (2-letter ISO code, normalized to uppercase).
+  - Validates providers array (filters out malformed entries: missing/empty technicalName or clearName).
+  - Allows empty providers array (deactivates all rows for the country).
+  - Calls saveSelectionToPublishedCatalog(country, providers).
+  - logAdminAction with action "platform-catalog:save-selection" + entity_type "justwatch_provider_catalog" + payload { country, published, deactivated, selectedTechnicalNames }.
+  - Returns { ok, published, deactivated }.
+- Rewrote AdminPlatformCatalogPage.tsx:
+  - `handleFetch` now initializes the selection from the CURRENT published state:
+      checked = saved row exists AND saved.active === true
+    So:
+      - SAVED + active=true → checked
+      - SAVED + active=false → unchecked
+      - NEW (not in Supabase) → unchecked
+      - REMOVED → unchecked AND checkbox disabled (the admin can't select a provider JustWatch no longer returns)
+    This is the "selection source of truth" rule from the spec. The old behavior pre-selected only NEW providers, which caused accidental publishing of every newly-discovered provider.
+  - Renamed `handlePublishSelected` → `handleSaveSelected`. Calls the new save-selection route (NOT the old publish route). Builds the JustWatchPackage[] from the selected technical names using the JustWatch metadata from the latest fetch.
+  - Removed `handlePublishAllNew` and the "Add All New" button (per spec — conflicts with the exact-selection model).
+  - Removed the per-row "Add" / "Publish update" buttons (the primary workflow is now Save Selected, which handles the complete catalogue atomically).
+  - Kept the per-row "Deactivate" button (quick one-off deactivation without a full Save Selected — useful for a single provider).
+  - Kept the per-row "Update metadata" button (metadata edits are independent of publish/active state).
+  - Added empty-selection confirm dialog: when the admin clicks "Save Selected" with 0 providers checked, a modal warns "No platforms selected. This will remove all platforms from the user Platform filter. Continue?" with Cancel + "Continue — save empty" buttons.
+  - Updated the diagnostic panel: replaced "Saved (published)" with separate "Published" (= count of saved.active=true rows, the CURRENT state) and "Selected" (= admin's current checkbox state, live) cards. Kept "JustWatch providers", "New", "Updated", "Removed" for diff context.
+  - Country change: clears fetch result + selection + success/error messages + confirm dialog (already done in the old version; preserved).
+  - Added success toast ("Saved: N published, M deactivated.") that clears when the admin starts editing the selection again.
+  - REMOVED entries render with a disabled checkbox (can't be selected for publishing) + "REMOVED" badge + "inactive" tag if saved.active=false. Save Selected will deactivate previously-active REMOVED providers (because they're not in the selected set).
+- Tests:
+  - 12 new tests for the save-selection API route (src/routes/api/admin/platform-catalog/__tests__/save-selection.test.ts): admin auth, country validation, rate limiting, provider validation, empty-selection allowed, returns { ok, published, deactivated }, audit log entry shape, 500 on error.
+  - 8 new tests for the saveSelectionToPublishedCatalog cache helper (src/server/justwatch/__tests__/saveSelectionToPublishedCatalog.test.ts): upsert with active=true, deactivate-others with not.in filter, empty selection deactivates all, country isolation, PostgREST value escaping, malformed provider filtering, service-client-unavailable fallback, timestamp stamping.
+  - No regression to existing tests.
+
+Validation:
+- Vitest full suite: 1755 / 1755 tests across 104 files pass (20 new tests).
+- `npx tsc --noEmit` — clean.
+- `npx eslint` on changed files — clean.
+- `npm run build` (production) — 15.39s, success.
+- Diff stat: 3 modified files + 2 new test files + 1 new route + worklog.
+  Net: +551 / -75.
+
+NO regression:
+- User-side architecture UNCHANGED: usePublishedProviderCatalog, /api/ott/providers (no-store), platformCatalogLoading, /api/ott/batch-availability, justwatchProviders, matchesPlatform, ott_availability_cache — all untouched.
+- Language filter, Clear/reset button, Library filter badge — untouched.
+- The old /api/admin/platform-catalog/publish route is kept as dead code (no UI calls it now); the deactivate + update routes are still called by the per-row buttons.
+
+Stage Summary:
+- The admin's "Save Selected" now makes the EXACT selected set the complete published catalogue for the country. Selected = active=true; unselected = active=false (including previously-active providers the admin unchecks). Rows are NOT physically deleted. Country-isolated. User side automatically sees only active=true rows via the existing /api/ott/providers route.
