@@ -338,11 +338,21 @@ export default function DetailsExperience(props: DetailsExperienceProps) {
     setSelectedItem: props.setSelectedItem,
     onSelectRelatedItem: props.onNavigateRelated,
     onRemoved: handleRemoved,
-    // Part 5 — When the user sets status to "Completed", automatically
-    // open the Activity/Edit modal so they can fill in their viewing
-    // metadata. The status is already saved before this fires —
-    // closing the edit modal without saving does NOT revert Completed.
-    onCompletedAutoOpenEdit: () => setIsEditing(true),
+    // Part 5 — When the user sets status to "Completed" or "Watching",
+    // automatically open the Activity/Edit modal so they can fill in
+    // their viewing metadata. The status is already saved before this
+    // fires — closing the edit modal without saving does NOT revert
+    // the status.
+    // IMPORTANT: We use queueMicrotask to defer the setIsEditing(true)
+    // call to AFTER the useDetailsForm createEffect has fired. The
+    // effect calls resetTo(vaultItem) which calls setIsEditing(false).
+    // If we call setIsEditing(true) synchronously, the effect fires
+    // AFTER us and overrides it to false. By deferring to the next
+    // microtask, we guarantee our setIsEditing(true) runs AFTER the
+    // effect's setIsEditing(false).
+    onCompletedAutoOpenEdit: () => {
+      queueMicrotask(() => setIsEditing(true));
+    },
     // Critical fix — update the GLOBAL user-library watchlist after
     // save so consumers (Library, Search, YourActivityCard) see the
     // new activity fields immediately. Without this, the modal's local

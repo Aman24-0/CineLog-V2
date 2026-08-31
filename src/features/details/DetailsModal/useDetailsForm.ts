@@ -42,7 +42,11 @@ export interface UseDetailsFormResult {
   form: Accessor<DetailsFormState>;
   setForm: (key: string, value: string) => void;
   isDirty: Accessor<boolean>;
-  resetTo: (vaultItem: WatchlistItem | null) => void;
+  /** Reset the form to match a vault item. By default also exits edit
+   *  mode (setIsEditing(false)). Pass `preserveEditing=true` to keep the
+   *  edit form open after the reset — used by the Watching/Completed
+   *  auto-open flow so the form stays open while being hydrated. */
+  resetTo: (vaultItem: WatchlistItem | null, preserveEditing?: boolean) => void;
   isEditing: Accessor<boolean>;
   setIsEditing: (v: boolean) => void;
 }
@@ -70,7 +74,7 @@ export function useDetailsForm(
     favoriteCharacterProfile: ""
   });
 
-  const resetTo = (v: WatchlistItem | null) => {
+  const resetTo = (v: WatchlistItem | null, preserveEditing?: boolean) => {
     if (v) {
       const count = v.rewatchCount ?? 0;
       // Build the movie rewatch dates array. If rewatchDates is missing
@@ -149,10 +153,16 @@ export function useDetailsForm(
         favoriteCharacterProfile: ""
       });
     }
-    setIsEditing(false);
+    if (!preserveEditing) {
+      setIsEditing(false);
+    }
   };
 
   // Sync form whenever the vaultItem changes (navigation, add-to-vault, etc.)
+  // IMPORTANT: this effect calls resetTo WITHOUT preserveEditing, so it
+  // exits edit mode on normal vaultItem changes (e.g. navigating to a
+  // different title). The Watching/Completed auto-open flow uses
+  // resetTo(item, true) + setIsEditing(true) to override this.
   createEffect(() => {
     const v = vaultItem();
     resetTo(v);

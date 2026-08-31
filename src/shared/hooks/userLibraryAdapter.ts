@@ -75,9 +75,18 @@ export function vaultRowToWatchlistItem(
   //   TV stores it in `completed_at` (preferred) or `started_at` (fallback).
   //   The vault table's CHECK constraints forbid mixing the two.
   const isTV = row.media_type === "tv";
-  const watchDate = isTV
+  // Normalize watch dates to YYYY-MM-DD for <input type="date"> compatibility.
+  // Supabase returns timestamptz as ISO strings like "2014-06-30T00:00:00+00:00".
+  // The <input type="date"> element requires "YYYY-MM-DD" — if it receives the
+  // full ISO timestamp, the date picker shows blank. We take the first 10
+  // chars (the date portion) to avoid timezone-shift bugs (new Date() would
+  // shift the calendar day in some timezones).
+  const rawWatchDate = isTV
     ? (row.completed_at ?? row.started_at ?? undefined)
     : (row.watched_on ?? undefined);
+  const watchDate = rawWatchDate
+    ? rawWatchDate.substring(0, 10)
+    : undefined;
 
   const base: WatchlistItem = {
     id: String(row.tmdb_id),
