@@ -580,20 +580,33 @@
   margin: 0;
 }
 
-/* The dedicated Search page must not inherit the shared form's rectangular
-   sticky background, side bleed, border, or shadow. The inner `.search-bar`
-   remains the rounded, themed input surface. */
+/* The dedicated Search page form. Overrides the shared .search-bar-form's
+   dark-rectangular sticky background with a cleaner glass treatment.
+   position: sticky makes the search input remain accessible while the
+   page content (trending, results) scrolls. The .search-bar inside is
+   the rounded input surface (unchanged). */
 .search-page-form {
-  position: static;
-  top: auto;
-  z-index: 1;
+  position: sticky;
+  top: 0;
+  z-index: 30;
   margin: 0 0 var(--sp-4);
-  padding: 0;
-  background: transparent;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  border: 0;
-  box-shadow: none;
+  padding: var(--sp-3) 0;
+  background: color-mix(in srgb, var(--glass-bg-strong) 85%, var(--void-ambient));
+  backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  border-bottom: 1px solid var(--hairline-2);
+  margin-left: calc(-1 * 1rem);
+  margin-right: calc(-1 * 1rem);
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+@media (min-width: 640px) {
+  .search-page-form {
+    margin-left: calc(-1 * 1.25rem);
+    margin-right: calc(-1 * 1.25rem);
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+  }
 }
 
 .search-page-form .search-bar-input-wrapper {
@@ -665,40 +678,4 @@
   text-shadow: 0 8px 24px color-mix(in srgb, var(--p-glow) 34%, transparent);
 }
 
-/* ─── Sticky search bar ────────────────────────────────────────────────
-   The search bar sticks to the top of the scroll container while the
-   title scrolls away. Uses `position: sticky; top: 0` — no JS scroll
-   listeners. The sticky element is a DIRECT child of PageContainer
-   (not wrapped in .search-page-shell) so it sticks correctly within
-   the scroll container (#main-content on desktop, body on mobile).
-
-   The glass background + bottom border ensures content doesn't
-   visually bleed through the bar when scrolling. z-index is 50 —
-   above page content but well below the modal stack (z-[999999]).
-*/
-.search-sticky-bar {
-  position: sticky;
-  top: 0;
-  z-index: 50;
-  padding-bottom: 0.75rem;
-  margin-bottom: var(--sp-4);
-  background: color-mix(in srgb, var(--glass-bg-strong) 88%, var(--void-ambient));
-  backdrop-filter: blur(var(--glass-blur)) saturate(160%);
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%);
-}
-
-/* On desktop, #main-content is the scroll container and has padding.
-   The sticky bar should extend to the edges of the scroll container
-   by counteracting the parent padding. This is done with negative
-   margins matching the PageContainer's lg:px-12 (= 3rem) padding,
-   plus the sticky bar's own vertical padding to create a visible
-   glass band above the input. */
-@media (min-width: 1024px) {
-  .search-sticky-bar {
-    margin-left: calc(-1 * 3rem);
-    margin-right: calc(-1 * 3rem);
-    padding-left: 3rem;
-    padding-right: 3rem;
-    padding-top: 0.75rem;
-  }
-}
+/* ─── End of search.css ─────────────────────────────────────────── */

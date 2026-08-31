@@ -87,21 +87,18 @@ const SearchPage: Component = () => {
       paddingTop="var(--sp-5)"
       paddingBottom="var(--sp-12)"
     >
-      {/* Search title — scrolls away naturally */}
       <div class="search-page-shell">
         <header class="search-page-header">
           <h1 class="type-display search-page-title">Search</h1>
         </header>
-      </div>
 
-      {/* Sticky search bar — a DIRECT child of PageContainer (not
-          inside .search-page-shell) so position:sticky works correctly.
-          The PageContainer provides the horizontal padding; the sticky
-          bar extends to the full width of the scroll container. The
-          glass background ensures content doesn't bleed through. */}
-      <div class="search-sticky-bar">
+        {/* Search bar — uses .search-page-form to override the shared
+            .search-bar-form's dark-rectangular sticky background. The
+            .search-page-form itself is now sticky (top: 0) with a glass
+            background, so the input remains accessible while scrolling.
+            The .search-bar inside is the rounded input surface. */}
         <form
-          class="search-bar-form"
+          class="search-bar-form search-page-form"
           onSubmit={(event) => {
             event.preventDefault();
             submitQuery(search.query());
@@ -139,10 +136,6 @@ const SearchPage: Component = () => {
             </Show>
           </div>
         </form>
-      </div>
-
-      {/* Content — the .search-page-shell constrains the max-width */}
-      <div class="search-page-shell">
 
         <Show
           when={search.hasQuery()}

@@ -378,12 +378,18 @@ export function useDetailsProgress(
         vaultItem: updated
       });
       args.showToast(`Status: ${state.status}`, "success", 1500);
-      // Part 5 — If the user set status to "Completed", automatically
-      // open the Activity/Edit modal so they can fill in their viewing
-      // metadata (rating, reaction, watch date, etc.). The status is
-      // ALREADY SAVED — closing the edit modal without saving does NOT
-      // revert the Completed status.
-      if (nextStatus === "Completed" && args.onCompletedAutoOpenEdit) {
+      // Auto-open the Activity/Edit modal when the user sets status
+      // to "Completed" OR "Watching". Both are milestones where the
+      // user is likely to want to record viewing metadata (rating,
+      // reaction, watch date, etc.). The status is ALREADY SAVED
+      // before this fires — closing the edit modal without saving
+      // does NOT revert the status.
+      // "Planned" and "Dropped" do NOT auto-open (no viewing metadata
+      // to record for those statuses).
+      if (
+        (nextStatus === "Completed" || nextStatus === "Watching") &&
+        args.onCompletedAutoOpenEdit
+      ) {
         args.onCompletedAutoOpenEdit();
       }
     } catch {

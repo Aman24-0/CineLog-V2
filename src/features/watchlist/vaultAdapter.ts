@@ -34,6 +34,7 @@
 import { getVaultRepository } from "~/lib/supabase/repositories";
 import type {
   VaultIdentity,
+  VaultRow,
   VaultStatus,
   VaultUpdate
 } from "~/lib/supabase/repositories";
@@ -372,19 +373,32 @@ export async function restoreVaultItemInSupabase(
   if (error) throw error;
 }
 
-/** General-purpose vault item update (for fields not covered by targeted updaters). */
+/**
+ * General-purpose vault item update (for fields not covered by targeted updaters).
+ *
+ * Returns the ACTUAL updated VaultRow from Supabase (the canonical source
+ * of truth). Callers should use this returned row — mapped through
+ * `vaultRowToWatchlistItem` — to update both the global library state and
+ * the local modal state. Do NOT construct an optimistic WatchlistItem
+ * from form values and assume it matches the DB; always use the returned
+ * row as the source of truth.
+ *
+ * @returns The updated VaultRow, or throws on error.
+ */
 export async function updateVaultItemInSupabase(
   userId: string,
   itemId: string,
   mediaType: WatchlistItem["media_type"],
   update: VaultUpdate
-): Promise<void> {
+): Promise<VaultRow> {
   const repo = getVaultRepository();
-  const { error } = await repo.updateVaultItem(
+  const { data, error } = await repo.updateVaultItem(
     { userId, tmdbId: Number(itemId), mediaType },
     update
   );
   if (error) throw error;
+  if (!data) throw new Error("updateVaultItemInSupabase: no data returned from Supabase");
+  return data;
 }
 
 /**

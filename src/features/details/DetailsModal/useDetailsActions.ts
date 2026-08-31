@@ -20,7 +20,8 @@ import {
   updateRewatchInSupabase,
   updateSeasonDatesInSupabase,
   updateWatchDateInSupabase,
-  updateVaultItemInSupabase
+  updateVaultItemInSupabase,
+  fetchVaultFromSupabase
 } from "~/features/watchlist/vaultAdapter";
 import { cacheMetadataEntries, buildCacheKey } from "~/shared/utils/tmdbCache";
 import type { WatchlistItem, TMDBDetails } from "~/shared/types";
@@ -428,73 +429,99 @@ export function useDetailsActions(
       } else {
         showToast("Saved successfully!", "success");
       }
-      const statusState = statusSync
-        ? await statusSync.catch(() => null)
-        : null;
-      const resolvedStatus =
-        statusState?.status ?? (args.form().status as WatchlistItem["status"]);
-      // Cast form().status to the WatchlistItem status union — the form is
-      // typed as string because DetailsEditForm uses a <select>, but the
-      // values are always one of the 4 valid statuses.
-      const updatedVault: WatchlistItem = {
-        ...v,
-        status: resolvedStatus,
-        ...(statusState
-          ? {
-              season: statusState.season,
-              episode: statusState.episode,
-              watchProgress: {
-                ...(v.watchProgress ?? { currentTime: 0, duration: 0 }),
+
+      // ── CRITICAL: Use the ACTUAL persisted Supabase row as the
+      //    source of truth, NOT an optimistic object constructed
+      //    from form values. This fixes the "saved but not read back"
+      //    bug where the global library + edit modal showed stale
+      //    values after save.
+      //
+      // After all writes complete, we fetch the user's entire vault
+      // from Supabase (a single query), find the updated item, and
+      // map it through the canonical vaultRowToWatchlistItem mapping.
+      // This ensures:
+      //   1. The global useUserLibrary watchlist is updated with
+      //      the actual DB values (not optimistic form values).
+      //   2. The Details modal's vaultItem is the persisted object.
+      //   3. The Edit form is reset from the persisted object.
+      //   4. Hard-refresh works because the DB is the source of truth.
+      //
+      // The refetch is a single query (getVaultByStatuses with all 5
+      // statuses) — same as the initial library load. It's fast
+      // enough for a post-save refresh.
+      let persistedVault: WatchlistItem | null = null;
+      try {
+        const uid2 = getCurrentUid();
+        if (uid2) {
+          const allItems = await fetchVaultFromSupabase(uid2);
+          persistedVault =
+            allItems.find(
+              (item) =>
+                item.id === v.id && item.media_type === v.media_type
+            ) ?? null;
+        }
+      } catch (refreshErr) {
+        console.error(
+          "[handleSave] Failed to refetch vault after save — using optimistic fallback",
+          refreshErr
+        );
+      }
+
+      // Fallback: if the refetch failed, construct from form values
+      // (better than stale data, but not as good as the actual DB row).
+      if (!persistedVault) {
+        const statusState = statusSync
+          ? await statusSync.catch(() => null)
+          : null;
+        const resolvedStatus =
+          statusState?.status ??
+          (args.form().status as WatchlistItem["status"]);
+        persistedVault = {
+          ...v,
+          status: resolvedStatus,
+          ...(statusState
+            ? {
                 season: statusState.season,
                 episode: statusState.episode,
-                updatedAt: new Date().toISOString()
+                watchProgress: {
+                  ...(v.watchProgress ?? { currentTime: 0, duration: 0 }),
+                  season: statusState.season,
+                  episode: statusState.episode,
+                  updatedAt: new Date().toISOString()
+                }
               }
-            }
-          : {}),
-        rating: Number(args.form().rating) || v.rating,
-        watchDate: args.form().watchDate,
-        notes: args.form().notes,
-        rewatchCount: newCount,
-        rewatchDates: [...newDates],
-        seasonDates: { ...newSeasonDates },
-        seasonRewatchCount: newSeasonRewatchCount,
-        seasonRewatchDates: newSeasonRewatchDates.map((m) => ({ ...m })),
-        tag: args.form().tag || undefined,
-        reaction: args.form().reaction || null,
-        watchDevice: args.form().watchDevice || null,
-        watchPlatform: args.form().watchPlatform || null,
-        favoriteCharacterId: args.form().favoriteCharacterId || null,
-        favoriteCharacterName: args.form().favoriteCharacterName || null,
-        favoriteCharacterProfile: args.form().favoriteCharacterProfile || null
-      };
-      args.setSelectedItem({
-        baseItem: { ...args.baseItem()!, ...updatedVault },
-        vaultItem: updatedVault
-      });
-      // Update the GLOBAL user-library watchlist signal so consumers
-      // (Library, Search, YourActivityCard, etc.) see the new values
-      // immediately without waiting for a full refresh. This fixes
-      // the "saved but not read back" bug — without this call, the
-      // global watchlist stays stale and reopening the modal (which
-      // derives vaultItem from the global watchlist) shows the OLD
-      // values.
-      if (args.updateLibraryItem) {
-        args.updateLibraryItem(v.id, {
+            : {}),
+          rating: Number(args.form().rating) || v.rating,
+          watchDate: args.form().watchDate,
+          notes: args.form().notes,
+          rewatchCount: newCount,
+          rewatchDates: [...newDates],
+          seasonDates: { ...newSeasonDates },
+          seasonRewatchCount: newSeasonRewatchCount,
+          seasonRewatchDates: newSeasonRewatchDates.map((m) => ({ ...m })),
           tag: args.form().tag || undefined,
           reaction: args.form().reaction || null,
           watchDevice: args.form().watchDevice || null,
           watchPlatform: args.form().watchPlatform || null,
           favoriteCharacterId: args.form().favoriteCharacterId || null,
           favoriteCharacterName: args.form().favoriteCharacterName || null,
-          favoriteCharacterProfile: args.form().favoriteCharacterProfile || null,
-          watchDate: args.form().watchDate,
-          notes: args.form().notes,
-          rating: Number(args.form().rating) || undefined,
-          updatedAt: new Date().toISOString()
-        });
+          favoriteCharacterProfile: args.form().favoriteCharacterProfile || null
+        };
       }
-      // Exit edit mode (mirrors the original setIsEditing(false) at end of save)
-      args.resetTo(updatedVault);
+
+      // Update the modal's local state with the persisted object.
+      args.setSelectedItem({
+        baseItem: { ...args.baseItem()!, ...persistedVault },
+        vaultItem: persistedVault
+      });
+      // Update the GLOBAL user-library watchlist signal so all
+      // consumers (Library, Search, YourActivityCard) see the
+      // persisted values immediately.
+      if (args.updateLibraryItem) {
+        args.updateLibraryItem(v.id, persistedVault);
+      }
+      // Exit edit mode + reset form from the persisted object.
+      args.resetTo(persistedVault);
     } catch (err) {
       console.error("Save failed:", err);
       showToast("Failed to save changes.", "error");
