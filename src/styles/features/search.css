@@ -10,36 +10,17 @@
    search-genre-header, search-genre-back, search-genre-header-text,
    search-genre-eyebrow, search-genre-title. */
 
-/* Search bar — premium glass with stronger blur + golden border on focus
-   LAYOUT-SAFE: negative margins use 1rem on mobile and 1.25rem on ≥640px
-   to EXACTLY match PageContainer's px-4 (mobile) / sm:px-5 (≥640px)
-   padding. The previous calc(-1 * var(--sp-5)) was always 20px which
-   overflowed the 16px mobile padding by 4px on each side, causing
-   horizontal scroll on mobile. */
-.search-bar-form {
-  margin-bottom: var(--sp-6);
-  position: sticky;
-  top: 0;
-  z-index: 30;
-  padding: var(--sp-3) 0;
-  background: rgba(8, 8, 13, 0.86);
-  backdrop-filter: blur(28px) saturate(170%);
-  -webkit-backdrop-filter: blur(28px) saturate(170%);
-  border-bottom: 1px solid var(--glass-border-warm-strong);
-  margin-left: calc(-1 * 1rem);
-  margin-right: calc(-1 * 1rem);
-  padding-left: 1rem;
-  padding-right: 1rem;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
-}
-@media (min-width: 640px) {
-  .search-bar-form {
-    margin-left: calc(-1 * 1.25rem);
-    margin-right: calc(-1 * 1.25rem);
-    padding-left: 1.25rem;
-    padding-right: 1.25rem;
-  }
-}
+/* Search form — a plain wrapper around the .search-bar input pill.
+   Sticky positioning and visual treatment for the dedicated /search
+   route are handled by the dedicated .search-page-sticky-bar wrapper
+   (see below). Previously this class carried sticky positioning + a
+   dark-rectangular background (rgba(8, 8, 13, 0.86)) which leaked into
+   every consumer and produced the "dark block" appearance. Now it is
+   a transparent form element.
+
+   PRODUCT NOTE: The dedicated /search route is the ONLY consumer of
+   this class today. Library has its own search treatment
+   (.library-search-row). Discover has no search affordance. */
 .search-bar {
   display: flex;
   align-items: center;
@@ -580,41 +561,45 @@
   margin: 0;
 }
 
-/* The dedicated Search page form. Overrides the shared .search-bar-form's
-   dark-rectangular sticky background with a cleaner glass treatment.
-   position: sticky makes the search input remain accessible while the
-   page content (trending, results) scrolls. The .search-bar inside is
-   the rounded input surface (unchanged).
+/* ─── Dedicated /search route sticky bar ───────────────────────────────
+   This is the SINGLE authoritative positioning rule for the dedicated
+   Search page's sticky search bar. The SearchPage component wraps the
+   <form class="search-bar-form"> in a <div class="search-page-sticky-bar">
+   so that:
+     - the sticky positioning is owned by ONE rule (this one)
+     - the visual treatment (translucent glass) is owned by ONE rule
+     - the form inside (.search-bar-form) is a transparent wrapper
+     - the input pill (.search-bar) retains its own glass surface
 
-   IMPORTANT: This must override ALL visual properties from .search-bar-form
-   that would create the dark block: background, box-shadow, border-bottom,
-   backdrop-filter. The element has BOTH classes (search-bar-form + search-page-form);
-   since .search-page-form is defined LATER in the cascade, it wins for
-   same-specificity properties. */
-.search-page-form {
+   ROOT-CAUSE NOTE: For sticky to actually engage on mobile, the
+   sticky element's nearest scroll-container ancestor must actually
+   scroll. Previously .app-shell-bg had overflow-x: hidden, which per
+   CSS Overflow Module Level 3 computes overflow-y to auto, making
+   .app-shell-bg a (non-scrolling) scroll container — which broke
+   sticky for all descendants. That has been switched to overflow-x:
+   clip in glass-system.css; clip does NOT promote overflow-y to auto,
+   so .app-shell-bg is no longer a scroll container, and the nearest
+   scrolling ancestor becomes body (mobile) or #main-content (desktop).
+
+   VISUAL: Uses var(--glass-bg) (0.56 alpha) — the same translucent
+   glass used by .watchlist-header-glass / .library-header-glass — NOT
+   var(--glass-bg-strong) (0.86 alpha), so the ambient background
+   bleeds through and there is no "dark rectangular block". The blur
+   and saturate values match the existing CineLog glass system. */
+.search-page-sticky-bar {
   position: sticky;
   top: 0;
   z-index: 30;
-  margin: 0 0 var(--sp-4);
-  padding: var(--sp-3) 0;
-  /* Use CineLog's glass system — NOT a hardcoded dark rectangle.
-     var(--glass-bg-strong) is the same translucent glass used by
-     the Library header, filter modals, etc. It adapts to the
-     profile/accent theme automatically. */
-  background: var(--glass-bg-strong);
+  margin: 0 calc(-1 * 1rem) var(--sp-4);
+  padding: var(--sp-3) 1rem;
+  background: var(--glass-bg);
   backdrop-filter: blur(var(--glass-blur)) saturate(160%);
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%);
-  border-bottom: 1px solid var(--hairline-2);
-  /* Override the .search-bar-form's heavy box-shadow that creates
-     the dark block appearance. Use a subtle shadow instead. */
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
-  margin-left: calc(-1 * 1rem);
-  margin-right: calc(-1 * 1rem);
-  padding-left: 1rem;
-  padding-right: 1rem;
+  border-bottom: 1px solid var(--glass-border-warm-strong);
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.18);
 }
 @media (min-width: 640px) {
-  .search-page-form {
+  .search-page-sticky-bar {
     margin-left: calc(-1 * 1.25rem);
     margin-right: calc(-1 * 1.25rem);
     padding-left: 1.25rem;
@@ -624,17 +609,13 @@
 @media (min-width: 1024px) {
   /* On desktop, PageContainer has lg:px-12 (3rem). Counteract so the
      sticky bar spans the full width of the #main-content scroll
-     container. */
-  .search-page-form {
+     container (which IS the actual scroll container on desktop). */
+  .search-page-sticky-bar {
     margin-left: calc(-1 * 3rem);
     margin-right: calc(-1 * 3rem);
     padding-left: 3rem;
     padding-right: 3rem;
   }
-}
-
-.search-page-form .search-bar-input-wrapper {
-  min-height: 3.5rem;
 }
 
 .search-page-recent-list {

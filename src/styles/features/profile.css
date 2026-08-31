@@ -4751,7 +4751,24 @@
   body {
     height: auto;
     min-height: 100%;
-    overflow-y: auto;
+    /* overflow-y is intentionally NOT set here. Setting overflow-y: auto on
+       body makes body a scroll container (per CSS Overflow Module Level 3).
+       But body has height: auto and grows to fit content, so body never
+       actually scrolls. The net effect is that any position: sticky
+       descendant (e.g. the dedicated /search page's sticky search bar)
+       anchors to body — which doesn't scroll — so the sticky element
+       never sticks. It just scrolls away with the document.
+
+       Leaving overflow-y at its default (visible) lets the viewport
+       (the root scroller) be the scroll container, so sticky works as
+       expected. The horizontal rails on this page use their own
+       overflow-x: auto, which is unaffected.
+
+       This was previously set to overflow-y: auto in commit cacc072
+       while fixing horizontal rail scroll, but the value is unrelated
+       to that fix (the rail's overflow-x: auto is what makes it
+       scroll) and the side-effect broke all sticky positioning on
+       mobile. */
   }
 
   .app-shell-bg,

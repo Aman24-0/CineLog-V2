@@ -1023,7 +1023,24 @@
    ============================================================ */
 
 .app-shell-bg {
-  overflow-x: hidden;
+  /* overflow-x: clip (NOT hidden) — clips horizontal overflow WITHOUT
+     creating a scroll container. With overflow-x: hidden, the computed
+     overflow-y becomes `auto` (per CSS Overflow Module Level 3), which
+     makes .app-shell-bg the nearest scroll container for sticky
+     descendants. Since .app-shell-bg has min-height: 100dvh and grows
+     to fit content, it never actually scrolls, so any sticky descendant
+     (e.g. the dedicated /search page search bar) never sticks — it just
+     scrolls away with body scroll.
+
+     overflow-x: clip does NOT promote overflow-y to auto, so .app-shell-bg
+     is not a scroll container. The nearest scroll container ancestor
+     becomes the viewport (mobile) or #main-content (desktop), both of
+     which actually scroll. Sticky then works as expected.
+
+     Horizontal overflow is still contained — html and body already have
+     overflow-x: clip (see base.css), and clip on .app-shell-bg is a
+     belt-and-suspenders defense against backdrop-filter edge bleed. */
+  overflow-x: clip;
   /* Use dynamic viewport height where supported (iOS Safari 15+),
      fall back to 100vh for older browsers */
   min-height: 100dvh;

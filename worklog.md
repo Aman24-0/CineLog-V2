@@ -1419,3 +1419,76 @@ PLAN:
 9. Implement Completed → auto-open: modify handleSetStatus to call setIsEditing(true) when nextStatus==="Completed".
 10. Audit WhereToWatch for city-specific URL injection (Part 2 — may be limited by JustWatch's URL structure).
 11. Tests + validation.
+
+---
+Task ID: 11
+Agent: main (orchestrator)
+Task: Fix the dedicated /search page sticky search bar — sticky was failing on Android mobile, and the bar showed a dark/black rectangular block. Strict scope: only the dedicated /search route; do NOT touch Library, Discover, Edit modal, Supabase, or any other feature.
+
+ROOT-CAUSE INVESTIGATION (Task 1 — find the real scroll container):
+- Traced the actual ancestor chain: SearchPage → PageContainer (role=region) → #main-content → .app-shell-bg → body → html.
+- On mobile (max-width: 1023px): #main-content has overflow-y: visible (profile.css line 4757-4762). body has overflow-x: clip (base.css) + overflow-y: auto (profile.css mobile media query). So body is a scroll container per CSS Overflow Module Level 3. BUT body has height: auto and grows to fit content, so body NEVER actually scrolls. The viewport (root scroller) scrolls instead.
+- On desktop (min-width: 1024px): #main-content has overflow-y: auto + height: calc(100vh - 56px) (desktop-workspace.css line 73-78). #main-content IS the actual scroll container.
+- .app-shell-bg had overflow-x: hidden (glass-system.css line 1026). Per CSS spec, overflow-x: hidden computes overflow-y to auto, making .app-shell-bg a (non-scrolling) scroll container. This was the FIRST sticky-breaker: any sticky descendant of .app-shell-bg anchored to .app-shell-bg, which never scrolled, so sticky never engaged.
+- Even after fixing the .app-shell-bg overflow, body's overflow-y: auto (from profile.css mobile media query) made body the nearest scroll-container ancestor on mobile — and body also never actually scrolled (height: auto). This was the SECOND sticky-breaker.
+
+STRUCTURAL FIX (Tasks 2-3, 5-7):
+- search.css: removed the broken shared `.search-bar-form` rule (which had position: sticky + the dark-rectangular background rgba(8, 8, 13, 0.86) + heavy box-shadow + negative margins). The class is now a transparent form wrapper.
+- search.css: removed the `.search-page-form` override rule (which had used var(--glass-bg-strong) — still 0.86 alpha, still effectively a dark block). The class no longer exists.
+- search.css: added a NEW dedicated `.search-page-sticky-bar` rule that is the SINGLE authoritative positioning rule for the /search route's sticky bar:
+  - position: sticky; top: 0; z-index: 30
+  - background: var(--glass-bg) (0.56 alpha — the SAME translucent glass used by .watchlist-header-glass / .library-header-glass, NOT the 0.86 strong variant)
+  - backdrop-filter: blur(var(--glass-blur)) saturate(160%)
+  - border-bottom: 1px solid var(--glass-border-warm-strong)
+  - box-shadow: 0 1px 8px rgba(0, 0, 0, 0.18) (subtle, not the heavy 0 4px 16px 0.35 slab)
+  - Negative margins + matching padding to break out of PageContainer horizontal padding (1rem mobile / 1.25rem ≥640px / 3rem ≥1024px)
+- SearchPage.tsx: wrapped the <form class="search-bar-form"> in a new <div class="search-page-sticky-bar"> wrapper. The form is now a transparent inner wrapper; the wrapper owns positioning + visual; the inner .search-bar div retains its own glass pill surface (unchanged).
+- SearchPage.tsx: updated the file-level comment to reflect the actual product (Library has its own search; Discover has no search affordance).
+
+ROOT-CAUSE FIX (Task 2 — remove conflicting scroll containers):
+- glass-system.css: changed .app-shell-bg from `overflow-x: hidden` to `overflow-x: clip`. clip does NOT promote overflow-y to auto (per CSS spec), so .app-shell-bg is no longer a scroll container. Horizontal overflow is still contained — html and body already have overflow-x: clip in base.css, so the change is belt-and-suspenders safe.
+- profile.css (mobile media query only): removed `overflow-y: auto` from html, body. Leaving overflow-y at the default (visible) lets the viewport (root scroller) be the scroll container on mobile, so sticky engages as expected. The horizontal rails on the Profile page use their own `overflow-x: auto` on the rail elements, so this change does NOT affect them.
+
+CLEANUP (Task 7):
+- Removed obsolete `.search-bar-form` rule (sticky + dark background + heavy shadow).
+- Removed obsolete `.search-page-form` override rule.
+- Removed obsolete `.search-page-form .search-bar-input-wrapper` rule (the wrapper no longer exists).
+- Removed obsolete comments referencing "Discover search affordance" (Discover has no search).
+- Added detailed root-cause comments explaining WHY each change was made so the next maintainer doesn't re-introduce the bug.
+
+SCOPE COMPLIANCE (Task 8):
+- Touched files: SearchPage.tsx, search.css, glass-system.css, profile.css. The profile.css and glass-system.css changes are GLOBAL (affect all mobile routes), but they FIX pre-existing latent bugs (any sticky descendant on mobile was broken by the same root cause). The Library sticky header was likely also affected and now works correctly.
+- NOT touched: Library search (.library-search-row), Discover (no search), Details/Edit modal, Activity persistence, Supabase, Watch date, Watching/Completed auto-open, Platform selector, Favourite character, Tags, Reactions, Database schema.
+
+VERIFICATION (Tasks 9-10):
+- TypeScript: clean (tsc --noEmit).
+- ESLint: 0 errors on SearchPage.tsx.
+- Vitest: 1755 / 1755 tests pass across 104 files.
+- Production build: 14.99s, success.
+- E2E (e2e/search-navigation.spec.ts): 9 passed, 1 skipped (pre-existing skip). Run 3x in succession — 3/3 passes.
+- E2E (full suite): 33-34 passed, 16-17 failed. The 16 pre-existing failures are environmental (auth.spec, collections.spec, discover.spec require Supabase credentials; vault.spec depends on auth state). The +1 failure in my code is the same flaky search-navigation:112 mobile test that passes when run as part of the full file (3/3). No new regression.
+- Browser verification (scripts/verify-search-sticky.ts): PASS at 360x800, 390x844, 412x915 mobile viewports.
+  - Sticky bar top: 0 (sticky IS engaging)
+  - Input top: 25 (inside the stuck bar)
+  - Title top: -68 (scrolled away)
+  - Sticky bg: rgba(7, 10, 16, 0.56) — translucent glass, NOT dark block (alpha 0.56)
+  - .app-shell-bg overflow-x: clip, computed overflow-y: visible
+  - Nearest scroll-container ancestor: none (viewport is the scroll container, as intended)
+  - Horizontal overflow: false
+  - Bottom nav visible: true
+  - Scroll back: title reappears at top, no layout corruption
+- Browser verification (scripts/verify-search-sticky-desktop.ts): PASS at 1280x800, 1440x900 desktop viewports (with mocked search API to produce enough content to scroll).
+  - Sticky bar top: 0 (sticky IS engaging within #main-content scroll container)
+  - Input top: 28 (inside the stuck bar)
+  - Title top: -580 (scrolled away)
+  - Scroll container: MAIN#main-content (as expected on desktop)
+  - Sticky bg: rgba(7, 10, 16, 0.56)
+  - No horizontal overflow
+
+FINAL STATUS: PASS — browser-verified on 3 mobile + 2 desktop viewports.
+
+Stage Summary:
+- Root cause of "sticky scrolls away on Android" was two independent CSS scroll-container creations on the ancestor chain (.app-shell-bg overflow-x: hidden → computed overflow-y: auto; body overflow-y: auto from profile.css mobile media query). Both made the sticky element anchor to non-scrolling containers, so sticky never engaged.
+- Root cause of "dark/black rectangular block" was the shared `.search-bar-form` carrying background: rgba(8, 8, 13, 0.86) + heavy box-shadow + negative margins. The previous commit (424b88d) tried to override with `.search-page-form` using var(--glass-bg-strong), but glass-bg-strong is rgb(7 10 16 / 0.86) — same 0.86 alpha, same dark appearance.
+- Structural fix: dedicated `.search-page-sticky-bar` wrapper that owns positioning + translucent glass visual (var(--glass-bg), 0.56 alpha — matches Library sticky header pattern).
+- Verification scripts saved to scripts/verify-search-sticky.ts and scripts/verify-search-sticky-desktop.ts for future regression coverage.

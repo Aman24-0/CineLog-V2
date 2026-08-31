@@ -12,9 +12,17 @@ import SearchResultRow from "./SearchResultRow";
  * SearchPage — the full-page search destination.
  *
  * It intentionally reuses the app-level SearchContext and the existing
- * SearchResults renderer. This keeps one query engine, one recent-search
- * history, and one vault-membership check for both the Discover search affordance
- * and the dedicated Search route.
+ * SearchResults renderer so there is ONE query engine, ONE recent-search
+ * history, and ONE vault-membership check. Library has its own filter
+ * search (.library-search-row) and is NOT touched here. Discover has
+ * no search affordance.
+ *
+ * STICKY BAR: The search input is wrapped in <div class="search-page-sticky-bar">
+ * which is the single authoritative positioning rule for the sticky bar.
+ * See src/styles/features/search.css for the structural rationale — the
+ * TL;DR is that .app-shell-bg must use overflow-x: clip (NOT hidden) so
+ * that body (mobile) / #main-content (desktop) remain the nearest
+ * scroll-container ancestors, otherwise position: sticky never engages.
  */
 const SearchPage: Component = () => {
   const search = useGlobalSearch();
@@ -92,50 +100,58 @@ const SearchPage: Component = () => {
           <h1 class="type-display search-page-title">Search</h1>
         </header>
 
-        {/* Search bar — uses .search-page-form to override the shared
-            .search-bar-form's dark-rectangular sticky background. The
-            .search-page-form itself is now sticky (top: 0) with a glass
-            background, so the input remains accessible while scrolling.
-            The .search-bar inside is the rounded input surface. */}
-        <form
-          class="search-bar-form search-page-form"
-          onSubmit={(event) => {
-            event.preventDefault();
-            submitQuery(search.query());
-          }}
-        >
-          <div class="search-bar">
-            <span
-              class="material-symbols-outlined search-bar-icon"
-              aria-hidden="true"
-            >
-              search
-            </span>
-            <input
-              type="search"
-              class="search-bar-input"
-              value={search.query()}
-              onInput={(event) => search.setQuery(event.currentTarget.value)}
-              placeholder="Search movies, series, people, or anime…"
-              autocomplete="off"
-              spellcheck={false}
-              autofocus
-              aria-label="Search movies, series, people, or anime"
-            />
-            <Show when={search.query().length > 0}>
-              <button
-                type="button"
-                class="search-bar-clear focus-ring"
-                onClick={() => search.clearQuery()}
-                aria-label="Clear search"
+        {/* Dedicated /search route sticky search bar.
+            The .search-page-sticky-bar wrapper is the SINGLE authoritative
+            positioning rule for this bar — it owns the position: sticky,
+            the translucent glass background, and the full-bleed negative
+            margins. The <form class="search-bar-form"> inside is a plain
+            transparent form wrapper. The .search-bar div is the rounded
+            input pill (its own glass surface, unchanged).
+
+            PRODUCT SCOPE: This is the ONLY search interface on the
+            dedicated /search route. Library has its own search treatment
+            (.library-search-row). Discover has no search affordance. */}
+        <div class="search-page-sticky-bar">
+          <form
+            class="search-bar-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              submitQuery(search.query());
+            }}
+          >
+            <div class="search-bar">
+              <span
+                class="material-symbols-outlined search-bar-icon"
+                aria-hidden="true"
               >
-                <span class="material-symbols-outlined" aria-hidden="true">
-                  close
-                </span>
-              </button>
-            </Show>
-          </div>
-        </form>
+                search
+              </span>
+              <input
+                type="search"
+                class="search-bar-input"
+                value={search.query()}
+                onInput={(event) => search.setQuery(event.currentTarget.value)}
+                placeholder="Search movies, series, people, or anime…"
+                autocomplete="off"
+                spellcheck={false}
+                autofocus
+                aria-label="Search movies, series, people, or anime"
+              />
+              <Show when={search.query().length > 0}>
+                <button
+                  type="button"
+                  class="search-bar-clear focus-ring"
+                  onClick={() => search.clearQuery()}
+                  aria-label="Clear search"
+                >
+                  <span class="material-symbols-outlined" aria-hidden="true">
+                    close
+                  </span>
+                </button>
+              </Show>
+            </div>
+          </form>
+        </div>
 
         <Show
           when={search.hasQuery()}
