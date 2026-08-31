@@ -25,7 +25,23 @@ export interface LibraryHeaderProps {
   onClearFilter: (key: string) => void;
 }
 
-/** The Library’s compact control center. Search is intentionally always open. */
+/** The Library's compact control center. Search is intentionally always open.
+ *
+ * 2026-09-03 — STICKY REMOVED. The Library header previously used Tailwind's
+ * `sticky top-0 z-40` to stick the header/search/filter area to the top of
+ * the viewport while the Library content scrolled underneath. The user
+ * reported this was wrong: Library should use NORMAL PAGE SCROLLING where
+ * the title, search bar, view/filter controls, and filter chips all scroll
+ * away naturally with the content. The dedicated /search route has its OWN
+ * sticky search bar (via .search-page-sticky-bar) — that behavior is
+ * intentional and is NOT affected by this change. Library and Search
+ * have independent scroll behavior.
+ *
+ * The negative margins (`-mx-4 sm:-mx-5`) and matching padding
+ * (`px-4 sm:px-5`) are kept so the glass surface still breaks out of
+ * the PageContainer's horizontal padding (matching the visual rhythm of
+ * the rest of the page). The `mb-4` is kept for spacing below the header.
+ */
 const LibraryHeader: Component<LibraryHeaderProps> = (props) => {
   const totalCount = createMemo(() => props.watchlist().length);
   const showClear = createMemo(
@@ -36,7 +52,7 @@ const LibraryHeader: Component<LibraryHeaderProps> = (props) => {
   );
 
   return (
-    <div class="library-header-glass sticky top-0 z-40 -mx-4 mb-4 px-4 pb-3 pt-4 sm:-mx-5 sm:px-5">
+    <div class="library-header-glass -mx-4 mb-4 px-4 pb-3 pt-4 sm:-mx-5 sm:px-5">
       <div class="library-header-top">
         <h1
           class="type-display library-header-title"

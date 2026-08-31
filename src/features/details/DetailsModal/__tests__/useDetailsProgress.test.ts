@@ -70,7 +70,7 @@ function makeVaultItem(
 
 interface HookArgs {
   vaultItemStatus: WatchlistItem["status"];
-  onCompletedAutoOpenEdit?: () => void;
+  onCompletedAutoOpenEdit?: (statusChanged: boolean) => void;
 }
 
 async function runHandleSetStatus(
@@ -152,6 +152,9 @@ describe("useDetailsProgress.handleSetStatus — auto-open Edit (2026-09-02 fix)
     );
     expect(setSelectedItem).toHaveBeenCalledTimes(1);
     expect(onCompletedAutoOpenEdit).toHaveBeenCalledTimes(1);
+    // 2026-09-03 — the callback receives statusChanged=true so it knows
+    // to defer setIsEditing(true) past the useDetailsForm createEffect.
+    expect(onCompletedAutoOpenEdit).toHaveBeenCalledWith(true);
   });
 
   it("Completed already active → tap Completed: does NOT persist but STILL auto-opens Edit", async () => {
@@ -165,6 +168,10 @@ describe("useDetailsProgress.handleSetStatus — auto-open Edit (2026-09-02 fix)
     expect(setSeriesStatusInSupabase).not.toHaveBeenCalled();
     expect(setSelectedItem).not.toHaveBeenCalled();
     expect(onCompletedAutoOpenEdit).toHaveBeenCalledTimes(1);
+    // 2026-09-03 — the callback receives statusChanged=false so it can
+    // call setIsEditing(true) SYNCHRONOUSLY (no need to defer past an
+    // effect that won't re-fire). This is the core fix for the bug.
+    expect(onCompletedAutoOpenEdit).toHaveBeenCalledWith(false);
   });
 
   it("Watching already active → tap Watching: does NOT persist but STILL auto-opens Edit", async () => {
@@ -175,6 +182,7 @@ describe("useDetailsProgress.handleSetStatus — auto-open Edit (2026-09-02 fix)
     expect(setSeriesStatusInSupabase).not.toHaveBeenCalled();
     expect(setSelectedItem).not.toHaveBeenCalled();
     expect(onCompletedAutoOpenEdit).toHaveBeenCalledTimes(1);
+    expect(onCompletedAutoOpenEdit).toHaveBeenCalledWith(false);
   });
 
   it("Completed → tap Watching: persists status and auto-opens Edit", async () => {
@@ -192,6 +200,7 @@ describe("useDetailsProgress.handleSetStatus — auto-open Edit (2026-09-02 fix)
     );
     expect(setSelectedItem).toHaveBeenCalledTimes(1);
     expect(onCompletedAutoOpenEdit).toHaveBeenCalledTimes(1);
+    expect(onCompletedAutoOpenEdit).toHaveBeenCalledWith(true);
   });
 
   it("Planned → tap Planned: no persist, no auto-open Edit", async () => {

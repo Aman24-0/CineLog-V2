@@ -66,6 +66,40 @@ describe("LibraryHeader", () => {
     expect(screen.getByRole("button", { name: "Timeline view" })).toBeTruthy();
   });
 
+  // ── 2026-09-03 — Library header must NOT be sticky ──────────────────
+  // The Library header previously used Tailwind's `sticky top-0 z-40` to
+  // stick the header/search/filter area to the top of the viewport. The
+  // user reported this was wrong: Library should use NORMAL PAGE
+  // SCROLLING. The dedicated /search route has its OWN sticky search bar
+  // (via .search-page-sticky-bar) — that behavior is intentional and
+  // must NOT be affected by this change.
+  //
+  // These tests verify the Library header does NOT have sticky
+  // positioning applied. We check:
+  //   - The header's class list does not contain "sticky" or "top-0"
+  //     (Tailwind utility classes that were previously applied).
+  //   - The header's computed style position is not "sticky".
+  //   - The Search page's .search-page-sticky-bar class is NOT present
+  //     in the Library header (the two are independent).
+  it("does NOT apply Tailwind 'sticky' or 'top-0' classes (2026-09-03 fix)", () => {
+    renderHeader();
+    const header = document.querySelector(".library-header-glass");
+    expect(header).toBeTruthy();
+    // The class list must NOT contain sticky-related Tailwind utilities.
+    expect(header!.classList.contains("sticky")).toBe(false);
+    expect(header!.classList.contains("top-0")).toBe(false);
+    // The class list must NOT contain the Search page's sticky class.
+    expect(header!.classList.contains("search-page-sticky-bar")).toBe(false);
+  });
+
+  it("does NOT set position: sticky via inline style", () => {
+    renderHeader();
+    const header = document.querySelector(".library-header-glass") as HTMLElement;
+    expect(header).toBeTruthy();
+    // jsdom doesn't compute CSS, but inline styles would be visible.
+    expect(header.style.position).not.toBe("sticky");
+  });
+
   it("keeps status chips in the requested order and derives Re-watched from history", () => {
     renderHeader();
 

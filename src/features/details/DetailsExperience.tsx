@@ -350,8 +350,31 @@ export default function DetailsExperience(props: DetailsExperienceProps) {
     // AFTER us and overrides it to false. By deferring to the next
     // microtask, we guarantee our setIsEditing(true) runs AFTER the
     // effect's setIsEditing(false).
-    onCompletedAutoOpenEdit: () => {
-      queueMicrotask(() => setIsEditing(true));
+    onCompletedAutoOpenEdit: (statusChanged: boolean) => {
+      // 2026-09-03 fix — when the status actually CHANGED, the
+      // useDetailsForm createEffect will re-fire (because
+      // vaultItem() changed via setSelectedItem), calling
+      // resetTo(v) → setIsEditing(false). We MUST defer
+      // setIsEditing(true) to AFTER that effect fires, otherwise
+      // the effect's setIsEditing(false) overrides our setIsEditing(true).
+      // queueMicrotask guarantees our call runs AFTER Solid's effect.
+      //
+      // When the status did NOT change (the user tapped the
+      // already-active status), vaultItem() does NOT change, the
+      // effect does NOT re-fire, and we can call setIsEditing(true)
+      // SYNCHRONOUSLY. This eliminates any microtask-timing
+      // uncertainty and is the exact fix for the "Completed on
+      // already-Completed doesn't open Edit" bug — the previous
+      // implementation always used queueMicrotask, which in some
+      // browser/Solid combinations could be batched in a way that
+      // the setIsEditing(true) was not reflected before the next
+      // render. Calling synchronously in the unchanged case
+      // guarantees the signal flip is immediate.
+      if (statusChanged) {
+        queueMicrotask(() => setIsEditing(true));
+      } else {
+        setIsEditing(true);
+      }
     },
     // Critical fix — update the GLOBAL user-library watchlist after
     // save so consumers (Library, Search, YourActivityCard) see the

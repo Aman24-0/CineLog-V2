@@ -64,8 +64,17 @@ export interface UseDetailsActionsArgs {
   /**
    * Part 5 — Called when status is set to "Completed" to auto-open
    * the Activity/Edit modal. Passed through to useDetailsProgress.
+   *
+   * 2026-09-03 — receives a `statusChanged` boolean so the callback
+   * can decide whether to defer `setIsEditing(true)` (statusChanged
+   * → the useDetailsForm createEffect will re-fire and call
+   * setIsEditing(false), so the callback must defer via
+   * queueMicrotask) or call it synchronously (status unchanged →
+   * the effect does NOT re-fire, so the callback can set
+   * setIsEditing(true) immediately). See useDetailsProgress.ts for
+   * the full rationale.
    */
-  onCompletedAutoOpenEdit?: () => void;
+  onCompletedAutoOpenEdit?: (statusChanged: boolean) => void;
   /**
    * Updates the GLOBAL user-library watchlist signal after a save.
    * Without this, the local modal state is updated but the global

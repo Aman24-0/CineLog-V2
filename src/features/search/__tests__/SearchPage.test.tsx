@@ -174,3 +174,45 @@ describe("SearchPage", () => {
     );
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────
+// 2026-09-03 — Search page sticky bar regression tests.
+//
+// The dedicated /search route has its OWN sticky search bar via the
+// .search-page-sticky-bar class (defined in src/styles/features/search.css).
+// This is INTENTIONAL and must NOT be affected by the Library header
+// sticky removal (the Library header used Tailwind's `sticky top-0 z-40`,
+// which is a completely separate mechanism).
+//
+// These tests verify:
+//   - The Search page renders the .search-page-sticky-bar wrapper.
+//   - The .search-page-sticky-bar class is present (the CSS hook for
+//     position: sticky).
+//   - The Library's .library-header-glass class is NOT present on the
+//     Search page (the two are independent).
+// ─────────────────────────────────────────────────────────────────────
+describe("SearchPage — sticky search bar (2026-09-03 regression)", () => {
+  beforeEach(() => {
+    setQuery("");
+    setHasQuery(false);
+    delete searchParams.q;
+  });
+  afterEach(cleanup);
+
+  it("renders the .search-page-sticky-bar wrapper around the search input", () => {
+    render(() => <SearchPage />);
+    const stickyBar = document.querySelector(".search-page-sticky-bar");
+    expect(stickyBar).toBeTruthy();
+    // The search input must be inside the sticky bar wrapper.
+    const input = screen.getByRole("searchbox", {
+      name: "Search movies, series, people, or anime"
+    });
+    expect(stickyBar!.contains(input)).toBe(true);
+  });
+
+  it("does NOT render the Library header on the Search page", () => {
+    render(() => <SearchPage />);
+    // The Library's .library-header-glass must NOT be present on /search.
+    expect(document.querySelector(".library-header-glass")).toBeNull();
+  });
+});

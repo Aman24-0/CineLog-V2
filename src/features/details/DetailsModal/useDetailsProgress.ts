@@ -57,8 +57,23 @@ export interface UseDetailsProgressArgs {
    * watch date, etc.). The status is ALREADY SAVED before this is
    * called — closing the edit modal without saving does NOT revert
    * the Completed status.
+   *
+   * 2026-09-03 fix — the callback receives a `statusChanged` boolean:
+   *   - `true` when the status actually transitioned (e.g. Watching →
+   *     Completed). In this case the `useDetailsForm` createEffect will
+   *     re-fire (because `vaultItem()` changed via `setSelectedItem`),
+   *     calling `resetTo(v)` → `setIsEditing(false)`. The callback
+   *     MUST defer `setIsEditing(true)` to AFTER that effect fires
+   *     (e.g. via `queueMicrotask`), otherwise the effect's
+   *     `setIsEditing(false)` will override it.
+   *   - `false` when the user tapped the already-active status (e.g.
+   *     Completed → tap Completed). In this case `vaultItem()` does NOT
+   *     change, the effect does NOT re-fire, and the callback can call
+   *     `setIsEditing(true)` SYNCHRONOUSLY. This eliminates any
+   *     microtask-timing uncertainty and is the exact fix for the
+   *     "Completed on already-Completed doesn't open Edit" bug.
    */
-  onCompletedAutoOpenEdit?: () => void;
+  onCompletedAutoOpenEdit?: (statusChanged: boolean) => void;
 }
 
 export interface UseDetailsProgressResult {
@@ -436,7 +451,7 @@ export function useDetailsProgress(
       (nextStatus === "Completed" || nextStatus === "Watching") &&
       args.onCompletedAutoOpenEdit
     ) {
-      args.onCompletedAutoOpenEdit();
+      args.onCompletedAutoOpenEdit(statusChanged);
     }
   };
 
