@@ -8,6 +8,7 @@ import type {
   SortDirection
 } from "~/shared/types";
 import type { PlatformFilterOption } from "./hooks/useWatchlistOttAvailability";
+import { languageDisplayName } from "~/shared/data/languageCodes";
 
 /**
  * vaultFilterUtils — pure filtering + sorting helpers used by
@@ -81,10 +82,11 @@ export function normalizeVaultFilters(input: unknown): VaultFilters {
   // Default base — same as defaultFilters in useVaultFiltering.ts.
   // Inlined here to avoid a circular import (useVaultFiltering imports
   // from vaultFilterUtils, not the other way around).
+  // Part 3: `region` is GONE — replaced by `language`.
   const out: VaultFilters = {
     type: "all",
     status: "all",
-    region: "all",
+    language: "all",
     genre: "all",
     platform: "all",
     sortField: "added_date",
@@ -108,7 +110,12 @@ export function normalizeVaultFilters(input: unknown): VaultFilters {
   const outMut = out as unknown as Record<string, unknown>;
 
   // String fields — copy if present and string-typed, else leave default.
-  for (const k of ["type", "status", "region", "genre", "platform", "tag"]) {
+  // Part 3: `region` is intentionally NOT in this list — old persisted
+  // values like `region: "Indian"` are SILENTLY DROPPED here, and
+  // `language` stays at its default "all". This is the migration
+  // behavior required by the spec: "old region filter → language = all;
+  // remove/ignore the obsolete region field."
+  for (const k of ["type", "status", "language", "genre", "platform", "tag"]) {
     if (typeof f[k] === "string") outMut[k] = f[k];
   }
   // Range fields — copy if present and string-typed.
@@ -305,8 +312,12 @@ export function filterByStatus(
   );
 }
 
-/** Apply the advanced filters (type, region, genre, platform, tag).
- * Single-pass — avoids creating up to 5 intermediate arrays. */
+/** Apply the advanced filters (type, language, genre, platform, tag).
+ * Single-pass — avoids creating up to 5 intermediate arrays.
+ *
+ * Part 3 — `region` is replaced by `language`. The match is performed
+ * by `matchesLanguage` against `WatchlistItem.originalLanguage` (an
+ * ISO 639-1 code). */
 export function filterByAdvanced(
   items: WatchlistItem[],
   f: VaultFilters
@@ -314,7 +325,7 @@ export function filterByAdvanced(
   // Fast path: no filters active
   if (
     f.type === "all" &&
-    f.region === "all" &&
+    f.language === "all" &&
     f.genre === "all" &&
     f.platform === "all" &&
     f.tag === "all"
@@ -326,7 +337,7 @@ export function filterByAdvanced(
   for (let i = 0; i < items.length; i++) {
     const m = items[i];
     if (f.type !== "all" && m.media_type !== f.type) continue;
-    if (f.region !== "all" && !matchesRegion(m, f.region)) continue;
+    if (f.language !== "all" && !matchesLanguage(m, f.language)) continue;
     if (f.genre !== "all") {
       if (!m.genresList || !Array.isArray(m.genresList)) continue;
       let hasGenre = false;
@@ -353,65 +364,33 @@ export function filterByAdvanced(
 }
 
 /**
- * Region filter — robustly detects "Indian" vs "International" titles.
+ * Language filter — matches a WatchlistItem by its TMDB
+ * `original_language` (stored on the item as `originalLanguage`, an
+ * ISO 639-1 code lowercased).
  *
- * Checks (in priority order) for the "Indian" region:
- *   1. Explicit `m.region === "Indian"` (legacy field, still used)
- *   2. `m.origin_country` array includes "IN" (TMDB)
- *   3. `m.spoken_languages` array includes any Indian language code
- *      (hi, ta, te, kn, ml, bn, mr, gu, pa, ur, or, as)
+ * Part 3 redesign — this REPLACES the old `matchesRegion` helper that
+ * classified titles as "Indian" vs "International". The spec is
+ * explicit:
+ *   - Do NOT classify titles as Indian/International.
+ *   - Use a real language identifier (ISO 639-1).
+ *   - Do NOT use `spoken_languages` (a title may contain multiple
+ *     spoken languages that are not its original language).
  *
- * "International" matches anything that is NOT Indian (including items
- * with no region data at all — backwards compatible with the previous
- * "defaults missing region to International" behavior).
- *
- * All array accesses use optional chaining + Array.isArray() guards so
- * the filter is safe when the arrays are missing (older vault items).
+ * Comparison:
+ *   - `m.originalLanguage` is lowercased ISO 639-1 (e.g. "hi", "ta").
+ *   - `language` (the filter value) is also expected to be lowercase
+ *     ISO 639-1. The VaultFilters `language` field stores the
+ *     selected language code from the dropdown (or "all").
+ *   - Items with `originalLanguage: undefined` (older cache entries
+ *     written before this field was captured, or items whose TMDB
+ *     metadata failed to load) are EXCLUDED when a specific language
+ *     is selected — they still appear under "All Languages".
  */
-const INDIAN_LANGUAGE_CODES = new Set([
-  "hi",
-  "ta",
-  "te",
-  "kn",
-  "ml",
-  "bn",
-  "mr",
-  "gu",
-  "pa",
-  "ur",
-  "or",
-  "as"
-]);
-
-function matchesRegion(m: WatchlistItem, region: string): boolean {
-  if (region === "Indian") {
-    // 1. Explicit region field
-    if (m.region === "Indian") return true;
-    // 2. TMDB origin_country includes IN
-    if (Array.isArray(m.origin_country) && m.origin_country.includes("IN"))
-      return true;
-    // 3. Spoken languages include an Indian language code
-    if (Array.isArray(m.spoken_languages)) {
-      for (const lang of m.spoken_languages) {
-        if (!lang || typeof lang !== "object") continue;
-        const code =
-          typeof lang.iso_639_1 === "string"
-            ? lang.iso_639_1.toLowerCase()
-            : "";
-        if (code && INDIAN_LANGUAGE_CODES.has(code)) return true;
-      }
-    }
-    return false;
-  }
-  if (region === "International") {
-    // NOT Indian — includes items with no region data (backwards compat).
-    if (m.region === "Indian") return false;
-    if (Array.isArray(m.origin_country) && m.origin_country.includes("IN"))
-      return false;
-    return true;
-  }
-  // Unknown region value — pass through (don't filter)
-  return true;
+function matchesLanguage(m: WatchlistItem, language: string): boolean {
+  if (!language) return false;
+  const itemLang = m.originalLanguage;
+  if (typeof itemLang !== "string" || itemLang.length === 0) return false;
+  return itemLang.toLowerCase() === language.toLowerCase();
 }
 
 /**
@@ -612,6 +591,11 @@ export function sortItems(
  *  label is resolved from the catalog by matching `f.platform` (a
  *  JustWatch `technicalName`) to its `clearName`. When not provided
  *  (legacy callers), the raw `f.platform` string is shown as-is.
+ *
+ *  Part 3 — the Language chip's label is resolved from the ISO 639-1
+ *  code in `f.language` via `languageDisplayName` (e.g. "hi" → "Hindi").
+ *  Old `region` chips ("Indian" / "International") are no longer
+ *  produced.
  */
 export function computeChips(
   f: VaultFilters,
@@ -620,7 +604,14 @@ export function computeChips(
   const out: { label: string; key: string }[] = [];
   if (f.type !== "all")
     out.push({ label: f.type === "movie" ? "Movies" : "Series", key: "type" });
-  if (f.region !== "all") out.push({ label: f.region, key: "region" });
+  if (f.language !== "all") {
+    // Resolve the ISO 639-1 code to a display name for the chip label.
+    // The dropdown sets `language` to a code from `LANGUAGE_CODE_TO_NAME`;
+    // `languageDisplayName` falls back to the uppercased code for
+    // unknown values so the chip always renders something readable.
+    const label = languageDisplayName(f.language) || f.language;
+    out.push({ label, key: "language" });
+  }
   if (f.genre !== "all") out.push({ label: f.genre, key: "genre" });
   // Resolve the platform technicalName → clearName for the chip label.
   // The catalog lookup is O(n) but n is typically <20 providers, and
@@ -654,7 +645,7 @@ export function computeChips(
 export function countActiveFilters(f: VaultFilters): number {
   let count = 0;
   if (f.type !== "all") count++;
-  if (f.region !== "all") count++;
+  if (f.language !== "all") count++;
   if (f.genre !== "all") count++;
   if (f.platform !== "all") count++;
   if (f.tag !== "all") count++;
@@ -674,7 +665,7 @@ export function countActiveFilters(f: VaultFilters): number {
 export function hasAdvancedFiltersActive(f: VaultFilters): boolean {
   return (
     f.type !== "all" ||
-    f.region !== "all" ||
+    f.language !== "all" ||
     f.genre !== "all" ||
     f.platform !== "all" ||
     f.tag !== "all" ||

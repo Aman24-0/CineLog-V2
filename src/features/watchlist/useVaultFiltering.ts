@@ -20,7 +20,9 @@ import {
   hasAdvancedFiltersActive
 } from "./vaultFilterUtils";
 import { useWatchlistOttAvailability, type PlatformFilterOption } from "./hooks/useWatchlistOttAvailability";
+import { usePublishedProviderCatalog } from "./hooks/usePublishedProviderCatalog";
 import { readTagDefinitions } from "./tagStore";
+import { languageDisplayName } from "~/shared/data/languageCodes";
 
 /**
  * useVaultFiltering — owns the filter state + the filtered/sorted memo
@@ -29,7 +31,7 @@ import { readTagDefinitions } from "./tagStore";
  * Responsibilities:
  *   - defaultFilters constant
  *   - search input (debounced 120ms)
- *   - advanced filter signal (type/region/genre/platform/sort/tag/imdb/rt/year/runtime)
+ *   - advanced filter signal (type/language/genre/platform/sort/tag/imdb/rt/year/runtime)
  *   - activeStatusTab quick-filter
  *   - URL → status sync (?status=Watching)
  *   - view-mode effect (timeline forces Completed + watch_desc)
@@ -37,12 +39,18 @@ import { readTagDefinitions } from "./tagStore";
  *   - hasAdvancedFilters, isFlatMode, activeFilterCount, chips
  *   - clearFilter(key), clearFilters()
  *
+ * Part 3 — `region` is replaced by `language` (ISO 639-1 code).
+ * `uniqueLanguages` exposes the sorted list of original-language
+ * codes actually present in the watchlist, with display-name
+ * resolution handled by `languageDisplayName` in
+ * `src/shared/data/languageCodes.ts`.
+ *
  * Pure filtering/sorting logic lives in `vaultFilterUtils.ts`.
  */
 export const defaultFilters: VaultFilters = {
   type: "all",
   status: "all",
-  region: "all",
+  language: "all",
   genre: "all",
   platform: "all",
   // v2.6 — sort was split into sortField + sortDirection.
@@ -88,77 +96,32 @@ export interface UseVaultFilteringResult {
   clearFilters: () => void;
   uniqueGenres: Accessor<string[]>;
   /**
-   * Platform filter options derived from actual JustWatch availability
-   * of the watchlist items in the user's country. Each option carries
-   * a stable `technicalName` (the filter value), a human-readable
-   * `clearName`, an optional `icon` URL, and a `count` of how many
-   * watchlist items carry this provider.
+   * Unique original-language codes present in the user's library,
+   * paired with their display names. Drives the Library Language
+   * dropdown (Part 3 redesign). The list is derived from
+   * `WatchlistItem.originalLanguage` (TMDB `original_language`, ISO
+   * 639-1) and sorted alphabetically by display name. Items with no
+   * `originalLanguage` (older cache entries) don't appear here.
+   */
+  uniqueLanguages: Accessor<Array<{ code: string; label: string }>>;
+  /**
+   * Platform filter options from the published Supabase provider
+   * catalogue for the user's profile country (Part 4 redesign).
+   * Each option carries a stable `technicalName` (the filter value),
+   * a human-readable `clearName`, and an optional `icon` URL.
    *
-   * Empty while the batch-availability fetch is in flight, on error,
-   * or when no watchlist item has any JustWatch offer. The Platform
-   * dropdown hides when this is empty (per Chunk 6 Task 6 spec).
+   * Empty while the catalogue fetch is in flight, on error, or when
+   * no providers are published for the country. The Platform dropdown
+   * renders in a disabled state in those cases (see VaultFiltersContent).
    */
   uniquePlatforms: Accessor<PlatformFilterOption[]>;
   /**
-   * True while the JustWatch batch-availability fetch is in flight.
-   * Exposed so the Platform filter UI can show a loading state if
-   * desired (the default is to simply hide the dropdown until data
-   * arrives).
+   * True while the JustWatch batch-availability fetch is in flight
+   * (title-level enrichment) OR while the published provider catalog
+   * fetch is in flight. Surfaced so the Platform dropdown can render
+   * a "Loading platforms…" hint.
    */
   ottLoading: Accessor<boolean>;
-  /**
-   * CHUNK 6N Task 3 — TEMPORARY debug accessor. Returns the first 3
-   * raw batch-response keys (as a JSON string) from the most recent
-   * OTT fetch, for display in the Platform filter modal's debug line.
-   * Empty string before the first fetch. Will be removed alongside
-   * the other Chunk 6E-6M diagnostic logs.
-   */
-  debugRawKeys: Accessor<string>;
-  /**
-   * CHUNK 6O Task 1 — TEMPORARY debug accessor. Coarse-grained OTT
-   * fetch state machine (`'idle' | 'loading' | 'success' | 'error'`)
-   * for display in the Platform filter modal's debug line. Lets the
-   * user tell whether the fetch never started, is in flight,
-   * completed successfully, or failed — without opening the console.
-   * Will be removed alongside the other Chunk 6E-6N diagnostic logs.
-   */
-  fetchState: Accessor<"idle" | "loading" | "success" | "error">;
-  /**
-   * CHUNK 6O Task 1 — TEMPORARY debug accessor. Human-readable error
-   * message from the most recent OTT fetch attempt. Empty string
-   * unless `fetchState` is `'error'`. Will be removed alongside the
-   * other Chunk 6E-6N diagnostic logs.
-   */
-  fetchError: Accessor<string>;
-  /**
-   * CHUNK 6P Task 1 — TEMPORARY debug accessor. Monotonic counter
-   * that bumps every time the OTT fetch effect actually starts a
-   * fetch (cache-miss path). Surfaced in the visible debug line so
-   * the user can distinguish "stuck on a single run" (runId stable,
-   * state=loading, progress=0/N forever) from "restarting in a loop"
-   * (runId keeps climbing while state=loading). Will be removed
-   * alongside the other Chunk 6E-6O diagnostic logs.
-   */
-  effectRunId: Accessor<number>;
-  /**
-   * CHUNK 6P Task 1 — TEMPORARY debug accessor. `${done}/${total}`
-   * progress string updated as each chunk in the OTT batch resolves.
-   * Stays at `0/${total}` until the first wave of
-   * MAX_CONCURRENT_CHUNKS requests completes. Surfaced in the
-   * visible debug line so the user can see whether ANY chunks are
-   * landing (vs. the very first wave hanging). Will be removed
-   * alongside the other Chunk 6E-6O diagnostic logs.
-   */
-  chunkProgress: Accessor<string>;
-  /**
-   * CHUNK 6R Task 5 — TEMPORARY debug accessor. Indicates WHERE the
-   * Platform filter's data is coming from: `'local'` (localStorage
-   * cache), `'live'` (network fetch), `'mixed'` (both, during fetch),
-   * or `'none'` (no data available). Surfaced in the visible debug
-   * line as `cache=...`. Will be removed alongside the other Chunk
-   * 6E-6P diagnostic logs.
-   */
-  cacheSource: Accessor<"local" | "live" | "mixed" | "none">;
   uniqueTags: Accessor<string[]>;
   /**
    * Union of the user's tag vocabulary (saved in localStorage) and the
@@ -285,25 +248,43 @@ export function useVaultFiltering(
   });
 
   // ── JUSTWATCH OTT AVAILABILITY (Chunk 6) ───────────────────────────
-  // Enriches every watchlist item with `justwatchProviders: string[]`
-  // (JustWatch `package.technicalName` values) via a single batched
-  // POST /api/ott/batch-availability call (split into 25-item chunks
-  // if the watchlist is larger). The Platform filter dropdown options
-  // and the `matchesPlatform` predicate both consume this enrichment.
+  // `useWatchlistOttAvailability` enriches every watchlist item with
+  // `justwatchProviders: string[]` (JustWatch `package.technicalName`
+  // values) via a single batched POST /api/ott/batch-availability call
+  // (split into 25-item chunks if the watchlist is larger). The
+  // `matchesPlatform` predicate in vaultFilterUtils reads this per-
+  // title enrichment.
+  //
+  // Part 4 redesign — the PROVIDER CATALOG (dropdown options) is now
+  // sourced separately from the published Supabase catalogue via the
+  // `usePublishedProviderCatalog` hook (instantiated below). The
+  // watchlist-derived `providerCatalog` from
+  // `useWatchlistOttAvailability` is now a stable `[]` (kept for
+  // backward-compat with the destructure only — see the hook's docs).
   //
   // See `hooks/useWatchlistOttAvailability.ts` for the full contract.
   const ottAvailability = useWatchlistOttAvailability(args.watchlist);
   const {
     enrichedItems,
-    providerCatalog,
-    loading: ottLoading,
-    debugRawKeys,
-    fetchState,
-    fetchError,
-    effectRunId,
-    chunkProgress,
-    cacheSource
+    loading: ottBatchLoading
   } = ottAvailability;
+
+  // ── PUBLISHED SUPABASE PROVIDER CATALOG (Part 4 redesign) ────────
+  // The Library Platform filter dropdown options come from Supabase
+  // (the published `justwatch_provider_catalog` rows for the user's
+  // profile country). This is a SEPARATE concern from the per-title
+  // availability enrichment above:
+  //   - PUBLISHED CATALOG (this hook): "which platforms exist in this
+  //     country?" — sourced from Supabase, no JustWatch fallback.
+  //   - TITLE AVAILABILITY (ottAvailability above): "which of my
+  //     library titles are available on the selected platform?" —
+  //     sourced from the existing JustWatch batch-availability route
+  //     and the ott_availability_cache table (UNCHANGED).
+  const publishedCatalog = usePublishedProviderCatalog();
+  const {
+    catalog: publishedCatalogItems,
+    loading: catalogLoading
+  } = publishedCatalog;
 
   // ── UNIQUE VALUES — single-pass Set accumulation (no intermediate arrays) ──
   // Previously: flatMap + map + new Set + spread + filter + sort created
@@ -325,48 +306,57 @@ export function useVaultFiltering(
     }
     return [...set].sort();
   });
-  // uniquePlatforms — now derived from the JustWatch provider catalog
-  // built by `useWatchlistOttAvailability`. The catalog is already
-  // deduped + sorted (count desc, clearName asc) by the hook, so this
-  // memo is a thin pass-through that exists to keep the public hook
-  // API stable (`uniquePlatforms` was already part of the result
-  // interface before Chunk 6).
+
+  // ── uniqueLanguages (Part 3) — derive unique original-language codes
+  // from the user's library, paired with display names. Sorted
+  // alphabetically by display name for a stable dropdown. Items with
+  // no `originalLanguage` (older cache entries) are skipped — they
+  // don't appear in the dropdown and only get filtered out when a
+  // specific language is picked.
+  const uniqueLanguages = createMemo<Array<{ code: string; label: string }>>(() => {
+    const set = new Set<string>();
+    const list = args.watchlist();
+    for (let i = 0; i < list.length; i++) {
+      const lang = list[i].originalLanguage;
+      if (typeof lang === "string" && lang.length > 0) {
+        set.add(lang.toLowerCase());
+      }
+    }
+    // Map each unique code to its display name and sort by label.
+    const entries: Array<{ code: string; label: string }> = [];
+    set.forEach((code) => {
+      entries.push({ code, label: languageDisplayName(code) || code });
+    });
+    entries.sort((a, b) => a.label.localeCompare(b.label));
+    return entries;
+  });
+
+  // uniquePlatforms — Part 4 redesign. Now derived from the published
+  // Supabase provider catalogue (not from the watchlist). The catalog
+  // from `usePublishedProviderCatalog` is already deduped + sorted
+  // (clear_name ascending) by the API route + cache layer.
   //
   // The returned `PlatformFilterOption[]` carries:
   //   - `technicalName` (the filter value stored in `filters.platform`)
   //   - `clearName`     (the label rendered in the dropdown)
   //   - `icon`          (optional JustWatch CDN URL for the logo)
-  //   - `count`         (number of watchlist items with this provider)
+  //   - `count`         (0 — count is no longer meaningful at the
+  //                      catalog level; the spec decouples the dropdown
+  //                      options from the user's watchlist contents)
   //
-  // Empty array while loading, on error, or when no items have any
-  // JustWatch offer. The dropdown consumer renders a DISABLED state
-  // when this is empty (Chunk 6F Task 1 — previously it was hidden).
+  // Empty array while loading, on error, or when no providers are
+  // published for the country. The dropdown consumer renders a
+  // DISABLED state when this is empty (Chunk 6F Task 1).
   const uniquePlatforms = createMemo<PlatformFilterOption[]>(() => {
-    const catalog = providerCatalog();
-    // Chunk 6F Task 4 — diagnostic log. Tracks the watchlist size,
-    // the OTT loading state, the OTT error state (read indirectly
-    // via the catalog being empty even when not loading), and the
-    // unique provider count. Temporary; will be removed in a later
-    // cleanup chunk alongside the OTT server logs from Chunk 6E.
-    // Logs only counts (no PII / no titles).
-    console.log(
-      "[useVaultFiltering] uniquePlatforms memo" +
-        " watchlistSize=" + args.watchlist().length +
-        " ottLoading=" + ottLoading() +
-        " providerCatalogSize=" + catalog.length
-    );
-    return catalog;
+    return publishedCatalogItems();
   });
 
-  // Chunk 6G Task 2 — diagnostic effect. Logs the actual
-  // `uniquePlatforms()` array (not just the count) so we can verify
-  // each option carries `technicalName`, `clearName`, and `count`.
-  // Watches `uniquePlatforms` reactively so it re-logs whenever the
-  // catalog updates (initial empty → populated after OTT fetch).
-  // Temporary; will be removed in a later cleanup chunk.
-  createEffect(() => {
-    console.log("[Watchlist OTT] uniquePlatforms", uniquePlatforms());
-  });
+  // ── Aggregate loading flag — true while EITHER the batch-availability
+  // fetch (per-title enrichment) OR the published-catalog fetch is in
+  // flight. Surfaced as `ottLoading` so the Platform dropdown can show
+  // a "Loading platforms…" hint when the catalog is empty but a fetch
+  // is in progress.
+  const ottLoading = createMemo(() => ottBatchLoading() || catalogLoading());
   const uniqueTags = createMemo(() => {
     const set = new Set<string>();
     const list = args.watchlist();
@@ -441,14 +431,15 @@ export function useVaultFiltering(
       search().length > 0 || hasAdvancedFilters() || activeStatusTab() !== "all"
   );
   const activeFilterCount = createMemo(() => countActiveFilters(filters()));
-  // chips — pass the JustWatch provider catalog so the Platform chip
+  // chips — pass the published provider catalog so the Platform chip
   // can resolve the technicalName stored in `filters.platform` to a
   // human-readable `clearName` (e.g. "apple.tv.plus" → "Apple TV+").
-  // When the catalog is empty (loading / error / no offers), the chip
-  // falls back to showing the raw technicalName (rare — the user can
-  // only pick a platform when the catalog is non-empty).
+  // When the catalog is empty (loading / error / no providers
+  // published for the country), the chip falls back to showing the
+  // raw technicalName (rare — the user can only pick a platform when
+  // the catalog is non-empty).
   const chips = createMemo(() =>
-    computeChips(filters(), providerCatalog())
+    computeChips(filters(), uniquePlatforms())
   );
 
   const clearFilter = (key: string) => {
@@ -487,26 +478,9 @@ export function useVaultFiltering(
     clearFilter,
     clearFilters,
     uniqueGenres,
+    uniqueLanguages,
     uniquePlatforms,
     ottLoading,
-    // CHUNK 6N Task 3 — TEMPORARY debug accessor for the visible
-    // debug line in VaultFiltersContent. Will be removed alongside
-    // the other Chunk 6E-6M diagnostic logs.
-    debugRawKeys,
-    // CHUNK 6O Task 1 — TEMPORARY debug accessors for the visible
-    // debug line in VaultFiltersContent. Will be removed alongside
-    // the other Chunk 6E-6N diagnostic logs.
-    fetchState,
-    fetchError,
-    // CHUNK 6P Task 1 — TEMPORARY debug accessors for the visible
-    // debug line in VaultFiltersContent. Will be removed alongside
-    // the other Chunk 6E-6O diagnostic logs.
-    effectRunId,
-    chunkProgress,
-    // CHUNK 6R Task 5 — TEMPORARY debug accessor for the visible
-    // debug line in VaultFiltersContent. Will be removed alongside
-    // the other Chunk 6E-6P diagnostic logs.
-    cacheSource,
     uniqueTags,
     uniqueTagsPlus,
     refreshTagVocab

@@ -10,7 +10,8 @@ import {
   countActiveFilters,
   hasAdvancedFiltersActive,
   hasRewatchHistory,
-  resolveStatusToggle
+  resolveStatusToggle,
+  normalizeVaultFilters
 } from "../vaultFilterUtils";
 import {
   makeMovie,
@@ -188,7 +189,7 @@ describe("filterByAdvanced", () => {
     makeMovie({
       id: "1",
       media_type: "movie",
-      region: "Indian",
+      originalLanguage: "hi",
       genresList: ["Drama"],
       platformsList: ["Netflix"],
       justwatchProviders: ["Netflix"],
@@ -197,7 +198,7 @@ describe("filterByAdvanced", () => {
     makeTVSeries({
       id: "2",
       media_type: "tv",
-      region: "International",
+      originalLanguage: "es",
       genresList: ["Sci-Fi"],
       platformsList: ["Prime"],
       justwatchProviders: ["Prime"],
@@ -216,22 +217,55 @@ describe("filterByAdvanced", () => {
     expect(result[0].id).toBe("1");
   });
 
-  it("filters by region", () => {
+  it("filters by language (ISO 639-1 code, Part 3 redesign)", () => {
     const result = filterByAdvanced(
       items,
-      makeVaultFilters({ region: "Indian" })
+      makeVaultFilters({ language: "hi" })
     );
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe("1");
   });
 
-  it("defaults missing region to 'International'", () => {
-    const items2 = [makeMovie({ id: "3", region: undefined })];
+  it("filters by language for a different language (Spanish)", () => {
     const result = filterByAdvanced(
-      items2,
-      makeVaultFilters({ region: "International" })
+      items,
+      makeVaultFilters({ language: "es" })
     );
     expect(result).toHaveLength(1);
+    expect(result[0].id).toBe("2");
+  });
+
+  it("excludes items with missing originalLanguage when a specific language is picked", () => {
+    const itemsWithMissing = [
+      makeMovie({ id: "3", originalLanguage: "hi" }),
+      makeMovie({ id: "4" }) // no originalLanguage (older cache entry)
+    ];
+    const result = filterByAdvanced(
+      itemsWithMissing,
+      makeVaultFilters({ language: "hi" })
+    );
+    expect(result.map((m) => m.id)).toEqual(["3"]);
+  });
+
+  it("includes all items under 'all' language regardless of originalLanguage presence", () => {
+    const itemsWithMissing = [
+      makeMovie({ id: "3", originalLanguage: "hi" }),
+      makeMovie({ id: "4" }) // missing — should still appear under "all"
+    ];
+    const result = filterByAdvanced(
+      itemsWithMissing,
+      makeVaultFilters({ language: "all" })
+    );
+    expect(result).toHaveLength(2);
+  });
+
+  it("matches language case-insensitively", () => {
+    const result = filterByAdvanced(
+      items,
+      makeVaultFilters({ language: "HI" })
+    );
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe("1");
   });
 
   it("filters by genre", () => {
@@ -528,9 +562,20 @@ describe("computeChips", () => {
     expect(chips).toContainEqual({ label: "Series", key: "type" });
   });
 
-  it("includes region chip", () => {
-    const chips = computeChips(makeVaultFilters({ region: "Indian" }));
-    expect(chips).toContainEqual({ label: "Indian", key: "region" });
+  it("includes language chip (Part 3 redesign)", () => {
+    const chips = computeChips(makeVaultFilters({ language: "hi" }));
+    // The chip's label is the display name resolved via languageDisplayName.
+    expect(chips).toContainEqual({ label: "Hindi", key: "language" });
+  });
+
+  it("includes language chip for Spanish", () => {
+    const chips = computeChips(makeVaultFilters({ language: "es" }));
+    expect(chips).toContainEqual({ label: "Spanish", key: "language" });
+  });
+
+  it("falls back to uppercased code for unknown language codes", () => {
+    const chips = computeChips(makeVaultFilters({ language: "xx" }));
+    expect(chips).toContainEqual({ label: "XX", key: "language" });
   });
 
   it("includes genre chip", () => {
@@ -582,7 +627,7 @@ describe("countActiveFilters", () => {
   it("counts each active filter", () => {
     const filters = makeVaultFilters({
       type: "movie", // 1
-      region: "Indian", // 2
+      language: "hi", // 2 (Part 3 — replaced `region: "Indian"`)
       genre: "Drama", // 3
       sortField: "release_date" // 4 (sortField !== added_date)
     });
@@ -656,5 +701,78 @@ describe("hasAdvancedFiltersActive", () => {
     expect(
       hasAdvancedFiltersActive(makeVaultFilters({ yearMax: "2024" }))
     ).toBe(true);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────
+// Part 3 — normalizeVaultFilters migration tests.
+//
+// When a saved preset or persisted library-view-state was written
+// before the Part 3 redesign, it carries `region: "Indian" |
+// "International"` and no `language` field. `normalizeVaultFilters`
+// must:
+//   - Drop the obsolete `region` value (never promote it to a
+//     language — "Indian" is not a language).
+//   - Default `language` to "all".
+//   - Preserve all other fields.
+// ─────────────────────────────────────────────────────────────────────
+describe("normalizeVaultFilters — Part 3 legacy migration", () => {
+  it("returns the canonical default shape for null/undefined input", () => {
+    expect(normalizeVaultFilters(null)).toEqual(makeVaultFilters());
+    expect(normalizeVaultFilters(undefined)).toEqual(makeVaultFilters());
+    expect(normalizeVaultFilters({})).toEqual(makeVaultFilters());
+  });
+
+  it("preserves a new-shape `language` value", () => {
+    const result = normalizeVaultFilters({ language: "hi" });
+    expect(result.language).toBe("hi");
+  });
+
+  it("drops legacy `region: \"Indian\"` and defaults `language` to \"all\"", () => {
+    const result = normalizeVaultFilters({ region: "Indian" });
+    expect(result.language).toBe("all");
+    // The `region` field is no longer part of the VaultFilters shape.
+    expect((result as unknown as Record<string, unknown>).region).toBe(
+      undefined
+    );
+  });
+
+  it("drops legacy `region: \"International\"` and defaults `language` to \"all\"", () => {
+    const result = normalizeVaultFilters({ region: "International" });
+    expect(result.language).toBe("all");
+    expect((result as unknown as Record<string, unknown>).region).toBe(
+      undefined
+    );
+  });
+
+  it("preserves other fields when migrating legacy region", () => {
+    const result = normalizeVaultFilters({
+      region: "Indian",
+      type: "movie",
+      genre: "Drama",
+      sortField: "release_date"
+    });
+    expect(result.language).toBe("all");
+    expect(result.type).toBe("movie");
+    expect(result.genre).toBe("Drama");
+    expect(result.sortField).toBe("release_date");
+  });
+
+  it("prefers new `language` over legacy `region` if both are present", () => {
+    // If a future migration ever wrote both, prefer the new field.
+    const result = normalizeVaultFilters({
+      region: "Indian",
+      language: "es"
+    });
+    expect(result.language).toBe("es");
+    expect((result as unknown as Record<string, unknown>).region).toBe(
+      undefined
+    );
+  });
+
+  it("preserves legacy `sort: \"recent\"` mapping", () => {
+    const result = normalizeVaultFilters({ sort: "recent" });
+    expect(result.sortField).toBe("added_date");
+    expect(result.sortDirection).toBe("desc");
   });
 });

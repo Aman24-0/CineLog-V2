@@ -11,47 +11,23 @@ interface VaultFiltersProps {
   filters: FilterType;
   setFilters: (filters: FilterType) => void;
   uniqueGenres: string[];
-  /** JustWatch provider catalog (Chunk 6). Empty while loading / on
-   *  error / when no items have any offer — the Platform dropdown is
-   *  hidden in those cases (see VaultFiltersContent). */
+  /** Unique original-language codes + display names present in the
+   *  user's library (Part 3). Drives the Language dropdown. */
+  uniqueLanguages: Array<{ code: string; label: string }>;
+  /** Published Supabase provider catalog for the user's country
+   *  (Part 4). Empty while loading / on error / when no providers
+   *  are published — the Platform dropdown is rendered in a disabled
+   *  state in those cases (see VaultFiltersContent). */
   uniquePlatforms: PlatformFilterOption[];
   uniqueTags: string[];
   /** Union of tag vocabulary + tags in use. Phase 6.2 Task 1a. */
   uniqueTagsPlus: string[];
   /** Bump to force re-read of tag vocabulary from localStorage. */
   refreshTagVocab: () => void;
-  /** CHUNK 6N Task 3 — TEMPORARY debug accessors for the visible
-   *  debug line in the Platform filter modal. Will be removed
-   *  alongside the other Chunk 6E-6M diagnostic logs. */
+  /** True while the JustWatch batch-availability fetch is in flight.
+   *  Surfaced so the Platform dropdown can render a disabled
+   *  "loading" state when no providers are available yet. */
   ottLoading: boolean;
-  /** CHUNK 6N Task 3 — first 3 raw batch-response keys as JSON
-   *  string. Empty string before the first fetch completes. */
-  debugRawKeys: string;
-  /** CHUNK 6N Task 3 — number of items in the user's watchlist.
-   *  Surfaced in the visible debug line so the user can verify the
-   *  watchlist actually loaded (vs. an empty list, which would
-   *  correctly produce an empty catalog). */
-  watchlistSize: number;
-  /** CHUNK 6O Task 1 — TEMPORARY debug prop. Coarse-grained OTT fetch
-   *  state machine for the visible debug line. */
-  fetchState: "idle" | "loading" | "success" | "error";
-  /** CHUNK 6O Task 1 — TEMPORARY debug prop. Human-readable error
-   *  message from the most recent OTT fetch attempt. */
-  fetchError: string;
-  /** CHUNK 6P Task 1 — TEMPORARY debug prop. Monotonic counter that
-   *  bumps every time the OTT fetch effect actually starts a fetch
-   *  (cache-miss path). For the visible debug line. */
-  effectRunId: number;
-  /** CHUNK 6P Task 1 — TEMPORARY debug prop. `${done}/${total}`
-   *  progress string updated as each chunk in the OTT batch resolves.
-   *  For the visible debug line. */
-  chunkProgress: string;
-  /** CHUNK 6R Task 5 — TEMPORARY debug prop. Indicates WHERE the
-   *  Platform filter's data is coming from: `'local'` (localStorage
-   *  cache), `'live'` (network fetch), `'mixed'` (both, during
-   *  fetch), or `'none'` (no data available). For the visible debug
-   *  line. */
-  cacheSource: "local" | "live" | "mixed" | "none";
   onClose: () => void;
   onClear: () => void;
 }
@@ -158,18 +134,12 @@ export default function VaultFilters(props: VaultFiltersProps) {
             filters={props.filters}
             setFilters={props.setFilters}
             uniqueGenres={props.uniqueGenres}
+            uniqueLanguages={props.uniqueLanguages}
             uniquePlatforms={props.uniquePlatforms}
             uniqueTags={props.uniqueTags}
             uniqueTagsPlus={props.uniqueTagsPlus}
             refreshTagVocab={props.refreshTagVocab}
             ottLoading={props.ottLoading}
-            debugRawKeys={props.debugRawKeys}
-            watchlistSize={props.watchlistSize}
-            fetchState={props.fetchState}
-            fetchError={props.fetchError}
-            effectRunId={props.effectRunId}
-            chunkProgress={props.chunkProgress}
-            cacheSource={props.cacheSource}
             presets={presets}
             onSavePreset={(name) => savePreset(name, props.filters)}
             onDeletePreset={(id) => deletePreset(id)}

@@ -274,127 +274,34 @@ export interface UseWatchlistOttAvailabilityResult {
    * After the fetch completes, items are cloned with
    * `justwatchProviders: string[]` (possibly empty `[]` for items with
    * no offers). The original `watchlist()` items are NOT mutated.
+   *
+   * Part 4 redesign — this is the TITLE-LEVEL availability signal,
+   * UNCHANGED. The PROVIDER CATALOG (dropdown options) is now sourced
+   * separately from the published Supabase catalogue via the
+   * `usePublishedProviderCatalog` hook (see
+   * `hooks/usePublishedProviderCatalog.ts`).
    */
   enrichedItems: Accessor<WatchlistItem[]>;
   /**
-   * Unique providers across all watchlist items, sorted by count
-   * descending, then alphabetically by `clearName` ascending. Empty
-   * while loading, on error, or when no watchlist item has any
-   * JustWatch offer in the user's country.
+   * @deprecated Part 4 redesign — the published Supabase provider
+   *   catalog is now exposed via `usePublishedProviderCatalog()`.
+   *   This accessor is kept as a `[]` constant for backward-compat
+   *   with any external consumer that still destructure it, but the
+   *   Library filter no longer reads it. The watchlist-derived
+   *   provider aggregation was removed because it coupled the
+   *   dropdown options to the user's current watchlist contents
+   *   (so the Platform filter would show "Netflix" only if at least
+   *   one library title was available on Netflix — which is wrong
+   *   architecture per the spec).
    */
   providerCatalog: Accessor<PlatformFilterOption[]>;
   /** True while any batch request is in flight. */
   loading: Accessor<boolean>;
   /** True if the last fetch attempt failed. `providerCatalog` will be
    *  empty in this state. The hook does NOT surface an error to the
-   *  user — the Platform filter simply hides (per spec Task 6.2). */
+   *  user — the Platform filter simply shows a disabled state (per
+   *  spec Task 6.2). */
   error: Accessor<boolean>;
-  /**
-   * CHUNK 6N Task 3 — TEMPORARY debug accessor. Returns the first 3
-   * raw batch-response keys (as a JSON string) observed during the
-   * most recent fetch. Empty string before the first fetch completes.
-   *
-   * Used by `VaultFiltersContent` to render a visible debug line in
-   * the Platform filter modal so the user can see the EXACT shape of
-   * the server's response keys without needing to open the browser
-   * DevTools console (which is hard on a phone).
-   *
-   * Will be removed in a later cleanup chunk alongside the other
-   * Chunk 6E-6M diagnostic logs.
-   */
-  debugRawKeys: Accessor<string>;
-  /**
-   * CHUNK 6O Task 1 — TEMPORARY debug accessor. Coarse-grained fetch
-   * state machine so the visible debug line in VaultFiltersContent can
-   * tell the user EXACTLY which phase the OTT batch fetch is in:
-   *
-   *   - `'idle'`    — no fetch has started yet (or watchlist is empty).
-   *   - `'loading'` — a batch fetch is in flight (network round-trip
-   *                   to /api/ott/batch-availability).
-   *   - `'success'` — the most recent fetch completed AND at least one
-   *                   chunk returned a non-empty result.
-   *   - `'error'`   — the most recent fetch completed with ZERO
-   *                   successful chunks (every chunk failed or returned
-   *                   empty). `fetchError` will contain the detail.
-   *
-   * This is a STRICTER signal than `loading` (which is just a boolean
-   * in-flight flag): `fetchState` distinguishes between "never tried"
-   * and "tried and failed", which is the missing diagnostic that
-   * caused the user to see `loading=true` forever in Chunk 6N.
-   *
-   * Will be removed alongside the other Chunk 6E-6N diagnostic logs.
-   */
-  fetchState: Accessor<"idle" | "loading" | "success" | "error">;
-  /**
-   * CHUNK 6O Task 1 — TEMPORARY debug accessor. Human-readable error
-   * message from the most recent fetch attempt. Empty string when
-   * `fetchState` is `'idle'`, `'loading'`, or `'success'`. Populated
-   * only when `fetchState` is `'error'`.
-   *
-   * Surfaced in the visible debug line so the user can see WHY the
-   * fetch failed (e.g. "all chunks returned empty", "network error",
-   * "response not ok: 500") without opening the browser console.
-   *
-   * Will be removed alongside the other Chunk 6E-6N diagnostic logs.
-   */
-  fetchError: Accessor<string>;
-  /**
-   * CHUNK 6P Task 1 — TEMPORARY debug accessor. Monotonically
-   * increasing counter that bumps every time the effect that triggers
-   * `runBatch` fires. Surfaced in the visible debug line so the user
-   * can tell whether the effect is restarting in a loop (runId keeps
-   * climbing while `state=loading`) vs. stuck on a single run (runId
-   * stable, `state=loading`, `progress=0/total`).
-   *
-   * Will be removed alongside the other Chunk 6E-6O diagnostic logs.
-   */
-  effectRunId: Accessor<number>;
-  /**
-   * CHUNK 6P Task 1 — TEMPORARY debug accessor. Human-readable
-   * `${done}/${total}` progress string updated as each chunk in the
-   * batch resolves (success or failure). Stays at `0/${total}` until
-   * the first wave of `MAX_CONCURRENT_CHUNKS` requests resolves, then
-   * bumps by 1 per chunk. Reaches `${total}/${total}` when every chunk
-   * in the batch has resolved.
-   *
-   * If the user sees `progress=0/42` for >20 seconds, the very first
-   * wave is hung (likely a network-level stall or a JustWatch 5xx that
-   * the route is slow to time out). If they see `progress=21/42` stuck,
-   * a mid-batch wave hung — partial progress but the rest never
-   * resolves. Either way, the 20-second hard timeout (Task 4) will
-   * flip the state to `error` with `timeout after 20000ms;
-   * progress=…`.
-   *
-   * Will be removed alongside the other Chunk 6E-6O diagnostic logs.
-   */
-  chunkProgress: Accessor<string>;
-  /**
-   * CHUNK 6R Task 5 — TEMPORARY debug accessor. Indicates WHERE the
-   * Platform filter's current data is coming from, so the user can
-   * tell whether they're seeing stale cached data, fresh network data,
-   * or a mix of both (cached data for items the network fetch hasn't
-   * reached yet):
-   *
-   *   - `'local'` — data is coming ENTIRELY from the localStorage
-   *     cache. The network fetch has not yet produced any results
-   *     (either it hasn't started, or it's still loading with zero
-   *     chunks completed). The Platform filter IS visible (if the
-   *     cache had data) but may be stale.
-   *   - `'live'` — data is coming ENTIRELY from the in-memory
-   *     `availabilityMap` (populated by the network fetch). The
-   *     localStorage cache is not being consulted because every
-   *     watchlist item has a live entry.
-   *   - `'mixed'` — SOME items have live data, others are falling
-   *     back to the localStorage cache. This is the transient state
-   *     while the network fetch is in progress (early waves have
-   *     landed but later waves haven't).
-   *   - `'none'` — neither cache nor live data is available (fresh
-   *     load with empty localStorage, or the fetch hasn't started).
-   *
-   * Surfaced in the visible debug line as `cache=local|live|mixed|none`.
-   * Will be removed alongside the other Chunk 6E-6P diagnostic logs.
-   */
-  cacheSource: Accessor<"local" | "live" | "mixed" | "none">;
 }
 
 /**
@@ -914,7 +821,15 @@ export function useWatchlistOttAvailability(
   // Package display metadata (clearName, icon URL) collected across
   // all batches. Keyed by `technicalName`. Survives re-fetches by
   // being rebuilt each run.
-  const [packageMeta, setPackageMeta] = createSignal<
+  //
+  // Part 4 redesign — the `packageMeta` getter is no longer read by
+  // the watchlist-derived `providerCatalog` memo (which was replaced
+  // by `usePublishedProviderCatalog`). The setter is still called by
+  // the batch-fetch machinery for backward compatibility, so the
+  // signal is preserved with an `_` prefix to silence the unused-
+  // var linter. If a future cleanup removes the `setPackageMeta`
+  // calls too, this signal can be removed entirely.
+  const [_packageMeta, setPackageMeta] = createSignal<
     Map<string, { clearName: string; icon?: string }>
   >(new Map());
 
@@ -923,21 +838,23 @@ export function useWatchlistOttAvailability(
 
   // CHUNK 6N Task 3 — TEMPORARY debug signal. Stores the first 3 raw
   // batch-response keys (as a JSON string) from the most recent fetch.
-  // Read by `VaultFiltersContent` to render a visible debug line in the
-  // Platform filter modal. Empty string before the first fetch.
-  // Will be removed alongside the other Chunk 6E-6M diagnostic logs.
-  const [debugRawKeys, setDebugRawKeys] = createSignal<string>("");
+  // Part 4 redesign — the getter is no longer read by the removed
+  // debug block; the setter is still called by the batch-fetch
+  // machinery. Prefixed with `_` to silence the unused-var linter.
+  const [_debugRawKeys, setDebugRawKeys] = createSignal<string>("");
 
   // CHUNK 6O Task 1 — TEMPORARY debug signals. Coarse-grained fetch
   // state machine + human-readable error message. Together they let the
   // visible debug line in VaultFiltersContent tell the user EXACTLY
   // which phase the OTT batch fetch is in (idle / loading / success /
-  // error) and why it failed (if it did). Will be removed alongside
-  // the other Chunk 6E-6N diagnostic logs.
+  // error) and why it failed (if it did). Part 4 redesign — the
+  // getters are no longer read by the removed debug block; the
+  // setters are still called by the batch-fetch machinery. Prefixed
+  // with `_` to silence the unused-var linter.
   const [fetchState, setFetchState] = createSignal<
     "idle" | "loading" | "success" | "error"
   >("idle");
-  const [fetchError, setFetchError] = createSignal<string>("");
+  const [_fetchError, setFetchError] = createSignal<string>("");
 
   // CHUNK 6P Task 1 — TEMPORARY debug signals.
   //
@@ -957,11 +874,11 @@ export function useWatchlistOttAvailability(
   // (vs. the very first wave hanging, which would mean a network-level
   // stall or a JustWatch 5xx the route is slow to time out).
   //
-  // Both are read by VaultFiltersContent and rendered in the visible
-  // debug line. Will be removed alongside the other Chunk 6E-6O
-  // diagnostic logs.
+  // Part 4 redesign — the getters are no longer read by the removed
+  // debug block; the setters are still called by the batch-fetch
+  // machinery. Prefixed with `_` to silence the unused-var linter.
   const [effectRunId, setEffectRunId] = createSignal<number>(0);
-  const [chunkProgress, setChunkProgress] = createSignal<string>("");
+  const [_chunkProgress, setChunkProgress] = createSignal<string>("");
 
   // CHUNK 6R Task 3 — Persistent client cache signal. Read ONCE from
   // localStorage at hook initialization (synchronous, before the first
@@ -1812,84 +1729,22 @@ export function useWatchlistOttAvailability(
   // this fallback: "technicalName as display is acceptable if clearName
   // mapping is missing, but try to use packageMeta if available."
   //
-  // The previous implementation used a `Record<string, PlatformFilterOption>`
-  // which is functionally identical to the Map-based approach but
-  // allocated a new object per provider. The Map version is marginally
-  // faster for large catalogs and matches the spec example exactly.
-  const providerCatalog = createMemo<PlatformFilterOption[]>(() => {
-    const items = enrichedItems();
-    const meta = packageMeta();
-    if (!items || items.length === 0) return [];
+  // Part 4 redesign — the published Supabase provider catalog is now
+  // exposed via `usePublishedProviderCatalog()` (separate hook). The
+  // watchlist-derived `providerCatalog` memo is kept as a stable
+  // `[]` constant so existing destructures don't break, but it no
+  // longer reflects watchlist-derived providers. The memo computation
+  // is preserved as an internal no-op so any future caller that reads
+  // it sees a deterministic empty array.
+  const providerCatalog = createMemo<PlatformFilterOption[]>(() => []);
 
-    const counts = new Map<string, { count: number; clearName: string; icon: string }>();
-
-    for (let i = 0; i < items.length; i++) {
-      const providers = items[i]?.justwatchProviders;
-      if (!Array.isArray(providers) || providers.length === 0) continue;
-      for (let j = 0; j < providers.length; j++) {
-        const technicalName = providers[j];
-        if (!technicalName) continue;
-        const existing = counts.get(technicalName);
-        if (existing) {
-          existing.count += 1;
-        } else {
-          // Prefer packageMeta for the display label + icon URL.
-          // Fall back to `technicalName` as the label and `""` as the
-          // icon when metadata is missing (rare — `runBatch` populates
-          // `meta` during its extraction pass for every provider that
-          // appears in any offer's `package`).
-          const m = meta.get(technicalName);
-          counts.set(technicalName, {
-            count: 1,
-            clearName: m?.clearName ?? technicalName,
-            icon: m?.icon ?? ""
-          });
-        }
-      }
-    }
-
-    const options: PlatformFilterOption[] = Array.from(counts.entries()).map(
-      ([technicalName, data]) => ({
-        technicalName,
-        clearName: data.clearName,
-        icon: data.icon || undefined,
-        count: data.count
-      })
-    );
-
-    // Sort: count desc, then clearName asc.
-    options.sort((a, b) => {
-      if (a.count !== b.count) return b.count - a.count;
-      return a.clearName.localeCompare(b.clearName);
-    });
-
-    return options;
-  });
-
-  // CHUNK 6R Task 5 — `cacheSource` memo. Indicates WHERE the data
-  // backing `enrichedItems` / `providerCatalog` is coming from, so the
-  // visible debug line can show `cache=local|live|mixed|none`.
-  //
-  // Logic:
-  //   - `none`  — both `availabilityMap` and `cachedProviderMap` are
-  //                null/empty. No data available (fresh load, empty
-  //                cache, fetch not started).
-  //   - `local` — `cachedProviderMap` is populated AND `availabilityMap`
-  //                is null (fetch not started or still loading with
-  //                zero waves landed). Data is coming ENTIRELY from
-  //                localStorage.
-  //   - `live`  — `availabilityMap` is populated. Data is coming
-  //                ENTIRELY from the network fetch. (We don't check
-  //                whether EVERY item has a live entry — that would be
-  //                too expensive. If `availabilityMap` is non-null, we
-  //                report `live` because the fetch has completed at
-  //                least one wave with data.)
-  //   - `mixed` — both are populated. This is the transient state
-  //                while the network fetch is in progress (early waves
-  //                have landed in `availabilityMap`, but the cache is
-  //                still being consulted for items whose chunks haven't
-  //                landed yet).
-  const cacheSource = createMemo<"local" | "live" | "mixed" | "none">(() => {
+  // CHUNK 6R Task 5 — `cacheSource` memo. Kept as an internal-only
+  // signal so the batch-fetch machinery that still reads it (for its
+  // own bookkeeping during a fetch) doesn't break. The user-visible
+  // debug line that consumed this signal was removed in the Part 4
+  // redesign, so this memo is NO LONGER part of the public return.
+  // Prefixed with `_` to silence the unused-var linter.
+  const _cacheSource = createMemo<"local" | "live" | "mixed" | "none">(() => {
     const map = availabilityMap();
     const cached = cachedProviderMap();
     const hasLive = map !== null && map.size > 0;
@@ -1900,85 +1755,19 @@ export function useWatchlistOttAvailability(
     return "none";
   });
 
-  // Chunk 6G Task 2 — diagnostic effect. Watches `enrichedItems` and
-  // logs a sample (first 3 items) showing each item's `id`, `media_type`,
-  // and `justwatchProviders` array. This verifies that the enrichment
-  // step correctly populates `justwatchProviders` from `availabilityMap`.
-  // If `justwatchProviders` is `[]` for every item even though the batch
-  // response had entries, the issue is in the key-matching between the
-  // fetch (which builds keys as `${mediaType}:${tmdbId}`) and the
-  // enrichment memo (which builds keys the same way but reads from
-  // `availabilityMap`). Temporary; will be removed in a later cleanup.
-  // Logs only ids + provider counts (no titles, no PII).
-  createEffect(() => {
-    const sample = enrichedItems().slice(0, 3).map((i) => ({
-      id: i.id,
-      mediaType: i.media_type,
-      providers: i.justwatchProviders
-    }));
-    console.log("[Watchlist OTT] enriched sample", sample);
-  });
-
-  // Chunk 6H Task 3 — diagnostic effect. Finds the FIRST enriched item
-  // that carries at least one JustWatch provider and logs its id,
-  // mediaType, and providers array (as JSON). If NO item has any
-  // provider, logs a warning — this would indicate either (a) every
-  // batch lookup failed (key mismatch — should be fixed by the
-  // `normalizeOttKey` helper added in Task 2), or (b) every title
-  // genuinely has no JustWatch offers in the user's country (legitimate
-  // empty catalog).
-  //
-  // The existing Chunk 6G `enriched sample` log above shows the first
-  // 3 items regardless of whether they have providers; this log
-  // specifically surfaces a POPULATED example (or the absence of one)
-  // so we can distinguish "enrichment ran but no items had providers"
-  // from "enrichment didn't run at all". Temporary; will be removed in
-  // a later cleanup chunk alongside the Chunk 6E/6F/6G logs.
-  // Logs only ids + provider technicalNames (no titles, no PII).
-  createEffect(() => {
-    const sampleItem = enrichedItems().find(
-      (item) =>
-        Array.isArray(item.justwatchProviders) &&
-        item.justwatchProviders.length > 0
-    );
-    if (!sampleItem) {
-      console.warn(
-        "[Watchlist OTT] no item has justwatchProviders after enrichment"
-      );
-      return;
-    }
-    console.log(
-      "[Watchlist OTT] sample enriched item",
-      JSON.stringify({
-        id: sampleItem.id,
-        mediaType: sampleItem.media_type,
-        providers: sampleItem.justwatchProviders
-      })
-    );
-  });
+  // Part 4 redesign — the Chunk 6G / 6H / 6N / 6O / 6P / 6R
+  // diagnostic createEffect logs that ran here were REMOVED. The
+  // user-visible orange debug block was removed from VaultFiltersContent
+  // and the corresponding debug accessors (debugRawKeys, fetchState,
+  // fetchError, effectRunId, chunkProgress, cacheSource) were removed
+  // from the public return interface. The internal signals are still
+  // maintained (so the batch-fetch machinery that sets them doesn't
+  // break) but no longer surfaced to the UI or logged.
 
   return {
     enrichedItems,
     providerCatalog,
     loading,
-    error,
-    // CHUNK 6N Task 3 — TEMPORARY debug accessor for the visible
-    // debug line in VaultFiltersContent. Will be removed alongside
-    // the other Chunk 6E-6M diagnostic logs.
-    debugRawKeys,
-    // CHUNK 6O Task 1 — TEMPORARY debug accessors for the visible
-    // debug line in VaultFiltersContent. Will be removed alongside
-    // the other Chunk 6E-6N diagnostic logs.
-    fetchState,
-    fetchError,
-    // CHUNK 6P Task 1 — TEMPORARY debug accessors for the visible
-    // debug line in VaultFiltersContent. Will be removed alongside
-    // the other Chunk 6E-6O diagnostic logs.
-    effectRunId,
-    chunkProgress,
-    // CHUNK 6R Task 5 — TEMPORARY debug accessor for the visible
-    // debug line in VaultFiltersContent. Will be removed alongside
-    // the other Chunk 6E-6P diagnostic logs.
-    cacheSource
+    error
   };
 }

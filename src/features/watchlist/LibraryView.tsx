@@ -105,25 +105,12 @@ export default function LibraryView() {
     clearFilter,
     clearFilters,
     uniqueGenres,
+    uniqueLanguages,
     uniquePlatforms,
     uniqueTags,
     uniqueTagsPlus,
     refreshTagVocab,
-    // CHUNK 6N Task 3 — TEMPORARY debug accessors for the visible
-    // debug line in the Platform filter modal.
-    ottLoading,
-    debugRawKeys,
-    // CHUNK 6O Task 1 — TEMPORARY debug accessors for the visible
-    // debug line in the Platform filter modal.
-    fetchState,
-    fetchError,
-    // CHUNK 6P Task 1 — TEMPORARY debug accessors for the visible
-    // debug line in the Platform filter modal.
-    effectRunId,
-    chunkProgress,
-    // CHUNK 6R Task 5 — TEMPORARY debug accessor for the visible
-    // debug line in the Platform filter modal.
-    cacheSource
+    ottLoading
   } = filtering;
 
   // Persist ephemeral presentation state only. The UserLibrary provider and
@@ -273,18 +260,12 @@ export default function LibraryView() {
                   setDisplayLimit(20);
                 }}
                 uniqueGenres={uniqueGenres()}
+                uniqueLanguages={uniqueLanguages()}
                 uniquePlatforms={uniquePlatforms()}
                 uniqueTags={uniqueTags()}
                 uniqueTagsPlus={uniqueTagsPlus()}
                 refreshTagVocab={refreshTagVocab}
                 ottLoading={ottLoading()}
-                debugRawKeys={debugRawKeys()}
-                watchlistSize={watchlist().length}
-                fetchState={fetchState()}
-                fetchError={fetchError()}
-                effectRunId={effectRunId()}
-                chunkProgress={chunkProgress()}
-                cacheSource={cacheSource()}
                 presets={presets}
                 onSavePreset={(name) => savePreset(name, filters())}
                 onDeletePreset={(id) => deletePreset(id)}
@@ -384,18 +365,12 @@ export default function LibraryView() {
           setDisplayLimit(20);
         }}
         uniqueGenres={uniqueGenres}
+        uniqueLanguages={uniqueLanguages}
         uniquePlatforms={uniquePlatforms}
         uniqueTags={uniqueTags}
         uniqueTagsPlus={uniqueTagsPlus}
         refreshTagVocab={refreshTagVocab}
         ottLoading={ottLoading}
-        debugRawKeys={debugRawKeys}
-        watchlistSize={() => watchlist().length}
-        fetchState={fetchState}
-        fetchError={fetchError}
-        effectRunId={effectRunId}
-        chunkProgress={chunkProgress}
-        cacheSource={cacheSource}
         onClose={() => setShowFilter(false)}
         onClear={() => {
           clearFilters();

@@ -139,6 +139,25 @@ export interface WatchlistItem {
   /** TMDB spoken_languages. Used by the Region filter as a fallback signal
    *  for Indian titles (Hindi/Tamil/Telugu/etc. language codes). */
   spoken_languages?: TMDBSpokenLanguage[];
+  /**
+   * TMDB `original_language` (ISO 639-1 code, lowercase — e.g. `"hi"`,
+   * `"ta"`, `"te"`, `"es"`, `"ja"`, `"ko"`, `"en"`).
+   *
+   * Populated by `userLibraryAdapter.vaultRowToWatchlistItem` from
+   * `tmdb.original_language` (the field is present on every TMDB
+   * `/movie/{id}` and `/tv/{id}` response). Older vault items cached
+   * before this field was added will have `originalLanguage: undefined`
+   * — the Language filter (`matchesLanguage` in `vaultFilterUtils.ts`)
+   * treats `undefined` as "no match" for any specific language selection,
+   * so legacy items are EXCLUDED only when a specific language is
+   * picked (they still appear under "All Languages").
+   *
+   * This is the PREFERRED source for the Library Language filter
+   * (Part 3 redesign) because it identifies the title's ORIGINAL
+   * language, not the multiple languages that may be spoken in the
+   * title (which is what `spoken_languages` captures).
+   */
+  originalLanguage?: string;
   castList?: string[];
   director?: string; // e.g. "Christopher Nolan" (searchable)
   /**
@@ -210,7 +229,23 @@ export interface User {
 export interface VaultFilters {
   type: string;
   status: string;
-  region: string;
+  /**
+   * Original-language filter (Part 3 redesign).
+   *
+   * Value is either `"all"` (no language filter) or an ISO 639-1
+   * language code (lowercase, e.g. `"hi"`, `"ta"`, `"te"`, `"es"`,
+   * `"ja"`, `"ko"`, `"en"`). The match is performed by
+   * `matchesLanguage` in `vaultFilterUtils.ts` against
+   * `WatchlistItem.originalLanguage` (also an ISO 639-1 code).
+   *
+   * Backward compatibility: this field REPLACES the old `region` field
+   * (`"all" | "Indian" | "International"`). Old persisted state and
+   * saved presets that still carry `region: "Indian" | "International"`
+   * are normalized by `normalizeVaultFilters` — the `region` value is
+   * dropped (never promoted to a language) and `language` defaults to
+   * `"all"`. See `vaultFilterUtils.ts` for the migration shim.
+   */
+  language: string;
   genre: string;
   platform: string;
   /**
@@ -727,6 +762,18 @@ export interface TMDBTitle {
    * (hi, ta, te, etc.) when origin_country is missing.
    */
   spoken_languages?: TMDBSpokenLanguage[];
+  /**
+   * TMDB `original_language` (ISO 639-1 code, lowercase — e.g. "hi",
+   * "ta", "te", "es", "ja", "ko", "en"). Returned by both /movie/{id}
+   * and /tv/{id}. The vault adapter (userLibraryAdapter) hydrates
+   * this onto WatchlistItem.originalLanguage so the Library Language
+   * filter (Part 3) can match against the title's ORIGINAL language
+   * (preferred over `spoken_languages` which lists every language
+   * spoken in the title, not the original). Older cached TMDBTitle
+   * payloads that predate this field being captured will have
+   * `original_language: undefined`.
+   */
+  original_language?: string;
   /**
    * Top cast member names (e.g. ["Tom Holland", "Zendaya", ...]).
    * Populated by fetchTmdbMetadata when it requests

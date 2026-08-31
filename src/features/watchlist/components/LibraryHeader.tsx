@@ -117,21 +117,34 @@ const LibraryHeader: Component<LibraryHeaderProps> = (props) => {
           class="library-search-input"
           aria-label="Search your library"
         />
-        <Show when={showClear()}>
+      </div>
+      {/* Part 2 fix — Clear/Reset control moved OUTSIDE the search input.
+          Previously the X button was rendered inside .library-search-row,
+          so users couldn't tell it also cleared active advanced
+          filters. It's now a separate, distinctly-danger-colored
+          control that lives in its own row beneath the search input
+          and only appears when there's actually something to clear
+          (search text, advanced filters, or non-default active
+          status). The click behavior is UNCHANGED — it still calls
+          props.onClearAll() which routes to clearFilters(), so the
+          exact same clear-all semantics are preserved. */}
+      <Show when={showClear()}>
+        <div class="library-search-reset-row">
           <button
             type="button"
-            class="library-search-clear focus-ring"
+            class="library-search-reset focus-ring"
             onClick={() => props.onClearAll()}
-            aria-label="Clear library search and filters"
+            aria-label="Clear search and reset all library filters"
           >
             <Icon
-              name="close"
-              style={{ "font-size": "18px" }}
+              name="restart_alt"
+              style={{ "font-size": "16px" }}
               aria-hidden="true"
             />
+            <span>Clear / Reset</span>
           </button>
-        </Show>
-      </div>
+        </div>
+      </Show>
 
       <div class="library-status-row">
         <QuickFilterTabs

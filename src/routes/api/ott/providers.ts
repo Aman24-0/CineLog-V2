@@ -1,8 +1,11 @@
 // src/routes/api/ott/providers.ts
 //
-// CineLog V2 — JustWatch OTT API: Provider Catalog
+// CineLog V2 — JustWatch OTT API: Published Provider Catalogue
 // ---------------------------------------------------------------------
-// Returns the JustWatch provider catalog for the caller's country.
+// Returns the PUBLISHED JustWatch provider catalogue for the caller's
+// country — i.e. the rows in `justwatch_provider_catalog` with
+// `active = true`. This is the user-side read path for the Library
+// Platform filter dropdown options.
 //
 // Endpoint:
 //   GET /api/ott/providers
@@ -22,19 +25,21 @@
 //     ]
 //   }
 //
-// Behavior:
-//   1. Resolve the caller's profile country via `resolveJustWatchCountry`.
-//      Anonymous requests fall back to "US".
-//   2. Call `getProviderCatalog(country)` — cache-first, falls back to a
-//      live JustWatch `packages(country, platform: WEB)` fetch on cache
-//      miss, never throws.
-//   3. Return `{ country, providers }`. Empty catalog is returned as
-//      `providers: []` (still 200) — the UI renders an empty state.
+// Behavior (Part 4 redesign):
+//   1. Resolve the caller's profile country via `resolveJustWatchCountry`
+//      (or accept a `region` / `country` query-param override). Anonymous
+//      requests fall back to "US".
+//   2. Call `getPublishedProviderCatalog(country)` — Supabase ONLY.
+//      NO JustWatch fallback. If no rows are published for the
+//      country, `providers` is `[]` (still 200) and the UI shows
+//      "No platforms available for your country".
+//   3. Return `{ country, providers }`.
 //
 // Caching:
 //   - Success: `public, max-age=300, s-maxage=600` (5 min browser,
-//     10 min CDN). The underlying Supabase cache has a 48h TTL, so the
-//     CDN cache is just an edge cache for repeated reads.
+//     10 min CDN). The underlying published catalogue does NOT
+//     expire (admin-controlled refresh), so the CDN cache is just an
+//     edge cache for repeated reads.
 //   - Errors: same headers (the response is still 200 with empty
 //     providers — caching that for 5 min is fine).
 //
@@ -42,7 +47,7 @@
 // for missing/invalid session — the route always fails open with HTTP 200
 // (mirrors `/api/audio-languages/[tmdbId]`).
 
-import { getProviderCatalog } from "~/server/justwatch/service";
+import { getPublishedProviderCatalog } from "~/server/justwatch/cache";
 import { resolveJustWatchCountry } from "~/server/justwatch/region";
 import type { JustWatchPackage } from "~/shared/types/justwatch";
 
@@ -105,24 +110,14 @@ function buildCorsHeaders(request: Request): Record<string, string> {
   };
 }
 
-// ─── Country override (Chunk 6D) ─────────────────────────────────────
+// ─── Country override ──────────────────────────────────────────────
 // The client knows the user's profile country reactively via
-// `useDiscoverRegion()` (a global signal kept in sync with the
-// `profiles.country` column). On the Vercel preview, server-side
+// `useDiscoverRegion()`. On the Vercel preview, server-side
 // `resolveJustWatchCountry()` may fall back to "US" because the Supabase
-// session cookie isn't always present on the serverless request (e.g.
-// when the route is hit via a fetch without credentials, or when the
-// session token has expired). Accepting a `region` / `country` query
-// param lets the client hand its already-known country to the route,
-// which is the same pattern the audio-languages admin route uses for its
-// `region` override. The override is validated as a 2-letter ISO code;
-// any invalid value is dropped and we fall back to the server resolver.
+// session cookie isn't always present on the serverless request. Accepting
+// a `region` / `country` query param lets the client hand its already-known
+// country to the route.
 
-/**
- * Validate and normalize a country code from a query param.
- * Accepts any 2-letter string, uppercases it. Returns null for invalid
- * input so the caller can fall back to `resolveJustWatchCountry`.
- */
 function normalizeCountry(value: string | null): string | null {
   if (!value) return null;
   const upper = value.trim().toUpperCase();
@@ -134,9 +129,6 @@ function normalizeCountry(value: string | null): string | null {
 export async function GET(event: APIEvent): Promise<Response> {
   const corsHeaders = buildCorsHeaders(event.request);
   try {
-    // Parse the optional region/country query override. `region` is the
-    // preferred name (matches the audio-languages admin route); `country`
-    // is accepted as an alias for caller convenience.
     const url = new URL(event.request.url);
     const queryCountry = normalizeCountry(
       url.searchParams.get("region") ?? url.searchParams.get("country")
@@ -144,14 +136,11 @@ export async function GET(event: APIEvent): Promise<Response> {
 
     let country = "US";
     if (queryCountry) {
-      // Client-supplied override wins — skip the Supabase round-trip.
       country = queryCountry;
     } else {
       try {
         country = await resolveJustWatchCountry(event.request);
       } catch (err) {
-        // resolveJustWatchCountry already catches internally — this is a
-        // defensive backstop in case a future refactor introduces a throw.
         console.warn(
           "[/api/ott/providers] resolveJustWatchCountry threw:",
           err instanceof Error ? err.message : String(err)
@@ -159,23 +148,18 @@ export async function GET(event: APIEvent): Promise<Response> {
       }
     }
 
-    let providers: JustWatchPackage[];
+    // Part 4 redesign — Supabase ONLY. No JustWatch fallback.
+    let providers: JustWatchPackage[] = [];
     try {
-      providers = await getProviderCatalog(country);
+      const published = await getPublishedProviderCatalog(country);
+      providers = published ?? [];
     } catch (err) {
       console.warn(
-        "[/api/ott/providers] getProviderCatalog threw:",
+        "[/api/ott/providers] getPublishedProviderCatalog threw:",
         err instanceof Error ? err.message : String(err)
       );
       providers = [];
     }
-
-    // Chunk 6E: temporary diagnostic log — helps diagnose intermittent
-    // provider catalog emptiness in Vercel preview. Will be removed in
-    // a later cleanup chunk.
-    console.log(
-      `[OTT providers] country=${country} count=${providers.length} source=${queryCountry ? "query-override" : "session-resolver"}`
-    );
 
     return new Response(JSON.stringify({ country, providers }), {
       status: 200,

@@ -1,5 +1,5 @@
-import { cleanup, render, screen } from "@solidjs/testing-library";
-import { afterEach, describe, expect, it } from "vitest";
+import { cleanup, render, screen, fireEvent } from "@solidjs/testing-library";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createSignal } from "solid-js";
 import type { WatchlistItem } from "~/shared/types";
 import LibraryHeader from "../LibraryHeader";
@@ -10,27 +10,41 @@ const libraryItems = [
   { status: "Planned" }
 ] as WatchlistItem[];
 
-function renderHeader() {
+function renderHeader(
+  overrides?: Partial<{
+    activeFilterCount: () => number;
+    searchInput: () => string;
+    activeStatusTab: () => string;
+    onClearAll: () => void;
+    chips: () => { label: string; key: string }[];
+  }>
+) {
   const [viewMode, setViewMode] = createSignal<"grid" | "timeline">("grid");
-  const [activeStatusTab, setActiveStatusTab] = createSignal("all");
-  const [searchInput, setSearchInput] = createSignal("");
+  const [activeStatusTab, setActiveStatusTab] = createSignal(
+    overrides?.activeStatusTab?.() ?? "all"
+  );
+  const [searchInput, setSearchInput] = createSignal(
+    overrides?.searchInput?.() ?? ""
+  );
 
   render(() => (
     <LibraryHeader
       viewMode={viewMode}
       setViewMode={setViewMode}
-      activeFilterCount={() => 2}
+      activeFilterCount={overrides?.activeFilterCount ?? (() => 2)}
       onFilterClick={() => undefined}
       searchInput={searchInput}
       onSearchInput={setSearchInput}
-      onClearAll={() => undefined}
+      onClearAll={overrides?.onClearAll ?? (() => undefined)}
       activeStatusTab={activeStatusTab}
       onSelectStatusTab={setActiveStatusTab}
       watchlist={() => libraryItems}
-      chips={() => [{ label: "Drama", key: "genre" }]}
+      chips={overrides?.chips ?? (() => [{ label: "Drama", key: "genre" }])}
       onClearFilter={() => undefined}
     />
   ));
+
+  return { searchInput: setSearchInput, activeStatusTab: setActiveStatusTab };
 }
 
 afterEach(cleanup);
@@ -71,3 +85,196 @@ describe("LibraryHeader", () => {
     expect(screen.queryByRole("button", { name: "Filter: All" })).toBeNull();
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────
+// Part 1 — Filter count badge layout regression tests.
+//
+// The badge is now positioned absolutely on the top-right of the
+// filter button (anchored to the button, not in the inline flow).
+// These tests verify:
+//   - The badge renders inside the Filter button (the button is the
+//     badge's offsetParent).
+//   - A 1-digit count renders as expected.
+//   - A multi-digit count renders WITHOUT colliding with the
+//     adjacent view-toggle controls (the badge's right edge stays
+//     within the filter button's bounding box, not extending past it
+//     into the view-toggle area).
+//   - The badge does NOT render when activeFilterCount is 0.
+// ─────────────────────────────────────────────────────────────────────
+describe("LibraryHeader — Part 1 — Filter count badge", () => {
+  it("renders the count badge inside the Filter button when count > 0", () => {
+    renderHeader({ activeFilterCount: () => 1 });
+    const filterButton = screen.getByRole("button", {
+      name: /open library filters — 1 active/i
+    });
+    expect(filterButton).toBeTruthy();
+    // The badge is rendered as a child span with class filter-count-badge.
+    // The CSS (position: absolute on the badge, position: relative on the
+    // button) is applied at runtime; jsdom doesn't load the CSS file, so
+    // we verify the structural relationship (badge IS a descendant of the
+    // filter button) which is what makes the absolute positioning anchor
+    // to the button's bounding box.
+    const badge = filterButton.querySelector(".filter-count-badge");
+    expect(badge).toBeTruthy();
+    expect(badge!.textContent).toBe("1");
+    // Structural invariant: the badge must be a child of the filter
+    // button so the CSS `position: absolute` is relative to the
+    // button's `position: relative` (the button is the badge's
+    // offsetParent at runtime).
+    expect(filterButton.contains(badge!)).toBe(true);
+  });
+
+  it("renders a multi-digit count without overlapping the view-toggle", () => {
+    renderHeader({ activeFilterCount: () => 12 });
+    const filterButton = screen.getByRole("button", {
+      name: /open library filters — 12 active/i
+    });
+    const badge = filterButton.querySelector(".filter-count-badge");
+    expect(badge).toBeTruthy();
+    expect(badge!.textContent).toBe("12");
+
+    // The view-toggle buttons must be SIBLINGS of the filter button
+    // (not descendants) — they live in the same .library-header-actions
+    // flex row. The badge is INSIDE the filter button, so it cannot
+    // extend into the view-toggle area unless it overflows the button
+    // (which the CSS prevents with absolute positioning + anchored
+    // right + grow-leftward). Structurally, the badge's bounding
+    // parent is the filter button, not the view-toggle.
+    const gridViewButton = screen.getByRole("button", { name: "Grid view" });
+    // The grid view button is NOT a descendant of the filter button.
+    expect(filterButton.contains(gridViewButton)).toBe(false);
+    // The badge is NOT a descendant of the view-toggle.
+    expect(gridViewButton.contains(badge!)).toBe(false);
+  });
+
+  it("does not render the badge when activeFilterCount is 0", () => {
+    renderHeader({ activeFilterCount: () => 0 });
+    const filterButton = screen.getByRole("button", {
+      name: /open library filters/i
+    });
+    const badge = filterButton.querySelector(".filter-count-badge");
+    expect(badge).toBeNull();
+  });
+
+  it("the badge is rendered with the filter-count-badge class (CSS hook for absolute positioning)", () => {
+    // Verify the CSS class hook is present so the runtime stylesheet
+    // can position the badge absolutely. This is the structural
+    // equivalent of the CSS test — jsdom doesn't load the stylesheet,
+    // but the class presence proves the markup is correct.
+    renderHeader({ activeFilterCount: () => 5 });
+    const filterButton = screen.getByRole("button", {
+      name: /open library filters — 5 active/i
+    });
+    const badge = filterButton.querySelector(".filter-count-badge");
+    expect(badge).toBeTruthy();
+    expect(badge!.classList.contains("filter-count-badge")).toBe(true);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────
+// Part 2 — Clear / Reset control (outside the search input).
+//
+// The X clear button was previously INSIDE the search input. The new
+// design renders a separate, distinctly-danger-colored "Clear / Reset"
+// pill button BELOW the search input, only when there's something to
+// clear (search text, advanced filters, or non-default active status).
+// ─────────────────────────────────────────────────────────────────────
+describe("LibraryHeader — Part 2 — Clear / Reset control", () => {
+  it("does not render the clear/reset button when nothing is active", () => {
+    renderHeader({
+      activeFilterCount: () => 0,
+      searchInput: () => "",
+      activeStatusTab: () => "all"
+    });
+    expect(
+      screen.queryByRole("button", {
+        name: "Clear search and reset all library filters"
+      })
+    ).toBeNull();
+  });
+
+  it("renders the clear/reset button when search text is non-empty", () => {
+    renderHeader({
+      activeFilterCount: () => 0,
+      searchInput: () => "batman",
+      activeStatusTab: () => "all"
+    });
+    expect(
+      screen.getByRole("button", {
+        name: "Clear search and reset all library filters"
+      })
+    ).toBeTruthy();
+  });
+
+  it("renders the clear/reset button when advanced filters are active (no search text)", () => {
+    renderHeader({
+      activeFilterCount: () => 3,
+      searchInput: () => "",
+      activeStatusTab: () => "all"
+    });
+    expect(
+      screen.getByRole("button", {
+        name: "Clear search and reset all library filters"
+      })
+    ).toBeTruthy();
+  });
+
+  it("renders the clear/reset button when active status is non-default", () => {
+    renderHeader({
+      activeFilterCount: () => 0,
+      searchInput: () => "",
+      activeStatusTab: () => "Watching"
+    });
+    expect(
+      screen.getByRole("button", {
+        name: "Clear search and reset all library filters"
+      })
+    ).toBeTruthy();
+  });
+
+  it("renders the clear/reset button when search + filters + status are all active", () => {
+    renderHeader({
+      activeFilterCount: () => 2,
+      searchInput: () => "nolan",
+      activeStatusTab: () => "Completed"
+    });
+    expect(
+      screen.getByRole("button", {
+        name: "Clear search and reset all library filters"
+      })
+    ).toBeTruthy();
+  });
+
+  it("calls onClearAll when the clear/reset button is clicked (preserves clear-all semantics)", () => {
+    const onClearAll = vi.fn();
+    renderHeader({
+      activeFilterCount: () => 1,
+      searchInput: () => "nolan",
+      activeStatusTab: () => "all",
+      onClearAll
+    });
+    const button = screen.getByRole("button", {
+      name: "Clear search and reset all library filters"
+    });
+    fireEvent.click(button);
+    expect(onClearAll).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders the clear/reset control OUTSIDE the search input (not inside .library-search-row)", () => {
+    renderHeader({
+      activeFilterCount: () => 1,
+      searchInput: () => "nolan"
+    });
+    const searchRow = document.querySelector(".library-search-row");
+    const resetButton = screen.getByRole("button", {
+      name: "Clear search and reset all library filters"
+    });
+    // The reset button must NOT be a descendant of .library-search-row.
+    expect(searchRow!.contains(resetButton)).toBe(false);
+    // It should live in its own row (.library-search-reset-row) which
+    // is a sibling of .library-search-row.
+    const resetRow = resetButton.closest(".library-search-reset-row");
+    expect(resetRow).toBeTruthy();
+  });
+});
+

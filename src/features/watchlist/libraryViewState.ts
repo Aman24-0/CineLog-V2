@@ -1,4 +1,5 @@
 import type { VaultFilters } from "~/shared/types";
+import { normalizeVaultFilters } from "./vaultFilterUtils";
 
 const STORAGE_KEY = "cinelog.library-view.v1";
 const MAX_DISPLAY_LIMIT = 2000;
@@ -19,12 +20,32 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const isViewMode = (value: unknown): value is "grid" | "timeline" =>
   value === "grid" || value === "timeline";
 
+/**
+ * Validate that a parsed object has the required VaultFilters shape.
+ *
+ * Part 3 migration: the old shape required `region: string`; the new
+ * shape requires `language: string`. We accept EITHER here so that
+ * old persisted state (which may carry `region: "Indian"`) doesn't
+ * fail validation and fall back to defaults. The actual migration
+ * (dropping `region` and defaulting `language` to "all") is performed
+ * by `normalizeVaultFilters` in vaultFilterUtils.ts, which is called
+ * by `useVaultFiltering` via `presetAdapter.normalizeVaultFilters`.
+ *
+ * This validator is intentionally loose: it accepts both the old and
+ * the new shape (with `region` OR `language`), and any string value
+ * for either. The downstream `normalizeVaultFilters` is responsible
+ * for whitelisting actual values and discarding the obsolete
+ * `region` field.
+ */
 const isFilters = (value: unknown): value is VaultFilters => {
   if (!isRecord(value)) return false;
   return (
     typeof value.type === "string" &&
     typeof value.status === "string" &&
-    typeof value.region === "string" &&
+    // Part 3: accept either `language` (new) OR `region` (legacy).
+    // The downstream normalizer will produce the canonical `language`
+    // field and drop `region`.
+    (typeof value.language === "string" || typeof value.region === "string") &&
     typeof value.genre === "string" &&
     typeof value.platform === "string" &&
     typeof value.sortField === "string" &&
@@ -47,7 +68,7 @@ function emptyState(): LibraryViewState {
     filters: {
       type: "all",
       status: "all",
-      region: "all",
+      language: "all",
       genre: "all",
       platform: "all",
       sortField: "added_date",
@@ -82,9 +103,26 @@ export function readLibraryViewState(): LibraryViewState {
     const parsed: unknown = JSON.parse(raw);
     if (!isRecord(parsed)) return fallback;
 
+    // Part 3 — if `parsed.filters` carries the legacy `region` field,
+    // we still pass it through `isFilters` (which accepts either), and
+    // the downstream `normalizeVaultFilters` (called by
+    // `useVaultFiltering.presetAdapter.normalizeVaultFilters`) is
+    // responsible for dropping `region` and defaulting `language` to
+    // "all". Here we just ensure the shape is structurally valid; we
+    // do NOT mutate `parsed.filters` (the consumer will normalize).
+
     return {
       searchInput: typeof parsed.searchInput === "string" ? parsed.searchInput : fallback.searchInput,
-      filters: isFilters(parsed.filters) ? parsed.filters : fallback.filters,
+      // Part 3 — `normalizeVaultFilters` accepts either `region`
+      // (legacy) or `language` (new), drops `region` if present,
+      // and defaults `language` to "all". This means old persisted
+      // state (which carries `region: "Indian"`) is safely migrated
+      // to `{ language: "all" }` on first read — no crash, no fake
+      // language filter. The normalized shape is then written back
+      // on the next `writeLibraryViewState` call.
+      filters: isFilters(parsed.filters)
+        ? normalizeVaultFilters(parsed.filters)
+        : fallback.filters,
       activeStatusTab: typeof parsed.activeStatusTab === "string" ? parsed.activeStatusTab : fallback.activeStatusTab,
       viewMode: isViewMode(parsed.viewMode) ? parsed.viewMode : fallback.viewMode,
       displayLimit:

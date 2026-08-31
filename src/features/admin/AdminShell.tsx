@@ -199,6 +199,17 @@ const NAV_GROUPS: NavGroup[] = [
         label: "Web Push",
         icon: "notifications"
       },
+      // Part 4 — Platform Catalogue admin page. Lives in the Services
+      // group because it's the operational surface for the published
+      // JustWatch provider catalogue that powers the user-side Library
+      // Platform filter. Distinct from the existing Service Hub pages
+      // (TMDB/Supabase/etc.) because it's not a status+config page —
+      // it's a fetch/compare/publish workflow.
+      {
+        href: "/admin/platform-catalog",
+        label: "Platform Catalogue",
+        icon: "live_tv"
+      },
       { href: "/admin/maintenance", label: "Maintenance", icon: "build" }
     ]
   },

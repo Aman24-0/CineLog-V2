@@ -99,7 +99,7 @@ export function makeVaultFilters(
   return {
     type: "all",
     status: "all",
-    region: "all",
+    language: "all",
     genre: "all",
     platform: "all",
     // v2.6 — sort was split into sortField + sortDirection.

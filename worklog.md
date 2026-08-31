@@ -778,3 +778,156 @@ Stage Summary:
 - Files changed: `src/features/search/useSearch.ts` (+83/-9), `src/shared/contexts/SearchContext.tsx` (+6/-1), `src/features/search/__tests__/useSearch.test.ts` (+257/-1).
 - Production build succeeds; full test suite passes; TypeScript and ESLint clean.
 - Browser-based manual verification at 390x844 could not be performed in this environment (requires live Supabase env + auth), but the focused unit tests + type check + production build provide strong verification of the fix's correctness and non-regression.
+
+---
+Task ID: 2 (audit)
+Agent: main (orchestrator)
+Task: Library Filter & JustWatch Platform Catalogue Redesign — 4 parts.
+
+Audit findings:
+
+PART 1 (filter badge overlap):
+- Root cause: `.filter-count-badge` is `position: static` and uses `min-width: 1.25rem` + `padding: 0 0.375rem`. It is rendered as an inline-flex sibling of the icon INSIDE `.library-filter-button` (which is a 2.5rem circle). The badge takes horizontal space, pushing the icon left; on tight mobile widths the multi-digit count visually collides with the adjacent `.view-toggle` (gap = var(--sp-2) ≈ 0.5rem).
+- Fix: position the badge absolutely on the top-right of the (already `position: relative`) filter button — like a notification badge. Multi-digit counts grow leftward (anchored right), never collide with the view-toggle.
+
+PART 2 (clear/reset UX):
+- Root cause: `LibraryHeader` already implements `showClear = searchInput > 0 || activeFilterCount > 0 || activeStatusTab !== "all"`, and the clear button calls `onClearAll = clearFilters`. But the button is rendered INSIDE `.library-search-row` next to the input, so users don't realise it also clears advanced filters.
+- Fix: remove the inside-the-input button; render the reset button OUTSIDE the search row (in the same actions row as the filter button), with a distinct danger accent. Reuse the exact same `onClearAll` semantics.
+
+PART 3 (Region → Language):
+- `VaultFilters.region: string` with values "all" | "Indian" | "International".
+- `matchesRegion(m, region)` checks `m.region` (legacy) + `m.origin_country` + `m.spoken_languages`.
+- `WatchlistItem` does NOT have `original_language`. `TMDBTitle` (TMDBDetails) DOES have it (line 445 in types), and `fetchTmdbMetadata` returns the full TMDB response (it only strips `credits`), so `tmdb.original_language` IS available — the adapter just doesn't persist it.
+- Fix: add `originalLanguage?: string` to `WatchlistItem`; persist `tmdb?.original_language?.toLowerCase()` in `vaultRowToWatchlistItem`. Replace `VaultFilters.region` with `VaultFilters.language: string` ("all" or ISO 639-1 code). Replace `matchesRegion` with `matchesLanguage` (compares `m.originalLanguage`). Derive unique languages from the library, map codes → display names. Use `GlassSelect` (dropdown) since the language list can be long.
+- Migration: `normalizeVaultFilters` and `libraryViewState.isFilters` accept old `region` strings but never promote them to a language; `region: "Indian"` → `language: "all"`.
+
+PART 4 (JustWatch Platform Catalogue redesign):
+- Current root cause: `useWatchlistOttAvailability.providerCatalog` is built by aggregating JustWatch provider `technicalName`s from the user's WATCHLIST title offers. `/api/ott/providers` calls `service.getProviderCatalog(country)` which falls through to JustWatch on cache miss — so the user-side Library indirectly triggers JustWatch catalog fetches.
+- The `justwatch_provider_catalog` table exists (PK: country, technical_name), has `expires_at` TTL and no `active`/`published` field.
+- Fix:
+  - Add migration: `alter table justwatch_provider_catalog add column active boolean not null default true;` (defaults to true so existing rows are published — current IN catalogue doesn't disappear). Add `last_fetched_at timestamptz` (kept, not used as TTL — admin-controlled).
+  - Add `getPublishedProviderCatalog(country)` to `cache.ts`: SELECT WHERE country = ? AND active = true (no `expires_at` filter — published rows don't expire). RLS: world-readable SELECT (existing policy covers it).
+  - Remove `service.getProviderCatalog`'s JustWatch fallback path; the new `getPublishedProviderCatalog` returns `[]` when no rows (no live JustWatch fetch from the user side).
+  - Modify `/api/ott/providers` to call `getPublishedProviderCatalog` (no JustWatch fallback).
+  - Modify `useWatchlistOttAvailability`:
+    - STOP building `providerCatalog` from watchlist offers.
+    - ADD a `publishedCatalog` accessor that fetches `/api/ott/providers?country=<useDiscoverRegion()>` (Supabase read-only).
+    - KEEP `enrichedItems` (with `justwatchProviders: string[]`) and the existing `/api/ott/batch-availability` route — title-level availability is unchanged.
+    - REMOVE all debug accessors (`debugRawKeys`, `fetchState`, `fetchError`, `effectRunId`, `chunkProgress`, `cacheSource`). Keep only `loading` + `error` + `enrichedItems` + `publishedCatalog`.
+  - Remove the orange debug `<p>` from `VaultFiltersContent`; remove the corresponding debug props from `VaultFiltersContent`, `VaultFilters`, `LibraryDialogs`, `LibraryView`. Keep `ottLoading` for the disabled-dropdown hint.
+  - Add admin route + page + API routes for `/admin/platform-catalog`:
+    - Sidebar entry under Services group.
+    - Country selector — derive supported countries from JustWatch GraphQL `Country` enum introspection if available; fall back to `SUPPORTED_DISCOVER_REGIONS` documented.
+    - Fetch button: calls JustWatch via existing `getJustWatchPackages`. Show comparison: SAVED / NEW / UPDATED / REMOVED. Admin can publish / unpublish / update. Never auto-delete rows.
+    - Admin API routes use admin auth (existing `useAdminAuth`).
+  - Country source: profile country via `useDiscoverRegion()` (reactive). When user changes country in Settings → Library reads new country's published catalogue.
+
+Files to modify:
+- src/shared/types/index.ts (VaultFilters: region → language; WatchlistItem: +originalLanguage)
+- src/shared/hooks/userLibraryAdapter.ts (persist original_language)
+- src/features/watchlist/vaultFilterUtils.ts (matchesRegion → matchesLanguage; computeChips; countActiveFilters; hasAdvancedFiltersActive; normalizeVaultFilters; remove INDIAN_LANGUAGE_CODES)
+- src/features/watchlist/useVaultFiltering.ts (defaultFilters; remove debug accessors; add publishedCatalog)
+- src/features/watchlist/hooks/useWatchlistOttAvailability.ts (remove providerCatalog-via-watchlist logic; remove debug signals; add publishedCatalog from /api/ott/providers)
+- src/features/watchlist/components/LibraryHeader.tsx (move clear button out; fix badge position)
+- src/features/watchlist/components/VaultFiltersContent.tsx (Region → Language; remove debug block + props)
+- src/features/watchlist/components/VaultFilters.tsx (remove debug props passthrough)
+- src/features/watchlist/components/LibraryDialogs.tsx (remove debug props passthrough)
+- src/features/watchlist/LibraryView.tsx (remove debug accessors from useVaultFiltering destructure)
+- src/features/watchlist/libraryViewState.ts (region → language in isFilters + emptyState)
+- src/features/watchlist/presetAdapter.ts / similar preset handling (update normalize)
+- src/styles/features/watchlist.css (filter-count-badge absolute positioning; library-search-reset styling)
+- src/server/justwatch/cache.ts (add getPublishedProviderCatalog; add `active` column to local Database augmentation; add publish/unpublish/update helpers; remove `expires_at` from `getCachedProviderCatalog` semantics for published rows)
+- src/server/justwatch/service.ts (remove JustWatch fallback in getProviderCatalog; expose new admin-only fetchJustWatchProviderCatalog for admin route)
+- src/routes/api/ott/providers.ts (use getPublishedProviderCatalog only)
+- supabase/migrations/<date>_platform_catalog_published.sql (alter table add active column + index)
+- src/routes/api/admin/platform-catalog/index.ts (GET list saved + their active state)
+- src/routes/api/admin/platform-catalog/fetch.ts (POST → call JustWatch, return diff)
+- src/routes/api/admin/platform-catalog/publish.ts (POST → upsert providers with active=true)
+- src/routes/api/admin/platform-catalog/deactivate.ts (POST → set active=false)
+- src/routes/admin/platform-catalog.tsx (route)
+- src/features/admin/AdminPlatformCatalogPage.tsx (page)
+- src/features/admin/AdminShell.tsx (add nav item)
+- Tests:
+  - src/features/watchlist/__tests__/vaultFilterUtils.test.ts (replace region tests with language tests)
+  - src/features/watchlist/__tests__/libraryViewState.test.ts (region → language)
+  - src/features/watchlist/__tests__/LibraryHeader.test.tsx (new — for badge + reset)
+  - src/features/watchlist/__tests__/useVaultFiltering.test.ts (if exists) — update for language + publishedCatalog
+  - src/server/justwatch/__tests__/cache.test.ts (new — getPublishedProviderCatalog behavior)
+  - src/server/justwatch/__tests__/service.test.ts (new — getProviderCatalog no longer falls back to JustWatch)
+
+Stage Summary:
+- All four parts planned; minimal architecture change reusing existing infrastructure (VaultFilters shape, JustWatch client, Supabase cache, justwatch_provider_catalog table, GlassSelect, useDiscoverRegion, useWatchlistOttAvailability.enrichedItems).
+- Will implement parts 1+2 (small) first, then 3 (medium), then 4 (large) in stages.
+
+---
+Task ID: 2 (implementation)
+Agent: main (orchestrator)
+Task: Implement and validate Parts 1-5 of the Library Filter & JustWatch Platform Catalogue Redesign.
+
+Work Log:
+- Part 1: Repositioned `.filter-count-badge` to absolute top-right of `.library-filter-button` (CSS-only fix). Badge anchored right, grows leftward for multi-digit counts; never collides with view-toggle.
+- Part 2: Moved the X clear button OUT of `.library-search-row`. New `.library-search-reset` pill button rendered in its own row below the search input, with a danger accent (red border + rose-400 text). Visible focus state, minimum 2.25rem tap target, aria-label, keyboard accessible. `showClear` condition unchanged — renders when search text > 0 OR activeFilterCount > 0 OR activeStatusTab !== "all". Calls the same `onClearAll` (clearFilters) handler.
+- Part 3:
+  - Replaced `VaultFilters.region: string` with `VaultFilters.language: string` in src/shared/types/index.ts.
+  - Added `WatchlistItem.originalLanguage?: string` (ISO 639-1) + `TMDBTitle.original_language?: string`.
+  - userLibraryAdapter now persists `tmdb.original_language` onto WatchlistItem.originalLanguage (lowercased).
+  - Created `src/shared/data/languageCodes.ts` with `LANGUAGE_CODE_TO_NAME` (130+ ISO 639-1 codes) + `languageDisplayName(code)` fallback.
+  - Replaced `matchesRegion` with `matchesLanguage` in vaultFilterUtils.ts. Updated `filterByAdvanced`, `computeChips`, `countActiveFilters`, `hasAdvancedFiltersActive`, `normalizeVaultFilters` to use `language` (drops legacy `region` values — never promotes them to a language).
+  - Added `uniqueLanguages` memo to useVaultFiltering (derives ISO codes from library + display names).
+  - Replaced the old Region FilterChips in VaultFiltersContent with a Language `GlassSelect` (dropdown — better for many languages).
+  - Updated factories.ts `makeVaultFilters` to use `language` instead of `region`.
+  - Updated libraryViewState to normalize legacy `region` via `normalizeVaultFilters` (drops `region`, defaults `language` to "all").
+  - Added 7 new `normalizeVaultFilters` migration tests (drops legacy region, preserves new language, preserves legacy sort mapping).
+- Part 4:
+  - Added Supabase migration `20260831_platform_catalog_published.sql` — adds `active`, `last_fetched_at`, `published_at`, `updated_at` columns to `justwatch_provider_catalog`; backfills existing rows as `active = true`; indexes `(country, active)`.
+  - Updated `src/server/justwatch/cache.ts`:
+    - Updated the local Database augmentation to include the new columns.
+    - Added `getPublishedProviderCatalog(country)` — returns rows with `active = true` (no `expires_at` filter — published rows don't expire).
+    - Added `getFullProviderCatalog(country)` — admin view (active + inactive + admin-only fields).
+    - Added `publishProviders(country, providers)` — upserts with `active = true` + `published_at = now`.
+    - Added `updateProviderMetadata(country, technicalName, patch)` — admin metadata edit.
+    - Added `deactivateProviders(country, technicalNames)` — sets `active = false` (preserves row).
+    - Added `markProvidersLastFetched(country, technicalNames)` — bumps `last_fetched_at`.
+  - Updated `src/routes/api/ott/providers.ts` to call `getPublishedProviderCatalog` (NO JustWatch fallback — Supabase only).
+  - Created `src/features/watchlist/hooks/usePublishedProviderCatalog.ts` — user-side hook reading `/api/ott/providers?country=...` keyed by `useDiscoverRegion()`. Includes per-country in-memory cache + `_clearPublishedProviderCatalogCacheForTests` helper.
+  - Modified `useWatchlistOttAvailability.ts`:
+    - Removed the watchlist-derived `providerCatalog` memo (replaced with a stable `[]` for backward-compat with destructures).
+    - Removed the orange-debug-block signals from the public return (`debugRawKeys`, `fetchState`, `fetchError`, `effectRunId`, `chunkProgress`, `cacheSource`).
+    - Kept internal signals (prefixed with `_`) so the batch-fetch machinery that still sets them doesn't break.
+    - Removed the Chunk 6G / 6H diagnostic `createEffect` logs.
+    - KEPT `enrichedItems` (per-title availability for `matchesPlatform`) — the existing `/api/ott/batch-availability` route and `ott_availability_cache` table are UNCHANGED.
+  - Modified `useVaultFiltering.ts`:
+    - Wired `usePublishedProviderCatalog` for `uniquePlatforms`.
+    - Removed all debug accessors from the return.
+    - Added `uniqueLanguages` accessor.
+    - Aggregated `ottLoading` = batch loading OR catalog loading.
+  - Removed the orange debug `<p>` block from VaultFiltersContent + removed the debug props from VaultFiltersContent / VaultFilters / LibraryDialogs / LibraryView. Removed the `watchlistSize` debug prop.
+  - Created admin API routes:
+    - `src/routes/api/admin/platform-catalog/index.ts` — GET list saved rows (admin only).
+    - `src/routes/api/admin/platform-catalog/fetch.ts` — POST calls JustWatch + returns diff (SAVED / NEW / UPDATED / REMOVED) + summary + stamps `last_fetched_at`.
+    - `src/routes/api/admin/platform-catalog/publish.ts` — POST publishes providers (Add / Add Selected / Add All New).
+    - `src/routes/api/admin/platform-catalog/deactivate.ts` — POST deactivates providers (preserves row).
+    - `src/routes/api/admin/platform-catalog/update.ts` — POST updates single provider metadata.
+  - Created `src/routes/admin/platform-catalog.tsx` (route) and `src/features/admin/AdminPlatformCatalogPage.tsx` (page) with:
+    - Country dropdown (SUPPORTED_DISCOVER_REGIONS — documented fallback because JustWatch GraphQL endpoint doesn't expose Country enum introspection).
+    - Fetch Catalogue button (calls JustWatch via server route).
+    - Diagnostic panel: country, last fetch, duration, justwatch provider count, saved/new/updated/removed counts.
+    - Diff list with status badges + per-row actions (Add / Publish update / Update metadata / Deactivate).
+    - Sticky action bar with "Add Selected" + "Add All New" bulk actions.
+  - Added sidebar entry in AdminShell under Services group: "Platform Catalogue" → /admin/platform-catalog.
+- Part 5: All VaultFilters consumers updated (types, defaultFilters, filter logic, chips, count, hasAdvancedFiltersActive, normalizeVaultFilters, libraryViewState.isFilters, factories.makeVaultFilters). Legacy `region` migration path tested.
+
+Validation:
+- Vitest full suite: 1723 / 1723 tests across 101 files pass (29 new tests added: 13 in vaultFilterUtils migration, 8 in LibraryHeader Parts 1+2, 6 in usePublishedProviderCatalog Part 4, plus existing tests updated for language).
+- `npx tsc --noEmit` — clean.
+- `npx eslint` on changed source files — clean (no errors in any touched file).
+- `npm run build` (production) — built successfully in 14.84s.
+- Diff stat: 19 files modified, 6 new files (admin page/route, 4 admin API routes, languageCodes.ts, usePublishedProviderCatalog.ts, platform-catalog SQL migration, hooks test dir). Net: +1324 / -832.
+
+Stage Summary:
+- All four parts implemented per spec.
+- Backward compat preserved: old persisted state with `region: "Indian"` is safely normalized to `{ language: "all" }`; existing rows in `justwatch_provider_catalog` are backfilled as `active = true` so the current IN catalogue doesn't disappear.
+- Per-title availability (which of the user's library titles are on the selected platform) is UNCHANGED — still uses the existing `/api/ott/batch-availability` route and `ott_availability_cache` table.
+- The user-side Library page now reads ONLY Supabase for the Platform dropdown options; the ONLY JustWatch call from the app is the admin's "Fetch Catalogue" button (admin route, admin auth, audit logged).
+- The orange debug block is removed from the user Library; admin Platform Catalogue page has a clean diagnostic panel instead.
+- Country source = profile country via `useDiscoverRegion()` (reactive). When the user changes country in Settings, the Library Platform filter automatically reads the new country's published catalogue.

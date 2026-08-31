@@ -1,5 +1,5 @@
 // src/features/watchlist/components/VaultFiltersContent.tsx
-import { For, Show, createSignal, createEffect, batch, type Accessor } from "solid-js";
+import { For, Show, createSignal, batch, type Accessor } from "solid-js";
 import Icon from "~/shared/ui/Icon";
 import {
   RangeFilter,
@@ -56,14 +56,25 @@ export interface VaultFiltersContentProps {
   filters: FilterType;
   setFilters: (v: FilterType) => void;
   uniqueGenres: string[];
-  /** Platform filter options derived from JustWatch availability of
-   *  the watchlist items in the user's country. Empty while the
-   *  batch-availability fetch is in flight, on error, or when no
-   *  watchlist item has any JustWatch offer — in all three cases the
-   *  Platform dropdown is now RENDERED IN A DISABLED STATE (Chunk 6F
-   *  Task 1) rather than hidden, so the user can see the filter
-   *  exists. The dropdown becomes interactive as soon as the catalog
-   *  populates. */
+  /**
+   * Unique original-language codes present in the user's library,
+   * each paired with a display name. Drives the Language dropdown
+   * (Part 3). The list is derived from `WatchlistItem.originalLanguage`
+   * (TMDB `original_language`, ISO 639-1) and sorted alphabetically
+   * by display name. Items with no `originalLanguage` (older cache
+   * entries) are NOT represented here — they don't appear in the
+   * dropdown and are excluded only when a specific language is
+   * picked (they still appear under "All Languages").
+   */
+  uniqueLanguages: Array<{ code: string; label: string }>;
+  /** Platform filter options derived from the published Supabase
+   *  provider catalogue for the user's profile country (Part 4
+   *  redesign). Empty while the catalogue fetch is in flight, on
+   *  error, or when no providers are published for the country —
+   *  in all three cases the Platform dropdown is rendered in a
+   *  disabled state (Chunk 6F Task 1) rather than hidden, so the
+   *  user can see the filter exists. The dropdown becomes
+   *  interactive as soon as the catalogue populates. */
   uniquePlatforms: PlatformFilterOption[];
   uniqueTags: string[];
   /** Union of tag vocabulary + tags in use. Drives the Tag filter dropdown
@@ -71,61 +82,11 @@ export interface VaultFiltersContentProps {
   uniqueTagsPlus: string[];
   /** Bump to force re-read of tag vocabulary from localStorage. */
   refreshTagVocab: () => void;
-  /** CHUNK 6N Task 3 — TEMPORARY debug prop. True while the JustWatch
-   *  batch-availability fetch is in flight. Surfaced in the visible
-   *  debug line below the Platform dropdown so the user can see the
-   *  fetch state without opening the browser console.
-   *  Will be removed alongside the other Chunk 6E-6M diagnostic logs. */
+  /** True while the JustWatch batch-availability fetch is in flight.
+   *  Surfaced so the Platform dropdown can render a disabled "loading"
+   *  state when no providers are available yet. The visible orange
+   *  debug block was removed in the Part 4 redesign. */
   ottLoading: boolean;
-  /** CHUNK 6N Task 3 — TEMPORARY debug prop. First 3 raw batch-response
-   *  keys as a JSON string (e.g. `["movie:2668","t v:105248"]`). Empty
-   *  string before the first fetch completes. Surfaced in the visible
-   *  debug line below the Platform dropdown so the user can see the
-   *  EXACT shape of the server's response keys without opening the
-   *  browser console — this is what the Chunk 6N root cause is about.
-   *  Will be removed alongside the other Chunk 6E-6M diagnostic logs. */
-  debugRawKeys: string;
-  /** CHUNK 6N Task 3 — TEMPORARY debug prop. Number of items in the
-   *  user's watchlist. Surfaced in the visible debug line so the user
-   *  can verify the watchlist actually loaded (vs. an empty list, which
-   *  would correctly produce an empty catalog). Will be removed
-   *  alongside the other Chunk 6E-6M diagnostic logs. */
-  watchlistSize: number;
-  /** CHUNK 6O Task 1 — TEMPORARY debug prop. Coarse-grained OTT fetch
-   *  state machine (`'idle' | 'loading' | 'success' | 'error'`).
-   *  Surfaced in the visible debug line so the user can tell whether
-   *  the fetch never started, is in flight, completed successfully, or
-   *  failed — without opening the browser console. Will be removed
-   *  alongside the other Chunk 6E-6N diagnostic logs. */
-  fetchState: "idle" | "loading" | "success" | "error";
-  /** CHUNK 6O Task 1 — TEMPORARY debug prop. Human-readable error
-   *  message from the most recent OTT fetch attempt. Empty string
-   *  unless `fetchState` is `'error'`. Will be removed alongside the
-   *  other Chunk 6E-6N diagnostic logs. */
-  fetchError: string;
-  /** CHUNK 6P Task 1 — TEMPORARY debug prop. Monotonic counter that
-   *  bumps every time the OTT fetch effect actually starts a fetch
-   *  (cache-miss path). Surfaced in the visible debug line so the
-   *  user can distinguish "stuck on a single run" (runId stable,
-   *  state=loading, progress=0/N forever) from "restarting in a
-   *  loop" (runId keeps climbing while state=loading). Will be
-   *  removed alongside the other Chunk 6E-6O diagnostic logs. */
-  effectRunId: number;
-  /** CHUNK 6P Task 1 — TEMPORARY debug prop. `${done}/${total}`
-   *  progress string updated as each chunk in the OTT batch
-   *  resolves. Stays at `0/${total}` until the first wave of
-   *  MAX_CONCURRENT_CHUNKS requests completes. Surfaced in the
-   *  visible debug line so the user can see whether ANY chunks are
-   *  landing (vs. the very first wave hanging). Will be removed
-   *  alongside the other Chunk 6E-6O diagnostic logs. */
-  chunkProgress: string;
-  /** CHUNK 6R Task 5 — TEMPORARY debug prop. Indicates WHERE the
-   *  Platform filter's data is coming from: `'local'` (localStorage
-   *  cache), `'live'` (network fetch), `'mixed'` (both, during
-   *  fetch), or `'none'` (no data available). Surfaced in the
-   *  visible debug line as `cache=...`. Will be removed alongside
-   *  the other Chunk 6E-6P diagnostic logs. */
-  cacheSource: "local" | "live" | "mixed" | "none";
   presets: Accessor<FilterPreset[]>;
   onSavePreset: (name: string) => Promise<void>;
   onDeletePreset: (id: string) => void;
@@ -136,20 +97,6 @@ export default function VaultFiltersContent(props: VaultFiltersContentProps) {
   const [newTagName, setNewTagName] = createSignal("");
   const [pendingDeleteTag, setPendingDeleteTag] = createSignal<string | null>(null);
   const vault = useVault();
-
-  // Chunk 6F Task 4 — temporary diagnostic log to help diagnose why
-  // the Platform filter catalog might be empty. Tracks the unique
-  // platforms count and the current platform filter value. Will be
-  // removed in a later cleanup chunk alongside the OTT server logs
-  // added in Chunk 6E. Logs only counts (no PII / no titles).
-  createEffect(() => {
-    console.log(
-      "[VaultFiltersContent] uniquePlatforms count=" +
-        props.uniquePlatforms.length +
-        " platformFilter=" +
-        props.filters.platform
-    );
-  });
 
   /** Batched setFilters — wraps each filter update in batch() so the
       filtered memo re-computes ONCE instead of triggering cascading
@@ -225,7 +172,7 @@ export default function VaultFiltersContent(props: VaultFiltersContentProps) {
         "overscroll-behavior": "contain"
       }}
     >
-      {/* CONTENT section — Status REMOVED. Type/Region are chips.
+      {/* CONTENT section — Status REMOVED. Type/Language are chips/dropdowns.
           Tag filter RE-ADDED in Phase 6.2 Task 1a (was removed in v2). */}
       <div>
         <p class="filter-section-title">Content</p>
@@ -241,15 +188,27 @@ export default function VaultFiltersContent(props: VaultFiltersContentProps) {
               { l: "Series", v: "tv" }
             ]}
           />
-          {/* Region — chip selector (was a dropdown) */}
-          <FilterChips
-            label="Region"
-            val={props.filters.region}
-            set={(v) => batchedSet({ region: v })}
+          {/* Language — Part 3 redesign.
+              REPLACES the old Region ("All"/"Indian"/"International")
+              chip row. The list of languages can be long (a vault may
+              contain titles in dozens of languages), so we use the
+              dropdown (GlassSelect) pattern — NOT chips. The dropdown
+              options are derived from the unique original-language
+              codes actually present in the user's library, mapped
+              to display names via `languageDisplayName`. The filter
+              VALUE is the ISO 639-1 code (stored in
+              `VaultFilters.language`); the LABEL is the human-readable
+              name. "All Languages" clears the filter. */}
+          <GlassSelect
+            label="Language"
+            val={props.filters.language}
+            set={(v) => batchedSet({ language: v })}
             opts={[
-              { l: "All", v: "all" },
-              { l: "Indian", v: "Indian" },
-              { l: "International", v: "International" }
+              { l: "All Languages", v: "all" },
+              ...props.uniqueLanguages.map(({ code, label }) => ({
+                l: label,
+                v: code
+              }))
             ]}
           />
           {/* Genre — custom dark-glass dropdown (was native <select>, which
@@ -319,72 +278,11 @@ export default function VaultFiltersContent(props: VaultFiltersContentProps) {
                 opacity: "0.7"
               }}
             >
-              No platforms available
+              {props.ottLoading
+                ? "Loading platforms…"
+                : "No platforms available for your country"}
             </p>
           </Show>
-          {/* CHUNK 6N Task 3 — TEMPORARY visible debug line.
-              Rendered unconditionally (regardless of catalog state) so
-              the user can see the EXACT runtime state of the OTT fetch
-              without opening the browser DevTools console (which is
-              hard on a phone). Shows:
-                - watchlist size (verifies the watchlist actually loaded)
-                - OTT loading state (true while a fetch is in flight)
-                - provider catalog size (0 means no providers reached
-                  the dropdown — the bug we're chasing)
-                - first 3 raw batch-response keys (the EXACT shape of
-                  the server's response keys, including any stray
-                  whitespace that would cause a key-mismatch)
-              Will be removed alongside the other Chunk 6E-6M logs.
-              CHUNK 6O Task 4 — EXTENDED to also show:
-                - fetchState ('idle' | 'loading' | 'success' | 'error')
-                  so the user can tell whether the fetch never started,
-                  is in flight, completed, or failed. This is the key
-                  diagnostic that was missing in Chunk 6N — the user
-                  saw `loading=true` forever with no indication of
-                  whether the fetch was actually progressing, stuck in
-                  a retry loop, or had failed silently.
-                - fetchError (human-readable error message) so the user
-                  can see WHY the fetch failed (e.g. "all chunks
-                  returned empty", "runBatch threw: ...") without
-                  opening the console.
-              CHUNK 6P Task 5 — EXTENDED to also show:
-                - effectRunId (monotonic counter) so the user can tell
-                  whether the effect is stuck on a single run (runId
-                  stable, state=loading forever) or restarting in a
-                  loop (runId keeps climbing while state=loading).
-                - chunkProgress (`${done}/${total}`) so the user can
-                  see whether ANY chunks are landing (vs. the very
-                  first wave hanging — progress stays at 0/N).
-                - The 20s hard timeout (Task 4) will also flip state
-                  to `error` with `timeout after 20000ms; progress=…`
-                  if the fetch hangs, which will surface in the
-                  `error=` field. */}
-          <p
-            style={{
-              "font-size": "11px",
-              "color": "#ff8c00",
-              "padding": "6px 8px",
-              "background": "rgba(255,140,0,0.06)",
-              "border-radius": "6px",
-              "margin-top": "0.25rem",
-              "margin-left": "0.125rem",
-              "white-space": "pre-wrap",
-              "word-break": "break-all",
-              "line-height": "1.5",
-              "font-family": "ui-monospace, SFMono-Regular, Menlo, monospace"
-            }}
-          >
-            {`DEBUG:
-watchlist=${props.watchlistSize}
-state=${props.fetchState}
-loading=${props.ottLoading ? "true" : "false"}
-catalog=${props.uniquePlatforms.length}
-run=${props.effectRunId}
-progress=${props.chunkProgress || "(none yet)"}
-keys=${props.debugRawKeys || "(none yet)"}
-cache=${props.cacheSource}
-error=${props.fetchError || "none"}`}
-          </p>
           {/* Tag — RE-ADDED in Phase 6.2 Task 1a.
               Shows the union of (tag vocabulary in localStorage) ∪ (tags
               currently in use on vault items). When the user picks a tag,

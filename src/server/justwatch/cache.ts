@@ -57,6 +57,11 @@ type JustWatchAugmentedTables = {
       icon_template: string;
       fetched_at: string;
       expires_at: string;
+      // Part 4 — published/active flag + admin-management timestamps.
+      active: boolean;
+      last_fetched_at: string | null;
+      published_at: string | null;
+      updated_at: string | null;
     };
     Insert: {
       country: string;
@@ -66,7 +71,11 @@ type JustWatchAugmentedTables = {
       technical_name: string;
       icon_template: string;
       fetched_at?: string;
-      expires_at: string;
+      expires_at?: string;
+      active?: boolean;
+      last_fetched_at?: string | null;
+      published_at?: string | null;
+      updated_at?: string | null;
     };
     Update: {
       country?: string;
@@ -77,6 +86,10 @@ type JustWatchAugmentedTables = {
       icon_template?: string;
       fetched_at?: string;
       expires_at?: string;
+      active?: boolean;
+      last_fetched_at?: string | null;
+      published_at?: string | null;
+      updated_at?: string | null;
     };
     Relationships: [];
   };
@@ -346,6 +359,312 @@ export async function upsertProviderCatalog(
     );
   }
 }
+
+// ---------------------------------------------------------------------------
+// 2b. Published provider catalog — Part 4 redesign
+// ---------------------------------------------------------------------------
+
+/**
+ * Read the PUBLISHED JustWatch provider catalogue for a country.
+ * Returns ONLY rows with `active = true` (no `expires_at` filter —
+ * published rows do NOT expire; admin-controlled refresh is the
+ * source of truth). Sorted by `clear_name` ascending.
+ *
+ * This is the user-side read path: the Library Platform filter
+ * dropdown options are derived from this list. NO JustWatch
+ * fallback — if no rows are published for the country, the
+ * catalogue is empty and the dropdown shows "No platforms
+ * available for your country".
+ *
+ * Returns `null` on any cache error (caller should treat as
+ * "no catalogue available" — the dropdown renders its empty state).
+ */
+export async function getPublishedProviderCatalog(
+  country: string
+): Promise<JustWatchPackage[] | null> {
+  const supabase = getServiceClient();
+  if (!supabase) return null;
+
+  try {
+    const { data, error } = await supabase
+      .from("justwatch_provider_catalog")
+      .select(
+        "package_id, clear_name, short_name, technical_name, icon_template"
+      )
+      .eq("country", country)
+      .eq("active", true)
+      .order("clear_name", { ascending: true });
+
+    if (error) {
+      console.warn(
+        "[justwatch/cache] getPublishedProviderCatalog query error:",
+        error.message
+      );
+      return null;
+    }
+
+    if (!data || data.length === 0) return null;
+
+    return data.map((row) => ({
+      id: row.package_id,
+      clearName: row.clear_name,
+      shortName: row.short_name,
+      technicalName: row.technical_name,
+      icon: row.icon_template
+    }));
+  } catch (err) {
+    console.warn(
+      "[justwatch/cache] getPublishedProviderCatalog threw:",
+      err instanceof Error ? err.message : String(err)
+    );
+    return null;
+  }
+}
+
+/**
+ * Read the FULL provider catalogue for a country (active AND
+ * inactive rows), with admin-only fields. Used by the admin
+ * Platform Catalogue page to render the comparison view against
+ * the latest JustWatch fetch.
+ *
+ * Sorted by `clear_name` ascending.
+ */
+export interface ProviderCatalogRow {
+  country: string;
+  package_id: string;
+  clear_name: string;
+  short_name: string;
+  technical_name: string;
+  icon_template: string;
+  fetched_at: string;
+  expires_at: string;
+  active: boolean;
+  last_fetched_at: string | null;
+  published_at: string | null;
+  updated_at: string | null;
+}
+
+export async function getFullProviderCatalog(
+  country: string
+): Promise<ProviderCatalogRow[] | null> {
+  const supabase = getServiceClient();
+  if (!supabase) return null;
+
+  try {
+    const { data, error } = await supabase
+      .from("justwatch_provider_catalog")
+      .select(
+        "country, package_id, clear_name, short_name, technical_name, icon_template, fetched_at, expires_at, active, last_fetched_at, published_at, updated_at"
+      )
+      .eq("country", country)
+      .order("clear_name", { ascending: true });
+
+    if (error) {
+      console.warn(
+        "[justwatch/cache] getFullProviderCatalog query error:",
+        error.message
+      );
+      return null;
+    }
+
+    return (data ?? []) as ProviderCatalogRow[];
+  } catch (err) {
+    console.warn(
+      "[justwatch/cache] getFullProviderCatalog threw:",
+      err instanceof Error ? err.message : String(err)
+    );
+    return null;
+  }
+}
+
+/**
+ * Publish (set `active = true`) for one or more providers in a
+ * country. If the row doesn't exist yet (a NEW provider from a
+ * JustWatch fetch), it's inserted with `active = true`. If the
+ * row already exists, `active` is flipped to `true` and
+ * `published_at` is stamped. `last_fetched_at` is bumped to now
+ * (the admin is publishing a freshly-fetched row).
+ *
+ * Used by the admin Platform Catalogue page's "Add" / "Add
+ * Selected" / "Add All New" actions.
+ *
+ * `providers` is the JustWatch packages to publish (typically a
+ * subset of the latest JustWatch fetch response).
+ */
+export async function publishProviders(
+  country: string,
+  providers: JustWatchPackage[]
+): Promise<void> {
+  const supabase = getServiceClient();
+  if (!supabase) return;
+  if (!providers || providers.length === 0) return;
+
+  try {
+    const nowIso = new Date().toISOString();
+    const longExpiresAt = daysFromNow(365 * 10); // published rows don't expire; set a far-future date to satisfy NOT NULL
+    const rows = providers.map((p) => ({
+      country,
+      package_id: p.id,
+      clear_name: p.clearName,
+      short_name: p.shortName,
+      technical_name: p.technicalName,
+      icon_template: p.icon,
+      fetched_at: nowIso,
+      expires_at: longExpiresAt,
+      active: true,
+      last_fetched_at: nowIso,
+      published_at: nowIso,
+      updated_at: nowIso
+    }));
+
+    const { error } = await supabase
+      .from("justwatch_provider_catalog")
+      .upsert(rows, {
+        onConflict: "country,technical_name",
+        ignoreDuplicates: false
+      });
+
+    if (error) {
+      console.warn(
+        "[justwatch/cache] publishProviders upsert error:",
+        error.message
+      );
+    }
+  } catch (err) {
+    console.warn(
+      "[justwatch/cache] publishProviders threw:",
+      err instanceof Error ? err.message : String(err)
+    );
+  }
+}
+
+/**
+ * Update a single provider's display metadata (clearName /
+ * shortName / icon_template). Stamps `updated_at = now()`.
+ *
+ * Used by the admin Platform Catalogue page's "Update metadata"
+ * action when a JustWatch fetch reports a changed clearName etc.
+ * The `active` flag is NOT touched (a metadata edit doesn't
+ * change publish state).
+ */
+export async function updateProviderMetadata(
+  country: string,
+  technicalName: string,
+  patch: {
+    clearName?: string;
+    shortName?: string;
+    iconTemplate?: string;
+  }
+): Promise<void> {
+  const supabase = getServiceClient();
+  if (!supabase) return;
+
+  try {
+    const nowIso = new Date().toISOString();
+    const update: {
+      updated_at: string;
+      clear_name?: string;
+      short_name?: string;
+      icon_template?: string;
+    } = { updated_at: nowIso };
+    if (typeof patch.clearName === "string") update.clear_name = patch.clearName;
+    if (typeof patch.shortName === "string") update.short_name = patch.shortName;
+    if (typeof patch.iconTemplate === "string") update.icon_template = patch.iconTemplate;
+
+    const { error } = await supabase
+      .from("justwatch_provider_catalog")
+      .update(update)
+      .eq("country", country)
+      .eq("technical_name", technicalName);
+
+    if (error) {
+      console.warn(
+        "[justwatch/cache] updateProviderMetadata update error:",
+        error.message
+      );
+    }
+  } catch (err) {
+    console.warn(
+      "[justwatch/cache] updateProviderMetadata threw:",
+      err instanceof Error ? err.message : String(err)
+    );
+  }
+}
+
+/**
+ * Deactivate (set `active = false`) for one or more providers in a
+ * country. The row is NOT deleted — the admin can re-publish it
+ * later if the provider reappears in a JustWatch fetch (so user-
+ * side data isn't lost due to a transient JustWatch response).
+ *
+ * Used by the admin Platform Catalogue page's "Deactivate" /
+ * "Deactivate Selected" actions.
+ */
+export async function deactivateProviders(
+  country: string,
+  technicalNames: string[]
+): Promise<void> {
+  const supabase = getServiceClient();
+  if (!supabase) return;
+  if (!technicalNames || technicalNames.length === 0) return;
+
+  try {
+    const { error } = await supabase
+      .from("justwatch_provider_catalog")
+      .update({ active: false, updated_at: new Date().toISOString() })
+      .in("technical_name", technicalNames)
+      .eq("country", country);
+
+    if (error) {
+      console.warn(
+        "[justwatch/cache] deactivateProviders update error:",
+        error.message
+      );
+    }
+  } catch (err) {
+    console.warn(
+      "[justwatch/cache] deactivateProviders threw:",
+      err instanceof Error ? err.message : String(err)
+    );
+  }
+}
+
+/**
+ * Mark `last_fetched_at = now()` for one or more providers in a
+ * country after an admin JustWatch fetch confirmed the row's
+ * metadata is still current (so the admin UI can show "last seen
+ * on <date>"). The `active` flag is NOT touched.
+ */
+export async function markProvidersLastFetched(
+  country: string,
+  technicalNames: string[]
+): Promise<void> {
+  const supabase = getServiceClient();
+  if (!supabase) return;
+  if (!technicalNames || technicalNames.length === 0) return;
+
+  try {
+    const nowIso = new Date().toISOString();
+    const { error } = await supabase
+      .from("justwatch_provider_catalog")
+      .update({ last_fetched_at: nowIso })
+      .in("technical_name", technicalNames)
+      .eq("country", country);
+
+    if (error) {
+      console.warn(
+        "[justwatch/cache] markProvidersLastFetched update error:",
+        error.message
+      );
+    }
+  } catch (err) {
+    console.warn(
+      "[justwatch/cache] markProvidersLastFetched threw:",
+      err instanceof Error ? err.message : String(err)
+    );
+  }
+}
+
 
 // ---------------------------------------------------------------------------
 // 3. Title mapping — read

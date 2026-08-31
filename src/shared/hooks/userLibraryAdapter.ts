@@ -140,6 +140,24 @@ export function vaultRowToWatchlistItem(
     spoken_languages: Array.isArray(tmdb?.spoken_languages)
       ? tmdb.spoken_languages
       : undefined,
+    // ── Part 3 — original_language ────────────────────────────────────
+    // TMDB returns `original_language` on every /movie/{id} and /tv/{id}
+    // response as a 2-letter ISO 639-1 code (e.g. "hi", "ta", "es", "ja").
+    // We persist it onto the WatchlistItem so the Library Language
+    // filter (`matchesLanguage` in vaultFilterUtils.ts) can match
+    // against the title's ORIGINAL language — preferred over
+    // `spoken_languages` (which lists every language spoken in the
+    // title, not the original). Normalized to lowercase for stable
+    // comparison. Older cached TMDBTitle payloads that predate this
+    // field being captured will have `original_language: undefined`
+    // — the Language filter treats that as "no match" for any
+    // specific language, so legacy items still appear under
+    // "All Languages" but are excluded when a specific language is
+    // picked (graceful fallback until the cache refreshes).
+    originalLanguage:
+      typeof tmdb?.original_language === "string"
+        ? tmdb.original_language.toLowerCase()
+        : undefined,
     // ── Runtime (minutes) — drives the "Hours Watched" stat ──────────
     // Movies: TMDB returns a single `runtime` (e.g. 120 min).
     // TV series: TMDB returns `episode_run_time` (array of typical
