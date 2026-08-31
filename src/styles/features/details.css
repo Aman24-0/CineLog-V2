@@ -1783,6 +1783,129 @@
   overflow: hidden;
 }
 
+/* ── Activity details (2026-09-02) ───────────────────────────────────
+   Compact inner panel inside the Your Activity card that shows the
+   persisted personal-activity fields (reaction, tag, device, platform,
+   favourite character). The panel is only rendered when at least one
+   field has data (the JSX hides it entirely when empty). Each row is a
+   label + value pair; values may include an emoji or icon. The styling
+   matches the existing your-activity-cell / your-activity-notes blocks
+   so the activity details read as a continuation of the same glass
+   card, not as a separate surface. */
+
+.your-activity-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: var(--sp-3);
+  border-radius: var(--radius-md);
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--hairline);
+}
+
+.your-activity-detail-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.your-activity-detail-label {
+  font-family: "Azeret Mono", monospace;
+  font-size: 0.5rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  min-width: 4.5rem;
+}
+
+.your-activity-detail-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-family: "Outfit", sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-strong);
+  min-width: 0;
+}
+
+.your-activity-detail-emoji {
+  font-size: 1rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.your-activity-detail-platform-icon {
+  width: 1.125rem;
+  height: 1.125rem;
+  object-fit: contain;
+  border-radius: 0.25rem;
+  flex-shrink: 0;
+}
+
+.your-activity-detail-platform-fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.125rem;
+  height: 1.125rem;
+  border-radius: 0.25rem;
+  background: var(--glass-bg-strong);
+  color: var(--text-soft);
+  font-size: 0.625rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* Favourite character — profile image + name. The image is a small
+   rounded avatar (1.5rem). When no image is available, a glass-tinted
+   "person" icon fallback is shown. The name appears next to it. */
+.your-activity-detail-row-character {
+  align-items: center;
+}
+
+.your-activity-detail-character {
+  gap: 0.5rem;
+}
+
+.your-activity-detail-character-img {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--hairline);
+  flex-shrink: 0;
+}
+
+.your-activity-detail-character-fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background: var(--glass-bg-strong);
+  color: var(--text-muted);
+  border: 1px solid var(--hairline);
+  flex-shrink: 0;
+}
+
+.your-activity-detail-character-name {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-strong);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
 /* ── Re-watch badge + mini dialog (v2.2) ── */
 
 /* The watch-date cell wraps the date text + the "N×" badge in a row

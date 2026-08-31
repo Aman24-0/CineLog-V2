@@ -1556,3 +1556,131 @@ Stage Summary:
 - Tests: 4 new regression tests (2 projection-level, 2 mapper-level) + 1 end-to-end production read path test. All fail against buggy code, pass against fix.
 - Build: 1759/1759 tests pass; production build contains the fixed projection (verified via scripts/verify-activity-readback.ts).
 - Browser persistence: NOT VERIFIED in CI (requires real Supabase auth) — needs the user's manual confirmation against the live site after deploy.
+
+---
+Task ID: 13
+Agent: main (orchestrator)
+Task: Implement the 3 remaining Details Activity features — (1) show saved activity fields in YourActivityCard, (2) auto-open Edit on Completed/Watching (including already-active case), (3) add "other / outside OTT" pirate-flag platform tile. Strict scope: do NOT modify the Supabase persistence/read projection fixed in commit b327420, do NOT create a migration, do NOT rewrite the save flow, do NOT touch search/discover/library/JustWatch catalogue.
+
+TASK 1 — YourActivityCard renders persisted activity fields:
+- YourActivityCard.tsx previously rendered only Watched / Your Rating / Added / Notes. The newer persisted activity fields (reaction, tag, watch_device, watch_platform, favorite_character_id/name/profile) were never displayed on the Details page even though they were saved in Supabase and read back into the WatchlistItem (after commit b327420 fixed the SELECT projection).
+- Added a new compact "activity details" inner panel (.your-activity-details) BELOW the existing summary cells (Watched / Rating / Added) and ABOVE the Notes preview. The existing cells and the rewatch/date dialog behaviour are preserved.
+- Each field is hidden when its value is unset — no meaningless "—" placeholders. The entire panel is hidden when no activity field has data (preserves the original card shape for items with no activity).
+- Fields rendered:
+  • Reaction — emoji + human-readable label, normalized for legacy values (love → loved_it, etc.) via the existing normalizeReaction + REACTION_META from src/shared/data/reactions.ts. NO new reaction mapping created.
+  • Tag — the raw tag string from vault.tag.
+  • Where watched — emoji + label resolved via the shared resolveWatchDevice helper from src/shared/data/watchActivity.ts (reuses the SAME vocabulary the Edit form uses).
+  • Platform — for normal JustWatch/Supabase catalogue platforms, resolves the technicalName through the existing usePublishedProviderCatalog hook and shows the existing icon (buildJustWatchIconUrl). NO new platform database invented. For the special "other" sentinel from Task 3, shows the pirate flag emoji + "Other / Outside OTT" label.
+  • Favourite character — shows the stored favoriteCharacterProfile image (TMDB image URL, no re-fetch) + favoriteCharacterName. Graceful fallback to a person icon when only the name is set (no profile image).
+- CSS: added .your-activity-details + .your-activity-detail-row + .your-activity-detail-label + .your-activity-detail-value + .your-activity-detail-emoji + .your-activity-detail-platform-icon + .your-activity-detail-platform-fallback + .your-activity-detail-character-img + .your-activity-detail-character-fallback + .your-activity-detail-character-name in src/styles/features/details.css. Matches the existing your-activity-cell / your-activity-notes glass-card language — same backdrop-filter, border, border-radius, padding. Mobile-first and responsive. Card height stays compact (no excessive growth).
+
+TASK 2 — Completed/Watching auto-open Edit (both transition + already-active):
+- ROOT CAUSE (verified): useDetailsProgress.handleSetStatus had an early `if (v.status === nextStatus) return;` that fired BEFORE the onCompletedAutoOpenEdit() call. Tapping an already-active status (e.g. Completed on a Completed title) returned before the auto-open could fire — exactly the case the user tested.
+- FIX: removed the early return. The status persistence + local selectedItem update are now wrapped in a `statusChanged` branch — only run when the status actually changes (no redundant Supabase write, no updated_at churn). The auto-open Edit fires UNCONDITIONALLY for Completed/Watching, regardless of whether the status changed. Planned/Dropped never auto-open (no viewing metadata to record).
+- Error path: if setSeriesStatusInSupabase throws, the function returns early WITHOUT auto-opening Edit — the user sees the error toast and can retry without a stray modal. (Previously the error path fell through to the auto-open.)
+- No setTimeout/queueMicrotask delays added. The existing SolidJS reactive lifecycle is preserved — the auto-open callback fires synchronously after the persistence + selectedItem update resolve.
+- All 5 user-reported scenarios covered by tests + the error path.
+
+TASK 3 — "Other / Outside OTT" pirate-flag platform tile:
+- Added a special "other" platform sentinel in src/shared/data/watchActivity.ts (OTHER_PLATFORM_VALUE = "other", OTHER_PLATFORM_META = { value, label: "Other / Outside OTT", emoji: "🏴‍☠️" }). UI-only — NOT added to the Supabase justwatch_provider_catalog table.
+- DetailsEditForm.PlatformSelector: added a pirate-flag tile BEFORE the catalogue providers (after the "None" tile). Uses the existing LOGO-ONLY grid style — no text label under the icon. aria-label + title = "Other / Outside OTT". Clicking toggles: select "other" or clear if already selected (matching every other tile). When watchPlatform === "other", the tile is aria-pressed="true" so it highlights as selected after Save.
+- YourActivityCard: when watchPlatform === "other", renders the pirate flag emoji + "Other / Outside OTT" label (via the shared resolveOtherPlatform helper).
+- The value is persisted to vault.watch_platform as the stable string "other" (TEXT column, no CHECK constraint — same as every other platform).
+
+SHARED VOCABULARY (src/shared/data/watchActivity.ts):
+- Created a new module to be the SINGLE source of truth for the "where did you watch?" device vocabulary AND the special "other" platform sentinel. Both DetailsEditForm (the picker) and YourActivityCard (the read-back) use these constants/helpers so save + display never drift.
+- WATCH_DEVICE_OPTIONS, WATCH_DEVICE_OPTION_THEATRE: the device vocabulary (was previously inline in DetailsEditForm; now shared).
+- resolveWatchDevice(value): resolves a device value to { emoji, label } or null. Used by YourActivityCard.
+- OTHER_PLATFORM_VALUE, OTHER_PLATFORM_META: the special "other" sentinel + display metadata.
+- resolveOtherPlatform(value): returns the pirate flag meta for "other", null for any other value (caller falls through to the catalogue). Used by YourActivityCard.
+- DetailsEditForm now imports from watchActivity.ts instead of having inline duplicates.
+
+SCOPE COMPLIANCE:
+- Touched files:
+  • src/shared/data/watchActivity.ts (new — shared vocabulary)
+  • src/features/details/components/YourActivityCard.tsx (Task 1)
+  • src/features/details/components/DetailsEditForm.tsx (Task 3 — pirate tile + import refactor to use shared vocab)
+  • src/features/details/DetailsModal/useDetailsProgress.ts (Task 2 — auto-open fix)
+  • src/styles/features/details.css (Task 1 — activity-details CSS)
+  • + 4 new test files + 2 new verification scripts
+- NOT touched: Supabase schema, migrations, VAULT_DASHBOARD_COLUMNS, userLibraryAdapter persistence/read logic, handleSave, search page/sticky CSS, Discover, Library search, existing platform catalogue architecture, existing reaction vocabulary, existing favourite-character persistence.
+
+REGRESSION TESTS (39 new):
+- src/shared/data/__tests__/watchActivity.test.ts (9 tests):
+  • OTHER_PLATFORM_VALUE + OTHER_PLATFORM_META sanity
+  • WATCH_DEVICE_OPTIONS contains the 4 base devices with emoji + label
+  • WATCH_DEVICE_OPTION_THEATRE has the 🎬 emoji
+  • resolveWatchDevice resolves every device value
+  • resolveWatchDevice returns null for null/undefined/unknown
+  • resolveOtherPlatform returns pirate flag meta for "other"
+  • resolveOtherPlatform returns null for null/undefined/empty
+  • resolveOtherPlatform returns null for normal catalogue technicalNames (caller falls through)
+- src/features/details/components/__tests__/YourActivityCard.test.tsx (12 tests):
+  • Hides the activity-details panel when no activity fields are set
+  • Renders reaction with emoji + label when set
+  • Normalizes legacy reaction values (love → loved_it) at display time
+  • Renders tag when set, hides the row when tag is empty
+  • Renders watch device with emoji + label when set
+  • Renders 'theatre' device with the 🎬 emoji
+  • Renders the pirate flag + 'Other / Outside OTT' label for 'other'
+  • Renders a normal catalogue platform by its clearName + icon
+  • Renders favourite character profile image + name when both are set
+  • Renders the person icon fallback when only the name is set
+  • Renders ALL activity fields together when every field is set
+  • Preserves the existing Watched / Rating / Added cells alongside the new activity panel
+- src/features/details/DetailsModal/__tests__/useDetailsProgress.test.ts (9 tests):
+  • Watching → tap Completed: persists + auto-opens Edit
+  • Completed already active → tap Completed: does NOT persist but STILL auto-opens (the exact bug case)
+  • Watching already active → tap Watching: does NOT persist but STILL auto-opens
+  • Completed → tap Watching: persists + auto-opens
+  • Planned → tap Planned: no persist, no auto-open
+  • Planned → tap Dropped: persists but NO auto-open
+  • Completed → tap Dropped: persists but NO auto-open
+  • Watching → tap Completed when Supabase fails: does NOT auto-open (error path)
+  • Does not crash when onCompletedAutoOpenEdit is not provided
+- src/features/details/components/__tests__/PlatformSelector.test.tsx (9 tests):
+  • Renders the pirate flag tile with the correct aria-label
+  • Renders the pirate tile BEFORE the catalogue providers (after None)
+  • Clicking the pirate tile sets watchPlatform to 'other'
+  • Clicking the pirate tile when already selected clears watchPlatform
+  • When watchPlatform === 'other', the pirate tile is aria-pressed='true' (read-back)
+  • When watchPlatform is unset, the pirate tile is NOT pressed (None is pressed instead)
+  • When watchPlatform is a normal catalogue platform, the pirate tile is NOT pressed
+  • Still renders the 'None' tile alongside the pirate tile
+  • Still renders all published catalogue providers alongside the pirate tile
+
+VALIDATION:
+- tsc --noEmit: clean.
+- ESLint (changed files): 0 errors.
+- Vitest: 1798 / 1798 across 108 files pass (was 1759 baseline — +39 new tests).
+- Production build: 15.78s, success.
+- Build-artifact verification (scripts/verify-activity-features.ts):
+  • Task 1 — your-activity-details CSS class is in the build: PASS (found in client-BJFh4Z3i.css)
+  • Task 2 — handleSetStatus 'statusChanged' branch: SOFT-FAIL (expected — variable name is minified away in production builds; runtime behaviour verified by the 9-test Vitest suite).
+  • Task 3 — pirate flag emoji 🏴‍☠️ in the build: PASS (found in DetailsExperience-CzBZyodj.js)
+  • Task 3 — 'Other / Outside OTT' label in the build: PASS (same bundle)
+  • OVERALL: PASS.
+- Mobile browser verification (scripts/verify-activity-mobile.ts) at 390x844:
+  • Page rendered at /search: YES
+  • Console errors (excluding known Supabase noise): 0
+  • Horizontal overflow at 390px: NO
+  • OVERALL: PASS.
+
+BROWSER PERSISTENCE TEST (manual acceptance criteria A-G):
+NOT VERIFIED in CI — a real "save → reload → reopen → assert fields populated" test requires a live Supabase auth session and a real vault row. The Vitest suite covers the component-level behaviour with mocked Supabase; the build-artifact verification confirms the fix is in the production bundle. The user should perform the manual browser test against the live site once the fix is deployed:
+  A. Edit Activity: Reaction = Thoughtful, Device = Mobile, Platform = Other/Pirate, Favourite Character = selected, Tag = selected.
+  B. Save.
+  C. Close/reopen — all values remain selected.
+  D. Hard refresh, reopen Edit — all values remain selected.
+  E. Details page "Your Activity" visibly shows reaction/tag/device/platform/favourite character.
+  F. Watching → Completed → Edit opens automatically. Completed → tap Completed → Edit still opens. Watching → tap Watching → Edit still opens.
+  G. Pirate tile visible in Edit. Selecting it highlights it. Save persists "other". After refresh it remains selected. Your Activity displays it correctly.
+
+Stage Summary:
+- Task 1: YourActivityCard now renders all 6 persisted activity fields in a compact glass-card inner panel, reusing the existing reaction/device/platform vocabulary via the new shared src/shared/data/watchActivity.ts module. Empty fields are hidden; the existing Watched/Rating/Added/Notes cells are preserved.
+- Task 2: handleSetStatus removed the early return that prevented auto-open when the status was already set. Completed/Watching now auto-open Edit unconditionally (even when the status doesn't change). Planned/Dropped never auto-open. Supabase write only happens when the status actually changes. Error path does NOT auto-open.
+- Task 3: A pirate-flag "other / outside OTT" tile is rendered in PlatformSelector before the catalogue providers. The stable value "other" is persisted to vault.watch_platform. The tile highlights on read-back. YourActivityCard shows the pirate flag + label for "other".
+- Shared: src/shared/data/watchActivity.ts is the single source of truth for the device vocabulary + the "other" sentinel, so save + display never drift.
+- Tests: 39 new regression tests across 4 files. All pass.
+- Build: 1798/1798 tests pass; production build contains the CSS class, the pirate flag emoji, and the "Other / Outside OTT" label.
+- Browser persistence: NOT VERIFIED in CI (requires real Supabase auth) — needs the user's manual confirmation against the live site after deploy.

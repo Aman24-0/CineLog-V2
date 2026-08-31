@@ -4,6 +4,12 @@ import type { Accessor } from "solid-js";
 import Icon from "~/shared/ui/Icon";
 import ReactionPicker from "~/shared/ui/ReactionPicker";
 import { normalizeReaction, type CommonReaction } from "~/shared/data/reactions";
+import {
+  WATCH_DEVICE_OPTIONS as WATCH_DEVICE_OPTIONS_BASE,
+  WATCH_DEVICE_OPTION_THEATRE,
+  OTHER_PLATFORM_VALUE,
+  OTHER_PLATFORM_META
+} from "~/shared/data/watchActivity";
 import { readTagDefinitions } from "~/features/watchlist/tagStore";
 import { usePublishedProviderCatalog } from "~/features/watchlist/hooks/usePublishedProviderCatalog";
 import { buildJustWatchIconUrl } from "~/features/watchlist/hooks/useWatchlistOttAvailability";
@@ -761,20 +767,13 @@ export default function DetailsEditForm(props: DetailsEditFormProps) {
 }
 
 // ─── Watch device options (Part 8 + Part 2) ─────────────────────────
-// Theatre is ONLY for movies (not TV/series). The `isMovie` flag is
-// passed to the form to conditionally include it.
-const WATCH_DEVICE_OPTIONS_BASE = [
-  { value: "tv", label: "TV", emoji: "📺" },
-  { value: "computer", label: "Computer", emoji: "💻" },
-  { value: "tablet", label: "Tablet", emoji: "📱" },
-  { value: "mobile", label: "Mobile", emoji: "📱" }
-] as const;
-
-const WATCH_DEVICE_OPTION_THEATRE = {
-  value: "theatre",
-  label: "Theatre",
-  emoji: "🎬"
-} as const;
+// Theatre is ONLY for movies (not TV/series). The condition below prepends
+// it to the shared WATCH_DEVICE_OPTIONS_BASE list for movies only. The
+// shared vocabulary lives in src/shared/data/watchActivity.ts so the
+// read-back card (YourActivityCard) and this edit form use the SAME
+// labels/emojis — no drift between save and display.
+// (WATCH_DEVICE_OPTIONS_BASE and WATCH_DEVICE_OPTION_THEATRE are imported
+// from ~/shared/data/watchActivity — see imports at the top of this file.)
 
 // ─── Tag selector (Part 4) ──────────────────────────────────────────
 // Reuses the existing tagStore vocabulary. The user can select a tag
@@ -841,17 +840,28 @@ function TagSelector(props: { value: string; onChange: (v: string) => void }) {
   );
 }
 
-// ─── Platform selector (Part 9 + Part 3 fix) ──────────────────────
+// ─── Platform selector (Part 9 + Part 3 fix + Part 4 "other") ───────
 // Uses the existing published Supabase provider catalogue via
 // usePublishedProviderCatalog. No hardcoded list. Only active/published
 // providers are shown. LOGO-ONLY grid (no provider name text) with
 // responsive auto-fill layout. Each logo has aria-label + title for
 // accessibility. Missing logos render a fallback first-letter tile.
+//
+// SPECIAL "other" TILE: a pirate-flag 🏴‍☠️ tile is rendered BEFORE the
+// catalogue providers (after the "None" tile). It represents "watched
+// somewhere outside the OTT/platform catalogue" (pirated stream,
+// download, physical disc, etc.). Clicking it persists the sentinel
+// value "other" to vault.watch_platform. This is a UI-only option — it
+// is NOT added to the Supabase justwatch_provider_catalog table (that
+// table is the admin-controlled OTT provider list). Clicking the tile
+// again clears the platform, matching the behaviour of every other
+// platform tile.
 function PlatformSelector(props: {
   value: string;
   onChange: (v: string) => void;
 }) {
   const { catalog } = usePublishedProviderCatalog();
+  const isOtherSelected = () => props.value === OTHER_PLATFORM_VALUE;
   return (
     <div
       class="platform-logo-grid"
@@ -890,6 +900,45 @@ function PlatformSelector(props: {
           block
         </span>
       </button>
+
+      {/* "Other / Outside OTT" — pirate flag tile. Special UI-only
+          sentinel (not in the Supabase catalogue). Rendered BEFORE
+          the catalogue providers. Clicking toggles: select "other"
+          or clear if already selected. */}
+      <button
+        type="button"
+        class="platform-logo-tile"
+        style={{
+          "aspect-ratio": "1",
+          border: isOtherSelected()
+            ? "2px solid var(--p)"
+            : "1px solid var(--hairline-2)",
+          background: isOtherSelected() ? "var(--p-dim)" : "var(--glass-bg)",
+          "border-radius": "0.5rem",
+          cursor: "pointer",
+          display: "flex",
+          "align-items": "center",
+          "justify-content": "center",
+          padding: "0.375rem"
+        }}
+        onClick={() =>
+          props.onChange(isOtherSelected() ? "" : OTHER_PLATFORM_VALUE)
+        }
+        aria-pressed={isOtherSelected()}
+        aria-label={OTHER_PLATFORM_META.label}
+        title={OTHER_PLATFORM_META.label}
+      >
+        <span
+          style={{
+            "font-size": "1.25rem",
+            "line-height": 1
+          }}
+          aria-hidden="true"
+        >
+          {OTHER_PLATFORM_META.emoji}
+        </span>
+      </button>
+
       <For each={catalog()}>
         {(provider) => {
           const isSelected = () => props.value === provider.technicalName;

@@ -3,6 +3,13 @@ import { Show, For, Component, createSignal, createMemo } from "solid-js";
 import { Portal } from "solid-js/web";
 import type { WatchlistItem } from "~/shared/types";
 import { formatDateShort } from "~/shared/utils/format";
+import { normalizeReaction, REACTION_META } from "~/shared/data/reactions";
+import {
+  resolveWatchDevice,
+  resolveOtherPlatform
+} from "~/shared/data/watchActivity";
+import { usePublishedProviderCatalog } from "~/features/watchlist/hooks/usePublishedProviderCatalog";
+import { buildJustWatchIconUrl } from "~/features/watchlist/hooks/useWatchlistOttAvailability";
 
 interface YourActivityCardProps {
   /** User-owned vault item — always present (parent gates on vaultItem) */
@@ -255,6 +262,96 @@ const YourActivityCard: Component<YourActivityCardProps> = (props) => {
     return formatDateShort(added);
   };
 
+  // ── Activity detail resolution (2026-09-02) ───────────────────────────
+  // The following accessors resolve the persisted activity fields to
+  // display-ready shapes. Each returns null when the field is unset so
+  // the JSX can hide the row rather than show a meaningless "—" placeholder.
+  // The vocabulary is shared with DetailsEditForm via src/shared/data/
+  // watchActivity.ts and src/shared/data/reactions.ts so save + display
+  // never drift.
+
+  /** Resolved reaction (normalized for legacy values) + emoji + label, or null. */
+  const resolvedReaction = createMemo(() => {
+    const raw = props.vaultItem.reaction;
+    const normalized = normalizeReaction(raw);
+    if (!normalized) return null;
+    const meta = REACTION_META[normalized];
+    return { normalized, emoji: meta.emoji, label: meta.label };
+  });
+
+  /** Resolved "where did you watch?" device, or null. */
+  const resolvedDevice = createMemo(() =>
+    resolveWatchDevice(props.vaultItem.watchDevice)
+  );
+
+  /**
+   * Resolved watch platform. For the special "other" sentinel, returns
+   * { emoji, label, isOther: true }. For a normal JustWatch/Supabase
+   * catalogue platform, looks up the published catalogue by technicalName
+   * and returns { iconUrl, label, isOther: false }. Returns null when
+   * the platform is unset or unknown.
+   */
+  const { catalog } = usePublishedProviderCatalog();
+  const resolvedPlatform = createMemo(() => {
+    const value = props.vaultItem.watchPlatform;
+    if (!value) return null;
+    // Special "other" sentinel — pirate flag tile.
+    const other = resolveOtherPlatform(value);
+    if (other) {
+      return {
+        emoji: other.emoji,
+        label: other.label,
+        iconUrl: null as string | null,
+        isOther: true
+      };
+    }
+    // Normal catalogue platform — resolve via the published Supabase
+    // catalogue (same source the Edit form's PlatformSelector uses).
+    const entry = catalog().find((p) => p.technicalName === value);
+    if (!entry) return null;
+    const iconUrl = entry.icon ? buildJustWatchIconUrl(entry.icon) : null;
+    return {
+      emoji: null as string | null,
+      label: entry.clearName || entry.technicalName,
+      iconUrl,
+      isOther: false
+    };
+  });
+
+  /** Resolved favourite character — name + profile image URL, or null. */
+  const resolvedCharacter = createMemo(() => {
+    const name = props.vaultItem.favoriteCharacterName;
+    const profilePath = props.vaultItem.favoriteCharacterProfile;
+    if (!name && !profilePath) return null;
+    const imageUrl = profilePath
+      ? `https://image.tmdb.org/t/p/w185${profilePath}`
+      : null;
+    return { name: name ?? null, imageUrl };
+  });
+
+  /**
+   * Whether ANY activity-detail row exists. When false, the entire
+   * "activity details" area is hidden so the card stays compact for
+   * items with no activity data (preserves the original card shape).
+   */
+  const hasActivityDetails = createMemo(
+    () =>
+      resolvedReaction() !== null ||
+      (props.vaultItem.tag !== null &&
+        props.vaultItem.tag !== undefined &&
+        props.vaultItem.tag !== "") ||
+      resolvedDevice() !== null ||
+      resolvedPlatform() !== null ||
+      resolvedCharacter() !== null
+  );
+
+  /** Tag value or null (empty string → null). */
+  const resolvedTag = createMemo(() => {
+    const t = props.vaultItem.tag;
+    if (!t || typeof t !== "string" || t.trim() === "") return null;
+    return t;
+  });
+
   return (
     <div class="your-activity-card">
       {/* Header — accent bar + "Your Activity" label (no Edit button — that's in the ActionDock) */}
@@ -367,6 +464,146 @@ const YourActivityCard: Component<YourActivityCardProps> = (props) => {
           </div>
         </Show>
       </div>
+
+      {/* ── Activity details (2026-09-02) ──────────────────────────────
+          A compact, glass-card inner panel that shows the persisted
+          personal-activity fields that the Edit Activity modal writes:
+            • Reaction (emoji + label, normalized for legacy values)
+            • Tag (free text from the user's tag vocabulary)
+            • Where watched (device emoji + label)
+            • Platform (catalogue icon OR pirate flag for "other")
+            • Favourite character (profile image + name)
+          Every row is hidden when its value is unset, so the panel is
+          only rendered when at least one field has data. This keeps the
+          card compact for items with no activity and avoids showing
+          meaningless "—" placeholders. The vocabulary is shared with
+          DetailsEditForm via src/shared/data/watchActivity.ts and
+          src/shared/data/reactions.ts so save + display never drift. */}
+      <Show when={hasActivityDetails()}>
+        <div class="your-activity-details">
+          {/* Reaction */}
+          <Show when={resolvedReaction()}>
+            {(r) => (
+              <div class="your-activity-detail-row">
+                <span class="your-activity-detail-label">Reaction</span>
+                <span class="your-activity-detail-value">
+                  <span class="your-activity-detail-emoji" aria-hidden="true">
+                    {r().emoji}
+                  </span>
+                  {r().label}
+                </span>
+              </div>
+            )}
+          </Show>
+
+          {/* Tag */}
+          <Show when={resolvedTag()}>
+            {(tag) => (
+              <div class="your-activity-detail-row">
+                <span class="your-activity-detail-label">Tag</span>
+                <span class="your-activity-detail-value">{tag()}</span>
+              </div>
+            )}
+          </Show>
+
+          {/* Where watched (device) */}
+          <Show when={resolvedDevice()}>
+            {(d) => (
+              <div class="your-activity-detail-row">
+                <span class="your-activity-detail-label">Where watched</span>
+                <span class="your-activity-detail-value">
+                  <span class="your-activity-detail-emoji" aria-hidden="true">
+                    {d().emoji}
+                  </span>
+                  {d().label}
+                </span>
+              </div>
+            )}
+          </Show>
+
+          {/* Platform */}
+          <Show when={resolvedPlatform()}>
+            {(p) => (
+              <div class="your-activity-detail-row">
+                <span class="your-activity-detail-label">Platform</span>
+                <span class="your-activity-detail-value">
+                  <Show
+                    when={p().isOther}
+                    fallback={
+                      <Show
+                        when={p().iconUrl}
+                        fallback={
+                          <span
+                            class="your-activity-detail-platform-fallback"
+                            aria-hidden="true"
+                          >
+                            {p().label.charAt(0)}
+                          </span>
+                        }
+                      >
+                        <img
+                          src={p().iconUrl ?? ""}
+                          alt=""
+                          class="your-activity-detail-platform-icon"
+                          loading="lazy"
+                        />
+                      </Show>
+                    }
+                  >
+                    <span
+                      class="your-activity-detail-emoji"
+                      aria-hidden="true"
+                    >
+                      {p().emoji}
+                    </span>
+                  </Show>
+                  {p().label}
+                </span>
+              </div>
+            )}
+          </Show>
+
+          {/* Favourite character — profile image + name */}
+          <Show when={resolvedCharacter()}>
+            {(c) => (
+              <div class="your-activity-detail-row your-activity-detail-row-character">
+                <span class="your-activity-detail-label">Favourite character</span>
+                <span class="your-activity-detail-value your-activity-detail-character">
+                  <Show
+                    when={c().imageUrl}
+                    fallback={
+                      <span
+                        class="your-activity-detail-character-fallback"
+                        aria-hidden="true"
+                      >
+                        <span
+                          class="material-symbols-outlined"
+                          style={{ "font-size": "16px" }}
+                          aria-hidden="true"
+                        >
+                          person
+                        </span>
+                      </span>
+                    }
+                  >
+                    <img
+                      src={c().imageUrl ?? ""}
+                      alt=""
+                      class="your-activity-detail-character-img"
+                      loading="lazy"
+                    />
+                  </Show>
+                  <Show when={c().name}>
+                    <span class="your-activity-detail-character-name">
+                      {c().name}
+                    </span>
+                  </Show>
+                </span>
+              </div>
+            )}
+          </Show>
+        </div>
+      </Show>
 
       {/* Notes preview (if any) */}
       <Show when={props.vaultItem.notes && props.vaultItem.notes.trim()}>

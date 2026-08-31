@@ -345,55 +345,98 @@ export function useDetailsProgress(
    * Completed / Dropped). Skips the cycle and writes the requested status
    * in one shot, then updates the modal state so the button immediately
    * reflects the active state.
+   *
+   * AUTO-OPEN EDIT BEHAVIOUR (2026-09-02 fix):
+   *   - Tapping Completed when current status is NOT Completed:
+   *       persist status → update local item → auto-open Edit.
+   *   - Tapping Completed when current status IS already Completed:
+   *       do NOT persist (no-op) → STILL auto-open Edit.
+   *   - Tapping Watching when current status is NOT Watching:
+   *       persist → update → auto-open Edit.
+   *   - Tapping Watching when current status IS already Watching:
+   *       do NOT persist → STILL auto-open Edit.
+   *   - Tapping Planned or Dropped: NEVER auto-open Edit (regardless of
+   *       whether the status changes).
+   *
+   * The previous implementation had an early `if (v.status === nextStatus)
+   * return;` that prevented the auto-open from firing when the user tapped
+   * the same status again — which is exactly the case the user tested
+   * (a title already marked Completed → tap Completed → expected Edit
+   * to open, but it didn't). The early return is now removed; the
+   * auto-open fires unconditionally for Completed/Watching.
+   *
+   * The Supabase write is only performed when the status is actually
+   * changing — re-writing the same value would be a wasted round-trip
+   * (and could trigger `updated_at` churn for no reason). The local
+   * selectedItem is similarly only updated when the status changes.
+   *
+   * "Planned" and "Dropped" do NOT auto-open Edit — there is no viewing
+   * metadata to record for those statuses.
    */
   const handleSetStatus = async (nextStatus: WatchlistItem["status"]) => {
     const uid = getCurrentUid();
     const v = args.vaultItem();
     if (!uid || !v) return;
-    // No-op if the status is already set.
-    if (v.status === nextStatus) return;
 
-    try {
-      const state = await setSeriesStatusInSupabase(
-        uid,
-        v.id,
-        v.media_type,
-        nextStatus,
-        resolveSeasons(v, args.details())
-      );
-      const updated: WatchlistItem = {
-        ...v,
-        status: state.status,
-        season: state.season,
-        episode: state.episode,
-        watchProgress: {
-          ...(v.watchProgress ?? { currentTime: 0, duration: 0 }),
+    const statusChanged = v.status !== nextStatus;
+
+    // Only persist + update the local item when the status is actually
+    // changing. A no-op status tap (e.g. tapping Completed on an already
+    // Completed title) skips the Supabase write but STILL falls through
+    // to the auto-open Edit logic below.
+    if (statusChanged) {
+      try {
+        const state = await setSeriesStatusInSupabase(
+          uid,
+          v.id,
+          v.media_type,
+          nextStatus,
+          resolveSeasons(v, args.details())
+        );
+        const updated: WatchlistItem = {
+          ...v,
+          status: state.status,
           season: state.season,
           episode: state.episode,
-          updatedAt: new Date().toISOString()
-        }
-      };
-      args.setSelectedItem({
-        baseItem: { ...args.baseItem()!, ...updated },
-        vaultItem: updated
-      });
-      args.showToast(`Status: ${state.status}`, "success", 1500);
-      // Auto-open the Activity/Edit modal when the user sets status
-      // to "Completed" OR "Watching". Both are milestones where the
-      // user is likely to want to record viewing metadata (rating,
-      // reaction, watch date, etc.). The status is ALREADY SAVED
-      // before this fires — closing the edit modal without saving
-      // does NOT revert the status.
-      // "Planned" and "Dropped" do NOT auto-open (no viewing metadata
-      // to record for those statuses).
-      if (
-        (nextStatus === "Completed" || nextStatus === "Watching") &&
-        args.onCompletedAutoOpenEdit
-      ) {
-        args.onCompletedAutoOpenEdit();
+          watchProgress: {
+            ...(v.watchProgress ?? { currentTime: 0, duration: 0 }),
+            season: state.season,
+            episode: state.episode,
+            updatedAt: new Date().toISOString()
+          }
+        };
+        args.setSelectedItem({
+          baseItem: { ...args.baseItem()!, ...updated },
+          vaultItem: updated
+        });
+        args.showToast(`Status: ${state.status}`, "success", 1500);
+      } catch {
+        args.showToast("Failed to update status.", "error");
+        // If the persistence failed, do NOT auto-open Edit — the user
+        // should see the error state and retry. Returning here also
+        // avoids surprising the user with an Edit modal for a status
+        // that wasn't actually saved.
+        return;
       }
-    } catch {
-      args.showToast("Failed to update status.", "error");
+    }
+
+    // Auto-open the Activity/Edit modal when the user sets status
+    // to "Completed" OR "Watching". Both are milestones where the
+    // user is likely to want to record viewing metadata (rating,
+    // reaction, watch date, etc.). When the status actually changed,
+    // it has ALREADY been saved above — closing the edit modal without
+    // saving does NOT revert the status. When the status did NOT
+    // change (the user tapped the already-active status), no
+    // persistence was needed — the Edit modal still opens so the user
+    // can review / edit their existing viewing metadata.
+    //
+    // "Planned" and "Dropped" do NOT auto-open (no viewing metadata
+    // to record for those statuses).
+    if (
+      (nextStatus === "Completed" || nextStatus === "Watching") &&
+      args.onCompletedAutoOpenEdit
+    ) {
+      args.onCompletedAutoOpenEdit();
     }
   };
 
