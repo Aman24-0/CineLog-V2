@@ -1861,3 +1861,85 @@ Stage Summary:
 - Tests: 1820/1820 pass. +12 new regression tests. Verified tests fail against the buggy code.
 - Build: production build contains the fix (verified via build-artifact scan).
 - Browser: mobile sanity check passes. Real click test NOT verified (requires live auth) — needs user's manual confirmation.
+
+---
+Task ID: 16
+Agent: main (orchestrator)
+Task: UI/UX redesign of the TV Series Episode Guide — replace vertical season accordion + vertical episode list with a horizontal season selector + horizontal episode carousel + compact episode preview cards. Preserve ALL existing episode functionality.
+
+ROOT CAUSE / DESIGN LIMITATION OF THE OLD EPISODE GUIDE:
+- SeasonNavigator.tsx used a vertical accordion — each season was a collapsible header. ALL seasons started collapsed (v2.6). The user had to explicitly click to expand a season, which triggered a TMDB fetch + episode render. This wasted vertical space and required an extra tap before seeing any episodes.
+- EpisodeCard.tsx was a horizontal grid card: [96px still] [body: title/meta/actions] [toggle]. The layout was text-heavy with text "Rate" and "More" buttons. The card was wide (full-width) but not information-dense. All episodes were stacked vertically inside an expanded season, making long seasons a very tall scroll.
+
+NEW UI STRUCTURE:
+- SeasonSelector: horizontal scrollable row of compact season pills. Selected season has accent border + fill. Only ONE season's episodes are visible at a time. The initial selected season is the user's current season (from vaultItem.season or item.season, defaulting to 1) — the user sees episodes immediately without an extra tap.
+- EpisodeCarousel: horizontal scroll container (overflow-x: auto + scroll-snap) of EpisodePreviewCards. Mobile shows ~2.5 cards (the next card peeks). Desktop shows more via wider card width. No JS carousel library.
+- EpisodePreviewCard: compact vertical card (220px mobile / 240px sm / 260px lg). Structure: still image (with E# badge top-left + watched toggle top-right, both with glass backdrop), title (1-line ellipsis), overview (2-line ellipsis, expandable via More), compact metadata row (runtime · air date · ★rating · feedback), icon-based action row (star icon → Rate, unfold icon → More).
+
+HOW SEASON SELECTION WORKS:
+- `selectedSeason` signal (initialized to `currentSeason()`).
+- `selectSeason(n)` sets `selectedSeason` — a `createMemo(on(selectedSeason, ...))` triggers `fetchSeason(n)` if not cached.
+- `episodes` memo reads from `seasonCache().get(selectedSeason())`.
+- The selector renders `seasonList()` as pill buttons with `role="tab"` + `aria-selected`.
+
+HOW THE EPISODE CAROUSEL WORKS:
+- `.episode-carousel` is a flex container with `overflow-x: auto` + `scroll-snap-type: x mandatory`. Cards have `scroll-snap-align: start`. No JS library — pure CSS.
+- Hidden scrollbars via `scrollbar-width: none` (Firefox) + `::-webkit-scrollbar { display: none }` (Chrome/Safari).
+- Negative margins + padding let the carousel break out of the parent's horizontal padding.
+
+WHERE RATE/WATCHED/MORE ICONS WERE PLACED AND WHY:
+- Watched toggle: top-right of the still image (28px circle with glass backdrop). This is the Nuvio-inspired placement — the checkmark sits on the artwork, not in a separate row. `position: absolute; top: 6px; right: 6px; z-index: 2`. The gradient overlay ensures readability.
+- Rate icon: bottom action row (star icon in a pill button). Placed below the metadata so it doesn't obscure the artwork. Shows the current rating value next to the star if set.
+- More icon: bottom action row (unfold_more/unfold_less icon in a pill button). Toggles the overview between 2-line clamp and full text.
+
+ALL METADATA REMAINS INSIDE THE CARD:
+- Episode number: top-left badge on the still.
+- Episode image: the still itself.
+- Episode title: below the still (1-line ellipsis).
+- Description/overview: below the title (2-line ellipsis, expandable).
+- Runtime: in the metadata row.
+- Air date: in the metadata row.
+- IMDb rating: in the metadata row (★ prefix, yellow color).
+- Feedback summary: in the metadata row (★N + emoji).
+- No metadata or actions exist outside the card.
+
+EXISTING BUSINESS LOGIC PRESERVED:
+- All handlers reused: onEpisodeChange, onEpisodeUnmark, onRateEpisode, onFeedbackEpisode, onAddToVault.
+- handleEpisodeToggle rewind logic preserved (E1 of S>1 → rewind to last ep of S-1).
+- seasonCache / fetchSeason lazy-loading preserved (idempotent, de-duped via loadingSeasons Set).
+- seasonProgress / seriesProgress calculation preserved.
+- GlassModal rate dialog preserved (rating scale + reaction picker + save).
+- canRateEpisode / canOpenEpisodeFeedback helpers preserved.
+- Non-vault title: watched toggle becomes "+" add button → onAddToVault.
+- Loading skeleton + empty-state message preserved.
+- DetailsSeasons.tsx (the parent wrapper) NOT changed — same prop interface.
+
+TESTS ADDED (13 new):
+- SeasonNavigator.test.tsx (NEW, 13 tests):
+  • Renders the horizontal season selector with all seasons
+  • Selects Season 1 initially (current season from vaultItem)
+  • Renders the episode carousel for the selected season after fetch
+  • Clicking Season 2 changes the carousel to Season 2 episodes
+  • Clicking Season 3 changes the carousel to Season 3 episodes
+  • The episode carousel is a horizontal scroll container
+  • The Mark watched toggle calls onEpisodeChange for an unwatched episode
+  • The Rate button opens the feedback dialog
+  • The More button toggles the overview expand state
+  • The watched toggle has correct aria-pressed for watched episodes
+  • The watched toggle has correct aria-pressed for unwatched episodes
+  • Preserves the series progress summary at the top
+  • Shows the season progress in each season pill (vault titles)
+- EpisodeCard.test.ts (preserved, 6 tests — all pass unchanged)
+
+VALIDATION:
+- tsc --noEmit: clean.
+- ESLint (changed files): 0 errors (12 pre-existing warnings about reactive variables).
+- Vitest: 1833 / 1833 across 110 files pass (was 1820 baseline — +13 new).
+- Production build: success.
+- Build-artifact CSS verification: ALL 8 new CSS classes found in the build CSS. ALL 3 old classes (.season-accordion, .season-navigator-list, .episode-list) removed.
+- Dev server mobile check at 390x844: page rendered, 0 console errors, no horizontal overflow.
+
+BROWSER VERIFICATION:
+- Build CSS verification: PASS (all new classes present, all old classes removed).
+- Dev server mobile sanity check at 390x844: PASS (page renders, no errors, no overflow).
+- Real interaction test (clicking seasons, swiping carousel, clicking Rate/Watched/More): NOT VERIFIED in CI — requires a live Supabase auth session + a real TV title with seasons data. The 13 regression tests cover the component-level behavior with mocked TMDB data. The user should perform the manual browser test against the live site once deployed.

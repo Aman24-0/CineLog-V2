@@ -679,6 +679,11 @@
    cards with stills, titles, runtimes, air dates, overviews.
    ============================================================ */
 
+/* ============================================================
+   Season Navigator + Episode Carousel (2026-09-03 redesign)
+   Nuvio-inspired horizontal layout adapted to CineLog's glass aesthetic.
+   ============================================================ */
+
 .season-navigator {
   display: flex;
   flex-direction: column;
@@ -705,171 +710,196 @@
   height: 6px;
 }
 
-/* Season accordion list */
-.season-navigator-list {
+/* ── Season selector — horizontal compact pills ─────────────────────
+   Replaces the vertical accordion. Horizontally scrollable on mobile
+   if there are many seasons. Selected season has accent border + fill. */
+.season-selector {
   display: flex;
-  flex-direction: column;
-  gap: var(--sp-2);
+  align-items: stretch;
+  gap: 0.5rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x proximity;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+  -webkit-overflow-scrolling: touch;
+}
+.season-selector::-webkit-scrollbar {
+  display: none;
 }
 
-/* Individual season accordion */
-.season-accordion {
+.season-selector-pill {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 0.875rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--hairline-2);
   background: var(--glass-bg);
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  transition:
-    border-color var(--dur-base) var(--ease-out),
-    box-shadow var(--dur-base) var(--ease-out);
-}
-.season-accordion-expanded {
-  border-color: var(--hairline-2);
-  box-shadow: var(--shadow-premium);
-}
-.season-accordion-current {
-  border-color: color-mix(in srgb, var(--p) 25%, transparent);
-}
-
-/* Season header — tap to expand/collapse */
-.season-accordion-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-3);
-  padding: var(--sp-3) var(--sp-4);
-  background: transparent;
-  border: none;
+  color: var(--text-soft);
   cursor: pointer;
-  width: 100%;
-  text-align: left;
-  transition: background var(--dur-fast) var(--ease-out);
-}
-.season-accordion-header:hover {
-  background: rgba(232, 183, 74, 0.015);
-}
-.season-accordion-header-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-.season-accordion-title {
+  transition:
+    border-color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
+  scroll-snap-align: start;
   font-family: "Outfit", sans-serif;
-  font-size: 0.9375rem;
-  font-weight: 700;
-  color: var(--text-strong);
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
 }
-.season-accordion-current-dot {
-  width: 6px;
-  height: 6px;
+.season-selector-pill:hover {
+  border-color: var(--hairline-3);
+  color: var(--text-strong);
+}
+.season-selector-pill-selected {
+  border-color: var(--p);
+  background: color-mix(in srgb, var(--p) 14%, var(--glass-bg));
+  color: var(--p);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--p) 30%, transparent);
+}
+.season-selector-pill-dot {
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   background: var(--p);
-  box-shadow: 0 0 8px var(--p-glow);
+  box-shadow: 0 0 6px var(--p-glow);
   flex-shrink: 0;
 }
-.season-accordion-meta {
+.season-selector-pill-label {
+  font-weight: 700;
+}
+.season-selector-pill-meta {
   font-family: "Azeret Mono", monospace;
-  font-size: 0.5625rem;
+  font-size: 0.5rem;
   font-weight: 600;
-  letter-spacing: 0.08em;
-  color: var(--text-muted);
-}
-.season-accordion-chevron {
-  font-size: 20px;
-  color: var(--text-soft);
-  flex-shrink: 0;
-  transition: transform var(--dur-base) var(--ease-out);
+  letter-spacing: 0.06em;
+  opacity: 0.7;
 }
 
-/* Loading skeleton for season episodes */
-.season-accordion-loading {
+/* ── Episode carousel — horizontal scroll of compact cards ──────────
+   Native CSS overflow-x: auto + scroll-snap. No JS carousel library.
+   Mobile shows ~2.5 cards (the next card peeks). Desktop shows more
+   via the wider min-width. */
+.episode-carousel {
   display: flex;
-  flex-direction: column;
-  gap: var(--sp-2);
-  padding: 0 var(--sp-4) var(--sp-3);
+  gap: 0.625rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  padding: 2px 0 4px;
+  -webkit-overflow-scrolling: touch;
+  /* Negative margins + padding to let cards break out of the parent's
+     horizontal padding, matching the rest of the details page rhythm. */
+  margin-left: -0.5rem;
+  margin-right: -0.5rem;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
 }
-.season-accordion-skeleton {
-  height: 80px;
+.episode-carousel::-webkit-scrollbar {
+  display: none;
+}
+
+/* Carousel skeleton — shown while a season is fetching */
+.season-carousel-skeleton {
+  display: flex;
+  gap: 0.625rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  margin-left: -0.5rem;
+  margin-right: -0.5rem;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+}
+.season-carousel-skeleton::-webkit-scrollbar {
+  display: none;
+}
+.season-carousel-skeleton-card {
+  flex-shrink: 0;
+  width: 220px;
+  height: 280px;
   border-radius: var(--radius-md);
   background: linear-gradient(
     105deg,
-    rgba(232, 183, 74, 0.015) 25%,
-    rgba(232, 183, 74, 0.03) 50%,
-    rgba(232, 183, 74, 0.015) 75%
+    rgb(var(--profile-ambient-primary, 96 112 128) / 0.03) 25%,
+    rgb(var(--profile-ambient-primary, 96 112 128) / 0.06) 50%,
+    rgb(var(--profile-ambient-primary, 96 112 128) / 0.03) 75%
   );
   background-size: 300% 100%;
   animation: shimmer 1.6s ease-in-out infinite;
+  border: 1px solid var(--hairline);
 }
-.season-accordion-empty {
-  padding: var(--sp-3) var(--sp-4);
+.season-carousel-empty {
+  padding: var(--sp-4);
   text-align: center;
 }
 
-/* Episode list — inside an expanded season */
-.episode-list {
+/* ── Episode preview card — compact vertical card ───────────────────
+   Fixed width, compact height. All information inside the card:
+   still image (with overlays) + body (title/overview/meta/actions). */
+.episode-card {
+  flex-shrink: 0;
+  width: 220px;
   display: flex;
   flex-direction: column;
-  gap: var(--sp-2);
-  padding: 0 var(--sp-3) var(--sp-3);
-}
-
-/* Episode card — horizontal layout: still + body + toggle.
-   The third column (auto width) holds the right-aligned circular
-   toggle. On non-vault titles it holds the smaller "+" add button
-   instead. The third column is always reserved so the layout is
-   stable across vault/non-vault episodes in the same list. */
-.episode-card {
-  display: grid;
-  grid-template-columns: 96px 1fr auto;
-  align-items: start;
-  gap: var(--sp-3);
-  padding: var(--sp-2);
   border-radius: var(--radius-md);
   background: var(--glass-bg-strong);
   border: 1px solid var(--hairline);
+  overflow: hidden;
+  scroll-snap-align: start;
   transition:
     border-color var(--dur-fast) var(--ease-out),
-    background var(--dur-fast) var(--ease-out);
+    background var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-spring);
+  -webkit-tap-highlight-color: transparent;
 }
 @media (min-width: 640px) {
   .episode-card {
-    grid-template-columns: 120px 1fr auto;
+    width: 240px;
+  }
+}
+@media (min-width: 1024px) {
+  .episode-card {
+    width: 260px;
   }
 }
 .episode-card:hover {
   border-color: var(--hairline-2);
   background: var(--glass-bg);
+  transform: translateY(-2px);
 }
 .episode-card-current {
-  border-color: color-mix(in srgb, var(--p) 30%, transparent);
-  background: color-mix(in srgb, var(--p-dim) 50%, var(--glass-bg-strong));
+  border-color: color-mix(in srgb, var(--p) 35%, transparent);
+  background: color-mix(in srgb, var(--p-dim) 40%, var(--glass-bg-strong));
+  box-shadow: 0 0 12px color-mix(in srgb, var(--p) 12%, transparent);
 }
 .episode-card-watched {
-  opacity: 0.85;
+  opacity: 0.92;
 }
 
-/* Episode still — 16:9 thumbnail with number overlay */
+/* Still image — 16:9 with gradient overlay for badge/toggle readability */
 .episode-card-still-wrap {
   position: relative;
   width: 100%;
   aspect-ratio: 16 / 9;
-  border-radius: var(--radius-sm);
   overflow: hidden;
   background: var(--glass-bg);
-  border: 1px solid var(--hairline);
 }
 .episode-card-still {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  filter: brightness(0.92);
+  filter: brightness(0.9);
   transition: transform var(--dur-base) var(--ease-smooth);
 }
 .episode-card:hover .episode-card-still {
-  transform: scale(1.04);
+  transform: scale(1.03);
   filter: brightness(1);
 }
 .episode-card-still-fallback {
@@ -879,48 +909,68 @@
   align-items: center;
   justify-content: center;
 }
+.episode-card-still-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(8, 8, 13, 0.5) 0%,
+    transparent 30%,
+    transparent 60%,
+    rgba(8, 8, 13, 0.6) 100%
+  );
+  pointer-events: none;
+}
+
+/* Episode number badge (top-left of still) */
 .episode-card-number {
   position: absolute;
-  bottom: 4px;
-  left: 4px;
-  padding: 1px 6px;
+  top: 6px;
+  left: 6px;
+  padding: 2px 7px;
   border-radius: var(--radius-pill);
   background: rgba(8, 8, 13, 0.72);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   font-family: "Azeret Mono", monospace;
   font-size: 0.5rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   color: var(--text-strong);
+  z-index: 2;
 }
-/* Episode card toggle — right-aligned circular watched/unwatched toggle.
-   Replaces the old "MARK AS WATCHED" button row + the still's watched badge.
-   - Empty circle outline = unwatched (tap to mark watched)
-   - Filled accent circle with check = watched (tap to mark unwatched)
-   The toggle is always present for vault titles, giving the user a
-   bidirectional affordance — previously you could mark-watched but
-   had no way to undo it. */
-.episode-card-toggle {
-  flex: 0 0 auto;
-  align-self: flex-start;
+
+/* Watched toggle (top-right of still) — vault-aware.
+   - In vault + watched: filled accent circle with check. Tap to unwatch.
+   - In vault + not watched: empty circle outline. Tap to watch.
+   - Not in vault: small "+" button. Tap to add to vault. */
+.episode-card-toggle,
+.episode-card-add-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
-  border: 1px solid var(--hairline-2);
-  background: var(--glass-bg);
-  color: var(--text-muted);
   cursor: pointer;
   transition: all var(--dur-fast) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
+  z-index: 2;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.episode-card-toggle {
+  border: 1.5px solid rgba(255, 255, 255, 0.4);
+  background: rgba(8, 8, 13, 0.5);
+  color: var(--text-strong);
 }
 .episode-card-toggle:hover {
   border-color: var(--p);
   color: var(--p);
-  background: color-mix(in srgb, var(--p-dim) 50%, var(--glass-bg));
+  background: rgba(8, 8, 13, 0.7);
 }
 .episode-card-toggle:active {
   transform: scale(0.92);
@@ -935,51 +985,33 @@
   border-color: color-mix(in srgb, var(--p) 85%, black);
   color: var(--active-text);
 }
-
-/* Episode card add button — small "+" button shown for non-vault titles.
-   Replaces the long "Add to Watchlist to Track" pill button. Occupies
-   the same grid column as the toggle so the layout is consistent. */
 .episode-card-add-btn {
-  flex: 0 0 auto;
-  align-self: flex-start;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  border: 1px dashed var(--hairline-3);
-  background: transparent;
-  color: var(--text-muted);
-  cursor: pointer;
-  transition: all var(--dur-fast) var(--ease-out);
-  -webkit-tap-highlight-color: transparent;
+  border: 1.5px dashed rgba(255, 255, 255, 0.4);
+  background: rgba(8, 8, 13, 0.5);
+  color: var(--text-soft);
 }
 .episode-card-add-btn:hover {
   border-color: var(--p);
   border-style: solid;
   color: var(--p);
-  background: var(--p-dim);
+  background: rgba(8, 8, 13, 0.7);
 }
 .episode-card-add-btn:active {
   transform: scale(0.92);
 }
 
-/* Episode body — title, meta, overview, action */
+/* Card body — title, overview, metadata, actions */
 .episode-card-body {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 0.375rem;
+  padding: 0.625rem 0.75rem 0.75rem;
   min-width: 0;
-}
-.episode-card-header {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
+  flex: 1 1 auto;
 }
 .episode-card-title {
   font-family: "Outfit", sans-serif;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   font-weight: 700;
   color: var(--text-strong);
   margin: 0;
@@ -987,182 +1019,82 @@
   -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  line-height: 1.3;
+}
+.episode-card-overview {
+  font-family: "Outfit", sans-serif;
+  font-size: 0.6875rem;
+  font-weight: 400;
+  line-height: 1.4;
+  color: var(--text-soft);
+  margin: 0;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.episode-card-overview-clamped {
+  -webkit-line-clamp: 2;
 }
 .episode-card-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.375rem;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
   font-family: "Azeret Mono", monospace;
   font-size: 0.5rem;
   font-weight: 600;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
   color: var(--text-muted);
+  margin-top: auto;
 }
-.episode-card-overview {
-  font-family: "Outfit", sans-serif;
-  font-size: 0.75rem;
-  font-weight: 400;
-  line-height: 1.5;
-  color: var(--text-soft);
-  margin: 0;
-}
-.episode-card-overview-clamped {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-.episode-card-expand {
-  align-self: flex-start;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-  font-family: "Azeret Mono", monospace;
-  font-size: 0.5rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--p);
-  transition: color var(--dur-fast) var(--ease-out);
-}
-.episode-card-expand:hover {
-  color: var(--text-strong);
-}
-
-/* Per-episode ratings — distribute every configured star evenly across the
-   available row. The tracker continues to use its existing 5-star or
-   10-star scale; this is presentation-only. */
-.episode-card-rating {
-  display: flex;
-  align-items: center;
-  width: 100%;
-  min-width: 0;
-  gap: 0.375rem;
-  margin-top: 0.375rem;
-}
-.episode-card-rating-stars {
-  display: grid;
-  flex: 1 1 auto;
-  min-width: 0;
-  gap: 0.125rem;
-}
-.episode-card-rating-stars--5 {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-}
-.episode-card-rating-stars--10 {
-  grid-template-columns: repeat(10, minmax(0, 1fr));
-}
-.episode-card-star {
+.episode-card-meta span {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 100%;
-  min-width: 36px;
-  min-height: 40px;
-  padding: 0.25rem;
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text-dim);
-  cursor: pointer;
-  line-height: 1;
-  transition:
-    color var(--dur-fast) var(--ease-out),
-    background var(--dur-fast) var(--ease-out),
-    transform var(--dur-fast) var(--ease-out);
-  -webkit-tap-highlight-color: transparent;
-}
-.episode-card-star:hover,
-.episode-card-star.is-active {
-  color: #f5c518;
-}
-.episode-card-star:hover {
-  background: color-mix(in srgb, #f5c518 10%, transparent);
-}
-.episode-card-star:active {
-  transform: scale(0.94);
-}
-.episode-card-star .material-symbols-outlined {
-  font-size: 16px;
-  font-variation-settings:
-    "FILL" 0,
-    "wght" 400,
-    "GRAD" 0,
-    "opsz" 16;
-}
-.episode-card-star .material-symbols-outlined.is-active {
-  font-variation-settings:
-    "FILL" 1,
-    "wght" 400,
-    "GRAD" 0,
-    "opsz" 16;
-}
-.episode-card-rating-clear {
-  flex: 0 0 auto;
-  min-width: 44px;
-  min-height: 40px;
-  padding: 0.375rem 0.5rem;
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text-dim);
-  cursor: pointer;
-  font-family: "Outfit", sans-serif;
-  font-size: 0.625rem;
-}
-.episode-card-rating-clear:hover {
-  background: var(--glass-bg);
-  color: var(--text-strong);
 }
 
+/* Icon-based action row — Rate + More */
 .episode-card-actions {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  min-height: 2rem;
-  margin-top: 0.35rem;
+  gap: 0.375rem;
+  margin-top: 0.25rem;
 }
-.episode-card-actions .episode-card-expand,
-.episode-card-rate-button {
-  min-height: 2rem;
+.episode-card-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
   padding: 0.25rem 0.5rem;
   border-radius: var(--radius-pill);
-  font-family: "Azeret Mono", monospace;
-  font-size: 0.5rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  line-height: 1;
-  text-transform: uppercase;
-}
-.episode-card-actions .episode-card-expand {
-  padding-left: 0;
-  padding-right: 0.25rem;
-}
-.episode-card-rate-button {
-  border: 1px solid color-mix(in srgb, var(--p) 58%, transparent);
-  background: color-mix(in srgb, var(--p) 12%, transparent);
-  color: var(--p);
+  border: 1px solid var(--hairline-2);
+  background: var(--glass-bg);
+  color: var(--text-soft);
   cursor: pointer;
-  transition:
-    color var(--dur-fast) var(--ease-out),
-    background var(--dur-fast) var(--ease-out),
-    transform var(--dur-fast) var(--ease-spring);
+  transition: all var(--dur-fast) var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
+  min-height: 28px;
 }
-.episode-card-rate-button:hover {
-  background: color-mix(in srgb, var(--p) 24%, transparent);
+.episode-card-action-btn:hover {
+  border-color: var(--hairline-3);
   color: var(--text-strong);
+  background: var(--raised);
 }
-.episode-card-rate-button:active {
-  transform: scale(0.96);
+.episode-card-action-btn:active {
+  transform: scale(0.94);
 }
-.episode-card-feedback-summary {
+.episode-card-rate-btn {
+  border-color: color-mix(in srgb, #f5c518 30%, var(--hairline-2));
   color: #f5c518;
+}
+.episode-card-rate-btn:hover {
+  border-color: #f5c518;
+  background: color-mix(in srgb, #f5c518 10%, var(--glass-bg));
+  color: #f5c518;
+}
+.episode-card-rate-value {
   font-family: "Azeret Mono", monospace;
   font-size: 0.5rem;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  line-height: 1;
 }
 
 .episode-rating-dialog {
@@ -3339,28 +3271,14 @@
     max-width: 100px;
   }
 
-  /* Seasons accordion — 2-column grid on desktop for TV shows
-     with multiple seasons. Each season accordion item is a grid
-     cell. Single-season shows still render in a single column
-     naturally (only 1 item). */
-  .season-navigator-list {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: var(--sp-3, 0.75rem);
-  }
-
-  /* When a season accordion is expanded, span both columns so
-     the episode grid inside has full width. */
-  .season-accordion.season-accordion-expanded {
-    grid-column: 1 / -1;
-  }
+  /* Season selector + episode carousel are horizontally scrollable
+     on all viewports — no desktop grid override needed (the old
+     accordion grid is gone). */
 }
 
 @media (min-width: 1280px) {
-  /* xl: 3-column season grid for very wide desktops. */
-  .season-navigator-list {
-    grid-template-columns: repeat(3, 1fr);
-  }
+  /* xl: no season grid override needed — the horizontal carousel
+     scales naturally via the wider card width at this breakpoint. */
 }
 
 /* ─────────────────────────────────────────────────────────────────────
@@ -4433,7 +4351,7 @@
 .details-page-modal .your-activity-card,
 .details-page-modal .your-activity-cell,
 .details-page-modal .your-activity-notes,
-.details-page-modal .season-accordion,
+.details-page-modal .season-selector-pill,
 .details-page-modal .episode-card,
 .details-page-modal .wheretowatch-card,
 .details-page-modal .wheretowatch-row,
