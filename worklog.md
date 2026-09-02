@@ -1987,3 +1987,68 @@ FUNCTIONALITY PRESERVED:
 - canRateEpisode / canOpenEpisodeFeedback helpers unchanged.
 - DetailsSeasons.tsx (parent wrapper) unchanged.
 - SeasonNavigator.tsx unchanged (the carousel + season selector from v1 are preserved).
+
+---
+Task ID: 18
+Agent: main (orchestrator)
+Task: Add "Running in Theatres" section to the Discover page — movies currently in theatres for the user's selected country. Positioned immediately before "Coming Soon".
+
+ARCHITECTURE FINDINGS:
+- useDiscoverFeeds.ts is the data-fetching hook for the Discover page. It fetches all feeds in parallel, is reactive to useDiscoverRegion(), and uses cachedFetch. It previously had a nowPlaying feed that was removed (Phase 5 Task 8) because it was never consumed.
+- getNowPlaying(region) already exists in ~/core/tmdb/discover.ts — calls TMDB /movie/now_playing?region={r} with caching via cachedFetch + buildCacheKey.
+- useDiscoverRegion() is the reactive hook for the user's country (from Settings → Country).
+- DiscoverSectionWrapper is the reusable section header + loading skeleton wrapper.
+- DiscoverRail is the horizontal carousel of movie cards (reuses .search-rail CSS).
+- Coming Soon is section 8 — its "See All" navigates to /profile/upcoming.
+- filterFeed() deduplicates titles across rows and filters out vault items.
+
+IMPLEMENTATION:
+1. useDiscoverFeeds.ts: re-added the nowPlaying feed. Added `nowPlaying` signal + `getNowPlaying(r)` fetch in the parallel batch. Added `nowPlaying` to the return interface. The fetch is region-specific (r = region()) and reactive (refetches when region changes via the existing createEffect(on(region, ...))).
+2. DiscoverPage.tsx: added a `nowPlayingFeed` memo that filters `feeds.nowPlaying()` through the dedup chain (filterFeed with row5Filtered().renderedIds). Inserted the "Running in Theatres" section JSX between section 7 (Popular Anime) and section 8 (Coming Soon). The section uses DiscoverSectionWrapper (label="Running in Theatres", icon="theaters") + DiscoverRail. It's wrapped in ErrorBoundary + Suspense + Show(when nowPlayingFeed().titles.length > 0) so it hides when empty and doesn't break on error. The "See All" button navigates to /discover/theatres.
+3. TheatresPage.tsx: new full-page view at /discover/theatres. Fetches getNowPlaying(region) directly, reactive to region changes. Shows a grid of movie cards with loading skeleton, error state, and empty state. Uses the existing .search-rail card CSS for visual consistency.
+4. routes/discover/theatres.tsx: the route file for the TheatresPage, matching the pattern of other route files (lazy import + ErrorBoundary + Suspense).
+
+REUSED EXISTING COMPONENTS/UTILITIES:
+- getNowPlaying(region) from ~/core/tmdb/discover (already existed, was just not consumed)
+- useDiscoverRegion() for reactive country
+- DiscoverSectionWrapper for the section header + loading skeleton
+- DiscoverRail for the horizontal carousel
+- filterFeed() for dedup + vault exclusion
+- ErrorBoundary + Suspense pattern (same as every other Discover section)
+- .search-rail CSS for the TheatresPage grid
+- PageContainer for layout
+- useDiscoverActions for handleOpenTitle
+
+COUNTRY-SPECIFIC THEATRICAL DATA:
+- getNowPlaying(region) calls TMDB /movie/now_playing?region={region} — the region parameter ensures results match the user's country.
+- region comes from useDiscoverRegion() which is reactive — when the user changes their country in Settings, the signal updates, useDiscoverFeeds' createEffect(on(region, ...)) fires, loadAll() re-runs, and getNowPlaying is called with the new region. The old results are replaced (no stale data).
+- Caching: getNowPlaying uses cachedFetch with buildCacheKey("tmdb:now_playing", { region }) — so each region is cached separately. Switching back to a previously-fetched region is instant.
+
+POSITIONING:
+- The section is between section 7 (Popular Anime) and section 8 (Coming Soon), matching the requirement "immediately ABOVE Coming Soon".
+- The section is conditionally rendered via <Show when={nowPlayingFeed().titles.length > 0}> — hidden when there are no results (empty state = hide, not show a broken section).
+
+EMPTY/ERROR/LOADING BEHAVIOR:
+- Empty: the <Show> hides the entire section when nowPlayingFeed().titles.length === 0. No broken/empty-looking section.
+- Error: wrapped in ErrorBoundary → shows DiscoverSectionError. Does NOT break Coming Soon or other sections (each section has its own ErrorBoundary).
+- Loading: DiscoverSectionWrapper's `loading` prop shows the skeleton rail while feeds.loading() && nowPlayingFeed().titles.length === 0.
+- TheatresPage: has its own loading skeleton, error state with Retry, and empty state with "No movies in theatres" message.
+
+TESTS (6 new):
+- useDiscoverFeeds.test.ts (NEW, 6 tests):
+  1. nowPlaying is part of the DiscoverFeeds interface
+  2. getNowPlaying is called with the user's region on mount
+  3. nowPlaying signal starts empty before fetch resolves
+  4. nowPlaying populates after fetch resolves
+  5. Refetches when region changes (IN → US)
+  6. Does not break other feeds when nowPlaying fails
+
+VALIDATION:
+- tsc --noEmit: clean.
+- ESLint (changed files): 0 errors.
+- Vitest: 1839 / 1839 across 111 files pass (was 1833 — +6 new).
+- Production build: success.
+- Build JS verification: "Running in Theatres" label, "theaters" icon, "/discover/theatres" route, "nowPlaying" — all found in build JS.
+- Dev server mobile check at 390x844: /discover renders, 0 console errors, no horizontal overflow.
+- /discover/theatres route check: renders, 0 console errors, no horizontal overflow.
+- Desktop check at 1280x800: /discover renders, no horizontal overflow.

@@ -462,6 +462,17 @@ export default function DiscoverPage() {
     return { titles: filtered, badgeIds: new Set<string>(), renderedIds };
   });
 
+  // ── ROW 7.5: "Running in Theatres" (now-playing movies, region-specific)
+  // 2026-09-03 — movies currently in theatres for the user's selected
+  // country. Uses feeds.nowPlaying() which calls TMDB's
+  // /movie/now_playing?region={r}. Filtered through the global dedup
+  // chain so titles already shown in earlier rows don't reappear.
+  // The section is HIDDEN when there are no results (e.g. TMDB returns
+  // empty for a small region, or the fetch failed silently).
+  const nowPlayingFeed = createMemo(() =>
+    filterFeed(feeds.nowPlaying(), row5Filtered().renderedIds)
+  );
+
   // ── ROW 8: "Coming Soon" (merged Upcoming Movies + TV + Anime) ───
   // Shuffled so TMDB + Anime titles are interleaved naturally.
   const navigate = useNavigate();
@@ -708,6 +719,36 @@ export default function DiscoverPage() {
                   emptyIcon="trending_up"
                 />
               </DiscoverSectionWrapper>
+            </ErrorBoundary>
+          </Show>
+
+          {/* 7.5. "Running in Theatres" (now-playing movies, region-specific) */}
+          <Show when={nowPlayingFeed().titles.length > 0}>
+            <ErrorBoundary
+              fallback={(e) => (
+                <DiscoverSectionError label="Running in Theatres" error={e} />
+              )}
+            >
+              <Suspense fallback={<RowSkeleton />}>
+                <DiscoverSectionWrapper
+                  label="Running in Theatres"
+                  icon="theaters"
+                  loading={
+                    feeds.loading() && nowPlayingFeed().titles.length === 0
+                  }
+                  actionLabel="See All"
+                  onAction={() => navigate("/discover/theatres")}
+                >
+                  <DiscoverRail
+                    titles={nowPlayingFeed().titles}
+                    onSelect={handleOpenTitle}
+                    newSeasonBadgeIds={nowPlayingFeed().badgeIds}
+                    emptyText="No movies currently in theatres."
+                    emptyIcon="theaters"
+                    onRetry={feeds.loading() ? undefined : feeds.retry}
+                  />
+                </DiscoverSectionWrapper>
+              </Suspense>
             </ErrorBoundary>
           </Show>
 
