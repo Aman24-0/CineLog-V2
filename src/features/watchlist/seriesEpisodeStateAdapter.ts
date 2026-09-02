@@ -197,6 +197,66 @@ export async function setSeriesStatusInSupabase(
     };
   }
 
+  // ── 2026-09-03 fix — explicit "Watching" request ──────────────────
+  // When the user explicitly sets the status to "Watching" (via the
+  // ActionDock's Watching button), persist "Watching" as-is. The
+  // previous fall-through code derived the status from episode progress
+  // via deriveSeriesStatus(), which meant:
+  //   - Completed → Watching on a fully-watched series: derived back to
+  //     "Completed" (all episodes watched) → the UI stayed on Completed
+  //     and the toast said "Status: Completed". BUG.
+  //   - Planned → Watching on a series with no watched episodes: derived
+  //     back to "Planned" (no episodes watched) → the UI stayed on
+  //     Planned and the toast said "Status: Planned". BUG.
+  //
+  // The episode cleanup (deleting future episodes beyond the watched
+  // prefix) is still correct — we keep the contiguous watched prefix
+  // and remove anything after the first gap. But the STATUS is
+  // "Watching" because the user explicitly asked for it. The derivation
+  // is only appropriate for the markEpisodeWatchedAndSync /
+  // unwatchEpisodeAndSync flows (where the user is interacting with
+  // individual episodes, not explicitly setting a status).
+  if (requestedStatus === "Watching") {
+    const prefix = getContiguousWatchedPrefix(
+      normalizedSeasons,
+      existingResult.data,
+      (row) =>
+        row.is_completed || row.watched_at
+          ? episodeKey(row.season_number, row.episode_number)
+          : null
+    );
+    const episodes = listSeriesEpisodes(normalizedSeasons);
+    // Delete any episode progress AFTER the contiguous watched prefix.
+    // This keeps the prefix intact (the user's watched history up to the
+    // first gap) and removes any stray progress beyond the gap that
+    // would otherwise imply a later episode was watched.
+    if (episodes.length > prefix.length) {
+      const firstGap = episodes[prefix.length];
+      const { error } = await progressRepo.deleteEpisodeProgressFrom(
+        vaultId,
+        firstGap!.season,
+        firstGap!.episode
+      );
+      if (error) throw error;
+    }
+    // Persist "Watching" — NOT the derived status. The user explicitly
+    // requested it.
+    await persistStatus(userId, itemId, mediaType, "Watching");
+    // Return the state with status="Watching". We use fallbackState
+    // (which calls buildState) but buildState re-derives the status —
+    // so we override the status field to "Watching" after the call.
+    // The tracker position (season/episode) is still derived from the
+    // prefix, which is correct.
+    const state = fallbackState("Watching", prefix, normalizedSeasons, {
+      season: 1,
+      episode: 1
+    });
+    return { ...state, status: "Watching" };
+  }
+
+  // ── Fall-through: derived status (used by markEpisodeWatchedAndSync
+  // and unwatchEpisodeAndSync, which interact with individual episodes
+  // and need the status to be derived from the resulting episode state) ──
   const prefix = getContiguousWatchedPrefix(
     normalizedSeasons,
     existingResult.data,
@@ -210,8 +270,8 @@ export async function setSeriesStatusInSupabase(
     const firstGap = episodes[prefix.length];
     const { error } = await progressRepo.deleteEpisodeProgressFrom(
       vaultId,
-      firstGap.season,
-      firstGap.episode
+      firstGap!.season,
+      firstGap!.episode
     );
     if (error) throw error;
   }

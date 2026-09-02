@@ -1772,3 +1772,92 @@ Stage Summary:
 - Issue 3: Changed onCompletedAutoOpenEdit callback to receive a statusChanged boolean. When status is unchanged (Completed→Completed, Watching→Watching), setIsEditing(true) is called SYNCHRONOUSLY instead of via queueMicrotask — eliminating any microtask-timing uncertainty. When status changes, queueMicrotask is still used (to defer past the useDetailsForm createEffect's setIsEditing(false)). Integration test confirms isEditing flips to true in both cases.
 - Tests: 1808/1808 pass. +10 new regression tests (2 Library non-sticky, 2 Search sticky independence, 6 integration with conditional deferral, +2 statusChanged argument assertions on existing tests).
 - Browser: Library scroll verified, Search sticky verified. Completed auto-open NOT browser-verified (requires live auth) but integration test confirms the reactive chain.
+
+---
+Task ID: 15
+Agent: main (orchestrator)
+Task: Fix ONLY the Watching status selection bug in the Details page. Clicking "Watching" does not correctly set the title to Watching — the UI may remain on the previous status and the toast reflects the wrong status. Strict scope: do NOT modify the Completed auto-open issue, Library header, Your Activity fields, platform selector, or any unrelated functionality.
+
+ROOT CAUSE (traced end-to-end):
+- Flow: ActionDock "Watching" button → handleStatusClick("Watching") → props.onSetStatus("Watching") → DetailsActions.onSetStatus → DetailsExperience.handleSetStatus (from useDetailsActions) → useDetailsProgress.handleSetStatus → setSeriesStatusInSupabase(uid, id, mediaType, "Watching", seasons) → persistStatus + return state → handleSetStatus uses state.status for vaultItem update + toast.
+- BUG IS IN: src/features/watchlist/seriesEpisodeStateAdapter.ts, setSeriesStatusInSupabase function.
+- For TV series (mediaType === "tv"), when requestedStatus === "Watching", the function does NOT persist "Watching" directly. Instead it falls through to lines 200-225 which:
+  1. Compute the watched prefix (contiguous watched episodes)
+  2. Compute total episodes
+  3. Delete future episode progress beyond the prefix (correct)
+  4. Call deriveSeriesStatus(prefix.length, episodes.length) to DERIVE the status:
+     - watchedCount >= totalEpisodes → "Completed"
+     - watchedCount > 0 but < totalEpisodes → "Watching"
+     - watchedCount <= 0 → "Planned"
+  5. Persist the DERIVED status (NOT "Watching")
+  6. Return buildState(resolvedStatus, ...) which ALSO re-derives the status
+- This means:
+  - Completed → Watching on a fully-watched TV series: deriveSeriesStatus(10, 10) = "Completed" → persists "Completed" → toast says "Status: Completed" → UI stays on Completed. BUG.
+  - Planned → Watching on a TV series with no watched episodes: deriveSeriesStatus(0, 10) = "Planned" → persists "Planned" → toast says "Status: Planned" → UI stays on Planned. BUG.
+  - Watching → Watching (already partially watched): deriveSeriesStatus(3, 10) = "Watching" → works by coincidence. OK.
+- For movies (mediaType !== "tv"), the function at lines 123-133 just persists requestedStatus directly. Movies work correctly.
+- The handleSetStatus code in useDetailsProgress.ts uses state.status (the returned status) for BOTH the vaultItem update AND the toast text: `args.showToast(\`Status: ${state.status}\`, ...)`. So when setSeriesStatusInSupabase returns the wrong status, the toast shows the wrong status AND the local vaultItem gets the wrong status.
+
+FIX:
+- Added an explicit "Watching" branch in setSeriesStatusInSupabase BEFORE the fall-through derivation. When requestedStatus === "Watching":
+  1. Compute the watched prefix (same as before)
+  2. Delete future episode progress beyond the prefix (same as before — keeps the watched history intact)
+  3. Persist "Watching" directly (NOT the derived status)
+  4. Return the state with status="Watching" (override buildState's re-derivation via `{ ...state, status: "Watching" }`)
+- The fall-through derivation is preserved for the markEpisodeWatchedAndSync / unwatchEpisodeAndSync flows (which interact with individual episodes and need the status to be derived from the resulting episode state).
+
+SCOPE COMPLIANCE:
+- Touched files:
+  • src/features/watchlist/seriesEpisodeStateAdapter.ts (the fix — explicit "Watching" branch)
+  • src/features/watchlist/__tests__/seriesEpisodeStateAdapter.test.ts (regression tests)
+  • src/features/details/DetailsModal/__tests__/useDetailsProgress.test.ts (fixed mock + new tests)
+  • scripts/verify-watching-status.ts (build-artifact verification)
+  • scripts/verify-watching-mobile.ts (mobile sanity check)
+- NOT touched: Completed auto-open issue, Library header/sticky, Your Activity fields, platform selector, device vocabulary, Search page, Discover, Supabase schema/migrations, VAULT_DASHBOARD_COLUMNS, userLibraryAdapter, useDetailsProgress.handleSetStatus, useDetailsForm, DetailsExperience.
+
+REGRESSION TESTS (12 new):
+- seriesEpisodeStateAdapter.test.ts (+9 tests in 2 describe blocks):
+  • "Completed → Watching: persists 'Watching' even when all episodes are watched" — the exact bug case
+  • "Planned → Watching: persists 'Watching' even when no episodes are watched" — the other bug case
+  • "Watching → Watching (already partially watched): persists 'Watching' and keeps prefix" — already-working case
+  • "Completed → Watching: deletes future episode progress beyond the watched prefix" — no-gap case
+  • "Completed → Watching: deletes stray progress when there's a gap in the watched prefix" — gap case
+  • "movie → Watching: persists 'Watching' directly" — movie path unaffected
+  • "Watching → Completed: persists 'completed' and marks all episodes watched" — no regression
+  • "Watching → Planned: persists 'planned' and resets episode progress" — no regression
+  • "Watching → Dropped: persists 'dropped' and keeps the watched prefix" — no regression
+- useDetailsProgress.test.ts (+3 tests + mock fix):
+  • Fixed the mock to return the REQUESTED status (was always returning "Completed", masking the bug)
+  • "Completed → tap Watching: persists 'Watching' and toast says 'Status: Watching'" — toast assertion
+  • "Planned → tap Watching: persists 'Watching' and toast says 'Status: Watching'" — toast assertion
+  • "Watching → tap Watching (already Watching): does NOT persist, still auto-opens Edit" — already-watching case
+
+- Verified: the new tests FAIL against the OLD buggy code (2 failures: "Completed → Watching" expected "watching" but received "completed"; "Planned → Watching" expected "watching" but received "planned"). With the fix, all tests pass.
+
+VALIDATION:
+- tsc --noEmit: clean.
+- ESLint (changed files): 0 errors.
+- Vitest: 1820 / 1820 across 109 files pass (was 1808 baseline — +12 new tests).
+- Production build: 14.75s, success.
+- Build-artifact verification (scripts/verify-watching-status.ts): PASS — fix found in useVault-oHc-3_L1.js bundle. Snippet shows `return await D(e,t,n,"Watching"),{...j("Watching",d,r,{season:1,episode:1}),status:"Watching"}` — the explicit "Watching" persist + status override.
+- Mobile sanity check (scripts/verify-watching-mobile.ts) at 390x844: PASS — /library renders, 0 console errors, no horizontal overflow.
+
+BROWSER VERIFICATION (real click test):
+NOT VERIFIED in CI — a real "click Watching on a Completed title → verify Watching becomes selected + toast says 'Status: Watching'" test requires a live Supabase auth session and a real vault row with status=completed, which we cannot simulate without credentials. The unit tests cover the exact bug case (Completed → Watching and Planned → Watching for TV series) and verify both the persisted status (via the vaultRepository.updateStatus mock) and the returned state.status. The user should perform the manual browser test against the live site once deployed:
+  1. Open a Completed TV title's detail page.
+  2. Click Watching.
+  3. Confirm Watching becomes visually selected (aria-pressed="true").
+  4. Confirm toast says "Status: Watching".
+  5. Reload/reopen the title and confirm Watching remains selected.
+  6. Repeat from a Planned title → click Watching.
+  7. Also verify: Watching → Completed still works.
+  8. Also verify: Watching → Planned still works.
+  9. Also verify: Watching → Dropped still works.
+  10. Also verify: Clicking Watching when already Watching does NOT cause an unnecessary Supabase write (no toast).
+
+Stage Summary:
+- Root cause: setSeriesStatusInSupabase derived the status from episode progress via deriveSeriesStatus() instead of honoring the explicit "Watching" request. For TV series, Completed → Watching derived back to "Completed", and Planned → Watching derived back to "Planned".
+- Fix: added an explicit "Watching" branch that persists "Watching" as-is, keeping the watched prefix (episode cleanup) but not re-deriving the status.
+- Tests: 1820/1820 pass. +12 new regression tests. Verified tests fail against the buggy code.
+- Build: production build contains the fix (verified via build-artifact scan).
+- Browser: mobile sanity check passes. Real click test NOT verified (requires live auth) — needs user's manual confirmation.
