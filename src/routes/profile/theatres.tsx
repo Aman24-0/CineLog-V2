@@ -1,4 +1,4 @@
-// src/routes/discover/theatres.tsx
+// src/routes/profile/theatres.tsx
 import { Title } from "@solidjs/meta";
 import { lazy, ErrorBoundary, Suspense } from "solid-js";
 import { GlassSkeleton } from "~/shared/ui/glass";

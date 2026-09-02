@@ -737,7 +737,7 @@ export default function DiscoverPage() {
                     feeds.loading() && nowPlayingFeed().titles.length === 0
                   }
                   actionLabel="See All"
-                  onAction={() => navigate("/discover/theatres")}
+                  onAction={() => navigate("/profile/theatres")}
                 >
                   <DiscoverRail
                     titles={nowPlayingFeed().titles}
