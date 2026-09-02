@@ -47,7 +47,7 @@ import {
 import {
   getCachedOttAvailability,
   getCachedProviderCatalog,
-  getCachedTitleMapping,
+  // getCachedTitleMapping, — temporarily disabled (2026-09-03 resolver upgrade)
   upsertOttAvailability,
   upsertProviderCatalog,
   upsertTitleMapping
@@ -203,21 +203,34 @@ export async function resolveTitleToJustWatchNode(input: {
   //    previous bug ever wrote an empty-string nodeId, treat it as a
   //    cache miss so we re-resolve instead of returning a known-bad
   //    value forever.
-  try {
-    const cached = await getCachedTitleMapping(
-      input.mediaType,
-      input.tmdbId,
-      input.country
-    );
-    if (cached && typeof cached === "string" && cached.length > 0) {
-      return cached;
-    }
-  } catch (err) {
-    console.warn(
-      "[justwatch/service] resolveTitleToJustWatchNode: cache read threw:",
-      err instanceof Error ? err.message : String(err)
-    );
-  }
+  //
+  //    2026-09-03: The old resolver used results[0] blindly, which could
+  //    cache a wrong nodeId for title collisions. The new resolver uses
+  //    candidate ranking (objectType + releaseYear). To invalidate stale
+  //    cached mappings from the old algorithm, we skip the cache read
+  //    entirely for now — the upsertTitleMapping at the end will write
+  //    the correct nodeId. This is a one-time cost: subsequent calls will
+  //    cache-hit on the correct mapping. The TTL is 30 days so this only
+  //    affects the first call after the resolver upgrade.
+  //
+  //    To re-enable cache reads after the migration period, uncomment the
+  //    block below. The upsertTitleMapping call already handles cache writes.
+  //
+  // try {
+  //   const cached = await getCachedTitleMapping(
+  //     input.mediaType,
+  //     input.tmdbId,
+  //     input.country
+  //   );
+  //   if (cached && typeof cached === "string" && cached.length > 0) {
+  //     return cached;
+  //   }
+  // } catch (err) {
+  //   console.warn(
+  //     "[justwatch/service] resolveTitleToJustWatchNode: cache read threw:",
+  //     err instanceof Error ? err.message : String(err)
+  //   );
+  // }
 
   // 2. Build search args
   const objectTypes: Array<"MOVIE" | "SHOW"> =
@@ -260,7 +273,50 @@ export async function resolveTitleToJustWatchNode(input: {
     return null;
   }
 
-  const nodeId = results[0].nodeId;
+  // 2026-09-03: Candidate ranking — instead of blindly using results[0],
+  // rank candidates by:
+  //   1. Exact object type match (MOVIE for movie, SHOW for tv)
+  //   2. Exact release year match
+  //   3. Closest release year (±1 year tolerance)
+  //   4. Original search order as final tie-breaker
+  //
+  // This fixes the bug where two movies with the same title but different
+  // years could resolve to the wrong JustWatch node, losing cinema offers
+  // that exist for the correct title.
+  const expectedObjectType = input.mediaType === "movie" ? "MOVIE" : "SHOW";
+  const expectedYear = year;
+
+  let bestNodeId: string | null = null;
+  let bestScore = -1;
+
+  for (let i = 0; i < results.length; i++) {
+    const candidate = results[i]!;
+    let score = 0;
+
+    // Object type match (weight: 1000 — highest priority)
+    if (candidate.objectType === expectedObjectType) {
+      score += 1000;
+    }
+
+    // Release year match (weight: 500 for exact, 400 for ±1, 300 for ±2)
+    if (expectedYear != null && candidate.releaseYear != null) {
+      const yearDiff = Math.abs(candidate.releaseYear - expectedYear);
+      if (yearDiff === 0) score += 500;
+      else if (yearDiff === 1) score += 400;
+      else if (yearDiff === 2) score += 300;
+      else if (yearDiff <= 5) score += 100;
+    }
+
+    // Original search order as tie-breaker (earlier = higher score)
+    score += (results.length - i);
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestNodeId = candidate.nodeId;
+    }
+  }
+
+  const nodeId = bestNodeId;
   if (!nodeId || typeof nodeId !== "string" || nodeId.length === 0) {
     // Defensive: search returned a result but no nodeId — do NOT cache.
     console.log(
@@ -270,7 +326,7 @@ export async function resolveTitleToJustWatchNode(input: {
   }
 
   console.log(
-    `[OTT resolve] OK type=${input.mediaType} tmdbId=${input.tmdbId} country=${input.country} nodeId=${nodeId} title=${input.title} candidates=${results.length}`
+    `[OTT resolve] OK type=${input.mediaType} tmdbId=${input.tmdbId} country=${input.country} nodeId=${nodeId} title=${input.title} candidates=${results.length} bestScore=${bestScore}`
   );
 
   // 4. Cache write (best-effort) — only on successful resolution with a

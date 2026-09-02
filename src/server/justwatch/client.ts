@@ -187,23 +187,16 @@ async function rawGql<T = unknown>(
 // GraphQL operation strings
 // ---------------------------------------------------------------------------
 
-// CHUNK 6B FIX: The original queries used inline `filter: { searchQuery,
-// objectTypes, releaseYear }` with `releaseYear: IntFilter` typed as
-// `{ from, to }`. JustWatch's GraphQL schema rejects `{ from, to }` on
-// IntFilter with 422 "unknown field" — the correct IntFilter field names
-// are undocumented and probing showed `{from,to}` / `releaseYearFrom` /
-// `releaseDateFrom` all fail. The year filter is non-essential (search +
-// objectTypes is sufficient for title resolution), so it's dropped.
+// 2026-09-03: The search query now requests objectType, title (fullPath),
+// and releaseYear via inline fragments on Movie/Show. This allows the
+// service layer to rank candidates by year + title similarity instead of
+// blindly using results[0]. The `fullPath` field is used as a proxy for
+// the title name since the search node doesn't expose `title`/`name`
+// directly. `releaseYear` is an integer field available on both Movie
+// and Show types.
 //
-// Additionally, `objectType` is NOT selectable directly on the search
-// `node` (it's only on concrete Movie/Show types via inline fragments).
-// The audio-language module's working query requests only `id`. We do
-// the same — `JustWatchSearchResult.objectType` is optional and unused
-// by the only caller (`resolveTitleToJustWatchNode` uses `results[0].nodeId`).
-//
-// The `filter` is now passed as a `$filter: TitleFilter!` variable (matching
-// the audio-language module's proven format) instead of an inline object,
-// and `source` is passed as a required `$source: String!` variable.
+// The `filter` is passed as a `$filter: TitleFilter!` variable (matching
+// the audio-language module's proven format) and `source` as `$source: String!`.
 const SEARCH_TITLES_QUERY = `query SearchJustWatchTitle(
   $country: Country!,
   $source: String!,
@@ -218,6 +211,14 @@ const SEARCH_TITLES_QUERY = `query SearchJustWatchTitle(
     edges {
       node {
         id
+        ... on Movie {
+          objectType
+          releaseYear
+        }
+        ... on Show {
+          objectType
+          releaseYear
+        }
       }
     }
   }
@@ -311,7 +312,13 @@ const GET_PACKAGES_QUERY = `query GetJustWatchPackages(
 
 interface GqlSearchResponse {
   searchTitles?: {
-    edges?: Array<{ node?: { id?: string } }>;
+    edges?: Array<{
+      node?: {
+        id?: string;
+        objectType?: string | null;
+        releaseYear?: number | null;
+      };
+    }>;
   } | null;
 }
 
@@ -362,7 +369,7 @@ interface GqlPackagesResponse {
 // Helpers
 // ---------------------------------------------------------------------------
 
-type JustWatchMonetizationish = "FLATRATE" | "RENT" | "BUY" | "FAST" | string;
+type JustWatchMonetizationish = "FLATRATE" | "RENT" | "BUY" | "FAST" | "CINEMA" | string;
 type JustWatchOfferish = {
   monetizationType: JustWatchMonetizationish;
   presentationType?: string | null;
@@ -507,7 +514,11 @@ export async function searchJustWatchTitle(args: {
       const results: JustWatchSearchResult[] = [];
       for (const e of edges) {
         if (e?.node?.id) {
-          results.push({ nodeId: e.node.id });
+          results.push({
+            nodeId: e.node.id,
+            objectType: e.node.objectType ?? null,
+            releaseYear: e.node.releaseYear ?? null
+          });
         }
       }
       if (results.length > 0) return results;

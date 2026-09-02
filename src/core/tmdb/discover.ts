@@ -347,6 +347,8 @@ export async function fetchTitleDirector(
 /**
  * getNowPlaying — movies currently in theatres.
  * Uses /movie/now_playing with region parameter for localization.
+ * Returns only page 1 (first ~20 titles). For pagination, use
+ * getNowPlayingPage instead.
  */
 export async function getNowPlaying(region = "IN"): Promise<TMDBTitle[]> {
   const res = await cachedFetch(
@@ -361,6 +363,43 @@ export async function getNowPlaying(region = "IN"): Promise<TMDBTitle[]> {
     }
   );
   return normalizeList(res.results, "movie");
+}
+
+/**
+ * getNowPlayingPage — paginated now-playing movies for the full theatre
+ * page. Returns page metadata (page, totalPages, totalResults) alongside
+ * the titles so the caller can render "20 of 87 movies" and know when
+ * to stop loading.
+ *
+ * Cache key includes BOTH region AND page so different pages are cached
+ * independently: `tmdb:now_playing:{region}:{page}`.
+ */
+export async function getNowPlayingPage(
+  region: string,
+  page: number
+): Promise<{
+  titles: TMDBTitle[];
+  page: number;
+  totalPages: number;
+  totalResults: number;
+}> {
+  const res = await cachedFetch(
+    buildCacheKey("tmdb:now_playing", { region, page }),
+    TMDB_TTL,
+    async () => {
+      const r = await fetchWithRetry(
+        `${API}/movie/now_playing?language=en-US&region=${region}&page=${page}`
+      );
+      if (!r.ok) throw new Error(`getNowPlayingPage failed: ${r.status}`);
+      return r.json();
+    }
+  );
+  return {
+    titles: normalizeList(res.results, "movie"),
+    page: res.page ?? page,
+    totalPages: res.total_pages ?? 1,
+    totalResults: res.total_results ?? 0
+  };
 }
 
 /**

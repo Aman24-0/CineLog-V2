@@ -25,7 +25,7 @@
 // JustWatch may omit) so the client can pass through real-world
 // responses without throwing on minor schema drift.
 
-export type JustWatchMonetizationType = "FLATRATE" | "RENT" | "BUY" | "FAST";
+export type JustWatchMonetizationType = "FLATRATE" | "RENT" | "BUY" | "FAST" | "CINEMA";
 
 export type JustWatchPackage = {
   id: string;
@@ -57,6 +57,8 @@ export type JustWatchTitleOffers = {
 export type JustWatchSearchResult = {
   nodeId: string;
   objectType?: "MOVIE" | "SHOW" | string | null;
+  /** Release year from JustWatch (for candidate ranking). */
+  releaseYear?: number | null;
 };
 
 export type JustWatchProviderCatalog = {

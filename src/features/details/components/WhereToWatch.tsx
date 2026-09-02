@@ -56,6 +56,10 @@ type ProviderRow = {
   deepLinkUrl: string | null;
   /** First non-null `offer.standardWebURL` — used as fallback for the logo link. */
   webUrl: string | null;
+  /** True if ANY offer for this package has monetizationType === "CINEMA". */
+  isCinema: boolean;
+  /** True if ANY offer for this package has a non-CINEMA monetization type. */
+  isStreaming: boolean;
 };
 
 /**
@@ -127,7 +131,9 @@ export function normalizeOffers(offers: JustWatchOffer[]): ProviderRow[] {
         technicalName: pkg.technicalName ?? "",
         icon: pkg.icon ?? "",
         deepLinkUrl: null,
-        webUrl: null
+        webUrl: null,
+        isCinema: false,
+        isStreaming: false
       };
       groups.set(pkg.id, row);
     }
@@ -140,6 +146,12 @@ export function normalizeOffers(offers: JustWatchOffer[]): ProviderRow[] {
     if (row.webUrl === null && offer.standardWebURL) {
       row.webUrl = offer.standardWebURL;
     }
+    // Track cinema vs streaming at the package level.
+    if (offer.monetizationType === "CINEMA") {
+      row.isCinema = true;
+    } else {
+      row.isStreaming = true;
+    }
   }
 
   const rows = Array.from(groups.values());
@@ -149,6 +161,24 @@ export function normalizeOffers(offers: JustWatchOffer[]): ProviderRow[] {
   rows.sort((a, b) => a.clearName.localeCompare(b.clearName));
 
   return rows;
+}
+
+/**
+ * Determine the section heading based on the cinema/streaming mix of ALL
+ * provider rows.
+ *
+ * Rules:
+ *   - At least one offer AND every relevant offer is CINEMA → "Book Tickets"
+ *   - Both CINEMA and non-CINEMA offers exist → "Where to Watch & Book"
+ *   - No CINEMA offers → "Where to Watch"
+ */
+export function getSectionLabel(rows: ProviderRow[]): string {
+  if (rows.length === 0) return "Where to Watch";
+  const hasCinema = rows.some((r) => r.isCinema);
+  const hasStreaming = rows.some((r) => r.isStreaming);
+  if (hasCinema && !hasStreaming) return "Book Tickets";
+  if (hasCinema && hasStreaming) return "Where to Watch & Book";
+  return "Where to Watch";
 }
 
 /** Resolve the provider deep link, with a standard web fallback. */
@@ -380,7 +410,7 @@ const WhereToWatch: Component<WhereToWatchProps> = (props) => {
         visibleRows().length > 0
       }
     >
-      <DetailSection label="Where to Watch" icon="play_circle">
+      <DetailSection label={getSectionLabel(visibleRows())} icon="play_circle">
         <div
           class="wheretowatch-list"
           role="list"
