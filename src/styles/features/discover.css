@@ -1227,3 +1227,48 @@
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
   pointer-events: none;
 }
+
+/* ── Theatres page filter selects — compact glass dropdowns ────────
+   Used by TheatresPage.tsx for the genre/language/rating/sort selects.
+   Designed to be visually lighter than the previous oversized dark
+   pills — small text, glass background, subtle border. Maintains
+   good touch targets (36px height) while reducing visual weight. */
+.theatres-filter-select {
+  appearance: none;
+  -webkit-appearance: none;
+  display: inline-flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 0.625rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--hairline-2);
+  background: var(--glass-bg);
+  color: var(--text-soft);
+  font-family: "Outfit", sans-serif;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  outline: none;
+  transition:
+    border-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M3 4.5L6 7.5L9 4.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.5rem center;
+  padding-right: 1.5rem;
+}
+.theatres-filter-select:hover {
+  border-color: var(--hairline-3);
+  color: var(--text-strong);
+  background-color: var(--raised);
+}
+.theatres-filter-select:focus-visible {
+  border-color: var(--p);
+  box-shadow: 0 0 0 2px var(--p-dim);
+}
+.theatres-filter-select option {
+  background: var(--void);
+  color: var(--text-strong);
+}

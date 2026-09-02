@@ -233,40 +233,71 @@ const TheatresPage: Component = () => {
 
   return (
     <PageContainer width="narrow" paddingBottom="var(--sp-12)">
-      {/* Back button */}
+      {/* Compact back button — inline, small, matches CineLog's existing
+          back-arrow pattern from CinematicHero/UpcomingPage. */}
       <button
         type="button"
-        class="btn-ghost focus-ring"
+        class="focus-ring"
         onClick={() => navigate("/discover")}
-        style={{ "margin-bottom": "var(--sp-4)" }}
+        style={{
+          display: "inline-flex",
+          "align-items": "center",
+          gap: "0.25rem",
+          background: "transparent",
+          border: "none",
+          color: "var(--text-soft)",
+          cursor: "pointer",
+          padding: "0.25rem 0",
+          "font-size": "0.8125rem",
+          "font-family": '"Outfit", sans-serif',
+          "font-weight": 500,
+          "margin-bottom": "var(--sp-2)",
+          "-webkit-tap-highlight-color": "transparent"
+        }}
+        aria-label="Back to Discover"
       >
-        <span class="material-symbols-outlined" aria-hidden="true">
+        <span
+          class="material-symbols-outlined"
+          style={{ "font-size": "18px" }}
+          aria-hidden="true"
+        >
           arrow_back
         </span>
-        Back to Discover
+        Back
       </button>
 
-      {/* Header */}
-      <div class="discover-fold-header" style={{ "margin-bottom": "var(--sp-3)" }}>
-        <div class="discover-fold-label">
-          <span class="material-symbols-outlined" aria-hidden="true">
+      {/* Title + result count — compact hierarchy */}
+      <div
+        style={{
+          display: "flex",
+          "align-items": "baseline",
+          gap: "0.5rem",
+          "margin-bottom": "var(--sp-3)"
+        }}
+      >
+        <div class="discover-fold-label" style={{ "font-size": "1rem" }}>
+          <span
+            class="material-symbols-outlined"
+            style={{ "font-size": "18px" }}
+            aria-hidden="true"
+          >
             theaters
           </span>
           Running in Theatres
         </div>
+        <span
+          class="type-micro"
+          style={{ color: "var(--text-muted)", "white-space": "nowrap" }}
+        >
+          {allTitles().length > 0
+            ? `${allTitles().length} of ${totalResults()}`
+            : loadingInitial()
+              ? "Loading…"
+              : ""}
+        </span>
       </div>
 
-      <p
-        class="type-micro"
-        style={{ color: "var(--text-muted)", "margin-bottom": "var(--sp-3)" }}
-      >
-        {region()} ·{" "}
-        {allTitles().length > 0
-          ? `${allTitles().length} of ${totalResults()} movies`
-          : "Loading…"}
-      </p>
-
-      {/* Search + filters */}
+      {/* Search + filters — compact controls using CineLog's glass aesthetic */}
       <Show when={!loadingInitial() && allTitles().length > 0}>
         <div
           style={{
@@ -276,31 +307,39 @@ const TheatresPage: Component = () => {
             "margin-bottom": "var(--sp-4)"
           }}
         >
-          {/* Search */}
-          <input
-            type="search"
-            class="library-search-input"
-            placeholder="Search theatre movies…"
-            value={searchQuery()}
-            onInput={(e) => setSearchQuery(e.currentTarget.value)}
-            style={{
-              width: "100%",
-              "box-sizing": "border-box"
-            }}
-            aria-label="Search theatre movies"
-          />
+          {/* Search — uses the existing .library-search-row pattern with
+              a search icon inside, making it immediately recognizable. */}
+          <div class="library-search-row" style={{ "min-height": "2.5rem" }}>
+            <span
+              class="material-symbols-outlined"
+              style={{ "font-size": "18px", color: "var(--text-muted)" }}
+              aria-hidden="true"
+            >
+              search
+            </span>
+            <input
+              type="search"
+              class="library-search-input"
+              placeholder="Search theatre movies…"
+              value={searchQuery()}
+              onInput={(e) => setSearchQuery(e.currentTarget.value)}
+              aria-label="Search theatre movies"
+            />
+          </div>
 
-          {/* Filter row — wraps on mobile */}
+          {/* Filter row — compact selects that wrap on mobile.
+              Uses CineLog's glass tokens + small text for a lighter
+              visual weight than the previous oversized dark pills. */}
           <div
             style={{
               display: "flex",
               "flex-wrap": "wrap",
-              gap: "0.5rem",
+              gap: "0.375rem",
               "align-items": "center"
             }}
           >
             <select
-              class="rounded-lg border border-white/10 bg-[var(--glass-bg)] px-3 py-2 text-sm text-white outline-none"
+              class="theatres-filter-select"
               value={genreFilter()}
               onChange={(e) => setGenreFilter(e.currentTarget.value)}
               aria-label="Filter by genre"
@@ -312,7 +351,7 @@ const TheatresPage: Component = () => {
             </select>
 
             <select
-              class="rounded-lg border border-white/10 bg-[var(--glass-bg)] px-3 py-2 text-sm text-white outline-none"
+              class="theatres-filter-select"
               value={languageFilter()}
               onChange={(e) => setLanguageFilter(e.currentTarget.value)}
               aria-label="Filter by language"
@@ -328,7 +367,7 @@ const TheatresPage: Component = () => {
             </select>
 
             <select
-              class="rounded-lg border border-white/10 bg-[var(--glass-bg)] px-3 py-2 text-sm text-white outline-none"
+              class="theatres-filter-select"
               value={ratingFilter()}
               onChange={(e) => setRatingFilter(e.currentTarget.value)}
               aria-label="Filter by rating"
@@ -340,15 +379,15 @@ const TheatresPage: Component = () => {
             </select>
 
             <select
-              class="rounded-lg border border-white/10 bg-[var(--glass-bg)] px-3 py-2 text-sm text-white outline-none"
+              class="theatres-filter-select"
               value={sortMode()}
               onChange={(e) => setSortMode(e.currentTarget.value as SortMode)}
               aria-label="Sort by"
             >
               <option value="popular">Popular</option>
               <option value="rating">Highest Rated</option>
-              <option value="newest">Newest Release</option>
-              <option value="oldest">Oldest Release</option>
+              <option value="newest">Newest</option>
+              <option value="oldest">Oldest</option>
             </select>
           </div>
         </div>

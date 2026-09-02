@@ -24,6 +24,9 @@ export interface TMDBRawItem {
   vote_average?: number;
   vote_count?: number;
   genre_ids?: number[];
+  /** TMDB original_language (ISO 639-1). Present on /movie/now_playing,
+   *  /discover/movie, /trending, and /movie/{id} responses. */
+  original_language?: string;
 }
 
 export function normalize(
@@ -48,7 +51,8 @@ export function normalize(
     vote_average: raw.vote_average,
     vote_count: raw.vote_count,
     genre_ids: raw.genre_ids,
-    genres: resolveGenres(raw.genre_ids, mediaType)
+    genres: resolveGenres(raw.genre_ids, mediaType),
+    original_language: raw.original_language
   };
 }
 
