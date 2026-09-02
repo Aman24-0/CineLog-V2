@@ -822,9 +822,9 @@
 }
 .season-carousel-skeleton-card {
   flex-shrink: 0;
-  width: 220px;
-  height: 280px;
-  border-radius: var(--radius-md);
+  width: 300px;
+  aspect-ratio: 3 / 4;
+  border-radius: var(--radius-lg);
   background: linear-gradient(
     105deg,
     rgb(var(--profile-ambient-primary, 96 112 128) / 0.03) 25%,
@@ -840,145 +840,172 @@
   text-align: center;
 }
 
-/* ── Episode preview card — compact vertical card ───────────────────
-   Fixed width, compact height. All information inside the card:
-   still image (with overlays) + body (title/overview/meta/actions). */
+/* ── Episode preview card — full-bleed cinematic backdrop (v2) ──────
+   The episode still fills the ENTIRE card via object-fit: cover.
+   There is NO separate dark body below the image. A multi-layer
+   gradient overlay ensures text readability. The card is wide
+   (300px mobile) and tall (aspect-ratio 3/4) for a premium OTT feel.
+   The carousel shows one card almost full-width on mobile, with a
+   small peek of the next card. */
 .episode-card {
   flex-shrink: 0;
-  width: 220px;
-  display: flex;
-  flex-direction: column;
-  border-radius: var(--radius-md);
-  background: var(--glass-bg-strong);
-  border: 1px solid var(--hairline);
+  width: 300px;
+  /* Premium cinematic aspect ratio — taller than 16:9 so the
+     backdrop dominates while leaving room for title + 3-line
+     overview + metadata at the bottom. */
+  aspect-ratio: 3 / 4;
+  position: relative;
+  border-radius: var(--radius-lg);
   overflow: hidden;
-  scroll-snap-align: start;
+  scroll-snap-align: center;
+  border: 1px solid var(--hairline);
+  background: var(--glass-bg);
   transition:
     border-color var(--dur-fast) var(--ease-out),
-    background var(--dur-fast) var(--ease-out),
-    transform var(--dur-fast) var(--ease-spring);
+    transform var(--dur-fast) var(--ease-spring),
+    box-shadow var(--dur-fast) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
 }
 @media (min-width: 640px) {
   .episode-card {
-    width: 240px;
+    width: 340px;
   }
 }
 @media (min-width: 1024px) {
   .episode-card {
-    width: 260px;
+    width: 380px;
   }
 }
 .episode-card:hover {
   border-color: var(--hairline-2);
-  background: var(--glass-bg);
-  transform: translateY(-2px);
+  transform: translateY(-3px);
+  box-shadow:
+    var(--shadow-premium),
+    0 0 0 1px color-mix(in srgb, var(--p) 8%, transparent);
 }
 .episode-card-current {
   border-color: color-mix(in srgb, var(--p) 35%, transparent);
-  background: color-mix(in srgb, var(--p-dim) 40%, var(--glass-bg-strong));
-  box-shadow: 0 0 12px color-mix(in srgb, var(--p) 12%, transparent);
+  box-shadow:
+    var(--shadow-premium),
+    0 0 0 1px color-mix(in srgb, var(--p) 20%, transparent),
+    0 0 20px color-mix(in srgb, var(--p) 10%, transparent);
 }
 .episode-card-watched {
-  opacity: 0.92;
+  /* Subtle dimming for watched episodes — the artwork is slightly
+     desaturated to visually distinguish watched from unwatched. */
+  opacity: 0.95;
+}
+.episode-card-watched .episode-card-backdrop {
+  filter: brightness(0.85) saturate(0.8);
 }
 
-/* Still image — 16:9 with gradient overlay for badge/toggle readability */
-.episode-card-still-wrap {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  overflow: hidden;
-  background: var(--glass-bg);
-}
-.episode-card-still {
+/* ── Full-bleed backdrop ─────────────────────────────────────────── */
+.episode-card-backdrop {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  filter: brightness(0.9);
-  transition: transform var(--dur-base) var(--ease-smooth);
+  filter: brightness(0.92);
+  transition: transform var(--dur-base) var(--ease-smooth), filter var(--dur-base) var(--ease-smooth);
+  z-index: 0;
 }
-.episode-card:hover .episode-card-still {
-  transform: scale(1.03);
+.episode-card:hover .episode-card-backdrop {
+  transform: scale(1.04);
   filter: brightness(1);
 }
-.episode-card-still-fallback {
-  width: 100%;
-  height: 100%;
+.episode-card-backdrop-fallback {
+  position: absolute;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
+  background: linear-gradient(
+    135deg,
+    rgb(var(--profile-ambient-shell, 7 10 16) / 0.9),
+    rgb(var(--profile-ambient-shell, 7 10 16) / 0.7)
+  );
+  z-index: 0;
 }
-.episode-card-still-overlay {
+
+/* ── Multi-layer gradient overlay ──────────────────────────────────
+   Top: subtle dark gradient for badge/toggle readability.
+   Bottom: strong dark gradient for title/overview/metadata
+   readability. Combined into a single div via CSS background. */
+.episode-card-overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    to bottom,
-    rgba(8, 8, 13, 0.5) 0%,
-    transparent 30%,
-    transparent 60%,
-    rgba(8, 8, 13, 0.6) 100%
-  );
+  z-index: 1;
   pointer-events: none;
+  background:
+    linear-gradient(
+      to bottom,
+      rgba(8, 8, 13, 0.6) 0%,
+      transparent 22%,
+      transparent 45%,
+      rgba(8, 8, 13, 0.75) 72%,
+      rgba(8, 8, 13, 0.92) 100%
+    );
 }
 
-/* Episode number badge (top-left of still) */
+/* ── Episode number badge (top-left, over backdrop) ──────────────── */
 .episode-card-number {
   position: absolute;
-  top: 6px;
-  left: 6px;
-  padding: 2px 7px;
+  top: 10px;
+  left: 10px;
+  padding: 3px 9px;
   border-radius: var(--radius-pill);
-  background: rgba(8, 8, 13, 0.72);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: rgba(8, 8, 13, 0.6);
+  backdrop-filter: blur(12px) saturate(1.4);
+  -webkit-backdrop-filter: blur(12px) saturate(1.4);
   font-family: "Azeret Mono", monospace;
-  font-size: 0.5rem;
+  font-size: 0.5625rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   color: var(--text-strong);
-  z-index: 2;
+  z-index: 3;
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-/* Watched toggle (top-right of still) — vault-aware.
-   - In vault + watched: filled accent circle with check. Tap to unwatch.
-   - In vault + not watched: empty circle outline. Tap to watch.
-   - Not in vault: small "+" button. Tap to add to vault. */
+/* ── Watched toggle (top-right, over backdrop) ─────────────────────
+   Compact, glass-backed circular icon that feels integrated into the
+   artwork rather than a separate button. */
 .episode-card-toggle,
 .episode-card-add-btn {
   position: absolute;
-  top: 6px;
-  right: 6px;
+  top: 8px;
+  right: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   cursor: pointer;
   transition: all var(--dur-fast) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
-  z-index: 2;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  z-index: 3;
+  backdrop-filter: blur(12px) saturate(1.4);
+  -webkit-backdrop-filter: blur(12px) saturate(1.4);
 }
 .episode-card-toggle {
-  border: 1.5px solid rgba(255, 255, 255, 0.4);
-  background: rgba(8, 8, 13, 0.5);
-  color: var(--text-strong);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(8, 8, 13, 0.45);
+  color: rgba(255, 255, 255, 0.85);
 }
 .episode-card-toggle:hover {
   border-color: var(--p);
   color: var(--p);
-  background: rgba(8, 8, 13, 0.7);
+  background: rgba(8, 8, 13, 0.65);
 }
 .episode-card-toggle:active {
-  transform: scale(0.92);
+  transform: scale(0.9);
 }
 .episode-card-toggle-watched {
   background: var(--p);
   border-color: var(--p);
   color: var(--active-text);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--p) 40%, transparent);
 }
 .episode-card-toggle-watched:hover {
   background: color-mix(in srgb, var(--p) 85%, black);
@@ -986,115 +1013,105 @@
   color: var(--active-text);
 }
 .episode-card-add-btn {
-  border: 1.5px dashed rgba(255, 255, 255, 0.4);
-  background: rgba(8, 8, 13, 0.5);
-  color: var(--text-soft);
+  border: 1px dashed rgba(255, 255, 255, 0.25);
+  background: rgba(8, 8, 13, 0.45);
+  color: rgba(255, 255, 255, 0.7);
 }
 .episode-card-add-btn:hover {
   border-color: var(--p);
   border-style: solid;
   color: var(--p);
-  background: rgba(8, 8, 13, 0.7);
+  background: rgba(8, 8, 13, 0.65);
 }
 .episode-card-add-btn:active {
-  transform: scale(0.92);
+  transform: scale(0.9);
 }
 
-/* Card body — title, overview, metadata, actions */
-.episode-card-body {
+/* ── Bottom content area (over backdrop) ───────────────────────────
+   Positioned at the bottom of the card. Contains title, 3-line
+   overview, and a metadata row with the rate icon. NO More button. */
+.episode-card-content {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
   display: flex;
   flex-direction: column;
-  gap: 0.375rem;
-  padding: 0.625rem 0.75rem 0.75rem;
-  min-width: 0;
-  flex: 1 1 auto;
+  gap: 0.25rem;
+  padding: 0.75rem 0.875rem 0.875rem;
 }
 .episode-card-title {
   font-family: "Outfit", sans-serif;
-  font-size: 0.8125rem;
+  font-size: 0.9375rem;
   font-weight: 700;
-  color: var(--text-strong);
+  color: #ffffff;
   margin: 0;
   display: -webkit-box;
   -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;
   line-height: 1.3;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
 }
 .episode-card-overview {
   font-family: "Outfit", sans-serif;
   font-size: 0.6875rem;
   font-weight: 400;
-  line-height: 1.4;
-  color: var(--text-soft);
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.72);
   margin: 0;
   display: -webkit-box;
+  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
-}
-.episode-card-overview-clamped {
-  -webkit-line-clamp: 2;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
 }
 .episode-card-meta {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.25rem 0.5rem;
   font-family: "Azeret Mono", monospace;
   font-size: 0.5rem;
   font-weight: 600;
   letter-spacing: 0.04em;
-  color: var(--text-muted);
-  margin-top: auto;
+  color: rgba(255, 255, 255, 0.6);
+  margin-top: 0.25rem;
 }
 .episode-card-meta span {
   display: inline-flex;
   align-items: center;
 }
 
-/* Icon-based action row — Rate + More */
-.episode-card-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  margin-top: 0.25rem;
-}
-.episode-card-action-btn {
+/* ── Rate icon (in the metadata row, over backdrop) ────────────────
+   Compact, glass-backed circular icon. Filled star when rated,
+   outline star when not. */
+.episode-card-rate-btn {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
-  padding: 0.25rem 0.5rem;
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--hairline-2);
-  background: var(--glass-bg);
-  color: var(--text-soft);
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(8, 8, 13, 0.5);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #f5c518;
   cursor: pointer;
   transition: all var(--dur-fast) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
-  min-height: 28px;
-}
-.episode-card-action-btn:hover {
-  border-color: var(--hairline-3);
-  color: var(--text-strong);
-  background: var(--raised);
-}
-.episode-card-action-btn:active {
-  transform: scale(0.94);
-}
-.episode-card-rate-btn {
-  border-color: color-mix(in srgb, #f5c518 30%, var(--hairline-2));
-  color: #f5c518;
+  margin-left: auto;
+  flex-shrink: 0;
 }
 .episode-card-rate-btn:hover {
   border-color: #f5c518;
-  background: color-mix(in srgb, #f5c518 10%, var(--glass-bg));
+  background: color-mix(in srgb, #f5c518 15%, rgba(8, 8, 13, 0.6));
   color: #f5c518;
 }
-.episode-card-rate-value {
-  font-family: "Azeret Mono", monospace;
-  font-size: 0.5rem;
-  font-weight: 700;
-  line-height: 1;
+.episode-card-rate-btn:active {
+  transform: scale(0.9);
 }
 
 .episode-rating-dialog {

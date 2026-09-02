@@ -332,23 +332,21 @@ describe("SeasonNavigator — 2026-09-03 redesign", () => {
     // button click opening the dialog is the key behavior.
   });
 
-  it("the More button toggles the overview expand state", async () => {
+  it("the overview is always 3-line clamped (no More button, not expandable)", async () => {
     const { container, findByText } = renderNavigator();
 
     // Wait for episodes to render.
     await findByText("Freedom Day");
 
-    // Find the More button on the first episode card.
-    const moreBtn = container.querySelector(".episode-card-more-btn");
-    expect(moreBtn).toBeTruthy();
-
-    // The overview should be clamped initially.
+    // The overview should always be 3-line clamped — no toggle, no expand.
     const overview = container.querySelector(".episode-card-overview");
-    expect(overview?.classList.contains("episode-card-overview-clamped")).toBe(true);
-
-    // Click More — should remove the clamp.
-    fireEvent.click(moreBtn!);
-    expect(overview?.classList.contains("episode-card-overview-clamped")).toBe(false);
+    expect(overview).toBeTruthy();
+    // The overview element should have -webkit-line-clamp: 3 applied
+    // (via the .episode-card-overview class which always clamps to 3).
+    // There should be NO .episode-card-more-btn in the DOM.
+    expect(container.querySelector(".episode-card-more-btn")).toBeNull();
+    // There should be NO .episode-card-actions row (removed in v2 redesign).
+    expect(container.querySelector(".episode-card-actions")).toBeNull();
   });
 
   it("the watched toggle has correct aria-pressed for watched episodes", async () => {

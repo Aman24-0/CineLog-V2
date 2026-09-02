@@ -14,32 +14,45 @@ import type {
 } from "~/lib/supabase/repositories";
 
 /**
- * EpisodeCard — a compact vertical preview card for the horizontal
+ * EpisodeCard — a full-bleed cinematic backdrop card for the horizontal
  * episode carousel.
  *
- * 2026-09-03 REDESIGN — Nuvio-inspired compact card:
- *   ┌──────────────────────┐
- *   │                      │
- *   │    EPISODE STILL     │
- *   │                      │
- *   │  E1              ✓   │  ← number badge (left) + watched toggle (right)
- *   ├──────────────────────┤
- *   │ Freedom Day          │  ← title (1 line, ellipsis)
- *   │ Sheriff Becker's...  │  ← overview (2 lines, ellipsis)
- *   │ 1h 2m · May 4 · ★7.3│  ← compact metadata row
- *   │  ⭐ Rate    ⋯ More   │  ← icon-based action row
- *   └──────────────────────┘
+ * 2026-09-03 REDESIGN v2 — Nuvio-inspired full-bleed card:
+ *   ┌────────────────────────────────────┐
+ *   │  E1                          ✓     │  ← badge (top-left) + watched (top-right)
+ *   │                                    │
+ *   │        EPISODE BACKDROP            │  ← still fills the ENTIRE card
+ *   │        (object-fit: cover)         │
+ *   │                                    │
+ *   │     ┌──────────────────────────┐   │
+ *   │     │ Freedom Day              │   │  ← title (over backdrop)
+ *   │     │ Sheriff Becker's plans…  │   │  ← overview (3 lines, over backdrop)
+ *   │     │ 1h 2m · May 4 · ★7.3  ⭐ │   │  ← metadata + rate icon (over backdrop)
+ *   │     └──────────────────────────┘   │
+ *   └────────────────────────────────────┘
  *
- * The card is designed for a horizontal carousel — fixed width,
- * compact height, all information inside the card (no external rows).
+ * The entire card is a single unified surface — the episode still fills
+ * the whole card with object-fit: cover. A multi-layer bottom-to-top
+ * dark gradient overlay ensures text readability. There is NO separate
+ * dark content block below the image.
+ *
+ * CHANGES FROM v1:
+ *   - Removed the separate .episode-card-body div. All content is
+ *     positioned over the backdrop via absolute positioning.
+ *   - Removed the More/expand button entirely. The overview is now
+ *     always 3-line clamped (not expandable).
+ *   - The Rate icon moved to the bottom-right of the card (over the
+ *     backdrop), next to the metadata row.
+ *   - The card is substantially wider (300px mobile / 340px sm / 380px
+ *     lg) and taller (aspect-ratio 3/4 on mobile) for a cinematic feel.
+ *   - The carousel shows one card almost full-width on mobile, with a
+ *     small peek of the next card.
  *
  * ACTIONS (icon-based, preserving existing handlers):
- *   - Watched toggle: top-right of the still (check_circle / radio_button_unchecked).
+ *   - Watched toggle: top-right of the card (over the backdrop).
  *     Calls onToggle(!isWatchedState()) — same as before.
- *   - Rate: star icon in the action row. Calls openFeedbackDialog() —
- *     same as before. Shows the existing GlassModal rating dialog.
- *   - More: ellipsis icon in the action row. Toggles the overview
- *     expand/collapse — same as the old "More" button.
+ *   - Rate: star icon at the bottom-right (over the backdrop).
+ *     Calls openFeedbackDialog() — same as before.
  *   - Non-vault: the watched toggle becomes a "+" add button that
  *     calls onAddToVault() — same as before.
  *
@@ -54,27 +67,14 @@ export interface EpisodeCardProps {
   isCurrent: boolean;
   isWatched: boolean;
   inVault: boolean;
-  /**
-   * The user's existing rating for this episode (1-N), or null/undefined
-   * if no rating has been set.
-   */
   rating?: number | null;
-  /**
-   * Called when the user taps the watched toggle.
-   * `newWatched` is the desired new state:
-   *   - true = user wants this episode marked as watched
-   *   - false = user wants this episode marked as unwatched
-   */
   onToggle: (newWatched: boolean) => void;
   onAddToVault: () => void;
-  /** Existing persisted rating/reaction for this episode. */
   feedback?: EpisodeFeedback;
-  /** Save the complete selection from the centered RATE dialog. */
   onFeedback?: (
     rating: number | null,
     reaction: EpisodeReaction | null
   ) => void;
-  /** Legacy numeric-only callback retained for compatibility. */
   onRate?: (rating: number | null) => void;
 }
 
@@ -107,8 +107,6 @@ export function canOpenEpisodeFeedback(
   );
 }
 
-// Common reaction vocabulary — shared with the Movie/TV Activity
-// Edit modal via `src/shared/data/reactions.ts`.
 const REACTION_OPTIONS: ReadonlyArray<{
   value: EpisodeReaction;
   label: string;
@@ -125,14 +123,15 @@ const REACTION_OPTIONS: ReadonlyArray<{
 ];
 
 const EpisodeCard: Component<EpisodeCardProps> = (props) => {
-  const [expanded, setExpanded] = createSignal(false);
+  // ── State ────────────────────────────────────────────────────────
+  // NOTE: the `expanded` signal and More button have been REMOVED in
+  // this redesign. The overview is always 3-line clamped — no toggle.
   const [rateDialogOpen, setRateDialogOpen] = createSignal(false);
   const [draftRating, setDraftRating] = createSignal<number | null>(null);
   const [draftReaction, setDraftReaction] =
     createSignal<EpisodeReaction | null>(null);
   const [isSavingFeedback, setIsSavingFeedback] = createSignal(false);
 
-  // Keep the local display state aligned with the hydrated parent map.
   const [localRating, setLocalRating] = createSignal<number | null>(
     props.feedback?.rating ?? props.rating ?? null
   );
@@ -206,8 +205,9 @@ const EpisodeCard: Component<EpisodeCardProps> = (props) => {
     return parts.filter(Boolean).join(" ");
   };
 
+  // Use w500 for a higher-quality backdrop on the wider cinematic card.
   const stillUrl = () =>
-    props.episode.still_path ? tmdbImage(props.episode.still_path, "w342") : "";
+    props.episode.still_path ? tmdbImage(props.episode.still_path, "w500") : "";
 
   const formattedAirDate = () => {
     if (!props.episode.air_date) return null;
@@ -222,10 +222,6 @@ const EpisodeCard: Component<EpisodeCardProps> = (props) => {
   const hasOverview = () =>
     props.episode.overview && props.episode.overview.trim().length > 0;
 
-  /**
-   * "Watched" state for the toggle's visual treatment.
-   * The current episode is treated as watched for toggle purposes.
-   */
   const isWatchedState = () => props.isWatched || props.isCurrent;
 
   const handleToggleClick = (e: Event) => {
@@ -247,112 +243,113 @@ const EpisodeCard: Component<EpisodeCardProps> = (props) => {
       }`}
       role="listitem"
     >
-      {/* Still image with number badge + watched toggle overlay */}
-      <div class="episode-card-still-wrap">
-        <SafeImage
-          src={stillUrl()}
-          alt=""
-          class="episode-card-still"
-          fallback={
-            <div class="episode-card-still-fallback" aria-hidden="true">
-              <span
-                class="material-symbols-outlined"
-                style={{ "font-size": "24px", color: "var(--text-dim)" }}
-                aria-hidden="true"
-              >
-                movie
-              </span>
-            </div>
-          }
-        />
-        {/* Gradient overlay for badge/toggle readability */}
-        <div class="episode-card-still-overlay" aria-hidden="true" />
-        {/* Episode number badge (top-left) */}
-        <span class="episode-card-number" aria-hidden="true">
-          E{props.episode.episode_number}
-        </span>
-        {/* Watched toggle (top-right) — vault-aware.
-            - In vault + watched: filled accent circle with check.
-              Tap to unwatch.
-            - In vault + not watched: empty circle outline.
-              Tap to watch.
-            - Not in vault: small "+" button. Tap to add to vault. */}
-        <Show
-          when={props.inVault}
-          fallback={
-            <button
-              type="button"
-              class="episode-card-add-btn"
-              onClick={(e) => {
-                e.stopPropagation();
-                props.onAddToVault();
-              }}
-              aria-label={`Add to watchlist to track episode ${props.episode.episode_number}`}
-              title="Add to Watchlist to Track"
+      {/* ── Full-bleed backdrop ──────────────────────────────────────
+          The episode still fills the ENTIRE card via object-fit: cover.
+          There is NO separate dark body below the image. */}
+      <SafeImage
+        src={stillUrl()}
+        alt=""
+        class="episode-card-backdrop"
+        fallback={
+          <div class="episode-card-backdrop-fallback" aria-hidden="true">
+            <span
+              class="material-symbols-outlined"
+              style={{ "font-size": "32px", color: "var(--text-dim)" }}
+              aria-hidden="true"
             >
-              <span
-                class="material-symbols-outlined"
-                style={{ "font-size": "16px" }}
-                aria-hidden="true"
-              >
-                add
-              </span>
-            </button>
-          }
-        >
+              movie
+            </span>
+          </div>
+        }
+      />
+
+      {/* ── Multi-layer gradient overlay ────────────────────────────
+          A top gradient (for badge/toggle readability) + a strong
+          bottom-to-top gradient (for title/overview/metadata
+          readability). The overlay is a single div with a CSS
+          background that combines both gradients. */}
+      <div class="episode-card-overlay" aria-hidden="true" />
+
+      {/* ── Top-left: episode number badge ────────────────────────── */}
+      <span class="episode-card-number" aria-hidden="true">
+        E{props.episode.episode_number}
+      </span>
+
+      {/* ── Top-right: watched toggle (vault-aware) ─────────────────
+          - In vault + watched: filled accent circle with check.
+          - In vault + not watched: empty circle outline.
+          - Not in vault: small "+" button. */}
+      <Show
+        when={props.inVault}
+        fallback={
           <button
             type="button"
-            class={`episode-card-toggle${isWatchedState() ? " episode-card-toggle-watched" : ""}`}
-            onClick={handleToggleClick}
-            aria-label={toggleAriaLabel()}
-            aria-pressed={isWatchedState()}
-            title={isWatchedState() ? "Mark as unwatched" : "Mark as watched"}
+            class="episode-card-add-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              props.onAddToVault();
+            }}
+            aria-label={`Add to watchlist to track episode ${props.episode.episode_number}`}
+            title="Add to Watchlist to Track"
           >
-            <Show
-              when={isWatchedState()}
-              fallback={
-                <span
-                  class="material-symbols-outlined"
-                  style={{ "font-size": "18px" }}
-                  aria-hidden="true"
-                >
-                  radio_button_unchecked
-                </span>
-              }
+            <span
+              class="material-symbols-outlined"
+              style={{ "font-size": "18px" }}
+              aria-hidden="true"
             >
+              add
+            </span>
+          </button>
+        }
+      >
+        <button
+          type="button"
+          class={`episode-card-toggle${isWatchedState() ? " episode-card-toggle-watched" : ""}`}
+          onClick={handleToggleClick}
+          aria-label={toggleAriaLabel()}
+          aria-pressed={isWatchedState()}
+          title={isWatchedState() ? "Mark as unwatched" : "Mark as watched"}
+        >
+          <Show
+            when={isWatchedState()}
+            fallback={
               <span
                 class="material-symbols-outlined"
-                style={{
-                  "font-size": "18px",
-                  "font-variation-settings":
-                    "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20"
-                }}
+                style={{ "font-size": "20px" }}
                 aria-hidden="true"
               >
-                check_circle
+                radio_button_unchecked
               </span>
-            </Show>
-          </button>
-        </Show>
-      </div>
+            }
+          >
+            <span
+              class="material-symbols-outlined"
+              style={{
+                "font-size": "20px",
+                "font-variation-settings":
+                  "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20"
+              }}
+              aria-hidden="true"
+            >
+              check_circle
+            </span>
+          </Show>
+        </button>
+      </Show>
 
-      {/* Card body — title, overview, metadata, actions */}
-      <div class="episode-card-body">
-        {/* Title */}
+      {/* ── Bottom content area (over the backdrop) ─────────────────
+          Title + 3-line overview + metadata row + rate icon.
+          Positioned at the bottom of the card via absolute positioning.
+          NO More button — the overview is always 3-line clamped. */}
+      <div class="episode-card-content">
         <h4 class="episode-card-title">
           {props.episode.name || `Episode ${props.episode.episode_number}`}
         </h4>
 
-        {/* Overview — 2-line clamped, expandable via More */}
         <Show when={hasOverview()}>
-          <p
-            class={`episode-card-overview${expanded() ? "" : " episode-card-overview-clamped"}`}
-          >
-            {props.episode.overview}
-          </p>
+          <p class="episode-card-overview">{props.episode.overview}</p>
         </Show>
 
-        {/* Compact metadata row — runtime · air date · rating · feedback */}
         <div class="episode-card-meta">
           <Show when={props.episode.runtime}>
             <span>{formatRuntime(props.episode.runtime!)}</span>
@@ -368,14 +365,11 @@ const EpisodeCard: Component<EpisodeCardProps> = (props) => {
           <Show when={feedbackSummary()}>
             <span style={{ color: "var(--p)" }}>{feedbackSummary()}</span>
           </Show>
-        </div>
-
-        {/* Icon-based action row — Rate + More */}
-        <div class="episode-card-actions">
+          {/* Rate icon — compact, over the backdrop */}
           <Show when={canOpenFeedback()}>
             <button
               type="button"
-              class="episode-card-action-btn episode-card-rate-btn focus-ring"
+              class="episode-card-rate-btn focus-ring"
               onClick={(e) => {
                 e.stopPropagation();
                 openFeedbackDialog();
@@ -386,35 +380,15 @@ const EpisodeCard: Component<EpisodeCardProps> = (props) => {
             >
               <span
                 class="material-symbols-outlined"
-                style={{ "font-size": "16px" }}
+                style={{
+                  "font-size": "16px",
+                  "font-variation-settings": currentRating() != null
+                    ? "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 16"
+                    : "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 16"
+                }}
                 aria-hidden="true"
               >
                 star
-              </span>
-              <Show when={currentRating() != null}>
-                <span class="episode-card-rate-value">
-                  {currentRating()}
-                </span>
-              </Show>
-            </button>
-          </Show>
-          <Show when={hasOverview()}>
-            <button
-              type="button"
-              class="episode-card-action-btn episode-card-more-btn focus-ring"
-              onClick={(e) => {
-                e.stopPropagation();
-                setExpanded((v) => !v);
-              }}
-              aria-label={expanded() ? "Collapse overview" : "Expand overview"}
-              title={expanded() ? "Less" : "More"}
-            >
-              <span
-                class="material-symbols-outlined"
-                style={{ "font-size": "16px" }}
-                aria-hidden="true"
-              >
-                {expanded() ? "unfold_less" : "unfold_more"}
               </span>
             </button>
           </Show>

@@ -1943,3 +1943,47 @@ BROWSER VERIFICATION:
 - Build CSS verification: PASS (all new classes present, all old classes removed).
 - Dev server mobile sanity check at 390x844: PASS (page renders, no errors, no overflow).
 - Real interaction test (clicking seasons, swiping carousel, clicking Rate/Watched/More): NOT VERIFIED in CI — requires a live Supabase auth session + a real TV title with seasons data. The 13 regression tests cover the component-level behavior with mocked TMDB data. The user should perform the manual browser test against the live site once deployed.
+
+---
+Task ID: 17
+Agent: main (orchestrator)
+Task: Redesign Episode Preview UI v2 — full-bleed cinematic backdrop card, wider one-card-focused carousel, remove More button, 3-line overview.
+
+CHANGES FROM v1:
+- Removed the separate .episode-card-body div entirely. The episode still now fills the ENTIRE card via object-fit: cover. There is NO separate dark content block below the image.
+- Added a multi-layer gradient overlay (.episode-card-overlay) — top gradient for badge/toggle readability + strong bottom-to-top gradient for title/overview/metadata readability. The overlay is a single div with a CSS background that combines both gradients.
+- Removed the More/expand button completely. The `expanded` signal and the .episode-card-more-btn / .episode-card-actions elements are gone. The overview is now always 3-line clamped (not expandable).
+- The Rate icon moved from a separate action row to the metadata row at the bottom-right of the card (over the backdrop). It's a compact 28px glass-backed circular icon with a star. Filled star when rated, outline when not.
+- Card width increased from 220px to 300px (mobile) / 340px (sm) / 380px (lg). The carousel now shows one card almost full-width on mobile with a small peek of the next card.
+- Card aspect ratio changed to 3/4 (premium cinematic, taller than the old card which had a 16:9 still + separate body).
+- scroll-snap-align changed from `start` to `center` for one-card-focused browsing.
+- Watched toggle upgraded with glass backdrop-filter + accent glow when watched.
+- Episode number badge upgraded with glass backdrop-filter + subtle border.
+- Skeleton card width + aspect ratio updated to match the new 300px / 3:4 card.
+
+VERIFICATION (11 checks, all PASS):
+1. Full artwork fills the card (.episode-card-backdrop exists)
+2. No separate dark content block below artwork (NO .episode-card-body)
+3. Title/overview/metadata are over the artwork (.episode-card-content exists)
+4. Overview is 3 lines (CSS has -webkit-line-clamp: 3)
+5. More button is completely removed (NO .episode-card-more-btn, NO .episode-card-actions)
+6. Watched icon is integrated into artwork (position: absolute, glass backdrop)
+7. Card is wide on mobile (width: 300px)
+8. Only a small portion of the next card is visible (scroll-snap-align: center)
+9. Multi-layer gradient overlay exists (.episode-card-overlay)
+10. Glass badge with backdrop-filter (.episode-card-number)
+11. Rate icon is in metadata row over backdrop (.episode-card-rate-btn)
+
+VALIDATION:
+- tsc --noEmit: clean.
+- Vitest: 1833 / 1833 across 110 files pass (unchanged from v1 — the SeasonNavigator test was updated to verify the removal of the More button + actions row).
+- Production build: success.
+- Dev server mobile check at 390x844: PASS (page renders, 0 console errors, no horizontal overflow).
+
+FUNCTIONALITY PRESERVED:
+- seasonCache, fetchSeason, episode ordering, season/series progress, watched/unwatched, rewind/unwatch logic, onEpisodeChange, onEpisodeUnmark, onRateEpisode, onFeedbackEpisode, onAddToVault, existing rating dialog — ALL preserved.
+- The `expanded` signal was removed (no longer needed — overview is always 3-line clamped).
+- The GlassModal rate dialog is unchanged.
+- canRateEpisode / canOpenEpisodeFeedback helpers unchanged.
+- DetailsSeasons.tsx (parent wrapper) unchanged.
+- SeasonNavigator.tsx unchanged (the carousel + season selector from v1 are preserved).
