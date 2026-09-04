@@ -202,6 +202,7 @@ export function vaultRowToWatchlistItem(
     // to determine the CURRENT state before flipping it.
     isFavorite: row.is_favorite ?? false,
     isPinned: row.is_pinned ?? false,
+    hasNewRelease: (row as { has_new_release?: boolean }).has_new_release ?? false,
     // Activity tracking fields (added 2026-09-01 migration). All
     // nullable; existing items (pre-migration) load with null/undefined
     // and the UI treats that as "not set".

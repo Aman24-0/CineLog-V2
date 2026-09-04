@@ -387,6 +387,38 @@ export default function DetailsExperience(props: DetailsExperienceProps) {
   // Reset trailer state whenever the open title changes.
   createEffect(on(vaultItem, () => setShowTrailer(false)));
 
+  // 2026-09-03 — Clear the NEW badge when the user opens the details
+  // page. The has_new_release flag is set by the episode release cron
+  // job when a completed title is auto-reactivated to watching. Opening
+  // the details page acknowledges the NEW state — the user has seen it.
+  // The watching status is NOT changed (only the badge is cleared).
+  // We use updateLibraryItem to update the global watchlist signal so
+  // all consumers (Library, Continue Watching, etc.) see the cleared
+  // badge immediately without a full refresh. We also fire a background
+  // API call to persist the change to Supabase.
+  createEffect(
+    on(vaultItem, (v) => {
+      if (v?.hasNewRelease) {
+        // Optimistic local update — immediate UI feedback.
+        library.updateItem(v.id, { hasNewRelease: false });
+        // Persist to Supabase (fire-and-forget — if it fails, the next
+        // vault refresh will re-read the DB value, which may still be
+        // true. That's acceptable — the badge will reappear, and the
+        // user will clear it again on next open. The cron job only sets
+        // it once per reactivation, so it won't keep coming back.)
+        const tmdbId = v.id;
+        const mediaType = v.media_type;
+        void fetch("/api/vault/clear-new-release", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tmdbId: Number(tmdbId), mediaType })
+        }).catch(() => {
+          // Silent — see comment above.
+        });
+      }
+    })
+  );
+
   // Phase 6 Task 2 — Hydrate episode ratings whenever the vault item
   // changes (modal opens, or user navigates to a related title). This
   // fetches all episode_progress rows for the open TV title so the

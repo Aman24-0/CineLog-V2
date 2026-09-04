@@ -105,7 +105,7 @@ export const CONTINUE_WATCHING_OR_FILTER =
  * missing fields.
  */
 export const VAULT_DASHBOARD_COLUMNS =
-  "id,user_id,tmdb_id,media_type,status,is_favorite,is_pinned,rating,notes,rewatch_count,rewatch_dates,progress_minutes,watched_on,started_at,completed_at,last_activity_at,created_at,updated_at,deleted_at,season_dates,season_rewatch_count,season_rewatch_dates,tag,reaction,watch_device,watch_platform,favorite_character_id,favorite_character_name,favorite_character_profile" as const;
+  "id,user_id,tmdb_id,media_type,status,is_favorite,is_pinned,rating,notes,rewatch_count,rewatch_dates,progress_minutes,watched_on,started_at,completed_at,last_activity_at,created_at,updated_at,deleted_at,season_dates,season_rewatch_count,season_rewatch_dates,tag,reaction,watch_device,watch_platform,favorite_character_id,favorite_character_name,favorite_character_profile,has_new_release" as const;
 
 /**
  * Compact column list for collection rows returned to the dashboard.

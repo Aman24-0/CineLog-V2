@@ -246,6 +246,13 @@ export interface WatchlistItem {
    * `vault.write.ts.updateVaultItem()`.
    */
   isPinned?: boolean;
+  /**
+   * True when a new season/episode was detected after the title was
+   * completed (auto-reactivation). Drives the NEW badge in Continue
+   * Watching. Cleared when the user opens the title's details page.
+   * Persisted in vault.has_new_release.
+   */
+  hasNewRelease?: boolean;
 }
 
 export interface User {

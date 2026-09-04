@@ -1029,6 +1029,7 @@ export type Database = {
           watched_on: string | null;
           watch_device: string | null;
           watch_platform: string | null;
+          has_new_release: boolean;
         };
         Insert: {
           completed_at?: string | null;
@@ -1060,6 +1061,7 @@ export type Database = {
           watched_on?: string | null;
           watch_device?: string | null;
           watch_platform?: string | null;
+          has_new_release?: boolean;
         };
         Update: {
           completed_at?: string | null;
@@ -1091,6 +1093,7 @@ export type Database = {
           watched_on?: string | null;
           watch_device?: string | null;
           watch_platform?: string | null;
+          has_new_release?: boolean;
         };
         Relationships: [
           {
@@ -1484,6 +1487,47 @@ export type Database = {
             referencedColumns: ["id"];
           }
         ];
+      };
+      // ─── Episode release log (New Episode Detection) ──────────────
+      // Dedup table ensuring at most one notification per user per episode.
+      episode_release_log: {
+        Row: {
+          id: string;
+          user_id: string;
+          tmdb_id: number;
+          media_type: string;
+          season_number: number;
+          episode_number: number;
+          episode_air_date: string | null;
+          title_name: string | null;
+          notified_at: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          tmdb_id: number;
+          media_type?: string;
+          season_number: number;
+          episode_number: number;
+          episode_air_date?: string | null;
+          title_name?: string | null;
+          notified_at?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          tmdb_id?: number;
+          media_type?: string;
+          season_number?: number;
+          episode_number?: number;
+          episode_air_date?: string | null;
+          title_name?: string | null;
+          notified_at?: string;
+          created_at?: string;
+        };
+        Relationships: [];
       };
       // ─── User reminders (Upcoming Page redesign) ─────────────────────
       // Per-user "Remind Me" subscriptions for upcoming titles.
