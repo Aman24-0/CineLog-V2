@@ -1490,6 +1490,8 @@ export type Database = {
       };
       // ─── Episode release log (New Episode Detection) ──────────────
       // Dedup table ensuring at most one notification per user per episode.
+      // claimed_at is used by claim_episode_release() RPC for atomic claim
+      // semantics so two concurrent cron workers cannot both send a push.
       episode_release_log: {
         Row: {
           id: string;
@@ -1502,6 +1504,7 @@ export type Database = {
           title_name: string | null;
           notification_status: string;
           notified_at: string | null;
+          claimed_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -1516,6 +1519,7 @@ export type Database = {
           title_name?: string | null;
           notification_status?: string;
           notified_at?: string | null;
+          claimed_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -1530,6 +1534,7 @@ export type Database = {
           title_name?: string | null;
           notification_status?: string;
           notified_at?: string | null;
+          claimed_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };

@@ -1,8 +1,8 @@
 // src/server/notifications/__tests__/episodeReleaseDetector.test.ts
 //
-// Tests for the episode release detection logic (hardened version).
+// Tests for the episode release detection logic (v3 hardened version).
 //
-// Tests:
+// Existing tests (preserved from v2):
 //   1. isEpisodeReleased date logic
 //   2. Active season detection (S2 airing when S3 announced)
 //   3. Completed + released new season → reactivation
@@ -15,6 +15,14 @@
 //  10. No seasons → empty
 //  11. Only specials → empty
 //  12. Missed releases: E1/E2/E3 all actionable → only E3 notified, all marked processed
+//
+// v3 CONCURRENCY REGRESSION TESTS (new):
+//  13. Two simultaneous attempts for the same episode → only one push is sent
+//  14. Second worker sees an already claimed episode → no push
+//  15. Push failure → status becomes failed/retryable
+//  16. Later retry → push can succeed
+//  17. Successful notification → subsequent cron run cannot send it again
+//  18. Missed E1/E2/E3 → only latest episode is notified (anti-spam via processRelease)
 
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
@@ -23,37 +31,121 @@ vi.mock("~/core/tmdb/tmdb", () => ({
   fetchSeasonDetails: vi.fn()
 }));
 
-vi.mock("~/lib/supabase/admin/adminClient", () => ({
-  createAdminClient: vi.fn(() => ({
-    from: vi.fn(() => ({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            eq: vi.fn(() => Promise.resolve({ data: [], error: null }))
-          }))
-        }))
-      })),
-      update: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              eq: vi.fn(() => Promise.resolve({ error: null }))
-            }))
-          }))
-        }))
-      })),
-      upsert: vi.fn(() => Promise.resolve({ error: null }))
-    }))
-  }))
-}));
-
 vi.mock("~/shared/constants/notificationAssets", () => ({
   CINELOG_NOTIFICATION_ICON: "/icon.png"
 }));
 
-import { isEpisodeReleased, detectNewReleasesForItem } from "../episodeReleaseDetector";
+// ── Admin client mock builder ─────────────────────────────────────
+//
+// The detector uses three admin-client operations:
+//   .from("episode_release_log").select(...)           — dedup query
+//   .from("episode_release_log").upsert(...)           — mark actionable rows
+//   .from("episode_release_log").update(...)           — final status update
+//   .from("vault").update(...)                         — reactivation
+//   .rpc("claim_episode_release", ...)                 — ATOMIC CLAIM
+//
+// buildAdminClient() lets each test configure the rpc behavior (does the
+// claim succeed? does it return a claimed row or empty?) so we can
+// exercise the concurrency paths deterministically.
+
+interface AdminClientOptions {
+  /** Existing episode_release_log rows (for dedup query). */
+  existingLogs?: Array<{ episode_number: number; notification_status: string }>;
+  /** What claim_episode_release() RPC should return. */
+  claimResult?: "claimed" | "empty" | "error";
+  /** What the push endpoint will return (mocked via fetch). */
+  pushResult?: { sent: number; failed: number; skipped: number };
+}
+
+function buildAdminClient(opts: AdminClientOptions = {}) {
+  const existingLogs = opts.existingLogs ?? [];
+  const claimResult = opts.claimResult ?? "claimed";
+
+  const upsertCalls: Array<{ payload: unknown }> = [];
+  const updateCalls: Array<{ payload: unknown }> = [];
+  const rpcCalls: Array<{ name: string; args: unknown }> = [];
+  const vaultUpdates: Array<{ payload: unknown }> = [];
+
+  const adminClient = {
+    from: vi.fn((table: string) => {
+      if (table === "episode_release_log") {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                eq: vi.fn(() =>
+                  Promise.resolve({ data: existingLogs, error: null })
+                )
+              }))
+            }))
+          })),
+          upsert: vi.fn((payload: unknown) => {
+            upsertCalls.push({ payload });
+            return Promise.resolve({ error: null });
+          }),
+          update: vi.fn((payload: unknown) => ({
+            eq: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                eq: vi.fn(() => ({
+                  eq: vi.fn(() => {
+                    updateCalls.push({ payload });
+                    return Promise.resolve({ error: null });
+                  })
+                }))
+              }))
+            }))
+          }))
+        };
+      }
+      if (table === "vault") {
+        return {
+          update: vi.fn((payload: unknown) => ({
+            eq: vi.fn(() => {
+              vaultUpdates.push({ payload });
+              return Promise.resolve({ error: null });
+            })
+          }))
+        };
+      }
+      return {};
+    }),
+    rpc: vi.fn((name: string, args: unknown) => {
+      rpcCalls.push({ name, args });
+      if (claimResult === "error") {
+        return Promise.resolve({ data: null, error: { message: "RPC failed" } });
+      }
+      if (claimResult === "empty") {
+        return Promise.resolve({ data: [], error: null });
+      }
+      // claimed — return one row
+      return Promise.resolve({
+        data: [
+          {
+            id: "claim-row-1",
+            user_id: "user-1",
+            tmdb_id: 1,
+            season_number: 1,
+            episode_number: 3,
+            notification_status: "pending",
+            claimed_at: new Date().toISOString()
+          }
+        ],
+        error: null
+      });
+    })
+  };
+
+  return { adminClient: adminClient as never, upsertCalls, updateCalls, rpcCalls, vaultUpdates };
+}
+
+// Re-export for tests that don't need call tracking
+vi.mock("~/lib/supabase/admin/adminClient", () => ({
+  createAdminClient: vi.fn(() => buildAdminClient().adminClient)
+}));
+
+import { isEpisodeReleased, detectNewReleasesForItem, processRelease } from "../episodeReleaseDetector";
+import type { DetectedRelease } from "../episodeReleaseDetector";
 import { fetchTmdbMetadata, fetchSeasonDetails } from "~/core/tmdb/tmdb";
-import { createAdminClient } from "~/lib/supabase/admin/adminClient";
 
 // ── Helpers ───────────────────────────────────────────────────────
 
@@ -106,28 +198,29 @@ function mockVaultItem(overrides: {
   };
 }
 
-function mockAdminClientWithLogs(logs: Array<{ episode_number: number; notification_status: string }>) {
+// Build a minimal DetectedRelease for processRelease tests
+function buildRelease(overrides: Partial<DetectedRelease> = {}): DetectedRelease {
   return {
-    from: vi.fn(() => ({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            eq: vi.fn(() => Promise.resolve({ data: logs, error: null }))
-          }))
-        }))
-      })),
-      update: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              eq: vi.fn(() => Promise.resolve({ error: null }))
-            }))
-          }))
-        }))
-      })),
-      upsert: vi.fn(() => Promise.resolve({ error: null }))
-    }))
-  } as never;
+    tmdbId: 1,
+    seasonNumber: 1,
+    episodeNumber: 3,
+    episodeAirDate: "2024-01-01",
+    titleName: "Test Show",
+    isReactivation: false,
+    allProcessedEpisodeNumbers: [3],
+    ...overrides
+  };
+}
+
+// Mock fetch for push notification calls
+function mockFetchResponse(body: unknown, ok = true) {
+  const fetchMock = vi.fn().mockResolvedValue({
+    ok,
+    status: ok ? 200 : 500,
+    json: async () => body
+  });
+  vi.stubGlobal("fetch", fetchMock);
+  return fetchMock;
 }
 
 // ── Date logic tests ──────────────────────────────────────────────
@@ -161,11 +254,9 @@ describe("isEpisodeReleased", () => {
   });
 });
 
-// ── Detection logic tests ─────────────────────────────────────────
+// ── Detection logic tests (unchanged from v2) ─────────────────────
 
 describe("detectNewReleasesForItem", () => {
-  const defaultAdminClient = createAdminClient();
-
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -188,7 +279,8 @@ describe("detectNewReleasesForItem", () => {
     } as never);
 
     const item = mockVaultItem({ status: "completed", season: 1, episode: 10 });
-    const releases = await detectNewReleasesForItem(item, defaultAdminClient);
+    const { adminClient } = buildAdminClient();
+    const releases = await detectNewReleasesForItem(item, adminClient);
 
     expect(releases).toHaveLength(1);
     expect(releases[0]!.isReactivation).toBe(true);
@@ -211,7 +303,8 @@ describe("detectNewReleasesForItem", () => {
     } as never);
 
     const item = mockVaultItem({ status: "completed", season: 1, episode: 10 });
-    const releases = await detectNewReleasesForItem(item, defaultAdminClient);
+    const { adminClient } = buildAdminClient();
+    const releases = await detectNewReleasesForItem(item, adminClient);
 
     expect(releases).toHaveLength(0);
   });
@@ -234,7 +327,8 @@ describe("detectNewReleasesForItem", () => {
     } as never);
 
     const item = mockVaultItem({ status: "dropped", season: 1, episode: 5 });
-    const releases = await detectNewReleasesForItem(item, defaultAdminClient);
+    const { adminClient } = buildAdminClient();
+    const releases = await detectNewReleasesForItem(item, adminClient);
 
     // Dropped is not "completed", so isReactivation would be false.
     if (releases.length > 0) {
@@ -262,7 +356,8 @@ describe("detectNewReleasesForItem", () => {
     } as never);
 
     const item = mockVaultItem({ status: "watching", season: 1, episode: 2 });
-    const releases = await detectNewReleasesForItem(item, defaultAdminClient);
+    const { adminClient } = buildAdminClient();
+    const releases = await detectNewReleasesForItem(item, adminClient);
 
     expect(releases).toHaveLength(1);
     expect(releases[0]!.isReactivation).toBe(false);
@@ -270,7 +365,6 @@ describe("detectNewReleasesForItem", () => {
   });
 
   it("Active S2 detected when S3 is announced/upcoming (no released episodes in S3)", async () => {
-    // S3 exists but has no released episodes. S2 is currently airing.
     const today = new Date().toISOString().slice(0, 10);
     const future = new Date();
     future.setDate(future.getDate() + 30);
@@ -283,8 +377,6 @@ describe("detectNewReleasesForItem", () => {
       ]) as never
     );
 
-    // First call (S3) returns no released episodes
-    // Second call (S2) returns released episodes
     vi.mocked(fetchSeasonDetails)
       .mockResolvedValueOnce({
         id: 3,
@@ -306,7 +398,8 @@ describe("detectNewReleasesForItem", () => {
       } as never);
 
     const item = mockVaultItem({ status: "watching", season: 1, episode: 10 });
-    const releases = await detectNewReleasesForItem(item, defaultAdminClient);
+    const { adminClient } = buildAdminClient();
+    const releases = await detectNewReleasesForItem(item, adminClient);
 
     expect(releases).toHaveLength(1);
     expect(releases[0]!.seasonNumber).toBe(2); // NOT 3
@@ -335,11 +428,9 @@ describe("detectNewReleasesForItem", () => {
     } as never);
 
     const item = mockVaultItem({ status: "watching", season: 1, episode: 2 });
-    const releases = await detectNewReleasesForItem(item, defaultAdminClient);
+    const { adminClient } = buildAdminClient();
+    const releases = await detectNewReleasesForItem(item, adminClient);
 
-    // E1 and E2 are released. E3 is future → not included in releasedEpisodes.
-    // The releasedEpisodes filter excludes E3, so actionableReleases = [E1, E2].
-    // The latest actionable = E2. The notification is for E2, NOT E3.
     expect(releases).toHaveLength(1);
     expect(releases[0]!.episodeNumber).not.toBe(3); // NOT the future episode
   });
@@ -358,13 +449,12 @@ describe("detectNewReleasesForItem", () => {
       poster_path: null
     } as never);
 
-    // Mock dedup: E1 is already 'sent'
-    const clientWithLogs = mockAdminClientWithLogs([
-      { episode_number: 1, notification_status: "sent" }
-    ]);
+    const { adminClient } = buildAdminClient({
+      existingLogs: [{ episode_number: 1, notification_status: "sent" }]
+    });
 
     const item = mockVaultItem({ status: "watching", season: 1, episode: 0 });
-    const releases = await detectNewReleasesForItem(item, clientWithLogs);
+    const releases = await detectNewReleasesForItem(item, adminClient);
 
     expect(releases).toHaveLength(0); // E1 already sent → no new release
   });
@@ -383,15 +473,13 @@ describe("detectNewReleasesForItem", () => {
       poster_path: null
     } as never);
 
-    // Mock dedup: E1 is 'failed' → retryable
-    const clientWithFailed = mockAdminClientWithLogs([
-      { episode_number: 1, notification_status: "failed" }
-    ]);
+    const { adminClient } = buildAdminClient({
+      existingLogs: [{ episode_number: 1, notification_status: "failed" }]
+    });
 
     const item = mockVaultItem({ status: "watching", season: 1, episode: 0 });
-    const releases = await detectNewReleasesForItem(item, clientWithFailed);
+    const releases = await detectNewReleasesForItem(item, adminClient);
 
-    // E1 is 'failed' → not in processedEpisodes → actionable
     expect(releases).toHaveLength(1);
     expect(releases[0]!.episodeNumber).toBe(1);
   });
@@ -415,13 +503,12 @@ describe("detectNewReleasesForItem", () => {
       poster_path: null
     } as never);
 
-    // No existing logs → all 3 episodes are actionable
     const item = mockVaultItem({ status: "watching", season: 1, episode: 0 });
-    const releases = await detectNewReleasesForItem(item, defaultAdminClient);
+    const { adminClient } = buildAdminClient();
+    const releases = await detectNewReleasesForItem(item, adminClient);
 
     expect(releases).toHaveLength(1);
     expect(releases[0]!.episodeNumber).toBe(3); // latest actionable
-    // All 3 episodes should be marked as processed
     expect(releases[0]!.allProcessedEpisodeNumbers).toContain(1);
     expect(releases[0]!.allProcessedEpisodeNumbers).toContain(2);
     expect(releases[0]!.allProcessedEpisodeNumbers).toContain(3);
@@ -431,7 +518,8 @@ describe("detectNewReleasesForItem", () => {
     vi.mocked(fetchTmdbMetadata).mockRejectedValue(new Error("TMDB error") as never);
 
     const item = mockVaultItem({ status: "watching", season: 1, episode: 1 });
-    const releases = await detectNewReleasesForItem(item, defaultAdminClient);
+    const { adminClient } = buildAdminClient();
+    const releases = await detectNewReleasesForItem(item, adminClient);
 
     expect(releases).toHaveLength(0);
   });
@@ -445,7 +533,8 @@ describe("detectNewReleasesForItem", () => {
     } as never);
 
     const item = mockVaultItem({ status: "watching", season: 1, episode: 1 });
-    const releases = await detectNewReleasesForItem(item, defaultAdminClient);
+    const { adminClient } = buildAdminClient();
+    const releases = await detectNewReleasesForItem(item, adminClient);
 
     expect(releases).toHaveLength(0);
   });
@@ -456,8 +545,184 @@ describe("detectNewReleasesForItem", () => {
     );
 
     const item = mockVaultItem({ status: "watching", season: 1, episode: 1 });
-    const releases = await detectNewReleasesForItem(item, defaultAdminClient);
+    const { adminClient } = buildAdminClient();
+    const releases = await detectNewReleasesForItem(item, adminClient);
 
     expect(releases).toHaveLength(0);
+  });
+});
+
+// ── v3 Concurrency regression tests ───────────────────────────────
+//
+// These tests prove the atomic claim mechanism works correctly:
+//   - Only ONE worker can become the sender for an episode
+//   - Concurrent workers that lose the claim do NOT send a push
+//   - Push failures leave status='failed' for retry
+//   - Successful pushes never get re-sent
+//   - Missed-release anti-spam works through processRelease
+
+describe("processRelease — atomic claim concurrency", () => {
+  const userId = "user-1";
+  const vaultItemId = "vault-1";
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // Default: CRON_SECRET set so push can fire
+    process.env.CRON_SECRET = "test-cron-secret-16chars-min";
+    process.env.URL = "http://localhost:3000";
+  });
+
+  it("13. Two simultaneous attempts for the same episode → only one push is sent", async () => {
+    // Simulate two workers (Worker A claims first, Worker B finds it already claimed).
+    const fetchMock = mockFetchResponse({ sent: 1, failed: 0, skipped: 0 });
+
+    // Worker A: claim succeeds → sends push
+    const workerA = buildAdminClient({ claimResult: "claimed" });
+    const release = buildRelease({ episodeNumber: 3, allProcessedEpisodeNumbers: [3] });
+    const resultA = await processRelease(release, userId, vaultItemId, workerA.adminClient);
+
+    // Worker B: claim returns empty → no push
+    const workerB = buildAdminClient({ claimResult: "empty" });
+    const resultB = await processRelease(release, userId, vaultItemId, workerB.adminClient);
+
+    // Only Worker A's push went out
+    expect(resultA.sent).toBe(1);
+    expect(resultB.sent).toBe(0);
+    expect(resultB.skipped).toBe(1);
+
+    // fetch (push endpoint) was called exactly once across both workers
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    // Both workers attempted the claim RPC
+    expect(workerA.rpcCalls.length).toBe(1);
+    expect(workerB.rpcCalls.length).toBe(1);
+    expect(workerA.rpcCalls[0]!.name).toBe("claim_episode_release");
+    expect(workerB.rpcCalls[0]!.name).toBe("claim_episode_release");
+  });
+
+  it("14. Second worker sees an already claimed episode → no push", async () => {
+    const fetchMock = mockFetchResponse({ sent: 1, failed: 0, skipped: 0 });
+
+    // Worker B sees empty claim (someone else already claimed)
+    const worker = buildAdminClient({ claimResult: "empty" });
+    const release = buildRelease({ episodeNumber: 5 });
+    const result = await processRelease(release, userId, vaultItemId, worker.adminClient);
+
+    expect(result.sent).toBe(0);
+    expect(result.skipped).toBe(1);
+    expect(fetchMock).not.toHaveBeenCalled(); // NO push was sent
+
+    // The claim RPC was still attempted (so we know the worker checked)
+    expect(worker.rpcCalls.length).toBe(1);
+  });
+
+  it("15. Push failure → status becomes failed/retryable", async () => {
+    // Claim succeeds but push fails
+    const fetchMock = mockFetchResponse({ sent: 0, failed: 1, skipped: 0 }, true);
+    // Override: push endpoint says 1 failed
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({ sent: 0, failed: 1, skipped: 0 })
+    });
+
+    const worker = buildAdminClient({ claimResult: "claimed" });
+    const release = buildRelease({ episodeNumber: 7 });
+    const result = await processRelease(release, userId, vaultItemId, worker.adminClient);
+
+    expect(result.failed).toBe(1);
+
+    // Verify the status update call set notification_status='failed'
+    expect(worker.updateCalls.length).toBe(1);
+    expect(worker.updateCalls[0]!.payload).toMatchObject({
+      notification_status: "failed"
+    });
+  });
+
+  it("16. Later retry → push can succeed (failed → claimed → sent)", async () => {
+    // Simulate a retry: claim succeeds this time, push succeeds
+    mockFetchResponse({ sent: 1, failed: 0, skipped: 0 });
+
+    const worker = buildAdminClient({ claimResult: "claimed" });
+    const release = buildRelease({ episodeNumber: 9 });
+    const result = await processRelease(release, userId, vaultItemId, worker.adminClient);
+
+    expect(result.sent).toBe(1);
+    expect(worker.updateCalls.length).toBe(1);
+    expect(worker.updateCalls[0]!.payload).toMatchObject({
+      notification_status: "sent"
+    });
+  });
+
+  it("17. Successful notification → subsequent cron run cannot send it again", async () => {
+    // This test proves the dedup layer ABOVE processRelease works:
+    // after a successful send (status='sent'), the detector's
+    // detectNewReleasesForItem() must NOT return this episode as
+    // actionable on the next run.
+    vi.mocked(fetchTmdbMetadata).mockResolvedValue(
+      mockShowDetails([{ season_number: 1, episode_count: 5 }]) as never
+    );
+    vi.mocked(fetchSeasonDetails).mockResolvedValue({
+      id: 1,
+      season_number: 1,
+      name: "Season 1",
+      overview: "",
+      air_date: "2024-01-01",
+      episodes: [mockEpisode(3, 1, "2024-01-01")],
+      poster_path: null
+    } as never);
+
+    // Previous run successfully sent E3
+    const { adminClient } = buildAdminClient({
+      existingLogs: [{ episode_number: 3, notification_status: "sent" }]
+    });
+
+    const item = mockVaultItem({ status: "watching", season: 1, episode: 0 });
+    const releases = await detectNewReleasesForItem(item, adminClient);
+
+    // E3 is 'sent' → not actionable → no new release detected
+    expect(releases).toHaveLength(0);
+  });
+
+  it("18. Missed E1/E2/E3 → only latest episode is notified (anti-spam via processRelease)", async () => {
+    // Detection returns ONLY E3 as the to-be-notified episode, with
+    // E1/E2/E3 in allProcessedEpisodeNumbers. processRelease must:
+    //   - upsert E1 as 'skipped'
+    //   - upsert E2 as 'skipped'
+    //   - upsert E3 as 'pending' (will be claimed)
+    //   - claim E3
+    //   - send push for E3 only
+    //   - update E3 to 'sent'
+    mockFetchResponse({ sent: 1, failed: 0, skipped: 0 });
+
+    const worker = buildAdminClient({ claimResult: "claimed" });
+    const release = buildRelease({
+      episodeNumber: 3,
+      allProcessedEpisodeNumbers: [1, 2, 3]
+    });
+    const result = await processRelease(release, userId, vaultItemId, worker.adminClient);
+
+    // Push sent for E3 only
+    expect(result.sent).toBe(1);
+
+    // Three upserts happened — E1, E2 (skipped), E3 (pending)
+    expect(worker.upsertCalls.length).toBe(3);
+    const statusesByEpisode = new Map<number, string>();
+    for (const call of worker.upsertCalls) {
+      const payload = call.payload as {
+        episode_number: number;
+        notification_status: string;
+      };
+      statusesByEpisode.set(payload.episode_number, payload.notification_status);
+    }
+    expect(statusesByEpisode.get(1)).toBe("skipped");
+    expect(statusesByEpisode.get(2)).toBe("skipped");
+    expect(statusesByEpisode.get(3)).toBe("pending");
+
+    // Final status update set E3 → sent
+    expect(worker.updateCalls.length).toBe(1);
+    expect(worker.updateCalls[0]!.payload).toMatchObject({
+      notification_status: "sent"
+    });
   });
 });

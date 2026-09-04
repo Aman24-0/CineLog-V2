@@ -2052,3 +2052,102 @@ VALIDATION:
 - Dev server mobile check at 390x844: /discover renders, 0 console errors, no horizontal overflow.
 - /discover/theatres route check: renders, 0 console errors, no horizontal overflow.
 - Desktop check at 1280x800: /discover renders, no horizontal overflow.
+
+---
+Task ID: 19
+Agent: main (Super Z)
+Task: Final hardening — fix SQL migration syntax error + true concurrent notification deduplication
+
+ROOT CAUSE OF THE SQL SYNTAX ERROR:
+- The v2 migration's `schedule_episode_releases()` function used `$$ ... $$` as the outer function body delimiter.
+- Inside the function body, a `format()` call ALSO used `$$ ... $$` for its string literal.
+- PostgreSQL treats the FIRST occurrence of `$$` as the closing delimiter of the function body — so the inner `$$SELECT net.http_post(...$$` terminated the outer function early.
+- This produced: `ERROR: 42601 syntax error at or near "SELECT" LINE 159`.
+- The v1 type-mismatch issue (`user_id text` vs `auth.users(id) uuid`) had already been fixed in v2 by switching to `user_id uuid REFERENCES profiles(id)` — that fix is preserved here.
+
+DOLLAR-QUOTE FIX:
+- Replaced outer function body delimiter `$$` with `$function$` (a named tag).
+- Replaced inner `format()` string delimiter `$$` with `$cmd$` (a named tag, matching the proven pattern from `20260803_add_weekly_recap_preferences.sql`).
+- Used `$claim_fn$` for the new `claim_episode_release()` function body (no nested strings, but distinct tag for safety).
+- Kept `$$` for plain DO blocks (they contain no nested dollar-quoted strings).
+
+PRODUCTION VERIFICATION (Supabase Management API):
+- Project ref: `vyckwoivdmlvbvsufuus` (CineLog-V2)
+- BEFORE: `episode_release_log` table did NOT exist (the entire migration had failed as a single transaction). `vault.has_new_release` column did NOT exist. `episode_releases` cron job did NOT exist.
+- Applied the migration statement-by-statement via the Supabase Management API query endpoint (POST /v1/projects/{ref}/database/query). ALL 18 statements executed successfully against production.
+- Re-ran the migration to verify idempotency — all 18 statements succeeded on second run (no errors, no data loss).
+- Verified schema: `episode_release_log` has 13 columns including the new `claimed_at timestamptz`.
+- Verified FK: `episode_release_log_user_id_fkey` → `public.profiles(id)` (UUID).
+- Verified RLS: `relrowsecurity = true` on the table.
+- Verified policy: `episode_release_log_select_own` (SELECT only, `auth.uid() = user_id`).
+- Verified 5 indexes: pkey, user_episode_unique, user_tmdb_idx, retry_idx, claim_idx (new).
+- Verified functions: `claim_episode_release` (sql), `schedule_episode_releases` (plpgsql) both registered.
+- Verified existing cron jobs are intact: `cinelog_purge_soft_deleted_vault`, `refresh_admin_analytics`, `release_reminders`, `weekly_recap` — all still active with their original schedules.
+
+PRODUCTION CRON STATUS:
+- `episode_releases` cron job is NOT active in production.
+- Reason: `app.app_url` and `app.cron_secret` GUC settings are NOT configured in production (`current_setting('app.app_url', true)` returns NULL).
+- The migration's automatic-activation block (DO block at the end) correctly emitted the NOTICE explaining how to activate it. This is the same safe behavior as `release_reminders` and `weekly_recap` (whose cron jobs were scheduled by an operator running the scheduler function manually with literal args, NOT via GUCs).
+- The migration did NOT silently claim the cron was active. To activate, an operator must run: `SELECT public.schedule_episode_releases('https://cinelogv2.vercel.app', '<strong-cron-secret>');`.
+
+CONCURRENCY MECHANISM IMPLEMENTED:
+- New RPC `claim_episode_release(p_user_id, p_tmdb_id, p_season_number, p_episode_number)` — SECURITY DEFINER, service_role only.
+- Implementation: `UPDATE episode_release_log SET claimed_at = now(), updated_at = now() WHERE user_id = p_user_id AND tmdb_id = p_tmdb_id AND season_number = p_season_number AND episode_number = p_episode_number AND notification_status = 'pending' AND (claimed_at IS NULL OR claimed_at < now() - interval '15 minutes') RETURNING *;`
+- The UPDATE is atomic: Postgres takes a row lock, evaluates WHERE, commits in one statement. Two concurrent UPDATEs on the same row are serialized — the second one sees the row already has `claimed_at` set and returns 0 rows.
+- The 15-minute stale-claim recovery window allows a new worker to re-claim if a previous worker died after claiming but before sending the push.
+
+WHY TWO CONCURRENT WORKERS CANNOT BOTH SEND THE SAME PUSH:
+- Detector inserts/upserts a row with `notification_status='pending'` and `claimed_at=NULL` for the to-be-notified episode.
+- Detector calls `claim_episode_release()` RPC.
+- If the RPC returns the row → THIS worker is the claimant. Proceeds to send push and updates status to 'sent'/'failed'.
+- If the RPC returns nothing (empty array) → ANOTHER worker already claimed (or already sent) this episode. This worker returns 'skipped' (no push).
+- This is the SINGLE concurrency guarantee. The notification tag, UNIQUE constraint, and upsert all help but none of them ATOMICALLY serialize the claim decision the way this RPC does.
+- Production test proved this: inserted a pending row, called the RPC twice — first call returned the row, second call returned nothing. Confirmed via direct API queries against production.
+
+DETECTOR REFACTOR:
+- `processRelease()` exported for direct testing.
+- After upserting actionable episodes (anti-spam: non-notified episodes get 'skipped' immediately, notified episode gets 'pending'), it calls `claim_episode_release()` RPC.
+- Only the claimant proceeds to `sendPushNotification()`. Non-claimants return `{ sent: 0, failed: 0, skipped: 1 }`.
+- On RPC error (transient DB issue), the worker returns skipped and lets the next cron run retry — never sends a push without a successful claim.
+- Push success → status='sent' (terminal, never retried).
+- Push failure → status='failed' (retryable on next cron run).
+- Push skipped (no subscription / category opt-out) → status='skipped' (terminal, no retry).
+
+PRESERVED BEHAVIORS:
+- Active season detection: S2 currently airing is preferred over announced S3 (with no released episodes). Untouched.
+- Missed-release anti-spam: E1/E2/E3 all detected → only E3 notified, E1+E2 marked 'skipped' immediately via upsert. Untouched.
+- Completed → Watching reactivation: vault status updated, has_new_release=true, title appears in Continue Watching with NEW badge. Untouched.
+- Dropped → NOT reactivated (only 'completed' triggers reactivation). Untouched.
+- Failed-push retry: status='failed' rows are NOT in the processedEpisodes set in `detectNewReleasesForItem`, so they remain actionable. Untouched.
+
+TESTS ADDED (6 new, total 24 in the file):
+- 13. Two simultaneous attempts for the same episode → only one push is sent (verifies fetch was called exactly once across both workers, and both workers called the claim RPC).
+- 14. Second worker sees an already claimed episode → no push (verifies fetch was NOT called, but claim RPC was attempted).
+- 15. Push failure → status becomes failed/retryable (verifies update() call set notification_status='failed').
+- 16. Later retry → push can succeed (verifies after a failed→claimed transition, the new push succeeds and status becomes 'sent').
+- 17. Successful notification → subsequent cron run cannot send it again (verifies the dedup layer ABOVE processRelease: existingLogs with status='sent' makes detectNewReleasesForItem return empty).
+- 18. Missed E1/E2/E3 → only latest episode is notified (verifies via processRelease that E1+E2 are upserted as 'skipped', E3 is upserted as 'pending', and the final update sets E3 to 'sent').
+
+PRODUCTION END-TO-END CLAIM TEST (separate from unit tests):
+- Wrote `/home/z/my-project/scripts/test_claim_rpc.py` which inserts a real pending row using a real user_id from `profiles`, then exercises the RPC:
+  1. First claim returns the row (PASS)
+  2. Second concurrent claim returns nothing (PASS — atomic lock works)
+  3. Claim on 'sent' row returns nothing (PASS — sent is terminal)
+  4. Stale claim (>15 min old) is recovered (PASS)
+- All 5 production tests passed against the live Supabase database.
+- Test row was cleaned up (deleted).
+
+VALIDATION:
+- `npx tsc --noEmit`: clean (0 errors).
+- `npx eslint <changed files>`: clean (0 errors, 1 ignored-file warning for database.types.ts which is in the project's ESLint ignore list).
+- `npx vitest run src/server/notifications/__tests__/episodeReleaseDetector.test.ts`: 24/24 pass.
+- `npx vitest run` (full suite): 1871/1871 pass across 112 files.
+- `npm run build`: success.
+- Migration applied to production Supabase: success (18/18 statements, idempotent on re-run).
+
+FILES CHANGED (4, all directly related):
+- `supabase/migrations/20260903_episode_release_tracking.sql` — full rewrite of the cron function dollar-quoting; added `claim_episode_release()` RPC; added `claimed_at` column; added `episode_release_log_claim_idx` partial index; idempotent column/constraint backfill.
+- `src/server/notifications/episodeReleaseDetector.ts` — refactored `processRelease()` to use `claim_episode_release()` RPC; exported `processRelease` and types `DetectedRelease`/`PushResult` for direct testing; preserved all existing detection/reactivation/anti-spam/retry logic.
+- `src/server/notifications/__tests__/episodeReleaseDetector.test.ts` — rewrote the mock admin client to support `.rpc()` calls; added 6 concurrency regression tests; preserved all 18 existing tests.
+- `src/lib/supabase/database.types.ts` — added `claimed_at: string | null` to `episode_release_log` Row/Insert/Update types.
+

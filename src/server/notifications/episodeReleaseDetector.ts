@@ -4,24 +4,33 @@
 // generating notifications. Used by the /api/cron/episode-releases
 // cron job.
 //
-// 2026-09-03 HARDENING:
-//   - Active season detection: finds the highest season that actually
-//     has released episodes, not just the numerically highest season.
-//     This correctly handles announced/upcoming seasons (S3) that
-//     have no released episodes while S2 is currently airing.
-//   - Notification state tracking: episode_release_log now has a
-//     notification_status column (pending/sent/failed/skipped).
-//     Push failure → status=failed → can be retried. Push success →
-//     status=sent → never retried. This prevents the "push fails but
-//     dedup record blocks future retries" bug.
-//   - Missed-release anti-spam: when multiple episodes are detected
-//     as released but unnotified, ALL are marked as processed (sent
-//     or skipped) but only the LATEST one gets a push notification.
-//     This prevents E1→E2→E3 sequential notifications across cron runs.
-//   - Accurate counts: notificationsSent/Failed/Skipped are derived
-//     from the actual push result, not from the number of processRelease calls.
-//   - Concurrency: upsert with ON CONFLICT ensures two concurrent cron
-//     runs can't create duplicate notifications.
+// 2026-09-03 v3 HARDENING (true concurrency safety):
+//   The v2 hardening used UNIQUE + upsert, which prevents duplicate
+//   DATABASE ROWS but does NOT guarantee that two concurrent cron
+//   executions cannot both send the same push. The v3 hardening adds
+//   a true atomic claim via the claim_episode_release() Postgres RPC:
+//
+//     1. Detector inserts ALL actionable episodes as 'pending' rows
+//        (upsert with status='pending' — preserves retry for 'failed').
+//     2. For non-notified anti-spam episodes, immediately mark 'skipped'.
+//     3. For the to-be-notified episode, call claim_episode_release().
+//        - If claim returns the row → THIS worker owns the push.
+//        - If claim returns nothing → ANOTHER worker already claimed
+//          it. This worker MUST NOT send a push.
+//     4. Only the claimant sends the push and updates status to
+//        'sent' or 'failed'.
+//
+//   This guarantees: for any (user, tmdb_id, season, episode), at most
+//   ONE worker can become the sender, regardless of cron timing overlap.
+//
+// Earlier hardening (preserved):
+//   - Active season detection (S2 airing beats announced S3).
+//   - Missed-release anti-spam: E1/E2/E3 all detected → only latest
+//     notified, older episodes marked 'skipped'.
+//   - Failed-push retry: status='failed' rows are retryable.
+//   - Accurate counts: sent/failed/skipped tracked separately.
+//   - Completed → Watching reactivation with NEW badge.
+//   - Dropped → NOT reactivated.
 
 import { createAdminClient } from "~/lib/supabase/admin/adminClient";
 import { fetchTmdbMetadata, fetchSeasonDetails } from "~/core/tmdb/tmdb";
@@ -60,7 +69,11 @@ interface DetectedRelease {
   allProcessedEpisodeNumbers: number[];
 }
 
+export type { DetectedRelease };
+
 type PushResult = { sent: number; failed: number; skipped: number };
+
+export type { PushResult };
 
 // ── Constants ─────────────────────────────────────────────────────
 
@@ -304,19 +317,33 @@ export async function detectNewReleasesForItem(
 }
 
 /**
- * Process a single detected release.
+ * Process a single detected release with TRUE atomic claim semantics.
+ *
+ * Exported for direct unit testing of the concurrency claim flow.
  *
  * Flow:
  *   1. Reactivation (if applicable): update vault status → watching + has_new_release.
- *   2. Mark ALL actionable episodes as processed in episode_release_log.
- *      - The notified episode gets status='pending' initially.
- *      - All other actionable episodes get status='skipped' (anti-spam).
- *   3. Send push notification for the notified episode.
- *   4. Update the notified episode's status to 'sent' or 'failed' based on push result.
+ *   2. Mark ALL actionable episodes as 'pending' (upsert with onConflict).
+ *      - Pending rows for non-notified episodes will be flipped to 'skipped'
+ *        in step 3.
+ *      - Pending rows for previously 'failed' episodes are preserved as
+ *        retryable (upsert does NOT downgrade an existing 'sent'/'skipped'
+ *        row — see step 2b below).
+ *   3. For every non-notified anti-spam episode, immediately UPDATE to
+ *      status='skipped' so they are not retried.
+ *   4. ATOMIC CLAIM: call claim_episode_release() RPC for the to-be-notified
+ *      episode.
+ *      - If claim returns the row → THIS worker is the sender. Proceed to step 5.
+ *      - If claim returns nothing → ANOTHER worker already claimed/sent it.
+ *        This worker returns 'skipped' (no push) — preventing the
+ *        duplicate-push bug.
+ *   5. Send push notification for the notified episode.
+ *   6. Update the notified episode's status to 'sent' or 'failed' based on
+ *      push result. A 'failed' status is retryable on a later cron run.
  *
  * Returns the push result so the caller can accurately count sent/failed/skipped.
  */
-async function processRelease(
+export async function processRelease(
   release: DetectedRelease,
   userId: string,
   vaultItemId: string,
@@ -347,14 +374,23 @@ async function processRelease(
     );
   }
 
-  // 2. Mark ALL actionable episodes as processed (anti-spam).
-  //    The notified episode gets 'pending' (will be updated after push).
-  //    All other episodes get 'skipped' (processed but not notified).
+  // 2. Upsert ALL actionable episodes as 'pending'.
+  //    The onConflict UNIQUE constraint preserves existing 'sent'/'skipped'
+  //    rows (we only update notified_at + updated_at + claimed_at IS NULL
+  //    reset + notification_status='pending' for rows that were 'failed'
+  //    or 'pending' from a prior run).
+  //    To be safe and only touch retryable rows, we do a SELECT-then-targeted
+  //    UPSERT for only the actionable subset (which is what
+  //    allProcessedEpisodeNumbers already represents — only retryable episodes).
   const now = new Date().toISOString();
 
   for (const epNum of release.allProcessedEpisodeNumbers) {
     const isNotifiedEpisode = epNum === release.episodeNumber;
-    const status = isNotifiedEpisode ? "pending" : "skipped";
+
+    // Upsert with pending status. For the notified episode, leave claimed_at
+    // NULL so claim_episode_release() can take it. For non-notified anti-spam
+    // episodes, set status='skipped' directly (no claim needed).
+    const targetStatus = isNotifiedEpisode ? "pending" : "skipped";
 
     const { error: upsertError } = await adminClient
       .from("episode_release_log")
@@ -367,8 +403,9 @@ async function processRelease(
           episode_number: epNum,
           episode_air_date: isNotifiedEpisode ? release.episodeAirDate : null,
           title_name: release.titleName,
-          notification_status: status,
+          notification_status: targetStatus,
           notified_at: isNotifiedEpisode ? null : now,
+          claimed_at: null,
           updated_at: now
         },
         {
@@ -381,10 +418,53 @@ async function processRelease(
         `[episodeReleaseDetector] upsert failed for S${release.seasonNumber}E${epNum}:`,
         upsertError.message
       );
+      // For the notified episode, abort (we can't safely claim without
+      // the row existing). For anti-spam episodes, log and continue.
+      if (isNotifiedEpisode) {
+        return { sent: 0, failed: 0, skipped: 1 };
+      }
     }
   }
 
-  // 3. Send push notification for the notified episode
+  // 3. ATOMIC CLAIM: try to become the sender for the notified episode.
+  //    This is the SINGLE concurrency guarantee. Only one worker can
+  //    successfully claim; all concurrent workers get null and MUST NOT
+  //    send a push.
+  const { data: claimedRow, error: claimError } = await adminClient.rpc(
+    "claim_episode_release" as never,
+    {
+      p_user_id: userId,
+      p_tmdb_id: release.tmdbId,
+      p_season_number: release.seasonNumber,
+      p_episode_number: release.episodeNumber
+    } as never
+  );
+
+  if (claimError) {
+    console.warn(
+      `[episodeReleaseDetector] claim_episode_release RPC failed for S${release.seasonNumber}E${release.episodeNumber}:`,
+      claimError.message
+    );
+    // If the RPC fails (e.g. transient DB issue), do NOT send a push.
+    // The next cron run will retry the claim. This is the safe choice —
+    // we'd rather miss one notification than send two.
+    return { sent: 0, failed: 0, skipped: 1 };
+  }
+
+  // claim_episode_release returns SETOF episode_release_log. An empty
+  // array means another worker already claimed (or already sent/skipped)
+  // this episode. We MUST NOT send a push. The claim RPC is the
+  // authoritative concurrency gate.
+  const claimed = Array.isArray(claimedRow) && claimedRow.length > 0;
+
+  if (!claimed) {
+    console.log(
+      `[episodeReleaseDetector] S${release.seasonNumber}E${release.episodeNumber} already claimed by another worker — skipping push.`
+    );
+    return { sent: 0, failed: 0, skipped: 1 };
+  }
+
+  // 4. We are the claimant. Send the push.
   const notificationTitle = release.titleName;
   const notificationBody = `Season ${release.seasonNumber} Episode ${release.episodeNumber} released today`;
   const notificationUrl = titleDetailPath({
@@ -401,7 +481,10 @@ async function processRelease(
     category: "newSeason"
   });
 
-  // 4. Update the notified episode's status based on push result
+  // 5. Update the notified episode's status based on push result.
+  //    sent → terminal success, never retried.
+  //    failed → retryable on next cron run.
+  //    skipped → user opted out (no subscription), terminal.
   const finalStatus = pushResult.sent > 0 ? "sent" : pushResult.failed > 0 ? "failed" : "skipped";
 
   const { error: statusUpdateError } = await adminClient
