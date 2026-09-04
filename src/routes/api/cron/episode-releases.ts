@@ -90,6 +90,8 @@ export async function POST(event: APIEvent): Promise<Response> {
     console.log(
       `[cron/episode-releases] processed=${result.processed} ` +
         `sent=${result.notificationsSent} ` +
+        `failed=${result.notificationsFailed} ` +
+        `skipped=${result.notificationsSkipped} ` +
         `reactivations=${result.reactivations} ` +
         `errors=${result.errors.length}`
     );

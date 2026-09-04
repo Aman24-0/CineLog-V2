@@ -4,52 +4,30 @@
 // generating notifications. Used by the /api/cron/episode-releases
 // cron job.
 //
-// ARCHITECTURE:
-//   1. Fetch all vault items with status 'watching' or 'completed'
-//      and media_type 'tv' (the only types that can have new episodes).
-//   2. For each item, fetch TMDB show details to get seasons list.
-//   3. For the latest season, fetch episode list via fetchSeasonDetails.
-//   4. Check for episodes with air_date <= today that haven't been
-//      logged in episode_release_log (dedup table).
-//   5. For 'completed' titles with a NEW season (season_number >
-//      user's tracked season): auto-change to 'watching' + set
-//      has_new_release = true.
-//   6. For 'watching' titles: just send notification.
-//   7. Insert dedup records into episode_release_log.
-//   8. Send push notifications via /api/push/send-admin.
-//
-// DEDUP: The episode_release_log table has a UNIQUE constraint on
-// (user_id, tmdb_id, season_number, episode_number). An upsert with
-// ON CONFLICT DO NOTHING ensures idempotency.
-//
-// DATE HANDLING: An episode is considered "released" when its air_date
-// (YYYY-MM-DD from TMDB) is <= today's date in UTC. TMDB air dates are
-// typically midnight UTC on the release day. Using UTC avoids timezone
-// ambiguity. This is consistent with CineLog's existing release-reminders
-// cron which also uses UTC date comparison.
-//
-// DROPPED titles are NEVER auto-reactivated. Only 'completed' titles
-// are eligible for auto-reactivation to 'watching'.
-//
-// MISSED RELEASES: If the app was closed for multiple days, the cron
-// job will detect ALL released episodes that haven't been notified yet.
-// However, for 'completed' titles, only the FIRST released episode of
-// a new season triggers reactivation + notification. Subsequent episodes
-// in the same run are skipped (they'll be caught in the next cron run
-// once the title is 'watching'). For 'watching' titles, only the LATEST
-// released episode generates a notification per cron run — earlier
-// missed episodes are deduped by the episode_release_log table.
-//
-// This means: if the user was away for a week and 3 episodes released,
-// they get 1 notification (for the latest episode), not 3. This is the
-// "sensible notification policy for missed releases" — avoid spamming
-// the user with historical notifications.
+// 2026-09-03 HARDENING:
+//   - Active season detection: finds the highest season that actually
+//     has released episodes, not just the numerically highest season.
+//     This correctly handles announced/upcoming seasons (S3) that
+//     have no released episodes while S2 is currently airing.
+//   - Notification state tracking: episode_release_log now has a
+//     notification_status column (pending/sent/failed/skipped).
+//     Push failure → status=failed → can be retried. Push success →
+//     status=sent → never retried. This prevents the "push fails but
+//     dedup record blocks future retries" bug.
+//   - Missed-release anti-spam: when multiple episodes are detected
+//     as released but unnotified, ALL are marked as processed (sent
+//     or skipped) but only the LATEST one gets a push notification.
+//     This prevents E1→E2→E3 sequential notifications across cron runs.
+//   - Accurate counts: notificationsSent/Failed/Skipped are derived
+//     from the actual push result, not from the number of processRelease calls.
+//   - Concurrency: upsert with ON CONFLICT ensures two concurrent cron
+//     runs can't create duplicate notifications.
 
 import { createAdminClient } from "~/lib/supabase/admin/adminClient";
 import { fetchTmdbMetadata, fetchSeasonDetails } from "~/core/tmdb/tmdb";
 import { titleDetailPath } from "~/shared/utils/titleRoutes";
 import { CINELOG_NOTIFICATION_ICON } from "~/shared/constants/notificationAssets";
-import type { TMDBTitle, TMDBEpisode } from "~/shared/types";
+import type { TMDBTitle, TMDBEpisode, TMDBSeason } from "~/shared/types";
 
 // ── Types ─────────────────────────────────────────────────────────
 
@@ -65,6 +43,8 @@ interface VaultTvItem {
 export interface ReleaseDetectionResult {
   processed: number;
   notificationsSent: number;
+  notificationsFailed: number;
+  notificationsSkipped: number;
   reactivations: number;
   errors: string[];
 }
@@ -76,7 +56,11 @@ interface DetectedRelease {
   episodeAirDate: string | null;
   titleName: string;
   isReactivation: boolean;
+  /** All episode numbers that should be marked as processed (for anti-spam). */
+  allProcessedEpisodeNumbers: number[];
 }
+
+type PushResult = { sent: number; failed: number; skipped: number };
 
 // ── Constants ─────────────────────────────────────────────────────
 
@@ -90,10 +74,58 @@ function todayUtcDate(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-/** Check if an episode's air_date indicates it has been released. Exported for testing. */
 export function isEpisodeReleased(airDate: string | null | undefined): boolean {
   if (!airDate || typeof airDate !== "string") return false;
   return airDate <= todayUtcDate();
+}
+
+/**
+ * Find the active released season — the highest season_number that
+ * actually has at least one released episode.
+ *
+ * This correctly handles the case where TMDB lists an announced S3
+ * (with no released episodes) above a currently airing S2.
+ *
+ * Strategy: iterate seasons descending, fetch episodes for each,
+ * return the first season that has ≥1 released episode.
+ *
+ * Optimization: typically only 1-2 seasons need checking (the latest
+ * 1-2). We stop at the first season with released episodes.
+ *
+ * For 'completed' titles: we also skip seasons ≤ user's tracked season
+ * (those are already watched).
+ */
+async function findActiveReleasedSeason(
+  tmdbId: number,
+  realSeasons: TMDBSeason[],
+  userTrackedSeason: number | null,
+  isCompleted: boolean
+): Promise<{ season: TMDBSeason; releasedEpisodes: TMDBEpisode[] } | null> {
+  for (const season of realSeasons) {
+    // For completed titles: skip seasons ≤ user's tracked season
+    if (isCompleted && userTrackedSeason !== null && season.season_number <= userTrackedSeason) {
+      continue;
+    }
+
+    try {
+      const seasonData = await fetchSeasonDetails(tmdbId, season.season_number);
+      const episodes = seasonData.episodes ?? [];
+      const released = episodes.filter((ep) => isEpisodeReleased(ep.air_date));
+
+      if (released.length > 0) {
+        return { season, releasedEpisodes: released };
+      }
+    } catch (err) {
+      console.warn(
+        `[episodeReleaseDetector] season fetch failed for tmdb_id=${tmdbId} season=${season.season_number}:`,
+        err instanceof Error ? err.message : String(err)
+      );
+      // Continue to next season — a fetch failure for one season
+      // shouldn't prevent checking others.
+    }
+  }
+
+  return null;
 }
 
 async function sendPushNotification(args: {
@@ -103,7 +135,7 @@ async function sendPushNotification(args: {
   url: string;
   tag: string;
   category: string;
-}): Promise<{ sent: number; failed: number; skipped: number }> {
+}): Promise<PushResult> {
   try {
     const cronSecret = process.env.CRON_SECRET ?? "";
     if (!cronSecret) {
@@ -157,19 +189,6 @@ async function sendPushNotification(args: {
 
 // ── Core detection logic (exported for testing) ───────────────────
 
-/**
- * Detect newly released episodes for a single vault TV item.
- *
- * Returns a list of DetectedRelease objects — one per newly released
- * episode that hasn't been notified yet.
- *
- * For 'completed' titles: only the FIRST released episode of a new
- * season is returned (triggers reactivation). Subsequent episodes
- * will be caught in the next cron run once the title is 'watching'.
- *
- * For 'watching' titles: only the LATEST released unnotified episode
- * is returned (avoids spamming missed releases).
- */
 export async function detectNewReleasesForItem(
   item: VaultTvItem,
   adminClient: ReturnType<typeof createAdminClient>
@@ -190,53 +209,32 @@ export async function detectNewReleasesForItem(
 
   if (!showDetails?.seasons || showDetails.seasons.length === 0) return [];
 
-  // 2. Find seasons with number > 0 (exclude specials). TMDBTitle.seasons
-  //    uses TMDBSeason which has season_number.
+  // 2. Find real seasons (exclude specials/season 0), sorted descending
   const realSeasons = showDetails.seasons
     .filter((s) => s.season_number > 0)
     .sort((a, b) => b.season_number - a.season_number);
 
   if (realSeasons.length === 0) return [];
 
-  const latestSeason = realSeasons[0]!;
   const userTrackedSeason = item.season ?? 1;
+  const isCompleted = item.status === REACTIVATION_STATUS;
 
-  // For 'completed' titles: only check if the latest season is NEW
-  if (item.status === REACTIVATION_STATUS) {
-    if (latestSeason.season_number <= userTrackedSeason) {
-      return []; // No new season
-    }
-  }
-
-  // 3. Fetch the latest season's episode list
-  let episodes: TMDBEpisode[];
-  try {
-    const seasonData = await fetchSeasonDetails(
-      item.tmdb_id,
-      latestSeason.season_number
-    );
-    episodes = seasonData.episodes ?? [];
-  } catch (err) {
-    console.warn(
-      `[episodeReleaseDetector] season fetch failed for tmdb_id=${item.tmdb_id} season=${latestSeason.season_number}:`,
-      err instanceof Error ? err.message : String(err)
-    );
-    return [];
-  }
-
-  if (episodes.length === 0) return [];
-
-  // 4. Filter to released episodes (air_date <= today, UTC)
-  const releasedEpisodes = episodes.filter((ep) =>
-    isEpisodeReleased(ep.air_date)
+  // 3. Find the active released season (not just the numerically latest)
+  const activeSeason = await findActiveReleasedSeason(
+    item.tmdb_id,
+    realSeasons,
+    userTrackedSeason,
+    isCompleted
   );
 
-  if (releasedEpisodes.length === 0) return [];
+  if (!activeSeason) return [];
 
-  // 5. Check which episodes haven't been notified yet (dedup)
+  const { season: latestSeason, releasedEpisodes } = activeSeason;
+
+  // 4. Check which episodes haven't been notified yet (dedup)
   const { data: existingLogs, error: logError } = await adminClient
     .from("episode_release_log")
-    .select("episode_number")
+    .select("episode_number, notification_status")
     .eq("user_id", item.user_id)
     .eq("tmdb_id", item.tmdb_id)
     .eq("season_number", latestSeason.season_number);
@@ -249,44 +247,56 @@ export async function detectNewReleasesForItem(
     return [];
   }
 
-  const notifiedEpisodeNumbers = new Set(
-    (existingLogs ?? []).map((r) => r.episode_number as number)
+  // Episodes with status 'sent' or 'skipped' are considered processed.
+  // Episodes with status 'pending' or 'failed' are retryable (actionable).
+  const processedEpisodes = new Set<number>();
+
+  for (const log of existingLogs ?? []) {
+    const epNum = log.episode_number as number;
+    const status = log.notification_status as string;
+    if (status === "sent" || status === "skipped") {
+      processedEpisodes.add(epNum);
+    }
+  }
+
+  // 5. Find actionable released episodes (not yet sent/skipped)
+  const actionableReleases = releasedEpisodes.filter(
+    (ep) => !processedEpisodes.has(ep.episode_number)
   );
 
-  // 6. Build the list of new releases
+  if (actionableReleases.length === 0) return [];
+
   const titleName = showDetails.name ?? showDetails.title ?? "Unknown Title";
-  const isReactivation = item.status === REACTIVATION_STATUS;
+  const isReactivation = isCompleted;
 
-  // Filter to unnotified released episodes
-  const unnotifiedReleases = releasedEpisodes.filter(
-    (ep) => !notifiedEpisodeNumbers.has(ep.episode_number)
-  );
+  // 6. Determine which episode to notify about
+  //    For reactivation: only the FIRST released episode triggers it.
+  //    For watching: only the LATEST actionable released episode gets a push.
+  //    ALL actionable episodes are marked as processed (anti-spam).
 
-  if (unnotifiedReleases.length === 0) return [];
+  const allProcessedEpisodeNumbers = actionableReleases.map((ep) => ep.episode_number);
 
   if (isReactivation) {
-    // For reactivation: only the FIRST released episode triggers it.
-    const firstEp = unnotifiedReleases[0]!;
+    const firstEp = actionableReleases[0]!;
     results.push({
       tmdbId: item.tmdb_id,
       seasonNumber: latestSeason.season_number,
       episodeNumber: firstEp.episode_number,
       episodeAirDate: firstEp.air_date,
       titleName,
-      isReactivation: true
+      isReactivation: true,
+      allProcessedEpisodeNumbers
     });
   } else {
-    // For 'watching' titles: only notify the LATEST unnotified released
-    // episode (avoids spamming missed releases). Earlier missed episodes
-    // are deduped by the episode_release_log table.
-    const latestEp = unnotifiedReleases[unnotifiedReleases.length - 1]!;
+    const latestEp = actionableReleases[actionableReleases.length - 1]!;
     results.push({
       tmdbId: item.tmdb_id,
       seasonNumber: latestSeason.season_number,
       episodeNumber: latestEp.episode_number,
       episodeAirDate: latestEp.air_date,
       titleName,
-      isReactivation: false
+      isReactivation: false,
+      allProcessedEpisodeNumbers
     });
   }
 
@@ -294,17 +304,24 @@ export async function detectNewReleasesForItem(
 }
 
 /**
- * Process a single detected release:
- *   1. If reactivation: update vault status to 'watching' + set has_new_release.
- *   2. Insert dedup record into episode_release_log (idempotent).
- *   3. Send push notification.
+ * Process a single detected release.
+ *
+ * Flow:
+ *   1. Reactivation (if applicable): update vault status → watching + has_new_release.
+ *   2. Mark ALL actionable episodes as processed in episode_release_log.
+ *      - The notified episode gets status='pending' initially.
+ *      - All other actionable episodes get status='skipped' (anti-spam).
+ *   3. Send push notification for the notified episode.
+ *   4. Update the notified episode's status to 'sent' or 'failed' based on push result.
+ *
+ * Returns the push result so the caller can accurately count sent/failed/skipped.
  */
 async function processRelease(
   release: DetectedRelease,
   userId: string,
   vaultItemId: string,
   adminClient: ReturnType<typeof createAdminClient>
-): Promise<void> {
+): Promise<PushResult> {
   // 1. Reactivation (if applicable)
   if (release.isReactivation) {
     const { error: updateError } = await adminClient
@@ -322,7 +339,7 @@ async function processRelease(
         `[episodeReleaseDetector] reactivation update failed for vault ${vaultItemId}:`,
         updateError.message
       );
-      return;
+      return { sent: 0, failed: 0, skipped: 1 };
     }
 
     console.log(
@@ -330,34 +347,44 @@ async function processRelease(
     );
   }
 
-  // 2. Insert dedup record (idempotent — ON CONFLICT DO NOTHING)
-  const { error: dedupError } = await adminClient
-    .from("episode_release_log")
-    .upsert(
-      {
-        user_id: userId,
-        tmdb_id: release.tmdbId,
-        media_type: "tv",
-        season_number: release.seasonNumber,
-        episode_number: release.episodeNumber,
-        episode_air_date: release.episodeAirDate,
-        title_name: release.titleName,
-        notified_at: new Date().toISOString()
-      },
-      {
-        onConflict: "user_id,tmdb_id,season_number,episode_number",
-        ignoreDuplicates: true
-      }
-    );
+  // 2. Mark ALL actionable episodes as processed (anti-spam).
+  //    The notified episode gets 'pending' (will be updated after push).
+  //    All other episodes get 'skipped' (processed but not notified).
+  const now = new Date().toISOString();
 
-  if (dedupError) {
-    console.warn(
-      `[episodeReleaseDetector] dedup insert failed for tmdb_id=${release.tmdbId} S${release.seasonNumber}E${release.episodeNumber}:`,
-      dedupError.message
-    );
+  for (const epNum of release.allProcessedEpisodeNumbers) {
+    const isNotifiedEpisode = epNum === release.episodeNumber;
+    const status = isNotifiedEpisode ? "pending" : "skipped";
+
+    const { error: upsertError } = await adminClient
+      .from("episode_release_log")
+      .upsert(
+        {
+          user_id: userId,
+          tmdb_id: release.tmdbId,
+          media_type: "tv",
+          season_number: release.seasonNumber,
+          episode_number: epNum,
+          episode_air_date: isNotifiedEpisode ? release.episodeAirDate : null,
+          title_name: release.titleName,
+          notification_status: status,
+          notified_at: isNotifiedEpisode ? null : now,
+          updated_at: now
+        },
+        {
+          onConflict: "user_id,tmdb_id,season_number,episode_number"
+        }
+      );
+
+    if (upsertError) {
+      console.warn(
+        `[episodeReleaseDetector] upsert failed for S${release.seasonNumber}E${epNum}:`,
+        upsertError.message
+      );
+    }
   }
 
-  // 3. Send push notification
+  // 3. Send push notification for the notified episode
   const notificationTitle = release.titleName;
   const notificationBody = `Season ${release.seasonNumber} Episode ${release.episodeNumber} released today`;
   const notificationUrl = titleDetailPath({
@@ -365,7 +392,7 @@ async function processRelease(
     media_type: "tv"
   });
 
-  await sendPushNotification({
+  const pushResult = await sendPushNotification({
     userId,
     title: notificationTitle,
     body: notificationBody,
@@ -373,22 +400,43 @@ async function processRelease(
     tag: `episode-release:${release.tmdbId}:${release.seasonNumber}:${release.episodeNumber}`,
     category: "newSeason"
   });
+
+  // 4. Update the notified episode's status based on push result
+  const finalStatus = pushResult.sent > 0 ? "sent" : pushResult.failed > 0 ? "failed" : "skipped";
+
+  const { error: statusUpdateError } = await adminClient
+    .from("episode_release_log")
+    .update({
+      notification_status: finalStatus,
+      notified_at: now,
+      updated_at: now
+    })
+    .eq("user_id", userId)
+    .eq("tmdb_id", release.tmdbId)
+    .eq("season_number", release.seasonNumber)
+    .eq("episode_number", release.episodeNumber);
+
+  if (statusUpdateError) {
+    console.warn(
+      `[episodeReleaseDetector] status update failed for S${release.seasonNumber}E${release.episodeNumber}:`,
+      statusUpdateError.message
+    );
+  }
+
+  return pushResult;
 }
 
 // ── Main entry point ──────────────────────────────────────────────
 
-/**
- * Run the episode release detection job.
- * Idempotent — running multiple times will not produce duplicate notifications.
- */
 export async function runEpisodeReleaseDetection(): Promise<ReleaseDetectionResult> {
   const adminClient = createAdminClient();
   const errors: string[] = [];
   let processed = 0;
   let notificationsSent = 0;
+  let notificationsFailed = 0;
+  let notificationsSkipped = 0;
   let reactivations = 0;
 
-  // 1. Fetch all eligible vault items (TV only, watching or completed)
   const { data: vaultItems, error: vaultError } = await adminClient
     .from("vault")
     .select("id, user_id, tmdb_id, status, season, episode")
@@ -400,24 +448,38 @@ export async function runEpisodeReleaseDetection(): Promise<ReleaseDetectionResu
     return {
       processed: 0,
       notificationsSent: 0,
+      notificationsFailed: 0,
+      notificationsSkipped: 0,
       reactivations: 0,
       errors: [`Vault query failed: ${vaultError.message}`]
     };
   }
 
   if (!vaultItems || vaultItems.length === 0) {
-    return { processed: 0, notificationsSent: 0, reactivations: 0, errors: [] };
+    return {
+      processed: 0,
+      notificationsSent: 0,
+      notificationsFailed: 0,
+      notificationsSkipped: 0,
+      reactivations: 0,
+      errors: []
+    };
   }
 
-  // 2. Process each item
   for (const item of vaultItems as unknown as VaultTvItem[]) {
     processed++;
     try {
       const releases = await detectNewReleasesForItem(item, adminClient);
       for (const release of releases) {
-        await processRelease(release, item.user_id, item.id, adminClient);
-        notificationsSent++;
-        if (release.isReactivation) reactivations++;
+        const pushResult = await processRelease(release, item.user_id, item.id, adminClient);
+
+        notificationsSent += pushResult.sent > 0 ? 1 : 0;
+        notificationsFailed += pushResult.failed > 0 ? 1 : 0;
+        notificationsSkipped += pushResult.skipped > 0 && pushResult.sent === 0 ? 1 : 0;
+
+        if (release.isReactivation && pushResult.sent > 0) {
+          reactivations++;
+        }
       }
     } catch (err) {
       const msg = `Item ${item.tmdb_id} (user ${item.user_id}): ${
@@ -428,5 +490,12 @@ export async function runEpisodeReleaseDetection(): Promise<ReleaseDetectionResu
     }
   }
 
-  return { processed, notificationsSent, reactivations, errors };
+  return {
+    processed,
+    notificationsSent,
+    notificationsFailed,
+    notificationsSkipped,
+    reactivations,
+    errors
+  };
 }

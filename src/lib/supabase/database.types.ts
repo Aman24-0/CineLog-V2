@@ -1500,8 +1500,10 @@ export type Database = {
           episode_number: number;
           episode_air_date: string | null;
           title_name: string | null;
-          notified_at: string;
+          notification_status: string;
+          notified_at: string | null;
           created_at: string;
+          updated_at: string;
         };
         Insert: {
           id?: string;
@@ -1512,8 +1514,10 @@ export type Database = {
           episode_number: number;
           episode_air_date?: string | null;
           title_name?: string | null;
-          notified_at?: string;
+          notification_status?: string;
+          notified_at?: string | null;
           created_at?: string;
+          updated_at?: string;
         };
         Update: {
           id?: string;
@@ -1524,10 +1528,20 @@ export type Database = {
           episode_number?: number;
           episode_air_date?: string | null;
           title_name?: string | null;
-          notified_at?: string;
+          notification_status?: string;
+          notified_at?: string | null;
           created_at?: string;
+          updated_at?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "episode_release_log_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
       };
       // ─── User reminders (Upcoming Page redesign) ─────────────────────
       // Per-user "Remind Me" subscriptions for upcoming titles.
