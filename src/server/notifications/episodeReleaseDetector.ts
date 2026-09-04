@@ -374,49 +374,46 @@ export async function processRelease(
     );
   }
 
-  // 2. Upsert ALL actionable episodes as 'pending'.
-  //    The onConflict UNIQUE constraint preserves existing 'sent'/'skipped'
-  //    rows (we only update notified_at + updated_at + claimed_at IS NULL
-  //    reset + notification_status='pending' for rows that were 'failed'
-  //    or 'pending' from a prior run).
-  //    To be safe and only touch retryable rows, we do a SELECT-then-targeted
-  //    UPSERT for only the actionable subset (which is what
-  //    allProcessedEpisodeNumbers already represents — only retryable episodes).
-  const now = new Date().toISOString();
-
+  // 2. Prepare ALL actionable episodes via the safe prepare_episode_release() RPC.
+  //    This RPC atomically:
+  //    - Inserts NEW rows in the appropriate state ('pending' for the notified
+  //      episode, 'skipped' for anti-spam episodes).
+  //    - For the notified episode: transitions 'failed' → 'pending' (claimable)
+  //      WITHOUT touching 'pending' (preserves active claims), 'sent', or 'skipped'.
+  //    - For anti-spam episodes: transitions 'pending'/'failed' → 'skipped'
+  //      WITHOUT touching 'sent', 'skipped', or actively-claimed 'pending' rows.
+  //
+  //    CRITICAL: This replaces the previous blind upsert which set claimed_at=NULL
+  //    for all rows, defeating the atomic claim guarantee. The new RPC ensures
+  //    that Worker B can NEVER reset Worker A's active claim on a 'pending' row.
+  //
+  //    State-transition rules (for an existing row):
+  //      sent                              → NEVER touched
+  //      skipped                           → NEVER touched
+  //      pending + active claim (<15min)   → NEVER touched (claim preserved)
+  //      pending + stale claim (>15min)    → may be reclaimed by claim_episode_release()
+  //      failed                            → may transition to pending [notified] or skipped [anti-spam]
+  //      new row                           → inserted as pending [notified] or skipped [anti-spam]
   for (const epNum of release.allProcessedEpisodeNumbers) {
     const isNotifiedEpisode = epNum === release.episodeNumber;
 
-    // Upsert with pending status. For the notified episode, leave claimed_at
-    // NULL so claim_episode_release() can take it. For non-notified anti-spam
-    // episodes, set status='skipped' directly (no claim needed).
-    const targetStatus = isNotifiedEpisode ? "pending" : "skipped";
+    const { error: prepError } = await adminClient.rpc(
+      "prepare_episode_release" as never,
+      {
+        p_user_id: userId,
+        p_tmdb_id: release.tmdbId,
+        p_season_number: release.seasonNumber,
+        p_episode_number: epNum,
+        p_air_date: isNotifiedEpisode ? release.episodeAirDate : null,
+        p_title_name: release.titleName,
+        p_should_notify: isNotifiedEpisode
+      } as never
+    );
 
-    const { error: upsertError } = await adminClient
-      .from("episode_release_log")
-      .upsert(
-        {
-          user_id: userId,
-          tmdb_id: release.tmdbId,
-          media_type: "tv",
-          season_number: release.seasonNumber,
-          episode_number: epNum,
-          episode_air_date: isNotifiedEpisode ? release.episodeAirDate : null,
-          title_name: release.titleName,
-          notification_status: targetStatus,
-          notified_at: isNotifiedEpisode ? null : now,
-          claimed_at: null,
-          updated_at: now
-        },
-        {
-          onConflict: "user_id,tmdb_id,season_number,episode_number"
-        }
-      );
-
-    if (upsertError) {
+    if (prepError) {
       console.warn(
-        `[episodeReleaseDetector] upsert failed for S${release.seasonNumber}E${epNum}:`,
-        upsertError.message
+        `[episodeReleaseDetector] prepare_episode_release failed for S${release.seasonNumber}E${epNum}:`,
+        prepError.message
       );
       // For the notified episode, abort (we can't safely claim without
       // the row existing). For anti-spam episodes, log and continue.
@@ -486,6 +483,7 @@ export async function processRelease(
   //    failed → retryable on next cron run.
   //    skipped → user opted out (no subscription), terminal.
   const finalStatus = pushResult.sent > 0 ? "sent" : pushResult.failed > 0 ? "failed" : "skipped";
+  const now = new Date().toISOString();
 
   const { error: statusUpdateError } = await adminClient
     .from("episode_release_log")

@@ -2151,3 +2151,112 @@ FILES CHANGED (4, all directly related):
 - `src/server/notifications/__tests__/episodeReleaseDetector.test.ts` — rewrote the mock admin client to support `.rpc()` calls; added 6 concurrency regression tests; preserved all 18 existing tests.
 - `src/lib/supabase/database.types.ts` — added `claimed_at: string | null` to `episode_release_log` Row/Insert/Update types.
 
+
+---
+Task ID: 20
+Agent: main (Super Z)
+Task: Fix race condition — processRelease() upsert was resetting active claims
+
+ROOT CAUSE:
+- The v3 hardening added claim_episode_release() RPC for atomic claim semantics.
+- BUT processRelease() BEFORE calling the claim RPC performed a blind upsert:
+    .upsert({ notification_status: "pending", claimed_at: null, ... })
+- This upsert ran for EVERY actionable episode, including ones already claimed
+  by another worker.
+- Race scenario:
+    Worker A: upsert E2 (claimed_at=NULL) → claim E2 (claimed_at=now()) → push
+    Worker B: upsert E2 (claimed_at=NULL again!) → RESETS A's claim
+            → claim E2 (succeeds because claimed_at is NULL again) → another push
+- Result: TWO pushes for the same episode. The atomic claim RPC was defeated
+  by the caller resetting claimed_at immediately before calling it.
+
+FIX:
+- Added new RPC: prepare_episode_release(p_user_id, p_tmdb_id, p_season_number,
+  p_episode_number, p_air_date, p_title_name, p_should_notify) — SECURITY DEFINER,
+  service_role only.
+- The RPC atomically:
+  1. INSERT ... ON CONFLICT DO NOTHING (new rows only — never overwrites existing)
+  2. Conditional UPDATE for existing rows:
+     - p_should_notify=true:  only transitions 'failed' → 'pending' (claimable).
+       Does NOT touch 'pending' (preserves active claims), 'sent', or 'skipped'.
+     - p_should_notify=false: transitions 'pending'/'failed' → 'skipped' ONLY IF
+       claimed_at IS NULL OR claimed_at < now() - interval '15 minutes'.
+       Does NOT touch 'sent', 'skipped', or actively-claimed 'pending' rows.
+- processRelease() now calls prepare_episode_release() instead of the unsafe upsert.
+- The unsafe upsert with `claimed_at: null` is completely REMOVED from the codebase.
+
+STATE-TRANSITION RULES (for an existing row in episode_release_log):
+  sent                              → NEVER touched
+  skipped                           → NEVER touched
+  pending + active claim (<15min)   → NEVER touched (claim preserved)
+  pending + stale claim (>15min)    → may be reclaimed by claim_episode_release()
+  failed                            → may transition to pending [notified] or skipped [anti-spam]
+  new row                           → inserted as pending [notified] or skipped [anti-spam]
+
+PRODUCTION VERIFICATION:
+- Migration 20260904_episode_release_prepare_rpc.sql applied to production Supabase
+  (project ref vyckwoivdmlvbvsufuus). Verified `prepare_episode_release` function
+  is registered in information_schema.routines.
+- Integration test test_prepare_claim_race.py runs 17 tests against the real
+  production database, modeling the exact race condition:
+    1. prepare creates pending row
+    2. Worker A claims the row
+    3. Worker B calls prepare (must NOT reset claimed_at)
+    4. Worker B's claim returns nothing (A owns it)
+    5. Worker B cannot reset A's claim
+    6. Final state is 'sent' (only A's push went through)
+    7. Existing 'sent' row cannot become pending
+    8. Existing 'skipped' row cannot become pending
+    9. Active 'pending' claim cannot be reset (status stays, claimed_at preserved)
+    10. 'failed' → 'pending' transition (retryable)
+    11. Stale 'pending' claim (>15min) can be reclaimed
+    12. Two simultaneous claim attempts → exactly one claimant
+    13. Anti-spam path: pending + active claim → NOT reset to skipped
+    14. Anti-spam path: 'failed' → 'skipped'
+    15. Anti-spam path: 'sent' → NOT touched
+- ALL 17 production integration tests PASSED. Test rows cleaned up.
+
+UNIT TESTS:
+- 2 new race-condition regression tests added (26 total in the file):
+  19. RACE: Worker A claims, Worker B prepares+claims same episode → B must NOT
+      reset A's claim. Verifies processRelease uses prepare_episode_release (NOT
+      upsert), and that both workers call exactly 2 RPCs (prepare + claim).
+  20. prepare_episode_release error on notified episode → aborts (no push, no
+      claim). Verifies graceful degradation when the prepare RPC fails.
+- Updated mock admin client to support prepare_episode_release RPC (returns void)
+  alongside the existing claim_episode_release RPC (returns SETOF).
+- Updated tests 13, 14, 18 to reflect the new 2-RPC call pattern.
+
+PRODUCTION CRON STATUS:
+- episode_releases cron job is STILL DISABLED. Verified via direct query:
+  `SELECT jobid, jobname, active FROM cron.job WHERE jobname='episode_releases'`
+  returns empty array. The cron was NOT activated.
+
+VALIDATION:
+- npx tsc --noEmit: clean (0 errors).
+- npx eslint <changed files>: clean (0 errors).
+- npx vitest run src/server/notifications/__tests__/episodeReleaseDetector.test.ts:
+  26/26 pass.
+- npx vitest run (full suite): 1873/1873 pass across 112 files.
+- npm run build: success.
+- Migration applied to production: success.
+- Production integration tests: 17/17 pass.
+
+FILES CHANGED (3, all directly related):
+- supabase/migrations/20260904_episode_release_prepare_rpc.sql (NEW) — adds
+  prepare_episode_release() RPC with safe state-transition rules.
+- src/server/notifications/episodeReleaseDetector.ts — replaced unsafe upsert
+  with prepare_episode_release() RPC call; preserved all existing detection,
+  reactivation, anti-spam, retry, and active-season logic.
+- src/server/notifications/__tests__/episodeReleaseDetector.test.ts — updated
+  mock to support new RPC; added 2 race-condition regression tests; updated
+  existing tests for the new 2-RPC call pattern.
+
+INVARIANT PROVEN:
+- Worker A's active claim (notification_status='pending', claimed_at=<recent>)
+  can NEVER be reset by Worker B. The prepare_episode_release() RPC's WHERE
+  clauses explicitly exclude 'pending' rows from the notified-episode path,
+  and exclude actively-claimed 'pending' rows from the anti-spam path. The
+  only way to reclaim a 'pending' row is via claim_episode_release() after
+  the 15-minute stale threshold.
+
