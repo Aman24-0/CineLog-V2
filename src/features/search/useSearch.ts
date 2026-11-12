@@ -20,6 +20,7 @@ import {
   searchAnimeFallback,
   looksLikeAnimeQuery
 } from "./animeSearchFallback";
+import { collapseDuplicateMediaTypes } from "./dedupeSearchResults";
 import {
   fetchGenrePage,
   emptyGenreBrowse,
@@ -304,10 +305,18 @@ export function useSearch(args: UseSearchArgs) {
           // Double-check the guard before committing results to state.
           if (signal.aborted || thisRequestId !== searchRequestId) return;
           const merged = mergeAnime(animeTitles);
-          const totalCount = merged.movies.length + merged.series.length;
+          // TMDB returns movie-namespaced twins for many series (same
+          // title/date, no poster). Those twins 404 on the details page
+          // and poison the vault when added, so drop them before the UI
+          // ever sees them. See dedupeSearchResults.ts for the rule.
+          const deduped = collapseDuplicateMediaTypes(
+            merged.movies,
+            merged.series
+          );
+          const totalCount = deduped.movies.length + deduped.series.length;
           setResults({
-            movies: merged.movies,
-            series: merged.series,
+            movies: deduped.movies,
+            series: deduped.series,
             people: peopleRaw,
             totalCount
           });

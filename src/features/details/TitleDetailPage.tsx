@@ -56,7 +56,11 @@ function buildBaseItem(
 const TitleDetailPage: Component<TitleDetailPageProps> = (props) => {
   const params = useParams();
   const navigate = useNavigate();
-  const { watchlist, loading: vaultLoading } = useVault();
+  const {
+    watchlist,
+    loading: vaultLoading,
+    deleteWatchlistItem
+  } = useVault();
   const { isSignedIn, authReady } = useAuth();
   const [selectedItem, setSelectedItem] = createSignal<SelectedItem | null>(
     null
@@ -111,6 +115,25 @@ const TitleDetailPage: Component<TitleDetailPageProps> = (props) => {
     navigate(titleDetailPath(item));
   };
 
+  // ── Orphan-row recovery ──────────────────────────────────────────
+  // When TMDB has deleted the entry (a duplicate movie twin of a series
+  // that got merged, for example) this page can never render. Before
+  // this existed, a saved row like that was undeletable: delete lives
+  // behind the details UI that refuses to open. Look the item up in the
+  // vault so the not-found screen can offer to remove it.
+  const vaultEntry = () =>
+    findInVault(watchlist(), {
+      id: params.id ?? "",
+      media_type: props.mediaType
+    });
+
+  const removeOrphan = async () => {
+    const entry = vaultEntry();
+    if (!entry) return;
+    await deleteWatchlistItem(entry.id);
+    closePage();
+  };
+
   const titleValue = () => metadata()?.title || metadata()?.name || "CineLog";
   const ogTitle = () => `${titleValue()} — CineLog`;
   const ogDescription = () =>
@@ -162,9 +185,17 @@ const TitleDetailPage: Component<TitleDetailPageProps> = (props) => {
           fallback={
             <NotFoundState
               resourceType={resourceType()}
-              message={`The link may be broken or this ${resourceType().toLowerCase()} may have been removed from TMDB.`}
+              message={
+                vaultEntry()
+                  ? `This ${resourceType().toLowerCase()} was removed from TMDB, so it can't be opened. It is still saved in your library — you can remove it here.`
+                  : `The link may be broken or this ${resourceType().toLowerCase()} may have been removed from TMDB.`
+              }
               backHref="/discover"
               backLabel="Back to Discover"
+              actionLabel={
+                vaultEntry() ? "Remove from library" : undefined
+              }
+              onAction={vaultEntry() ? removeOrphan : undefined}
             />
           }
         >

@@ -23,7 +23,15 @@ import type { TMDBTitle } from "~/shared/types";
 
 // ─── localStorage cache layer ────────────────────────────────────
 const LS_KEY = "cinelog_tmdb_cache";
-const LS_TTL = 24 * 60 * 60 * 1000; // 24 hours
+// 7 days — matches the server-side tmdb_cache TTL. At 24h the browser
+// cache expired every single day, so the first load of the day fell back
+// to ~900 individual TMDB requests (the "watchlist takes 30-40s" report).
+// 7 days also means the localStorage payload is bigger; writes are pruned
+// by expiry and capped below so we never blow the 5MB quota.
+const LS_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days
+// Hard cap on cached titles. ~900 titles × ~1KB ≈ 1MB, well inside quota,
+// and it stops a 5000-item library from filling localStorage.
+const LS_MAX_ENTRIES = 2000;
 
 interface LSCacheEntry {
   data: TMDBTitle;
@@ -60,6 +68,14 @@ function writeLSCache(entries: Array<{ key: string; data: TMDBTitle }>) {
       if (existing[key].expiresAt <= now) {
         delete existing[key];
       }
+    }
+    // Cap the payload size — drop the entries closest to expiry first.
+    const keys = Object.keys(existing);
+    if (keys.length > LS_MAX_ENTRIES) {
+      keys
+        .sort((a, b) => existing[a].expiresAt - existing[b].expiresAt)
+        .slice(0, keys.length - LS_MAX_ENTRIES)
+        .forEach((key) => delete existing[key]);
     }
     localStorage.setItem(LS_KEY, JSON.stringify(existing));
   } catch {
@@ -197,16 +213,27 @@ export async function cacheMetadataEntries(
     // fetch will 401 — that's fine; the LS cache still works for
     // the next visit, and the server cache is just an optimization.
     const { getAuthHeaders } = await import("~/lib/supabase/session");
-    fetch("/api/tmdb-cache", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(await getAuthHeaders())
-      },
-      body: JSON.stringify({ entries })
-    }).catch((err) => {
-      console.warn("[tmdbCache] Background cache write failed:", err);
-    });
+    const headers = {
+      "Content-Type": "application/json",
+      ...(await getAuthHeaders())
+    };
+
+    // Chunk the write. A cold 900-title library used to send ONE body of
+    // ~900 rows; PostgREST upserts that large are slow and prone to
+    // timeouts, which silently dropped the whole batch (leaving the server
+    // cache empty and every future load slow). 100 rows per request keeps
+    // each upsert fast and lets the rest succeed if one chunk fails.
+    const WRITE_CHUNK = 100;
+    for (let i = 0; i < entries.length; i += WRITE_CHUNK) {
+      const chunk = entries.slice(i, i + WRITE_CHUNK);
+      await fetch("/api/tmdb-cache", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ entries: chunk })
+      }).catch((err) => {
+        console.warn("[tmdbCache] Background cache write failed:", err);
+      });
+    }
   } catch {
     // Silently ignore — cache write is best-effort
   }

@@ -3,7 +3,7 @@
 // Resource not found state — for when a specific movie, show,
 // collection, or user no longer exists or the URL is invalid.
 
-import { Component, JSX, splitProps, mergeProps } from "solid-js";
+import { Component, JSX, Show, splitProps, mergeProps } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 
 export interface NotFoundStateProps extends JSX.HTMLAttributes<HTMLDivElement> {
@@ -15,6 +15,13 @@ export interface NotFoundStateProps extends JSX.HTMLAttributes<HTMLDivElement> {
   backHref?: string;
   /** Back button label. Default "Back to Discover" */
   backLabel?: string;
+  /** Optional secondary action (e.g. "Remove from library").
+   *
+   *  Needed because a saved title whose TMDB entry was deleted upstream
+   *  can never open its details page — and delete normally lives inside
+   *  that page. Without an action here the orphan row is undeletable. */
+  actionLabel?: string;
+  onAction?: () => void | Promise<void>;
   /** Variant: "section" or "page" */
   variant?: "section" | "page";
 }
@@ -31,7 +38,8 @@ const defaultProps: Required<
 const NotFoundState: Component<NotFoundStateProps> = (rawProps) => {
   const props = mergeProps(defaultProps, rawProps);
   const [local, rest] = splitProps(props, [
-    "resourceType", "message", "backHref", "backLabel", "variant", "class"
+    "resourceType", "message", "backHref", "backLabel", "variant", "class",
+    "actionLabel", "onAction"
   ]);
   const navigate = useNavigate();
 
@@ -84,6 +92,23 @@ const NotFoundState: Component<NotFoundStateProps> = (rawProps) => {
         </span>
         {local.backLabel}
       </button>
+      <Show when={local.actionLabel && local.onAction}>
+        <button
+          type="button"
+          class="focus-ring inline-flex items-center gap-1.5 rounded-full border border-glass-border bg-glass px-5 py-2 text-sm font-semibold text-text-soft backdrop-blur-md transition-transform active:scale-95"
+          onClick={() => void local.onAction?.()}
+          aria-label={local.actionLabel}
+        >
+          <span
+            class="material-symbols-outlined text-base"
+            style={{ "font-variation-settings": "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24" }}
+            aria-hidden="true"
+          >
+            delete
+          </span>
+          {local.actionLabel}
+        </button>
+      </Show>
     </div>
   );
 };

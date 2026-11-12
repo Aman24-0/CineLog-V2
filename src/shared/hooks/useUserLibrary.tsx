@@ -31,7 +31,12 @@ import {
   onCleanup,
   ParentComponent
 } from "solid-js";
-import { fetchUserLibrary, getUserId } from "./userLibraryAdapter";
+import {
+  fetchUserLibrary,
+  getUserId,
+  hydrateLibraryMetadataInBackground,
+  mergeHydratedMetadata
+} from "./userLibraryAdapter";
 import { useAuth } from "~/shared/hooks/useAuth";
 import { useRealtimeSync } from "~/shared/hooks/useRealtimeSync";
 import type { WatchlistItem } from "~/shared/types";
@@ -199,7 +204,15 @@ export const UserLibraryProvider: ParentComponent = (props) => {
     setLoading(true);
     setError(null);
     try {
-      const items = await fetchUserLibrary(userId, abortCtrl.signal);
+      // ── FAST PATH ──────────────────────────────────────────────
+      // Resolve the vault from Supabase + the metadata caches only.
+      // Previously this also awaited ~900 individual TMDB requests, which
+      // is why the library sat blank for 30-40s on a cold cache. Now the
+      // user-owned data (status, rating, dates, progress) renders in
+      // ~0.5s and titles/posters stream in below via hydration.
+      const items = await fetchUserLibrary(userId, abortCtrl.signal, {
+        skipNetworkMetadata: true
+      });
       // Discard if user changed while fetch was in-flight
       if (fetchUid !== currentFetchUid) {
         isFetching = false;
@@ -207,6 +220,24 @@ export const UserLibraryProvider: ParentComponent = (props) => {
       }
       setWatchlist(items);
       setLoading(false);
+
+      // ── BACKGROUND HYDRATION ───────────────────────────────────
+      // Fire-and-forget: fills in title/poster/vote for items the caches
+      // didn't cover, in small batches, patching the signal as it goes.
+      // Aborted automatically when the user signs out or a newer fetch
+      // starts (both abort activeAbort).
+      void hydrateLibraryMetadataInBackground(
+        items,
+        (hydrated) => {
+          if (fetchUid !== currentFetchUid || abortCtrl.signal.aborted) return;
+          setWatchlist((prev) => mergeHydratedMetadata(prev, hydrated));
+        },
+        { signal: abortCtrl.signal }
+      ).catch((err) => {
+        if (import.meta.env.DEV) {
+          console.warn("[UserLibraryProvider] hydration failed:", err);
+        }
+      });
     } catch (err) {
       // AbortError is expected when the safety timer fires — don't log
       // it as an error (it's our own cancellation, not a real failure).

@@ -318,9 +318,23 @@ function computeRuntimeMinutes(
  *                    staying stuck until the network layer times out).
  * @returns Array of WatchlistItem (empty if no items or error).
  */
+export interface FetchUserLibraryOptions {
+  /**
+   * Skip the blocking TMDB network fetch for cache misses.
+   *
+   * When true, only localStorage + the tmdb_cache table are consulted, so
+   * the call resolves in ~200-500ms (one Supabase query) instead of waiting
+   * for up to 900 TMDB round-trips. The caller is expected to follow up
+   * with `hydrateLibraryMetadataInBackground()` so cards fill in
+   * progressively — see useUserLibrary.
+   */
+  skipNetworkMetadata?: boolean;
+}
+
 export async function fetchUserLibrary(
   userId: string,
-  abortSignal?: AbortSignal
+  abortSignal?: AbortSignal,
+  options?: FetchUserLibraryOptions
 ): Promise<WatchlistItem[]> {
   const repo = getDashboardRepository();
 
@@ -399,7 +413,7 @@ export async function fetchUserLibrary(
 
   const tmdbMap = new Map<string, TMDBTitle>(cachedTmdbMap);
 
-  if (missingItems.length > 0) {
+  if (missingItems.length > 0 && !options?.skipNetworkMetadata) {
     const missingTmdbItems = missingItems.map((r) => ({
       mediaType: r.media_type,
       tmdbId: r.tmdb_id
@@ -448,4 +462,172 @@ export async function fetchUserLibrary(
  */
 export function getUserId(): string | null {
   return getCurrentUid();
+}
+
+// ---------------------------------------------------------------------------
+// Progressive metadata hydration
+// ---------------------------------------------------------------------------
+//
+// WHY THIS EXISTS
+// ---------------
+// `fetchUserLibrary` used to await `fetchTmdbMetadataBatch()` for every
+// cache-missed row before returning anything. With a 900-item vault and a
+// cold cache that is ~900 TMDB requests, chunked 40 at a time, and the
+// watchlist stayed blank for 30-40 seconds.
+//
+// Now the provider renders the vault as soon as Supabase answers (status,
+// rating, dates, progress — everything user-owned) and this function fills
+// in title/poster/rating in small batches afterwards, so the first cards
+// appear in about a second and the rest fill in progressively.
+
+/** Fields owned by TMDB metadata — the only ones hydration may write. */
+const METADATA_FIELDS = [
+  "title",
+  "name",
+  "poster_path",
+  "backdrop_path",
+  "release_date",
+  "first_air_date",
+  "tmdbRating",
+  "genresList",
+  "director",
+  "castList",
+  "originalLanguage"
+] as const;
+
+/** Merge TMDB metadata into an item without clobbering user-owned fields. */
+export function applyTmdbMetadata(
+  item: WatchlistItem,
+  tmdb: TMDBTitle
+): WatchlistItem {
+  return {
+    ...item,
+    title: item.title ?? tmdb.title,
+    name: item.name ?? tmdb.name,
+    poster_path: item.poster_path ?? tmdb.poster_path ?? undefined,
+    backdrop_path: item.backdrop_path ?? tmdb.backdrop_path ?? undefined,
+    release_date: item.release_date ?? tmdb.release_date,
+    first_air_date: item.first_air_date ?? tmdb.first_air_date,
+    tmdbRating:
+      item.tmdbRating ??
+      (tmdb.vote_average != null ? String(tmdb.vote_average) : undefined),
+    genresList:
+      item.genresList && item.genresList.length > 0
+        ? item.genresList
+        : normalizeGenres(tmdb.genres as unknown[] | undefined),
+    director: item.director ?? tmdb.director,
+    castList:
+      item.castList ??
+      (Array.isArray(tmdb.castList) ? tmdb.castList : undefined),
+    originalLanguage:
+      item.originalLanguage ??
+      (typeof tmdb.original_language === "string"
+        ? tmdb.original_language.toLowerCase()
+        : undefined)
+  };
+}
+
+/**
+ * Copy freshly hydrated metadata from `hydrated` onto `prev`.
+ *
+ * Used to update the live signal without discarding optimistic edits the
+ * user made while hydration was in flight (a rating tap, a status change).
+ * Only METADATA_FIELDS are copied, and only onto items that are still
+ * missing them.
+ */
+export function mergeHydratedMetadata(
+  prev: WatchlistItem[],
+  hydrated: WatchlistItem[]
+): WatchlistItem[] {
+  if (hydrated.length === 0) return prev;
+  const byKey = new Map<string, WatchlistItem>();
+  for (const item of hydrated) {
+    byKey.set(`${item.media_type}:${item.id}`, item);
+  }
+  let changed = false;
+  const next = prev.map((item) => {
+    const fresh = byKey.get(`${item.media_type}:${item.id}`);
+    if (!fresh) return item;
+    const patch: Record<string, unknown> = {};
+    for (const field of METADATA_FIELDS) {
+      const current = (item as unknown as Record<string, unknown>)[field];
+      const incoming = (fresh as unknown as Record<string, unknown>)[field];
+      if (current === undefined && incoming !== undefined) {
+        patch[field] = incoming;
+      }
+    }
+    if (Object.keys(patch).length === 0) return item;
+    changed = true;
+    return { ...item, ...patch } as WatchlistItem;
+  });
+  return changed ? next : prev;
+}
+
+/**
+ * Fill in TMDB display metadata for vault items that have none yet.
+ *
+ * Calls `onPartial` after every batch with the updated array so the UI can
+ * re-render progressively. Resolves when every item has been attempted (or
+ * the caller aborts). Safe to fire-and-forget.
+ *
+ * @param items     The items returned by fetchUserLibrary (cache-only).
+ * @param onPartial Called with the FULL updated array after each batch.
+ * @param options   signal — abort when the user changes / signs out.
+ *                  batchSize — titles per TMDB round (default 60).
+ */
+export async function hydrateLibraryMetadataInBackground(
+  items: WatchlistItem[],
+  onPartial: (items: WatchlistItem[]) => void,
+  options?: { signal?: AbortSignal; batchSize?: number }
+): Promise<void> {
+  const signal = options?.signal;
+  const batchSize = options?.batchSize ?? 60;
+
+  const pending = items
+    .filter((item) => !item.title && !item.name)
+    .map((item) => ({
+      mediaType: item.media_type,
+      tmdbId: item.id
+    }));
+
+  if (pending.length === 0) return;
+
+  let working = items;
+
+  for (let i = 0; i < pending.length; i += batchSize) {
+    if (signal?.aborted) return;
+    const chunk = pending.slice(i, i + batchSize);
+
+    let map: Map<string, TMDBTitle>;
+    try {
+      map = await fetchTmdbMetadataBatch(chunk);
+    } catch {
+      // One bad batch must not stop the rest of the library hydrating.
+      continue;
+    }
+    if (signal?.aborted) return;
+    if (map.size === 0) continue;
+
+    working = working.map((item) => {
+      if (item.title || item.name) return item;
+      const tmdb = map.get(`${item.media_type}/${item.id}`);
+      return tmdb ? applyTmdbMetadata(item, tmdb) : item;
+    });
+    onPartial(working);
+
+    // Persist to the shared server cache + localStorage so the next cold
+    // start never has to fetch these again. Fire-and-forget.
+    const cacheEntries = Array.from(map.entries()).map(([key, data]) => {
+      const [mediaType, tmdbIdStr] = key.split("/");
+      return {
+        key,
+        tmdb_id: Number(tmdbIdStr),
+        media_type: mediaType as "movie" | "tv",
+        data
+      };
+    });
+    cacheMetadataEntries(cacheEntries).catch(() => {
+      /* best-effort */
+    });
+  }
 }

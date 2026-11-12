@@ -206,13 +206,44 @@ export async function POST(event: APIEvent) {
     // Reject anonymous writes. We don't read the user's identity
     // beyond "is signed in" — the table is shared metadata, not
     // per-user data, so any signed-in user can contribute.
-    const { client } = await createServerClientFromRequest(event.request);
-    const { data: sessionData, error: sessionError } =
-      await client.auth.getSession();
-    if (sessionError) {
-      console.warn("[tmdb-cache API] getSession error:", sessionError.message);
+    //
+    // PERF FIX (2026-11): the gate used to call `client.auth.getSession()`,
+    // which only reads the session out of cookies/localStorage. The client
+    // always sends the token as an `Authorization: Bearer` header (see
+    // getAuthHeaders in tmdbCache.ts), so getSession() returned null and
+    // EVERY write was rejected with 401. Result: the shared server cache
+    // silently stopped filling up, and every cold client load had to
+    // re-fetch ~900 titles straight from TMDB (the 30-40s watchlist).
+    //
+    // Now: verify the bearer token explicitly with auth.getUser(token),
+    // keeping the cookie path as a fallback for SSR callers.
+    const authHeader = event.request.headers.get("authorization") ?? "";
+    const bearerToken = authHeader.toLowerCase().startsWith("bearer ")
+      ? authHeader.slice(7).trim()
+      : "";
+
+    let userId: string | null = null;
+    if (bearerToken) {
+      const { data: userData, error: userError } = await getServiceClient()
+        .auth.getUser(bearerToken);
+      if (userError) {
+        console.warn(
+          "[tmdb-cache API] token verification failed:",
+          userError.message
+        );
+      }
+      userId = userData?.user?.id ?? null;
     }
-    const userId = sessionData.session?.user?.id ?? null;
+    if (!userId) {
+      // Cookie-based fallback (SSR / same-origin form posts).
+      try {
+        const { client } = await createServerClientFromRequest(event.request);
+        const { data: sessionData } = await client.auth.getSession();
+        userId = sessionData.session?.user?.id ?? null;
+      } catch {
+        userId = null;
+      }
+    }
     if (!userId) {
       return new Response(
         JSON.stringify({ error: "Authentication required" }),

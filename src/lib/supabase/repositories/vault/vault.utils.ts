@@ -60,6 +60,14 @@ export function toVaultInsert(
     tmdb_id: payload.tmdbId,
     media_type: payload.mediaType,
     status: payload.status,
+    // ── Un-trash on write ────────────────────────────────────────
+    // The vault upsert conflicts on (user_id, tmdb_id, media_type), so
+    // re-adding a title the user previously deleted hits the SOFT-DELETED
+    // row (delete only sets deleted_at; the row stays for Trash/restore).
+    // Because every read filters `deleted_at IS NULL`, the upsert used to
+    // succeed while the item stayed invisible forever — a silent no-op.
+    // Writing deleted_at: null makes a re-add actually resurrect the item.
+    deleted_at: null,
     is_favorite: payload.isFavorite,
     is_pinned: payload.isPinned,
     rating: payload.rating,
