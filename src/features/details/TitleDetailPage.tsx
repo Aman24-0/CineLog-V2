@@ -61,7 +61,7 @@ const TitleDetailPage: Component<TitleDetailPageProps> = (props) => {
     loading: vaultLoading,
     deleteWatchlistItem
   } = useVault();
-  const { isSignedIn, authReady } = useAuth();
+  const { isSignedIn } = useAuth();
   const [selectedItem, setSelectedItem] = createSignal<SelectedItem | null>(
     null
   );
@@ -83,12 +83,21 @@ const TitleDetailPage: Component<TitleDetailPageProps> = (props) => {
     { deferStream: true }
   );
 
+  // ── Never dead-end on "Opening … details…" ─────────────────────────
+  // This used to bail out until BOTH the vault and auth had settled, so a
+  // slow/hung vault fetch or an auth check that never resolved left the
+  // page stuck on the "Opening details…" placeholder — which reads to the
+  // user as "tapping a result does nothing". Now the details render as soon
+  // as TMDB metadata arrives; the vault lookup (which only decides whether
+  // the item shows as saved) is merged in reactively when it lands.
   createEffect(() => {
     const metadataValue = metadata();
-    if (!metadataValue || vaultLoading() || !authReady()) return;
+    if (!metadataValue) return;
 
     const baseItem = buildBaseItem(metadataValue, props.mediaType);
-    const vaultItem = findInVault(watchlist(), baseItem);
+    const vaultItem = vaultLoading()
+      ? null
+      : findInVault(watchlist(), baseItem);
     const current = selectedItem();
     if (
       !current ||

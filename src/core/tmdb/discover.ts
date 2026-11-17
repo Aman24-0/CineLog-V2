@@ -223,18 +223,36 @@ export async function getTopRatedMovies(): Promise<TMDBTitle[]> {
 }
 
 /**
- * searchMulti — fallback for franchise search when the keyword table
- * doesn't produce enough results. Returns mixed movie/tv.
+ * One page of `/search/multi`, with the pagination metadata the Search page
+ * needs for infinite scroll.
+ *
+ * TMDB returns 20 results per page and caps `total_pages` at 500. The
+ * Search page used to read ONLY page 1, so a query whose best match sat on
+ * page 2+ (or was pushed off page 1 by unrelated titles) looked like a
+ * "limited results" bug — e.g. searching "Vibe" showed 7 movies and never
+ * the film the user wanted.
  */
-export async function searchMulti(query: string): Promise<TMDBTitle[]> {
+export interface SearchMultiPage {
+  items: TMDBTitle[];
+  page: number;
+  totalPages: number;
+  totalResults: number;
+}
+
+export async function searchMultiPage(
+  query: string,
+  page = 1
+): Promise<SearchMultiPage> {
   const params = new URLSearchParams({
     language: "en-US",
     query,
-    page: "1",
+    page: String(page),
     include_adult: "false"
   });
   const res = await cachedFetch(
-    buildCacheKey("tmdb:search/multi", { q: query }),
+    // Page is part of the cache key — without it every page would collide
+    // with page 1 and infinite scroll would loop the same results.
+    buildCacheKey("tmdb:search/multi", { q: query, page }),
     TMDB_TTL,
     async () => {
       const r = await fetchWithRetry(`${API}/search/multi?${params}`);
@@ -242,11 +260,27 @@ export async function searchMulti(query: string): Promise<TMDBTitle[]> {
       return r.json();
     }
   );
-  return normalizeList(
+  const items = normalizeList(
     (res.results || []).filter(
       (r: TMDBRawItem) => r.media_type === "movie" || r.media_type === "tv"
     )
   );
+  const totalPages = Math.min(Number(res.total_pages) || 1, 500);
+  return {
+    items,
+    page,
+    totalPages,
+    totalResults: Number(res.total_results) || items.length
+  };
+}
+
+/**
+ * searchMulti — page-1 convenience wrapper.
+ * Returns mixed movie/tv. Used by the franchise/keyword fallbacks.
+ */
+export async function searchMulti(query: string): Promise<TMDBTitle[]> {
+  const page = await searchMultiPage(query, 1);
+  return page.items;
 }
 
 /**
@@ -271,15 +305,33 @@ export async function searchPeople(
   query: string,
   limit = 8
 ): Promise<import("~/shared/types").TMDBPerson[]> {
-  if (!query || query.trim().length < 2) return [];
+  const page = await searchPeoplePage(query, 1, limit);
+  return page.people;
+}
+
+/** One page of `/search/person` with pagination metadata. */
+export interface SearchPeoplePage {
+  people: import("~/shared/types").TMDBPerson[];
+  page: number;
+  totalPages: number;
+}
+
+export async function searchPeoplePage(
+  query: string,
+  page = 1,
+  limit = 20
+): Promise<SearchPeoplePage> {
+  if (!query || query.trim().length < 2) {
+    return { people: [], page, totalPages: 0 };
+  }
   const params = new URLSearchParams({
     language: "en-US",
     query,
-    page: "1",
+    page: String(page),
     include_adult: "false"
   });
   const res = await cachedFetch(
-    buildCacheKey("tmdb:search/person", { q: query }),
+    buildCacheKey("tmdb:search/person", { q: query, page }),
     TMDB_TTL,
     async () => {
       const r = await fetchWithRetry(`${API}/search/person?${params}`);
@@ -295,16 +347,20 @@ export async function searchPeople(
     gender?: number;
     popularity?: number;
   }> = (res.results || []).filter((r: { id?: number }) => typeof r.id === "number");
-  return results.slice(0, limit).map((p) => ({
-    id: p.id,
-    name: p.name ?? "Unknown",
-    profile_path: p.profile_path ?? null,
-    known_for_department: p.known_for_department,
-    gender: p.gender,
-    // biography / birthday / etc. are NOT returned by /search/person —
-    // they're fetched on-demand by PersonModal via fetchPersonDetails.
-    // We leave them undefined so the type contract is honest.
-  }));
+  return {
+    people: results.slice(0, limit).map((p) => ({
+      id: p.id,
+      name: p.name ?? "Unknown",
+      profile_path: p.profile_path ?? null,
+      known_for_department: p.known_for_department,
+      gender: p.gender,
+      // biography / birthday / etc. are NOT returned by /search/person —
+      // they're fetched on-demand by PersonModal via fetchPersonDetails.
+      // We leave them undefined so the type contract is honest.
+    })),
+    page,
+    totalPages: Math.min(Number(res.total_pages) || 1, 500)
+  };
 }
 
 /**

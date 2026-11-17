@@ -4,17 +4,34 @@ import { createSignal } from "solid-js";
 import type { TMDBTitle, WatchlistItem } from "~/shared/types";
 import { makeMovie, makeTVSeries } from "~/__test-fixtures__/factories";
 
-const searchMulti = vi.fn();
-const searchPeople = vi.fn();
+const searchMultiPage = vi.fn();
+const searchPeoplePage = vi.fn();
 const getTrending = vi.fn();
 const genreIdFor = vi.fn();
 
 vi.mock("~/core/tmdb/discover", () => ({
-  searchMulti,
-  searchPeople,
+  searchMultiPage,
+  searchPeoplePage,
   getTrending,
   genreIdFor
 }));
+
+/**
+ * Wrap a list of titles in the paginated shape useSearch now consumes.
+ * `totalPages` defaults to 1 so existing single-page assertions stay valid.
+ */
+function multiPage(items: TMDBTitle[], totalPages = 1) {
+  return {
+    items,
+    page: 1,
+    totalPages,
+    totalResults: items.length
+  };
+}
+
+function peoplePage(people: unknown[] = [], totalPages = 1) {
+  return { people, page: 1, totalPages };
+}
 
 vi.mock("../animeSearchFallback", () => ({
   looksLikeAnimeQuery: () => false,
@@ -42,12 +59,12 @@ const series: TMDBTitle = {
 describe("useSearch catalog flow", () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    searchMulti.mockReset();
-    searchPeople.mockReset();
+    searchMultiPage.mockReset();
+    searchPeoplePage.mockReset();
     getTrending.mockReset();
     genreIdFor.mockReset();
     getTrending.mockResolvedValue([]);
-    searchPeople.mockResolvedValue([]);
+    searchPeoplePage.mockResolvedValue(peoplePage());
   });
 
   afterEach(() => {
@@ -56,13 +73,13 @@ describe("useSearch catalog flow", () => {
   });
 
   it("passes a real query through the shared catalog search helper and groups results", async () => {
-    searchMulti.mockResolvedValue([movie, series]);
+    searchMultiPage.mockResolvedValue(multiPage([movie, series]));
     const hook = renderHook(() => useSearch({ vault: () => [] }));
 
     hook.result.setQuery("fight club");
     await vi.advanceTimersByTimeAsync(250);
     await vi.waitFor(() =>
-      expect(searchMulti).toHaveBeenCalledWith("fight club")
+      expect(searchMultiPage).toHaveBeenCalledWith("fight club", 1)
     );
     await vi.waitFor(() => expect(hook.result.loading()).toBe(false));
 
@@ -75,11 +92,11 @@ describe("useSearch catalog flow", () => {
   });
 
   it("runs a submitted query immediately through the same catalog pipeline", async () => {
-    searchMulti.mockResolvedValue([movie]);
+    searchMultiPage.mockResolvedValue(multiPage([movie]));
     const hook = renderHook(() => useSearch({ vault: () => [] }));
 
     hook.result.runSearchNow("fight club");
-    await vi.waitFor(() => expect(searchMulti).toHaveBeenCalledWith("fight club"));
+    await vi.waitFor(() => expect(searchMultiPage).toHaveBeenCalledWith("fight club", 1));
     await vi.waitFor(() => expect(hook.result.results().totalCount).toBe(1));
 
     expect(hook.result.query()).toBe("fight club");
@@ -87,7 +104,7 @@ describe("useSearch catalog flow", () => {
   });
 
   it("clears active results when the query is cleared and leaves trending to the cold-start page", async () => {
-    searchMulti.mockResolvedValue([movie]);
+    searchMultiPage.mockResolvedValue(multiPage([movie]));
     const hook = renderHook(() => useSearch({ vault: () => [] }));
 
     hook.result.setQuery("fight club");
@@ -99,7 +116,7 @@ describe("useSearch catalog flow", () => {
 
     expect(hook.result.hasQuery()).toBe(false);
     expect(hook.result.results().totalCount).toBe(0);
-    expect(searchMulti).toHaveBeenCalledTimes(1);
+    expect(searchMultiPage).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -116,11 +133,11 @@ describe("useSearch catalog flow", () => {
 // ─────────────────────────────────────────────────────────────────────
 describe("useSearch trending exclusion", () => {
   beforeEach(() => {
-    searchMulti.mockReset();
-    searchPeople.mockReset();
+    searchMultiPage.mockReset();
+    searchPeoplePage.mockReset();
     getTrending.mockReset();
     genreIdFor.mockReset();
-    searchPeople.mockResolvedValue([]);
+    searchPeoplePage.mockResolvedValue(peoplePage());
   });
 
   afterEach(() => {
@@ -276,9 +293,11 @@ describe("useSearch trending exclusion", () => {
     // text search. The library exclusion applies ONLY to "Trending this
     // week" on the Search page.
     const library = [makeMovie({ id: "550", title: "Fight Club" })];
-    searchMulti.mockResolvedValue([
-      { id: 550, title: "Fight Club", media_type: "movie", poster_path: null, backdrop_path: null }
-    ]);
+    searchMultiPage.mockResolvedValue(
+      multiPage([
+        { id: 550, title: "Fight Club", media_type: "movie", poster_path: null, backdrop_path: null }
+      ])
+    );
     getTrending.mockResolvedValue([]);
 
     const hook = renderHook(() => useSearch({ vault: () => library }));
@@ -286,7 +305,7 @@ describe("useSearch trending exclusion", () => {
     // The search effect uses a 250ms debounce; advance fake timers if
     // active. With real timers, this is a no-op flush.
     await vi.waitFor(() =>
-      expect(searchMulti).toHaveBeenCalledWith("fight club")
+      expect(searchMultiPage).toHaveBeenCalledWith("fight club", 1)
     );
     await vi.waitFor(() => expect(hook.result.results().totalCount).toBe(1));
     expect(hook.result.results().movies[0].id).toBe(550);
@@ -354,5 +373,106 @@ describe("useSearch trending exclusion", () => {
     // The derived `trending` memo re-runs because `vaultKeys` changed.
     await vi.waitFor(() => expect(hook.result.trending().length).toBe(1));
     expect(hook.result.trending()[0].id).toBe(2);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────
+// Pagination — the Search page pages in 10 results at a time and pulls the
+// next TMDB page when the buffer runs out. Previously only page 1 was ever
+// fetched, which is why a query could look like it had "only 7 movies".
+// ─────────────────────────────────────────────────────────────────────
+describe("useSearch pagination", () => {
+  beforeEach(() => {
+    searchMultiPage.mockReset();
+    searchPeoplePage.mockReset();
+    getTrending.mockReset();
+    genreIdFor.mockReset();
+    getTrending.mockResolvedValue([]);
+    searchPeoplePage.mockResolvedValue(peoplePage());
+  });
+
+  afterEach(cleanup);
+
+  const manyMovies = (from: number, count: number): TMDBTitle[] =>
+    Array.from({ length: count }, (_, index) => ({
+      id: from + index,
+      title: `Vibe Movie ${from + index}`,
+      media_type: "movie" as const,
+      poster_path: null,
+      backdrop_path: null
+    }));
+
+  it("reports hasMore while TMDB still has pages", async () => {
+    searchMultiPage.mockResolvedValue(multiPage(manyMovies(1, 5), 3));
+    const hook = renderHook(() => useSearch({ vault: () => [] }));
+
+    hook.result.runSearchNow("vibe");
+    await vi.waitFor(() => expect(hook.result.results().movies.length).toBe(5));
+
+    expect(hook.result.searchPage()).toBe(1);
+    expect(hook.result.totalPages()).toBe(3);
+    expect(hook.result.hasMore()).toBe(true);
+  });
+
+  it("appends the next page instead of replacing the results", async () => {
+    searchMultiPage.mockResolvedValueOnce(multiPage(manyMovies(1, 5), 2));
+    const hook = renderHook(() => useSearch({ vault: () => [] }));
+
+    hook.result.runSearchNow("vibe");
+    await vi.waitFor(() => expect(hook.result.results().movies.length).toBe(5));
+
+    searchMultiPage.mockResolvedValueOnce({
+      items: manyMovies(100, 4),
+      page: 2,
+      totalPages: 2,
+      totalResults: 9
+    });
+    await hook.result.loadMore();
+
+    expect(searchMultiPage).toHaveBeenLastCalledWith("vibe", 2);
+    expect(hook.result.results().movies.length).toBe(9);
+    expect(hook.result.results().movies[8].id).toBe(103);
+    expect(hook.result.hasMore()).toBe(false);
+  });
+
+  it("drops a duplicate that only appears on page 2", async () => {
+    searchMultiPage.mockResolvedValueOnce(
+      multiPage(
+        [
+          { id: 1, title: "Vibe Movie 1", media_type: "movie", poster_path: null, backdrop_path: null }
+        ],
+        2
+      )
+    );
+    const hook = renderHook(() => useSearch({ vault: () => [] }));
+    hook.result.runSearchNow("vibe");
+    await vi.waitFor(() => expect(hook.result.results().movies.length).toBe(1));
+
+    // Page 2 repeats the same movie and adds the real series entry.
+    searchMultiPage.mockResolvedValueOnce({
+      items: [
+        { id: 1, title: "Vibe Movie 1", media_type: "movie", poster_path: null, backdrop_path: null },
+        { id: 99, name: "Vibe Movie 1", media_type: "tv", poster_path: "/p.jpg", backdrop_path: null }
+      ],
+      page: 2,
+      totalPages: 2,
+      totalResults: 2
+    });
+    await hook.result.loadMore();
+
+    // The movie twin is collapsed by dedupeSearchResults; the series stays.
+    expect(hook.result.results().movies).toHaveLength(0);
+    expect(hook.result.results().series.map((s) => s.id)).toEqual([99]);
+  });
+
+  it("does nothing when there are no more pages", async () => {
+    searchMultiPage.mockResolvedValue(multiPage(manyMovies(1, 3), 1));
+    const hook = renderHook(() => useSearch({ vault: () => [] }));
+    hook.result.runSearchNow("vibe");
+    await vi.waitFor(() => expect(hook.result.results().movies.length).toBe(3));
+
+    const callsBefore = searchMultiPage.mock.calls.length;
+    await hook.result.loadMore();
+    expect(searchMultiPage.mock.calls.length).toBe(callsBefore);
   });
 });

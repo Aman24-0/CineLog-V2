@@ -50,6 +50,12 @@ vi.mock("~/shared/contexts/SearchContext", () => ({
     isGenreBrowse: () => false,
     animeResults: () => [],
     animeLoading: () => false,
+    // Pagination API (infinite scroll)
+    loadMore: vi.fn(),
+    hasMore: () => false,
+    loadingMore: () => false,
+    searchPage: () => 1,
+    totalPages: () => 1,
     searchOpen: () => false,
     openSearch: vi.fn(),
     closeSearch: vi.fn(),

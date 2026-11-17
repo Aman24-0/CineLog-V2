@@ -1,18 +1,26 @@
 // src/features/search/SearchResultRow.tsx
 import { Show } from "solid-js";
+import { A } from "@solidjs/router";
 import { tmdbImage } from "~/core/tmdb/tmdb";
+import { titleDetailPath } from "~/shared/utils/titleRoutes";
 import type { TMDBTitle } from "~/shared/types";
 import { titleOf, yearOf, imdbOf } from "./searchConstants";
 
 /**
- * SearchResultRow — a single horizontal result row used by both the text
- * search results and the genre browse list. Renders poster + title + year
- * + type + IMDb rating, plus a vault-aware action button (add-to-vault
- * pill when in vault, + button when not).
+ * SearchResultRow — a single horizontal result row (list view).
+ *
+ * NAVIGATION FIX: the tappable area used to be a <button> whose onClick
+ * called navigate() in JS. On mobile that tap was frequently swallowed
+ * (the row sits inside a `backdrop-filter` glass surface, and nothing
+ * navigates if the JS handler doesn't fire), which is why tapping a result
+ * "did nothing". It is now a real router <A> with an href, so the row
+ * navigates even if the click handler never runs — and the row is
+ * middle-clickable / long-pressable like any normal link.
  */
 export interface SearchResultRowProps {
   title: TMDBTitle;
   inVault: boolean;
+  /** Called on tap before the router navigates (search session bookkeeping). */
   onOpen: () => void;
   onAdd: () => void;
 }
@@ -22,8 +30,8 @@ export default function SearchResultRow(props: SearchResultRowProps) {
     <div
       class={`search-result-row${props.inVault ? " search-result-row-vault" : ""}`}
     >
-      <button
-        type="button"
+      <A
+        href={titleDetailPath(props.title)}
         class="search-result-main focus-ring"
         onClick={() => props.onOpen()}
         aria-label={`${titleOf(props.title)}${
@@ -74,7 +82,7 @@ export default function SearchResultRow(props: SearchResultRowProps) {
             </Show>
           </p>
         </div>
-      </button>
+      </A>
 
       {/* Action — vault-aware */}
       <Show

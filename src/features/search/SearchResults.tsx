@@ -3,36 +3,32 @@ import { For, Show, createSignal, type Accessor } from "solid-js";
 import type { TMDBTitle, TMDBPerson } from "~/shared/types";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import SearchResultRow from "./SearchResultRow";
+import SearchResultCard from "./SearchResultCard";
 import SearchEmptyState from "./SearchEmptyState";
 import SearchLoading from "./SearchLoading";
 import PersonModal from "~/features/details/components/PersonModal";
 import { ErrorState } from "~/shared/ui/states";
+import type { SearchViewMode } from "./searchViewMode";
 
 /**
- * SearchResults — active query results (text search, not genre browse).
+ * SearchResults — renders the active query's results.
  *
- * Renders loading skeletons while in flight, an empty state when no
- * results, or grouped sections (Movies / Series / People) when results
- * exist.
+ * TWO MODES:
  *
- * Phase 5 — Anime Fallback:
- *   When the main TMDB search returns 0 results AND the query looks
- *   anime-related, the parent (useSearch) fires an AniList search and
- *   passes the results as `animeResults`. We render them as a separate
- *   "Anime Results" section so the user can distinguish them from TMDB.
+ *   1. TABBED (the /search route). The page passes `activeTab` + `viewMode`
+ *      + `limit`. Only the selected tab (Movies / Series / People) renders,
+ *      sliced to `limit` so the page can page in 10 results at a time as
+ *      the user scrolls, and in either list or card layout.
  *
- * Phase 6.2 Task 4a — AniList Merge:
- *   When the query looks anime-related, AniList results are now MERGED
- *   into the Movies/Series sections (deduped by TMDB id) instead of
- *   only being shown when TMDB returns 0. The separate Anime section
- *   still appears when TMDB returns 0 (so the user knows the source).
+ *   2. LEGACY ALL-SECTIONS (the contextual SearchOverlay). When `activeTab`
+ *      is omitted every section renders stacked, exactly as before — the
+ *      overlay has no room for tabs.
  *
- * Phase 6.2 Task 4b — People:
- *   People results from TMDB /search/person are rendered as a "People"
- *   section. Each row shows the person's profile image + name + known-
- *   for department. Tapping a row opens the PersonModal (lazy-loaded)
- *   which shows the person's full filmography with links back to titles.
+ * People rows always open the PersonModal (filmography); title rows and
+ * cards are real router links to /movie/:id or /tv/:id.
  */
+export type SearchTab = "movie" | "tv" | "person";
+
 export interface SearchResultsProps {
   loading: Accessor<boolean>;
   error: Accessor<string | null>;
@@ -51,9 +47,20 @@ export interface SearchResultsProps {
   animeResults?: Accessor<TMDBTitle[]>;
   /** Phase 5 — true while the AniList fallback is in flight. */
   animeLoading?: Accessor<boolean>;
+  /** Tabbed mode — which tab is active. Omit for the legacy stacked view. */
+  activeTab?: Accessor<SearchTab>;
+  /** Tabbed mode — list or card layout. Defaults to "list". */
+  viewMode?: Accessor<SearchViewMode>;
+  /** Tabbed mode — how many results of the active tab to render. */
+  limit?: Accessor<number>;
 }
 
 export default function SearchResults(props: SearchResultsProps) {
+  const tabbed = () => props.activeTab !== undefined;
+  const activeTab = (): SearchTab => props.activeTab?.() ?? "movie";
+  const viewMode = (): SearchViewMode => props.viewMode?.() ?? "list";
+  const limit = () => props.limit?.() ?? Number.MAX_SAFE_INTEGER;
+
   const hasAnimeResults = () => (props.animeResults?.() ?? []).length > 0;
   const showAnimeLoading = () => !!props.animeLoading?.() && !hasAnimeResults();
   const hasPeople = () => (props.results().people?.length ?? 0) > 0;
@@ -73,6 +80,114 @@ export default function SearchResults(props: SearchResultsProps) {
     profilePath?: string | null;
   } | null>(null);
 
+  const openPersonModal = (person: TMDBPerson) =>
+    setOpenPerson({
+      id: person.id,
+      name: person.name,
+      profilePath: person.profile_path
+    });
+
+  /**
+   * Titles for the active tab, sliced to the visible window.
+   * Anime fallback titles are folded in when TMDB itself returned nothing
+   * (they already live in movies/series when TMDB had results).
+   */
+  const tabTitles = (): TMDBTitle[] => {
+    const r = props.results();
+    const base =
+      activeTab() === "tv"
+        ? r.series
+        : activeTab() === "movie"
+          ? r.movies
+          : [];
+    if (base.length === 0) {
+      const anime = props.animeResults?.() ?? [];
+      return anime.filter((t) =>
+        activeTab() === "tv" ? t.media_type === "tv" : t.media_type === "movie"
+      );
+    }
+    return base;
+  };
+
+  const visibleTitles = () => tabTitles().slice(0, limit());
+  const visiblePeople = () => props.results().people.slice(0, limit());
+
+  const titleList = (items: TMDBTitle[]) => (
+    <div class="search-results-list">
+      <For each={items}>
+        {(t) => (
+          <SearchResultRow
+            title={t}
+            inVault={props.isInVault(t)}
+            onOpen={() => props.onOpenTitle(t)}
+            onAdd={() => props.onAddToVault(t)}
+          />
+        )}
+      </For>
+    </div>
+  );
+
+  const titleGrid = (items: TMDBTitle[]) => (
+    <div class="search-results-grid">
+      <For each={items}>
+        {(t) => (
+          <SearchResultCard
+            title={t}
+            inVault={props.isInVault(t)}
+            onOpen={() => props.onOpenTitle(t)}
+            onAdd={() => props.onAddToVault(t)}
+          />
+        )}
+      </For>
+    </div>
+  );
+
+  const peopleList = (items: TMDBPerson[]) => (
+    <div class="search-results-list">
+      <For each={items}>
+        {(person) => (
+          <button
+            type="button"
+            class="search-person-row focus-ring"
+            onClick={() => openPersonModal(person)}
+            aria-label={`View filmography for ${person.name}`}
+          >
+            <Show
+              when={person.profile_path}
+              fallback={
+                <div class="search-person-avatar" aria-hidden="true">
+                  <span class="material-symbols-outlined">person</span>
+                </div>
+              }
+            >
+              <img
+                class="search-person-avatar"
+                src={tmdbImage(person.profile_path!, "w92")}
+                alt=""
+                loading="lazy"
+                decoding="async"
+              />
+            </Show>
+            <div class="search-person-info">
+              <p class="search-person-name">{person.name}</p>
+              <Show when={person.known_for_department}>
+                <p class="search-person-dept">{person.known_for_department}</p>
+              </Show>
+            </div>
+            <span class="material-symbols-outlined search-person-chevron">
+              chevron_right
+            </span>
+          </button>
+        )}
+      </For>
+    </div>
+  );
+
+  const tabCount = () => {
+    if (activeTab() === "person") return props.results().people.length;
+    return tabTitles().length;
+  };
+
   return (
     <Show
       when={!props.error()}
@@ -88,271 +203,142 @@ export default function SearchResults(props: SearchResultsProps) {
       }
     >
       <Show when={!props.loading()} fallback={<SearchLoading count={4} />}>
-        {/* TMDB results — Movies + Series */}
-        <Show when={props.results().totalCount > 0}>
-          {/* Movies */}
-          <Show when={props.results().movies.length > 0}>
-            <section class="search-section">
-              <div class="search-section-label">
-                <span
-                  class="material-symbols-outlined"
-                  style={{ "font-size": "12px", color: "var(--p)" }}
-                  aria-hidden="true"
+        {/* ── TABBED MODE (/search route) ─────────────────────────── */}
+        <Show when={tabbed()}>
+          <Show
+            when={props.results().totalCount > 0 || hasAnimeResults()}
+            fallback={<SearchEmptyState query={props.query()} />}
+          >
+            <Show
+              when={tabCount() > 0}
+              fallback={
+                <div class="search-tab-empty">
+                  <span class="material-symbols-outlined" aria-hidden="true">
+                    search_off
+                  </span>
+                  <p>
+                    No {activeTab() === "person"
+                      ? "people"
+                      : activeTab() === "tv"
+                        ? "series"
+                        : "movies"}{" "}
+                    matched “{props.query()}”.
+                  </p>
+                </div>
+              }
+            >
+              <Show when={activeTab() === "person"}>
+                {peopleList(visiblePeople())}
+              </Show>
+              <Show when={activeTab() !== "person"}>
+                <Show
+                  when={viewMode() === "card"}
+                  fallback={titleList(visibleTitles())}
                 >
-                  movie
-                </span>
-                Movies ({props.results().movies.length})
-              </div>
-              <div class="search-results-list">
-                <For each={props.results().movies}>
-                  {(t) => (
-                    <SearchResultRow
-                      title={t}
-                      inVault={props.isInVault(t)}
-                      onOpen={() => props.onOpenTitle(t)}
-                      onAdd={() => props.onAddToVault(t)}
-                    />
-                  )}
-                </For>
-              </div>
-            </section>
-          </Show>
-
-          {/* Series */}
-          <Show when={props.results().series.length > 0}>
-            <section class="search-section">
-              <div class="search-section-label">
-                <span
-                  class="material-symbols-outlined"
-                  style={{ "font-size": "12px", color: "var(--p)" }}
-                  aria-hidden="true"
-                >
-                  tv
-                </span>
-                Series ({props.results().series.length})
-              </div>
-              <div class="search-results-list">
-                <For each={props.results().series}>
-                  {(t) => (
-                    <SearchResultRow
-                      title={t}
-                      inVault={props.isInVault(t)}
-                      onOpen={() => props.onOpenTitle(t)}
-                      onAdd={() => props.onAddToVault(t)}
-                    />
-                  )}
-                </For>
-              </div>
-            </section>
+                  {titleGrid(visibleTitles())}
+                </Show>
+              </Show>
+            </Show>
           </Show>
         </Show>
 
-        {/* Phase 6.2 Task 4b — People section.
-            Renders when TMDB /search/person returned any results. Each
-            row is a tappable person card that opens the PersonModal. */}
-        <Show when={hasPeople()}>
-          <section class="search-section">
-            <div class="search-section-label">
-              <span
-                class="material-symbols-outlined"
-                style={{ "font-size": "12px", color: "var(--p)" }}
-                aria-hidden="true"
-              >
-                person
-              </span>
-              People ({props.results().people.length})
-            </div>
-            <div class="search-results-list">
-              <For each={props.results().people}>
-                {(person) => (
-                  <button
-                    type="button"
-                    class="search-person-row focus-ring"
-                    onClick={() =>
-                      setOpenPerson({
-                        id: person.id,
-                        name: person.name,
-                        profilePath: person.profile_path
-                      })
-                    }
-                    aria-label={`View filmography for ${person.name}`}
-                    style={{
-                      display: "flex",
-                      "align-items": "center",
-                      gap: "12px",
-                      width: "100%",
-                      padding: "10px 12px",
-                      "border-radius": "12px",
-                      border: "1px solid var(--hairline)",
-                      background: "var(--glass-bg-strong)",
-                      cursor: "pointer",
-                      "text-align": "left",
-                      transition: "background 150ms ease-out"
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "var(--glass-bg)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background =
-                        "var(--glass-bg-strong)";
-                    }}
+        {/* ── LEGACY ALL-SECTIONS MODE (SearchOverlay) ────────────── */}
+        <Show when={!tabbed()}>
+          <Show when={props.results().totalCount > 0}>
+            {/* Movies */}
+            <Show when={props.results().movies.length > 0}>
+              <section class="search-section">
+                <div class="search-section-label">
+                  <span
+                    class="material-symbols-outlined"
+                    style={{ "font-size": "12px", color: "var(--p)" }}
+                    aria-hidden="true"
                   >
-                    {/* Profile image — 40×40 circle with fallback */}
-                    <Show
-                      when={person.profile_path}
-                      fallback={
-                        <div
-                          style={{
-                            width: "40px",
-                            height: "40px",
-                            "border-radius": "9999px",
-                            background: "var(--glass-bg)",
-                            display: "flex",
-                            "align-items": "center",
-                            "justify-content": "center",
-                            "flex-shrink": "0"
-                          }}
-                          aria-hidden="true"
-                        >
-                          <span
-                            class="material-symbols-outlined"
-                            style={{
-                              "font-size": "20px",
-                              color: "var(--text-dim)"
-                            }}
-                          >
-                            person
-                          </span>
-                        </div>
-                      }
-                    >
-                      <img
-                        src={tmdbImage(person.profile_path!, "w92")}
-                        alt=""
-                        loading="lazy"
-                        decoding="async"
-                        style={{
-                          width: "40px",
-                          height: "40px",
-                          "border-radius": "9999px",
-                          "object-fit": "cover",
-                          "flex-shrink": "0"
-                        }}
-                        onError={(e) => {
-                          // Hide broken image — the fallback avatar
-                          // would be ideal but swapping DOM is complex
-                          // inline; just hide instead.
-                          e.currentTarget.style.visibility = "hidden";
-                        }}
-                      />
-                    </Show>
-                    <div style={{ "min-width": "0", flex: "1" }}>
-                      <p
-                        style={{
-                          "font-size": "0.875rem",
-                          "font-weight": 600,
-                          color: "var(--text)",
-                          margin: "0",
-                          overflow: "hidden",
-                          "text-overflow": "ellipsis",
-                          "white-space": "nowrap"
-                        }}
-                      >
-                        {person.name}
-                      </p>
-                      <Show when={person.known_for_department}>
-                        <p
-                          style={{
-                            "font-size": "0.6875rem",
-                            color: "var(--text-soft)",
-                            margin: "2px 0 0 0"
-                          }}
-                        >
-                          {person.known_for_department}
-                        </p>
-                      </Show>
-                    </div>
-                    <span
-                      class="material-symbols-outlined"
-                      style={{
-                        "font-size": "16px",
-                        color: "var(--text-dim)",
-                        "flex-shrink": "0"
-                      }}
-                      aria-hidden="true"
-                    >
-                      chevron_right
-                    </span>
-                  </button>
-                )}
-              </For>
-            </div>
-          </section>
-        </Show>
+                    movie
+                  </span>
+                  Movies ({props.results().movies.length})
+                </div>
+                {titleList(props.results().movies)}
+              </section>
+            </Show>
 
-        {/* Anime fallback (Phase 5) — shown when TMDB returns 0 results
-            but AniList found anime. Rendered as its own labeled section
-            so the user can tell the results came from a different source.
-            Phase 6.2 Task 4a: when TMDB has results, AniList titles are
-            merged INTO the Movies/Series sections above (no separate
-            section). This block only renders in the TMDB-returned-0 case. */}
-        <Show when={hasAnimeResults()}>
-          <section class="search-section">
-            <div class="search-section-label">
-              <span
-                class="material-symbols-outlined"
-                style={{ "font-size": "12px", color: "var(--p)" }}
-                aria-hidden="true"
-              >
-                whatshot
-              </span>
-              Anime Results ({props.animeResults!().length})
-            </div>
-            <div class="search-results-list">
-              <For each={props.animeResults!()}>
-                {(t) => (
-                  <SearchResultRow
-                    title={t}
-                    inVault={props.isInVault(t)}
-                    onOpen={() => props.onOpenTitle(t)}
-                    onAdd={() => props.onAddToVault(t)}
-                  />
-                )}
-              </For>
-            </div>
-          </section>
-        </Show>
+            {/* Series */}
+            <Show when={props.results().series.length > 0}>
+              <section class="search-section">
+                <div class="search-section-label">
+                  <span
+                    class="material-symbols-outlined"
+                    style={{ "font-size": "12px", color: "var(--p)" }}
+                    aria-hidden="true"
+                  >
+                    tv
+                  </span>
+                  Series ({props.results().series.length})
+                </div>
+                {titleList(props.results().series)}
+              </section>
+            </Show>
+          </Show>
 
-        {/* Anime fallback loading state — shown briefly while AniList
-            is being queried, only when TMDB returned nothing. */}
-        <Show when={showAnimeLoading()}>
-          <section class="search-section">
-            <div class="search-section-label">
-              <span
-                class="material-symbols-outlined"
-                style={{ "font-size": "12px", color: "var(--p)" }}
-                aria-hidden="true"
-              >
-                whatshot
-              </span>
-              Searching AniList…
-            </div>
-            <SearchLoading count={3} />
-          </section>
-        </Show>
+          {/* People section */}
+          <Show when={hasPeople()}>
+            <section class="search-section">
+              <div class="search-section-label">
+                <span
+                  class="material-symbols-outlined"
+                  style={{ "font-size": "12px", color: "var(--p)" }}
+                  aria-hidden="true"
+                >
+                  person
+                </span>
+                People ({props.results().people.length})
+              </div>
+              {peopleList(props.results().people)}
+            </section>
+          </Show>
 
-        {/* Empty state — only when TMDB, AniList, AND People all
-            returned nothing. */}
-        <Show when={showEmptyState()}>
-          <SearchEmptyState query={props.query()} />
+          {/* Anime fallback — TMDB returned 0, AniList found matches. */}
+          <Show when={hasAnimeResults()}>
+            <section class="search-section">
+              <div class="search-section-label">
+                <span
+                  class="material-symbols-outlined"
+                  style={{ "font-size": "12px", color: "var(--p)" }}
+                  aria-hidden="true"
+                >
+                  whatshot
+                </span>
+                Anime Results ({props.animeResults!().length})
+              </div>
+              {titleList(props.animeResults!())}
+            </section>
+          </Show>
+
+          {/* Anime fallback loading state */}
+          <Show when={showAnimeLoading()}>
+            <section class="search-section">
+              <div class="search-section-label">
+                <span
+                  class="material-symbols-outlined"
+                  style={{ "font-size": "12px", color: "var(--p)" }}
+                  aria-hidden="true"
+                >
+                  whatshot
+                </span>
+                Searching AniList…
+              </div>
+              <SearchLoading count={3} />
+            </section>
+          </Show>
+
+          {/* Empty state — TMDB, AniList AND People all returned nothing. */}
+          <Show when={showEmptyState()}>
+            <SearchEmptyState query={props.query()} />
+          </Show>
         </Show>
       </Show>
 
-      {/* Phase 6.2 Task 4b — PersonModal. Rendered via Portal when the
-          user taps a person row. The modal is lazy-loaded by the import
-          at the top of this file (PersonModal is only bundled when the
-          SearchResults component is rendered, which is fine because
-          SearchResults is itself lazy-loaded by the SearchOverlay). */}
+      {/* Phase 6.2 Task 4b — PersonModal (filmography). */}
       <Show when={openPerson()}>
         {(p) => (
           <PersonModal

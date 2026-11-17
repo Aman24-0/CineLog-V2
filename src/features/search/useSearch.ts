@@ -8,8 +8,8 @@ import {
   Accessor
 } from "solid-js";
 import {
-  searchMulti,
-  searchPeople,
+  searchMultiPage,
+  searchPeoplePage,
   getTrending,
   genreIdFor
 } from "~/core/tmdb/discover";
@@ -115,6 +115,19 @@ export function useSearch(args: UseSearchArgs) {
   // separate "Anime Results" section so the user can distinguish them.
   const [animeResults, setAnimeResults] = createSignal<TMDBTitle[]>([]);
   const [animeLoading, setAnimeLoading] = createSignal(false);
+
+  // ── Pagination ──────────────────────────────────────────────────
+  // TMDB returns 20 results per page. The hook used to read page 1 only,
+  // which made every query look "limited" (7 movies for "Vibe" and no way
+  // to see the rest). `searchPage` is the last TMDB page merged into
+  // `results`; `totalPages` comes from TMDB; `loadingMore` drives the
+  // infinite-scroll spinner in the Search page.
+  const [searchPage, setSearchPage] = createSignal(1);
+  const [totalPages, setTotalPages] = createSignal(0);
+  const [loadingMore, setLoadingMore] = createSignal(false);
+  // Bumped whenever a new query starts or a loadMore is superseded, so a
+  // slow page response can never append itself to a different query.
+  let loadMoreToken = 0;
   // Incrementing this signal re-runs the current catalog request without
   // creating a second search implementation. It powers the visible Retry
   // action when the shared request fails.
@@ -192,6 +205,11 @@ export function useSearch(args: UseSearchArgs) {
     searchRevision();
     if (genreBrowse().genre) return; // Don't run text search in genre mode
     const q = debouncedQuery().trim();
+    // Any new query invalidates an in-flight loadMore.
+    loadMoreToken += 1;
+    setLoadingMore(false);
+    setSearchPage(1);
+    setTotalPages(0);
     if (q.length < 2) {
       setResults(emptyResults());
       setLoading(false);
@@ -258,10 +276,14 @@ export function useSearch(args: UseSearchArgs) {
     // we make a separate /search/person call to populate the People
     // section. The call is cached (10-min TTL) so repeat searches are
     // instant. We keep the limit low (8) to avoid overwhelming the UI.
-    const peoplePromise = searchPeople(q, 8).catch(() => [] as TMDBPerson[]);
+    const peoplePromise = searchPeoplePage(q, 1, 20)
+      .then((page) => page.people)
+      .catch(() => [] as TMDBPerson[]);
 
-    Promise.all([searchMulti(q), peoplePromise])
-      .then(([items, peopleRaw]) => {
+    Promise.all([searchMultiPage(q, 1), peoplePromise])
+      .then(([multiPage, peopleRaw]) => {
+        const items = multiPage.items;
+        setTotalPages(multiPage.totalPages);
         // ── Stale-response guard ───────────────────────────────────
         // If a newer search has been initiated since this one started,
         // this response is stale — silently discard it.
@@ -313,7 +335,10 @@ export function useSearch(args: UseSearchArgs) {
             merged.movies,
             merged.series
           );
-          const totalCount = deduped.movies.length + deduped.series.length;
+          const totalCount =
+            deduped.movies.length +
+            deduped.series.length +
+            (peopleRaw?.length ?? 0);
           setResults({
             movies: deduped.movies,
             series: deduped.series,
@@ -347,6 +372,87 @@ export function useSearch(args: UseSearchArgs) {
         }
       });
   });
+
+  /* ---- PAGINATION ---- */
+
+  /** True while TMDB still has pages we haven't merged in. */
+  const hasMore = createMemo(() => {
+    if (genreBrowse().genre) return false;
+    if (debouncedQuery().trim().length < 2) return false;
+    return searchPage() < totalPages();
+  });
+
+  /**
+   * Merge one more TMDB page into the current results.
+   *
+   * The Search page calls this from an IntersectionObserver when the user
+   * scrolls near the bottom. Results accumulate (page 1 + 2 + 3 …) so the
+   * tab counts grow and the user can keep scrolling — previously only page
+   * 1 was ever fetched, which is why a query could look like it had "only 7
+   * movies" with no way to reach the rest.
+   */
+  const loadMore = async (): Promise<void> => {
+    const q = debouncedQuery().trim();
+    if (q.length < 2) return;
+    if (genreBrowse().genre) return;
+    if (loading() || loadingMore()) return;
+    if (!hasMore()) return;
+
+    const nextPage = searchPage() + 1;
+    const token = ++loadMoreToken;
+    setLoadingMore(true);
+    try {
+      const [multiPage, peoplePage] = await Promise.all([
+        searchMultiPage(q, nextPage),
+        searchPeoplePage(q, nextPage, 20).catch(() => ({
+          people: [] as TMDBPerson[],
+          page: nextPage,
+          totalPages: 0
+        }))
+      ]);
+      // Superseded by a newer query / another loadMore, or the user typed.
+      if (token !== loadMoreToken) return;
+      if (debouncedQuery().trim() !== q) return;
+
+      const previous = results();
+      const mergedMovies = [
+        ...previous.movies,
+        ...multiPage.items.filter((t) => t.media_type === "movie")
+      ];
+      const mergedSeries = [
+        ...previous.series,
+        ...multiPage.items.filter((t) => t.media_type === "tv")
+      ];
+      // Re-run the movie/series duplicate collapse across the whole
+      // accumulated set, so a duplicate arriving on page 2 is still dropped.
+      const deduped = collapseDuplicateMediaTypes(mergedMovies, mergedSeries);
+
+      const seenPeople = new Set(previous.people.map((p) => p.id));
+      const mergedPeople = [...previous.people];
+      for (const person of peoplePage.people) {
+        if (!seenPeople.has(person.id)) {
+          seenPeople.add(person.id);
+          mergedPeople.push(person);
+        }
+      }
+
+      setSearchPage(nextPage);
+      setTotalPages(multiPage.totalPages);
+      setResults({
+        movies: deduped.movies,
+        series: deduped.series,
+        people: mergedPeople,
+        totalCount:
+          deduped.movies.length + deduped.series.length + mergedPeople.length
+      });
+    } catch (err) {
+      if (token === loadMoreToken) {
+        console.error("Search load-more failed:", err);
+      }
+    } finally {
+      if (token === loadMoreToken) setLoadingMore(false);
+    }
+  };
 
   /* ---- GENRE BROWSE ---- */
 
@@ -532,6 +638,12 @@ export function useSearch(args: UseSearchArgs) {
     clearRecent,
     isInVault,
     hasQuery,
+    // Pagination (infinite scroll)
+    loadMore,
+    hasMore,
+    loadingMore,
+    searchPage,
+    totalPages,
     // Genre browse
     genreBrowse,
     browseGenre,

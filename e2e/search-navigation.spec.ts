@@ -135,7 +135,7 @@ for (const viewport of [
           : window.scrollY;
       });
       expect(scrollBefore).toBeGreaterThan(0);
-      const movieButton = page.getByRole("button", {
+      const movieButton = page.getByRole("link", {
         name: /Backrooms Film 8, 2024 — open details/i
       });
       await expect(movieButton).toBeVisible();
@@ -171,7 +171,7 @@ for (const viewport of [
       page
     }) => {
       await page.goto("/search?q=Backrooms");
-      const tvButton = page.getByRole("button", {
+      const tvButton = page.getByRole("link", {
         name: /Backrooms Series, 2023 — open details/i
       });
       await expect(tvButton).toBeVisible();
@@ -232,7 +232,7 @@ for (const viewport of [
       );
 
       await page.goto("/search?q=Backrooms");
-      const movieButton = page.getByRole("button", {
+      const movieButton = page.getByRole("link", {
         name: /Backrooms Film, 2024 — open details/i
       });
       await expect(movieButton).toBeVisible();

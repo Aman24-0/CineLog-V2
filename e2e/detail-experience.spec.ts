@@ -262,7 +262,7 @@ async function mockDetailApi(page: Page) {
 async function openFixtureFromSearch(page: Page, titlePattern: RegExp) {
   await page.goto("/search?q=House");
   const results = page.locator(".search-result-main");
-  const result = page.getByRole("button", {
+  const result = page.getByRole("link", {
     name: new RegExp(`${titlePattern.source}.*open details`, titlePattern.flags)
   });
   await expect(results).toHaveCount(8);

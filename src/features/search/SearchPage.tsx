@@ -1,28 +1,43 @@
-import { createEffect, For, Show, type Component } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  For,
+  onCleanup,
+  Show,
+  type Component
+} from "solid-js";
 import { useSearchParams } from "@solidjs/router";
 import { useGlobalSearch } from "~/shared/contexts/SearchContext";
 import { useUserLibrary } from "~/shared/hooks/useUserLibrary";
 import { useDiscoverActions } from "~/features/discover/useDiscoverActions";
 import PageContainer from "~/shared/ui/PageContainer";
 import ScrollToTop from "~/shared/ui/ScrollToTop";
-import SearchResults from "./SearchResults";
+import SearchResults, { type SearchTab } from "./SearchResults";
 import SearchResultRow from "./SearchResultRow";
+import {
+  loadViewMode,
+  saveViewMode,
+  type SearchViewMode
+} from "./searchViewMode";
+
+/** How many results the active tab reveals per scroll batch. */
+const PAGE_SIZE = 10;
 
 /**
  * SearchPage — the full-page search destination.
  *
- * It intentionally reuses the app-level SearchContext and the existing
- * SearchResults renderer so there is ONE query engine, ONE recent-search
- * history, and ONE vault-membership check. Library has its own filter
- * search (.library-search-row) and is NOT touched here. Discover has
- * no search affordance.
+ * Layout (v3):
+ *   • search bar + a list/card view toggle on the same row
+ *   • three tabs directly under the bar — Movies / Series / People — so the
+ *     user sees exactly the kind of result they want instead of one long
+ *     stacked page
+ *   • results page in 10 at a time as the user scrolls (TMDB pages are
+ *     fetched on demand, so a query is never capped at "page 1 only")
  *
- * STICKY BAR: The search input is wrapped in <div class="search-page-sticky-bar">
- * which is the single authoritative positioning rule for the sticky bar.
- * See src/styles/features/search.css for the structural rationale — the
- * TL;DR is that .app-shell-bg must use overflow-x: clip (NOT hidden) so
- * that body (mobile) / #main-content (desktop) remain the nearest
- * scroll-container ancestors, otherwise position: sticky never engages.
+ * It reuses the app-level SearchContext so there is ONE query engine and ONE
+ * recent-search history. The contextual SearchOverlay keeps the old stacked
+ * layout (it passes no `activeTab`).
  */
 const SearchPage: Component = () => {
   const search = useGlobalSearch();
@@ -32,6 +47,29 @@ const SearchPage: Component = () => {
     watchlist,
     isGuest
   });
+
+  // ── View + tab + window state ──────────────────────────────────────
+  const [viewMode, setViewMode] = createSignal<SearchViewMode>(loadViewMode());
+  const [activeTab, setActiveTab] = createSignal<SearchTab>("movie");
+  const [visibleCount, setVisibleCount] = createSignal(PAGE_SIZE);
+  const [autoLoadGuard, setAutoLoadGuard] = createSignal(0);
+
+  const toggleViewMode = () => {
+    const next: SearchViewMode = viewMode() === "list" ? "card" : "list";
+    setViewMode(next);
+    saveViewMode(next);
+  };
+
+  const counts = createMemo(() => {
+    const r = search.results();
+    return {
+      movie: r.movies.length,
+      tv: r.series.length,
+      person: r.people.length
+    };
+  });
+
+  const tabItems = createMemo(() => counts()[activeTab()]);
 
   let hydratedFromUrl = false;
   let skipUrlSyncOnce = false;
@@ -77,6 +115,75 @@ const SearchPage: Component = () => {
     });
   });
 
+  // A new query (or a new tab) always restarts the window at 10 results.
+  createEffect(() => {
+    search.debouncedQuery();
+    activeTab();
+    setVisibleCount(PAGE_SIZE);
+  });
+
+  // If the selected tab has nothing, jump to the first tab that does — so a
+  // series-only query never lands on an empty "Movies" tab.
+  createEffect(() => {
+    if (!search.hasQuery()) return;
+    if (search.loading()) return;
+    const c = counts();
+    if (c[activeTab()] > 0) return;
+    if (c.movie > 0) setActiveTab("movie");
+    else if (c.tv > 0) setActiveTab("tv");
+    else if (c.person > 0) setActiveTab("person");
+  });
+
+  // ── Infinite scroll ────────────────────────────────────────────────
+  // A sentinel below the results reveals the next 10 already-fetched items;
+  // when the fetched buffer runs out it pulls the next TMDB page first.
+  const requestMore = async () => {
+    if (!search.hasQuery() || search.isGenreBrowse()) return;
+    const items = tabItems();
+    if (items === 0) return; // empty tab — nothing to extend
+    if (visibleCount() < items) {
+      setVisibleCount((value) => value + PAGE_SIZE);
+      return;
+    }
+    if (!search.hasMore() || search.loadingMore() || search.loading()) return;
+    // Guard against a runaway chain when the sentinel stays on screen.
+    if (autoLoadGuard() >= 6) return;
+    setAutoLoadGuard((value) => value + 1);
+    await search.loadMore();
+    setVisibleCount((value) => value + PAGE_SIZE);
+  };
+
+  // The sentinel element lives in a signal so the observer can be attached
+  // and torn down inside a reactive owner (a ref callback has no owner, so
+  // onCleanup there would never run and observers would leak on re-render).
+  const [sentinelEl, setSentinelEl] = createSignal<HTMLDivElement | null>(null);
+
+  createEffect(() => {
+    const el = sentinelEl();
+    if (!el) return;
+    // SSR + jsdom have no IntersectionObserver — degrade to a no-op rather
+    // than throwing while the page mounts.
+    if (typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          void requestMore();
+        }
+      },
+      // Start fetching slightly before the user hits the very bottom.
+      { rootMargin: "300px 0px" }
+    );
+    observer.observe(el);
+    onCleanup(() => observer.disconnect());
+  });
+
+  // Reset the auto-load guard whenever the query or tab changes.
+  createEffect(() => {
+    search.debouncedQuery();
+    activeTab();
+    setAutoLoadGuard(0);
+  });
+
   const submitQuery = (value: string) => {
     const trimmed = value.trim();
     if (!trimmed) return;
@@ -88,6 +195,12 @@ const SearchPage: Component = () => {
     search.beginDetailNavigation();
     handleOpenTitle(title);
   };
+
+  const tabs: Array<{ id: SearchTab; label: string; icon: string }> = [
+    { id: "movie", label: "Movies", icon: "movie" },
+    { id: "tv", label: "Series", icon: "tv" },
+    { id: "person", label: "People", icon: "person" }
+  ];
 
   return (
     <PageContainer
@@ -101,56 +214,99 @@ const SearchPage: Component = () => {
         </header>
 
         {/* Dedicated /search route sticky search bar.
-            The .search-page-sticky-bar wrapper is the SINGLE authoritative
-            positioning rule for this bar — it owns the position: sticky,
-            the translucent glass background, and the full-bleed negative
-            margins. The <form class="search-bar-form"> inside is a plain
-            transparent form wrapper. The .search-bar div is the rounded
-            input pill (its own glass surface, unchanged).
-
-            PRODUCT SCOPE: This is the ONLY search interface on the
-            dedicated /search route. Library has its own search treatment
-            (.library-search-row). Discover has no search affordance. */}
+            .search-page-sticky-bar is the SINGLE authoritative positioning
+            rule for this bar — it owns position: sticky and the translucent
+            glass background. The form inside is a transparent wrapper. */}
         <div class="search-page-sticky-bar">
-          <form
-            class="search-bar-form"
-            onSubmit={(event) => {
-              event.preventDefault();
-              submitQuery(search.query());
-            }}
-          >
-            <div class="search-bar">
-              <span
-                class="material-symbols-outlined search-bar-icon"
-                aria-hidden="true"
-              >
-                search
-              </span>
-              <input
-                type="search"
-                class="search-bar-input"
-                value={search.query()}
-                onInput={(event) => search.setQuery(event.currentTarget.value)}
-                placeholder="Search movies, series, people, or anime…"
-                autocomplete="off"
-                spellcheck={false}
-                autofocus
-                aria-label="Search movies, series, people, or anime"
-              />
-              <Show when={search.query().length > 0}>
-                <button
-                  type="button"
-                  class="search-bar-clear focus-ring"
-                  onClick={() => search.clearQuery()}
-                  aria-label="Clear search"
+          <div class="search-bar-row">
+            <form
+              class="search-bar-form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                submitQuery(search.query());
+              }}
+            >
+              <div class="search-bar">
+                <span
+                  class="material-symbols-outlined search-bar-icon"
+                  aria-hidden="true"
                 >
-                  <span class="material-symbols-outlined" aria-hidden="true">
-                    close
-                  </span>
-                </button>
-              </Show>
+                  search
+                </span>
+                <input
+                  type="search"
+                  class="search-bar-input"
+                  value={search.query()}
+                  onInput={(event) =>
+                    search.setQuery(event.currentTarget.value)
+                  }
+                  placeholder="Search movies, series, people, or anime…"
+                  autocomplete="off"
+                  spellcheck={false}
+                  autofocus
+                  aria-label="Search movies, series, people, or anime"
+                />
+                <Show when={search.query().length > 0}>
+                  <button
+                    type="button"
+                    class="search-bar-clear focus-ring"
+                    onClick={() => search.clearQuery()}
+                    aria-label="Clear search"
+                  >
+                    <span class="material-symbols-outlined" aria-hidden="true">
+                      close
+                    </span>
+                  </button>
+                </Show>
+              </div>
+            </form>
+
+            {/* List / card layout toggle — sits right beside the search bar. */}
+            <button
+              type="button"
+              class="search-view-toggle focus-ring"
+              onClick={toggleViewMode}
+              aria-label={
+                viewMode() === "list"
+                  ? "Switch to card view"
+                  : "Switch to list view"
+              }
+              aria-pressed={viewMode() === "card"}
+              title={viewMode() === "list" ? "Card view" : "List view"}
+            >
+              <span class="material-symbols-outlined" aria-hidden="true">
+                {viewMode() === "list" ? "grid_view" : "view_list"}
+              </span>
+            </button>
+          </div>
+
+          {/* Tabs — only meaningful once there is a query. */}
+          <Show when={search.hasQuery() && !search.isGenreBrowse()}>
+            <div class="search-tabs" role="tablist" aria-label="Result type">
+              <For each={tabs}>
+                {(tab) => (
+                  <button
+                    type="button"
+                    role="tab"
+                    class={`search-tab focus-ring${
+                      activeTab() === tab.id ? " search-tab-active" : ""
+                    }`}
+                    aria-selected={activeTab() === tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                  >
+                    <span
+                      class="material-symbols-outlined"
+                      aria-hidden="true"
+                    >
+                      {tab.icon}
+                    </span>
+                    {tab.label}
+                    <span class="search-tab-count">{counts()[tab.id]}</span>
+                  </button>
+                )}
+              </For>
             </div>
-          </form>
+          </Show>
         </div>
 
         <Show
@@ -222,26 +378,52 @@ const SearchPage: Component = () => {
             </div>
           }
         >
-          <SearchResults
-            loading={search.loading}
-            error={search.error}
-            query={search.query}
-            results={search.results}
-            isInVault={search.isInVault}
-            onOpenTitle={openTitle}
-            onAddToVault={addToVault}
-            onRetry={search.retrySearch}
-            animeResults={search.animeResults}
-            animeLoading={search.animeLoading}
-          />
+          <Show when={!search.isGenreBrowse()}>
+            <SearchResults
+              loading={search.loading}
+              error={search.error}
+              query={search.query}
+              results={search.results}
+              isInVault={search.isInVault}
+              onOpenTitle={openTitle}
+              onAddToVault={addToVault}
+              onRetry={search.retrySearch}
+              animeResults={search.animeResults}
+              animeLoading={search.animeLoading}
+              activeTab={activeTab}
+              viewMode={viewMode}
+              limit={visibleCount}
+            />
+
+            {/* Infinite-scroll sentinel + status line. */}
+            <Show when={!search.loading() && !search.error()}>
+              <div
+                ref={setSentinelEl}
+                class="search-scroll-sentinel"
+                aria-hidden="true"
+              />
+              <Show when={search.loadingMore()}>
+                <div class="search-load-more" role="status">
+                  <span class="search-load-more-spinner" aria-hidden="true" />
+                  Loading more…
+                </div>
+              </Show>
+              <Show
+                when={
+                  !search.loadingMore() &&
+                  !search.hasMore() &&
+                  tabItems() > 0 &&
+                  visibleCount() >= tabItems()
+                }
+              >
+                <div class="search-end-of-results">That's everything</div>
+              </Show>
+            </Show>
+          </Show>
         </Show>
       </div>
 
-      {/* Scroll-to-top FAB — appears after the user scrolls down.
-          Reuses the existing ScrollToTop component (IntersectionObserver-
-          based, respects reduced-motion, safe-area-aware). Placed
-          OUTSIDE the .search-page-shell so the sentinel + FAB
-          position correctly relative to the page scroll container. */}
+      {/* Scroll-to-top FAB — appears after the user scrolls down. */}
       <ScrollToTop />
     </PageContainer>
   );

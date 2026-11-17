@@ -61,6 +61,12 @@ interface SearchContextValue {
   clearRecent: () => void;
   isInVault: (title: TMDBTitle) => boolean;
   hasQuery: Accessor<boolean>;
+  // Pagination — infinite scroll on the /search route
+  loadMore: () => Promise<void>;
+  hasMore: Accessor<boolean>;
+  loadingMore: Accessor<boolean>;
+  searchPage: Accessor<number>;
+  totalPages: Accessor<number>;
   genreBrowse: Accessor<GenreBrowseState>;
   browseGenre: (name: string) => void;
   loadMoreGenre: () => void;
